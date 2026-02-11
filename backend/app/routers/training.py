@@ -61,7 +61,12 @@ async def upload_training(
         return TrainingUploadResponse(
             success=True,
             training_id=None,  # TODO: Nach DB-Implementierung
-            data=result.get('data'),
+            data={
+                'laps': result.get('laps'),
+                'summary': result.get('summary'),
+                'hr_zones': result.get('hr_zones'),
+                'hr_timeseries': result.get('hr_timeseries'),  # Für Krafttraining
+            },
             metadata={
                 **result.get('metadata', {}),
                 'training_date': training_date.isoformat(),
