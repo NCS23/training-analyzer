@@ -89,6 +89,18 @@ class TrainingCSVParser:
         # Konvertiere lap zu int
         df['lap'] = df['lap'].astype(int)
         
+        # WICHTIG: Konvertiere alle numerischen Spalten von Komma zu Punkt
+        numeric_columns = [
+            'hr (count/min)', 'cadence (count/min)', 'distance (meter)', 
+            'speed (m/s)', 'elevation (meter)', 'since_start', 'latitude', 'longitude'
+        ]
+        
+        for col in numeric_columns:
+            if col in df.columns:
+                # Ersetze Komma durch Punkt und konvertiere zu float
+                df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
         return df
     
     def _analyze_running(self, df: pd.DataFrame) -> Dict:
@@ -118,7 +130,7 @@ class TrainingCSVParser:
     
     def _analyze_running_lap(self, lap_df: pd.DataFrame, lap_num: int) -> Dict:
         """Analysiert einen einzelnen Lauf-Lap"""
-        # Extrahiere Werte (mit Komma zu Punkt Konvertierung)
+        # Extrahiere Werte
         hr_values = lap_df['hr (count/min)'].dropna()
         distance_values = lap_df['distance (meter)'].dropna()
         cadence_values = lap_df['cadence (count/min)'].dropna()
