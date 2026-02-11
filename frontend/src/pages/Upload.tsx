@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { Upload, FileText, Calendar, Activity } from 'lucide-react';
 
@@ -106,7 +104,7 @@ export default function UploadPage() {
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* File Upload Area */}
+            {/* File Upload */}
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -130,7 +128,7 @@ export default function UploadPage() {
               </label>
             </div>
 
-            {/* Training Date */}
+            {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-2" />
@@ -140,12 +138,12 @@ export default function UploadPage() {
                 type="date"
                 value={formData.trainingDate}
                 onChange={(e) => setFormData({ ...formData, trainingDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md"
                 required
               />
             </div>
 
-            {/* Training Type */}
+            {/* Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trainingstyp
@@ -154,10 +152,10 @@ export default function UploadPage() {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, trainingType: 'running', trainingSubtype: '' })}
-                  className={`px-4 py-3 rounded-md font-medium transition-colors ${
+                  className={`px-4 py-3 rounded-md font-medium ${
                     formData.trainingType === 'running'
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-700'
                   }`}
                 >
                   🏃 Laufen
@@ -165,10 +163,10 @@ export default function UploadPage() {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, trainingType: 'strength', trainingSubtype: '' })}
-                  className={`px-4 py-3 rounded-md font-medium transition-colors ${
+                  className={`px-4 py-3 rounded-md font-medium ${
                     formData.trainingType === 'strength'
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-700'
                   }`}
                 >
                   🏋️ Kraft
@@ -176,7 +174,7 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* Training Subtype */}
+            {/* Subtype */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trainingsart (optional)
@@ -184,7 +182,7 @@ export default function UploadPage() {
               <select
                 value={formData.trainingSubtype}
                 onChange={(e) => setFormData({ ...formData, trainingSubtype: e.target.value as TrainingSubType })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md"
               >
                 <option value="">-- Auswählen --</option>
                 {currentSubtypes.map((type) => (
@@ -205,110 +203,153 @@ export default function UploadPage() {
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Wie hast du dich gefühlt? Besonderheiten?"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                placeholder="Wie hast du dich gefühlt?"
               />
             </div>
 
-            {/* Error Display */}
+            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                 {error}
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading || !formData.csvFile}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-300"
             >
               {loading ? 'Analysiere...' : 'Training analysieren'}
             </button>
           </form>
 
-          {/* Parsed Data Display */}
-          {parsedData && (
-            <div className="mt-8 border-t pt-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Analyse-Ergebnisse
-              </h2>
-              
-              {/* Summary Stats */}
-              {parsedData.summary && (
-                <div className="bg-blue-50 rounded-lg p-6 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Zusammenfassung</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {parsedData.summary.total_distance_km && (
-                      <div>
-                        <p className="text-sm text-gray-600">Distanz</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {parsedData.summary.total_distance_km} km
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm text-gray-600">Dauer</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {parsedData.summary.total_duration_formatted}
-                      </p>
-                    </div>
-                    {parsedData.summary.avg_pace_formatted && (
-                      <div>
-                        <p className="text-sm text-gray-600">Pace</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {parsedData.summary.avg_pace_formatted} min/km
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm text-gray-600">Ø HF</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {parsedData.summary.avg_hr_bpm} bpm
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* HF Zones */}
-              {parsedData.hr_zones && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">HF-Zonen</h3>
-                  <div className="space-y-3">
-                    {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
-                      <div key={key}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-700">{zone.label}</span>
-                          <span className="font-medium">{zone.percentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              key.includes('recovery') ? 'bg-green-500' :
-                              key.includes('base') ? 'bg-yellow-500' :
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${zone.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Raw JSON (Debug) */}
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
-                  Rohdaten anzeigen
-                </summary>
-                <pre className="mt-2 bg-gray-100 p-4 rounded-md text-xs overflow-auto">
-                  {JSON.stringify(parsedData, null, 2)}
-                </pre>
-              </details>
+{/* Results */}
+{parsedData && (
+  <div className="mt-8 border-t pt-6">
+    <h2 className="text-2xl font-bold mb-4">📊 Analyse-Ergebnisse</h2>
+    
+    {parsedData.summary && (
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 mb-6 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">Zusammenfassung</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {parsedData.summary.total_distance_km && (
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Distanz</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {parsedData.summary.total_distance_km} <span className="text-lg text-gray-600">km</span>
+              </p>
             </div>
           )}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Dauer</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {parsedData.summary.total_duration_formatted}
+            </p>
+          </div>
+          {parsedData.summary.avg_pace_formatted && (
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Pace</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {parsedData.summary.avg_pace_formatted} <span className="text-lg text-gray-600">/km</span>
+              </p>
+            </div>
+          )}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ø HF</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {parsedData.summary.avg_hr_bpm} <span className="text-lg text-gray-600">bpm</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* LAPS TABLE */}
+    {parsedData.laps && parsedData.laps.length > 0 && (
+      <div className="bg-white rounded-lg shadow-md mb-6 overflow-hidden border border-gray-200">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">
+            🏃 Laps ({parsedData.laps.length})
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">#</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dauer</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Distanz</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Pace</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ø HF</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ø Kadenz</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {parsedData.laps.map((lap: any, index: number) => (
+                <tr 
+                  key={lap.lap_number} 
+                  className={`hover:bg-blue-50 transition-colors ${
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                  }`}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold text-sm">
+                      {lap.lap_number}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {lap.duration_formatted}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {lap.distance_km ? `${lap.distance_km} km` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {lap.avg_hr_bpm ? `${lap.avg_hr_bpm} bpm` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {lap.avg_cadence_spm ? `${lap.avg_cadence_spm} spm` : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    {/* HF-ZONEN */}
+    {parsedData.hr_zones && (
+      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">💓 HF-Zonen</h3>
+        <div className="space-y-4">
+          {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+            <div key={key}>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">{zone.label}</span>
+                <span className="text-sm font-bold text-gray-900">{zone.percentage}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                <div
+                  className={`h-4 rounded-full transition-all duration-500 ${
+                    key.includes('recovery') ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                    key.includes('base') ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                    'bg-gradient-to-r from-red-400 to-red-600'
+                  }`}
+                  style={{ width: `${zone.percentage}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
         </div>
       </div>
     </div>
