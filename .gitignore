@@ -35,3 +35,11 @@ build/
 # Logs
 *.log
 .env
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/
+
+# Node
+package-lock.json
