@@ -9,14 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger deployment on host
+      - name: Deploy via SSH
         run: |
-          # Execute deploy script on host via docker exec
-          docker exec -w /volume1/docker/training-analyzer training-analyzer-backend bash -c "
-            echo '🚀 Starting deployment...'
-            cd /volume1/docker/training-analyzer
-            su - NCSNASadmin -c 'cd /volume1/docker/training-analyzer && git pull origin main' 2>&1 | grep -v 'postgres-data' || true
-            docker-compose up -d --build backend frontend
-            echo '✅ Deployment complete!'
-            docker-compose ps
-          "
+          # SSH zum Host und deploy.sh ausführen
+          ssh -i /workspace/training-analyzer/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p 47 NCSNASadmin@192.168.68.52 '/volume1/docker/training-analyzer/deploy.sh'
