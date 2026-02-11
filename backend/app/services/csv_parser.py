@@ -125,11 +125,10 @@ class TrainingCSVParser:
         
         # Classify laps
         laps_data = self._classify_laps(laps_data, training_subtype)
-        
-        # Gesamt-Summary (nur Lap 1, ohne Cool-down)
-        main_lap = df[df['lap'] == 1]
-        summary = self._calculate_running_summary(main_lap)
-        hr_zones = self._calculate_hr_zones(main_lap)
+
+        # Gesamt-Summary und HF-Zonen über ALLE Laps
+        summary = self._calculate_running_summary(df)
+        hr_zones = self._calculate_hr_zones(df)
         
         return {
             'laps': laps_data,
