@@ -156,6 +156,7 @@ class TrainingCSVParser:
             'duration_formatted': self._format_duration(int(duration_seconds)),
             'distance_km': round(distance_km, 2),
             'pace_min_per_km': round(pace_min_per_km, 2) if pace_min_per_km else None,
+            'pace_formatted': self._format_pace(pace_min_per_km),  
             'avg_hr_bpm': round(hr_values.mean()) if len(hr_values) > 0 else None,
             'max_hr_bpm': int(hr_values.max()) if len(hr_values) > 0 else None,
             'min_hr_bpm': int(hr_values.min()) if len(hr_values) > 0 else None,
@@ -177,6 +178,7 @@ class TrainingCSVParser:
             'total_duration_seconds': int(duration_seconds),
             'total_duration_formatted': self._format_duration(int(duration_seconds)),
             'avg_pace_min_per_km': round(pace_min_per_km, 2) if pace_min_per_km else None,
+            'avg_pace_formatted': self._format_pace(pace_min_per_km),
             'avg_hr_bpm': round(hr_values.mean()) if len(hr_values) > 0 else None,
             'max_hr_bpm': int(hr_values.max()) if len(hr_values) > 0 else None,
             'min_hr_bpm': int(hr_values.min()) if len(hr_values) > 0 else None,
@@ -268,3 +270,12 @@ class TrainingCSVParser:
         if hours > 0:
             return f"{hours:02d}:{minutes:02d}:{secs:02d}"
         return f"{minutes:02d}:{secs:02d}"
+    
+def _format_pace(self, pace_min_per_km: float) -> str:
+    """Formatiert Pace von Dezimalminuten zu MM:SS"""
+    if not pace_min_per_km:
+        return None
+    
+    minutes = int(pace_min_per_km)
+    seconds = int((pace_min_per_km - minutes) * 60)
+    return f"{minutes}:{seconds:02d}"
