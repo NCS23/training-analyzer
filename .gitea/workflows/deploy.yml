@@ -11,5 +11,11 @@ jobs:
     steps:
       - name: Deploy via SSH
         run: |
-          # SSH zum Host und deploy.sh ausführen
+          # Install SSH client
+          apk add --no-cache openssh-client
+          
+          # SSH Key ist im gemounteten Volume
+          chmod 600 /workspace/training-analyzer/.ssh/id_ed25519
+          
+          # Deploy via SSH
           ssh -i /workspace/training-analyzer/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p 47 NCSNASadmin@192.168.68.52 '/volume1/docker/training-analyzer/deploy.sh'
