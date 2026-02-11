@@ -364,6 +364,76 @@ export default function UploadPage() {
                 </div>
               )}
 
+
+{/* HR Zones - BEFORE Table */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+  {/* HR Zones - Overall */}
+  {parsedData.hr_zones && (
+    <div className="bg-gray-50 rounded-lg p-6">
+      <h3 className="text-lg font-semibold mb-4">📊 HF-Zonen Gesamt</h3>
+      <p className="text-sm text-gray-600 mb-4">Komplette Session (alle Laps)</p>
+      <div className="space-y-3">
+        {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+          <div key={key}>
+            <div className="flex justify-between text-sm mb-1">
+              <span>{zone.label}</span>
+              <span className="font-medium">{zone.percentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  key.includes('recovery') ? 'bg-green-500' :
+                  key.includes('base') ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${zone.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* HR Zones - Working Laps (with Empty State) */}
+  <div className="bg-blue-50 rounded-lg p-6">
+    <h3 className="text-lg font-semibold mb-4">🎯 HF-Zonen Arbeits-Laps</h3>
+    <p className="text-sm text-gray-600 mb-4">
+      Nur Intervalle/Tempo (ohne Warm-up/Cool-down/Pausen)
+    </p>
+    {parsedData.hr_zones_working ? (
+      <div className="space-y-3">
+        {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
+          <div key={key}>
+            <div className="flex justify-between text-sm mb-1">
+              <span>{zone.label}</span>
+              <span className="font-medium">{zone.percentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  key.includes('recovery') ? 'bg-green-500' :
+                  key.includes('base') ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${zone.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-8">
+        <div className="text-4xl mb-2">📋</div>
+        <p className="text-gray-600 text-sm mb-2">Noch nicht berechnet</p>
+        <p className="text-gray-500 text-xs">
+          Überprüfe die Lap-Typen in der Tabelle unten und klicke dann auf "Arbeits-Laps HF-Zonen berechnen"
+        </p>
+      </div>
+    )}
+  </div>
+</div>
+
               {/* LAPS TABLE with Classification */}
               {parsedData.laps && parsedData.laps.length > 0 && (
                 <div className="bg-white rounded-lg border mb-6 overflow-hidden">
@@ -372,12 +442,12 @@ export default function UploadPage() {
                       Laps ({parsedData.laps.length})
                     </h3>
                     <button
-                      onClick={recalculateHRZones}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      HF-Zonen neu berechnen
-                    </button>
+                    onClick={recalculateHRZones}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Arbeits-Laps HF-Zonen berechnen
+                  </button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -437,62 +507,7 @@ export default function UploadPage() {
                 </div>
               )}
 
-              {/* HR Zones - Overall */}
-              {parsedData.hr_zones && (
-                <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                  <h3 className="text-lg font-semibold mb-4">💓 HF-Zonen (Gesamt)</h3>
-                  <div className="space-y-3">
-                    {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
-                      <div key={key}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{zone.label}</span>
-                          <span className="font-medium">{zone.percentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              key.includes('recovery') ? 'bg-green-500' :
-                              key.includes('base') ? 'bg-yellow-500' :
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${zone.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* HR Zones - Working Laps */}
-              {parsedData.hr_zones_working && (
-                <div className="bg-blue-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-4">🎯 HF-Zonen (Arbeits-Laps)</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ohne Warm-up, Cool-down und Pausen
-                  </p>
-                  <div className="space-y-3">
-                    {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
-                      <div key={key}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{zone.label}</span>
-                          <span className="font-medium">{zone.percentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              key.includes('recovery') ? 'bg-green-500' :
-                              key.includes('base') ? 'bg-yellow-500' :
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${zone.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
