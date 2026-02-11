@@ -9,10 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Deploy via Docker Socket
         run: |
-          # Install SSH client
-          apt-get update -qq && apt-get install -y -qq openssh-client > /dev/null
-          
-          # Deploy via SSH (Key hat bereits 600 permissions)
-          ssh -i /workspace/training-analyzer/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p 47 NCSNASadmin@192.168.68.52 '/volume1/docker/training-analyzer/deploy.sh'
+          /workspace/training-analyzer/deploy-from-runner.sh
