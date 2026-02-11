@@ -365,8 +365,9 @@ export default function UploadPage() {
               )}
 
 
-{/* HR Zones - BEFORE Table */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+{/* HR Zones - BEFORE Table (only for running) */}
+{parsedData.laps && parsedData.laps.length > 0 && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
   {/* HR Zones - Overall */}
   {parsedData.hr_zones && (
     <div className="bg-gray-50 rounded-lg p-6">
@@ -432,7 +433,8 @@ export default function UploadPage() {
       </div>
     )}
   </div>
-</div>
+  </div>
+)}
 
               {/* LAPS TABLE with Classification */}
               {parsedData.laps && parsedData.laps.length > 0 && (
