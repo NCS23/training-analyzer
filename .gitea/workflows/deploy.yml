@@ -1,0 +1,17 @@
+name: Deploy to NAS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via local execution
+        run: |
+          cd /volume1/docker/training-analyzer
+          git pull origin main
+          docker-compose up -d --build backend frontend
+          echo "✅ Deployment complete!"
