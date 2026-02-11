@@ -7,46 +7,30 @@ __pycache__/
 env/
 venv/
 .venv
-*.egg-info/
-dist/
-build/
 
-# Node
-node_modules/
-dist/
-.cache/
-*.log
-
-# Environment
-.env
-.env.local
-.env.*.local
+# Database
+postgres-data/
+*.db
+*.sqlite
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
 # Docker
-.dockerignore
+.env.local
 
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-coverage/
+# Node
+node_modules/
+.next/
+dist/
+build/
 
-# Data
-/backend/data/
-/uploads/
+# Logs
+*.log

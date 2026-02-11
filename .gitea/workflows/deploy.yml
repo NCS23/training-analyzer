@@ -9,12 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger deployment on NAS host
+      - name: Execute deployment script
         run: |
-          # Runner läuft auf dem gleichen Host, nutze Host-Zugriff
-          ssh -o StrictHostKeyChecking=no -p 47 NCSNASadmin@localhost << 'ENDSSH'
-            cd /volume1/docker/training-analyzer
-            git pull origin main
-            docker-compose up -d --build backend frontend
-            echo "✅ Deployment complete!"
-          ENDSSH
+          /volume1/docker/training-analyzer/deploy.sh
