@@ -271,11 +271,12 @@ class TrainingCSVParser:
             return f"{hours:02d}:{minutes:02d}:{secs:02d}"
         return f"{minutes:02d}:{secs:02d}"
     
-def _format_pace(self, pace_min_per_km: float) -> str:
-    """Formatiert Pace von Dezimalminuten zu MM:SS"""
-    if not pace_min_per_km:
-        return None
+    def _format_pace(self, pace_min_per_km: float) -> str:
+        """Formatiert Pace von Dezimalminuten zu MM:SS"""
+        if not pace_min_per_km:
+            return None
     
-    minutes = int(pace_min_per_km)
-    seconds = int((pace_min_per_km - minutes) * 60)
-    return f"{minutes}:{seconds:02d}"
+        minutes = int(pace_min_per_km)
+        seconds = int((pace_min_per_km - minutes) * 60)
+        return f"{minutes}:{seconds:02d}"
+
