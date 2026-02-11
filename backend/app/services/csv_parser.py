@@ -18,7 +18,7 @@ class TrainingCSVParser:
     - Kraft: hr, since_start
     """
     
-    REQUIRED_COLUMNS = ['date', 'timestamp', 'ISO8601', 'lap', 'since_start']
+    REQUIRED_COLUMNS = ['date', 'timestamp', 'ISO8601', 'since_start']
     RUNNING_COLUMNS = ['hr (count/min)', 'cadence (count/min)', 'distance (meter)', 'speed (m/s)']
     
     def parse(self, file_content: bytes, training_type: TrainingType) -> Dict:
@@ -83,13 +83,18 @@ class TrainingCSVParser:
         Entfernt Zeilen ohne lap-Wert (Start/End Marker)
         Konvertiert Komma-Dezimaltrennzeichen zu Punkt
         """
-        # Entferne Zeilen ohne lap
-        df = df[df['lap'].notna()].copy()
+        # Entferne Zeilen ohne since_start (Start/End Marker)
+        df = df[df['since_start'].notna()].copy()
         
-        # Konvertiere lap zu int
-        df['lap'] = df['lap'].astype(int)
+        # Wenn lap-Spalte existiert, konvertiere zu int
+        # Sonst erstelle eine künstliche lap=1 für alle Zeilen
+        if 'lap' in df.columns:
+            df = df[df['lap'].notna()].copy()
+            df['lap'] = df['lap'].astype(int)
+        else:
+            df['lap'] = 1  # Krafttraining hat nur einen "Lap"
         
-        # WICHTIG: Konvertiere alle numerischen Spalten von Komma zu Punkt
+        # Rest bleibt gleich...
         numeric_columns = [
             'hr (count/min)', 'cadence (count/min)', 'distance (meter)', 
             'speed (m/s)', 'elevation (meter)', 'since_start', 'latitude', 'longitude'
@@ -97,7 +102,6 @@ class TrainingCSVParser:
         
         for col in numeric_columns:
             if col in df.columns:
-                # Ersetze Komma durch Punkt und konvertiere zu float
                 df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
