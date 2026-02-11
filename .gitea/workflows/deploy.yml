@@ -13,10 +13,14 @@ jobs:
         run: |
           echo "🚀 Starting deployment..."
           
+          # Fix git ownership
+          git config --global --add safe.directory /workspace/training-analyzer
+          
           cd /workspace/training-analyzer
           git pull origin main 2>&1 | grep -v 'postgres-data' || true
           
-          docker-compose up -d --build backend frontend
+          # Use docker compose (not docker-compose)
+          docker compose up -d --build backend frontend
           
           echo "✅ Deployment complete!"
-          docker-compose ps
+          docker compose ps
