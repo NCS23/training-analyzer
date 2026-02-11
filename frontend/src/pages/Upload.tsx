@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Upload, FileText, Calendar, Activity } from 'lucide-react';
+import { Upload, FileText, Calendar, Activity, RefreshCw } from 'lucide-react';
 
 type TrainingType = 'running' | 'strength';
 type TrainingSubType = 'interval' | 'tempo' | 'longrun' | 'recovery' | 'knee_dominant' | 'hip_dominant';
+type LapType = 'warmup' | 'interval' | 'pause' | 'tempo' | 'longrun' | 'cooldown' | 'recovery' | 'unclassified';
 
 interface UploadFormData {
   csvFile: File | null;
@@ -12,10 +13,23 @@ interface UploadFormData {
   notes: string;
 }
 
+interface Lap {
+  lap_number: number;
+  duration_formatted: string;
+  distance_km?: number;
+  pace_formatted?: string;
+  avg_hr_bpm?: number;
+  avg_cadence_spm?: number;
+  suggested_type?: LapType;
+  confidence?: 'high' | 'medium' | 'low';
+  user_override?: LapType;
+}
+
 interface ParsedData {
-  laps?: any[];
+  laps?: Lap[];
   summary?: any;
   hr_zones?: any;
+  hr_zones_working?: any;  // <- Diese Zeile hinzufügen
   hr_timeseries?: any[];
 }
 
@@ -31,6 +45,7 @@ export default function UploadPage() {
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lapOverrides, setLapOverrides] = useState<{ [key: number]: LapType }>({});
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -77,6 +92,7 @@ export default function UploadPage() {
 
       if (result.success) {
         setParsedData(result.data);
+        setLapOverrides({});
       } else {
         setError(result.errors?.join(', ') || 'Upload fehlgeschlagen');
       }
@@ -87,12 +103,94 @@ export default function UploadPage() {
     }
   };
 
+  const handleLapTypeChange = (lapNumber: number, newType: LapType) => {
+    setLapOverrides({
+      ...lapOverrides,
+      [lapNumber]: newType
+    });
+  };
+
+  const getEffectiveLapType = (lap: Lap): LapType => {
+    return lapOverrides[lap.lap_number] || lap.suggested_type || 'unclassified';
+  };
+
+  const recalculateHRZones = () => {
+    if (!parsedData?.laps) return;
+
+    // Filter working laps (exclude warmup/cooldown)
+    const workingLaps = parsedData.laps.filter(lap => {
+      const type = getEffectiveLapType(lap);
+      return type !== 'warmup' && type !== 'cooldown' && type !== 'pause';
+    });
+
+    // Calculate HR zones for working laps only
+    if (workingLaps.length > 0) {
+      let totalSeconds = 0;
+      let zone1 = 0, zone2 = 0, zone3 = 0;
+
+      workingLaps.forEach(lap => {
+        const duration = lap.duration_formatted.split(':').reduce((acc, time) => (60 * acc) + +time, 0);
+        totalSeconds += duration;
+
+        const hr = lap.avg_hr_bpm || 0;
+        if (hr < 150) {
+          zone1 += duration;
+        } else if (hr < 160) {
+          zone2 += duration;
+        } else {
+          zone3 += duration;
+        }
+      });
+
+      // Update parsed data with new zones
+      setParsedData({
+        ...parsedData,
+        hr_zones_working: {
+          zone_1_recovery: {
+            seconds: zone1,
+            percentage: Math.round((zone1 / totalSeconds) * 100 * 10) / 10,
+            label: '< 150 bpm',
+          },
+          zone_2_base: {
+            seconds: zone2,
+            percentage: Math.round((zone2 / totalSeconds) * 100 * 10) / 10,
+            label: '150-160 bpm',
+          },
+          zone_3_tempo: {
+            seconds: zone3,
+            percentage: Math.round((zone3 / totalSeconds) * 100 * 10) / 10,
+            label: '> 160 bpm',
+          },
+        }
+      });
+    }
+  };
+
   const runningSubtypes: TrainingSubType[] = ['interval', 'tempo', 'longrun', 'recovery'];
   const strengthSubtypes: TrainingSubType[] = ['knee_dominant', 'hip_dominant'];
 
   const currentSubtypes = formData.trainingType === 'running' 
     ? runningSubtypes 
     : strengthSubtypes;
+
+  const lapTypes: LapType[] = ['warmup', 'interval', 'pause', 'tempo', 'longrun', 'cooldown', 'recovery', 'unclassified'];
+
+  const lapTypeLabels: Record<LapType, string> = {
+    warmup: '🔥 Warm-up',
+    interval: '⚡ Intervall',
+    pause: '💤 Pause',
+    tempo: '🏃 Tempo',
+    longrun: '🏃‍♂️ Longrun',
+    cooldown: '❄️ Cool-down',
+    recovery: '🧘 Recovery',
+    unclassified: '❓ Unklassifiziert'
+  };
+
+  const confidenceColors = {
+    high: 'bg-green-100 text-green-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    low: 'bg-orange-100 text-orange-800'
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -225,131 +323,178 @@ export default function UploadPage() {
             </button>
           </form>
 
-{/* Results */}
-{parsedData && (
-  <div className="mt-8 border-t pt-6">
-    <h2 className="text-2xl font-bold mb-4">📊 Analyse-Ergebnisse</h2>
-    
-    {parsedData.summary && (
-      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 mb-6 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Zusammenfassung</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {parsedData.summary.total_distance_km && (
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Distanz</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {parsedData.summary.total_distance_km} <span className="text-lg text-gray-600">km</span>
-              </p>
+          {/* Results */}
+          {parsedData && (
+            <div className="mt-8 border-t pt-6">
+              <h2 className="text-2xl font-bold mb-4">Analyse-Ergebnisse</h2>
+              
+              {parsedData.summary && (
+                <div className="bg-blue-50 rounded-lg p-6 mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Zusammenfassung</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {parsedData.summary.total_distance_km && (
+                      <div>
+                        <p className="text-sm text-gray-600">Distanz</p>
+                        <p className="text-2xl font-bold">
+                          {parsedData.summary.total_distance_km} km
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Dauer</p>
+                      <p className="text-2xl font-bold">
+                        {parsedData.summary.total_duration_formatted}
+                      </p>
+                    </div>
+                    {parsedData.summary.avg_pace_formatted && (
+                      <div>
+                        <p className="text-sm text-gray-600">Pace</p>
+                        <p className="text-2xl font-bold">
+                          {parsedData.summary.avg_pace_formatted} /km
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Ø HF</p>
+                      <p className="text-2xl font-bold">
+                        {parsedData.summary.avg_hr_bpm} bpm
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* LAPS TABLE with Classification */}
+              {parsedData.laps && parsedData.laps.length > 0 && (
+                <div className="bg-white rounded-lg border mb-6 overflow-hidden">
+                  <div className="flex justify-between items-center p-4 bg-gray-50 border-b">
+                    <h3 className="text-lg font-semibold">
+                      Laps ({parsedData.laps.length})
+                    </h3>
+                    <button
+                      onClick={recalculateHRZones}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      HF-Zonen neu berechnen
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">#</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Typ</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Dauer</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Distanz</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Pace</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Ø HF</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Ø Kadenz</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {parsedData.laps.map((lap: Lap) => (
+                          <tr key={lap.lap_number} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm font-medium">{lap.lap_number}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={getEffectiveLapType(lap)}
+                                  onChange={(e) => handleLapTypeChange(lap.lap_number, e.target.value as LapType)}
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                >
+                                  {lapTypes.map(type => (
+                                    <option key={type} value={type}>
+                                      {lapTypeLabels[type]}
+                                    </option>
+                                  ))}
+                                </select>
+                                {lap.confidence && !lapOverrides[lap.lap_number] && (
+                                  <span className={`px-2 py-1 rounded text-xs ${confidenceColors[lap.confidence]}`}>
+                                    {lap.confidence}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">{lap.duration_formatted}</td>
+                            <td className="px-4 py-3 text-sm">
+                              {lap.distance_km ? `${lap.distance_km} km` : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {lap.avg_hr_bpm ? `${lap.avg_hr_bpm} bpm` : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {lap.avg_cadence_spm ? `${lap.avg_cadence_spm} spm` : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* HR Zones - Overall */}
+              {parsedData.hr_zones && (
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <h3 className="text-lg font-semibold mb-4">💓 HF-Zonen (Gesamt)</h3>
+                  <div className="space-y-3">
+                    {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>{zone.label}</span>
+                          <span className="font-medium">{zone.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              key.includes('recovery') ? 'bg-green-500' :
+                              key.includes('base') ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${zone.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* HR Zones - Working Laps */}
+              {parsedData.hr_zones_working && (
+                <div className="bg-blue-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4">🎯 HF-Zonen (Arbeits-Laps)</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Ohne Warm-up, Cool-down und Pausen
+                  </p>
+                  <div className="space-y-3">
+                    {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>{zone.label}</span>
+                          <span className="font-medium">{zone.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              key.includes('recovery') ? 'bg-green-500' :
+                              key.includes('base') ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${zone.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Dauer</p>
-            <p className="text-2xl font-bold text-gray-900">
-              {parsedData.summary.total_duration_formatted}
-            </p>
-          </div>
-          {parsedData.summary.avg_pace_formatted && (
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Pace</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {parsedData.summary.avg_pace_formatted} <span className="text-lg text-gray-600">/km</span>
-              </p>
-            </div>
-          )}
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ø HF</p>
-            <p className="text-2xl font-bold text-gray-900">
-              {parsedData.summary.avg_hr_bpm} <span className="text-lg text-gray-600">bpm</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* LAPS TABLE */}
-    {parsedData.laps && parsedData.laps.length > 0 && (
-      <div className="bg-white rounded-lg shadow-md mb-6 overflow-hidden border border-gray-200">
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">
-            🏃 Laps ({parsedData.laps.length})
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">#</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dauer</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Distanz</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Pace</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ø HF</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ø Kadenz</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {parsedData.laps.map((lap: any, index: number) => (
-                <tr 
-                  key={lap.lap_number} 
-                  className={`hover:bg-blue-50 transition-colors ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  }`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold text-sm">
-                      {lap.lap_number}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {lap.duration_formatted}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {lap.distance_km ? `${lap.distance_km} km` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {lap.avg_hr_bpm ? `${lap.avg_hr_bpm} bpm` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {lap.avg_cadence_spm ? `${lap.avg_cadence_spm} spm` : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )}
-
-    {/* HF-ZONEN */}
-    {parsedData.hr_zones && (
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">💓 HF-Zonen</h3>
-        <div className="space-y-4">
-          {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
-            <div key={key}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">{zone.label}</span>
-                <span className="text-sm font-bold text-gray-900">{zone.percentage}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
-                <div
-                  className={`h-4 rounded-full transition-all duration-500 ${
-                    key.includes('recovery') ? 'bg-gradient-to-r from-green-400 to-green-600' :
-                    key.includes('base') ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-                    'bg-gradient-to-r from-red-400 to-red-600'
-                  }`}
-                  style={{ width: `${zone.percentage}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-)}
         </div>
       </div>
     </div>
