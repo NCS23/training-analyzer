@@ -9,6 +9,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Execute deployment script
+      - name: Deploy via host script execution
         run: |
-          /volume1/docker/training-analyzer/deploy.sh
+          echo "🚀 Starting deployment..."
+          
+          # Git pull (filter postgres warnings)
+          cd /volume1/docker/training-analyzer
+          su - NCSNASadmin -c "cd /volume1/docker/training-analyzer && git pull origin main" 2>&1 | grep -v 'postgres-data' || true
+          
+          # Docker rebuild
+          cd /volume1/docker/training-analyzer
+          docker-compose up -d --build backend frontend
+          
+          echo "✅ Deployment complete!"
+          docker-compose ps
