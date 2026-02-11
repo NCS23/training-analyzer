@@ -1,0 +1,9 @@
+Training Analyzer - Verwendete Ports
+=====================================
+
+Frontend:   http://192.168.68.52:3002
+Backend:    http://192.168.68.52:8001
+API Docs:   http://192.168.68.52:8001/docs
+PostgreSQL: localhost:5433 (nur intern)
+
+Generiert: Wed Feb 11 03:16:41 PM CET 2026

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: training-analyzer-db
+    environment:
+      POSTGRES_USER: training_user
+      POSTGRES_PASSWORD: training_pass
+      POSTGRES_DB: training_analyzer
+    ports:
+      - "5433:5432"
+    volumes:
+      - /volume1/docker/training-analyzer/postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U training_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: training-analyzer-backend
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://training_user:training_pass@postgres:5432/training_analyzer
+    ports:
+      - "8001:8000"
+    volumes:
+      - /volume1/docker/training-analyzer/backend-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: training-analyzer-frontend
+    environment:
+      - VITE_API_URL=http://192.168.68.52:8001
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+networks:
+  default:
+    name: training-analyzer-network
