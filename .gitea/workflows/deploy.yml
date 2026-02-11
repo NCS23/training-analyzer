@@ -11,8 +11,8 @@ jobs:
     steps:
       - name: Deploy via SSH
         run: |
-          # Install SSH client
-          apk add --no-cache openssh-client
+          # Install SSH client (Debian/Ubuntu)
+          apt-get update && apt-get install -y openssh-client
           
           # SSH Key ist im gemounteten Volume
           chmod 600 /workspace/training-analyzer/.ssh/id_ed25519
