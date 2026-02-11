@@ -367,7 +367,7 @@ export default function UploadPage() {
 
 {/* HR Zones */}
 {parsedData.hr_zones && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+  <div className={`grid gap-6 mb-6 ${parsedData.laps && parsedData.laps.length > 0 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
     {/* HR Zones - Overall (always shown) */}
     <div className="bg-gray-50 rounded-lg p-6">
       <h3 className="text-lg font-semibold mb-4">📊 HF-Zonen Gesamt</h3>
