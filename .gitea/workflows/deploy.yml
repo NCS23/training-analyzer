@@ -9,18 +9,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy application
+      - name: Trigger deployment on host
         run: |
-          echo "🚀 Starting deployment..."
-          
-          # Fix git ownership
-          git config --global --add safe.directory /workspace/training-analyzer
-          
-          cd /workspace/training-analyzer
-          git pull origin main 2>&1 | grep -v 'postgres-data' || true
-          
-          # Use docker compose (not docker-compose)
-          docker compose up -d --build backend frontend
-          
-          echo "✅ Deployment complete!"
-          docker compose ps
+          # Execute deploy script on host via docker exec
+          docker exec -w /volume1/docker/training-analyzer training-analyzer-backend bash -c "
+            echo '🚀 Starting deployment...'
+            cd /volume1/docker/training-analyzer
+            su - NCSNASadmin -c 'cd /volume1/docker/training-analyzer && git pull origin main' 2>&1 | grep -v 'postgres-data' || true
+            docker-compose up -d --build backend frontend
+            echo '✅ Deployment complete!'
+            docker-compose ps
+          "
