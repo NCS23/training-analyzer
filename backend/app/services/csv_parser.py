@@ -21,13 +21,14 @@ class TrainingCSVParser:
     REQUIRED_COLUMNS = ['date', 'timestamp', 'ISO8601', 'since_start']
     RUNNING_COLUMNS = ['hr (count/min)', 'cadence (count/min)', 'distance (meter)', 'speed (m/s)']
     
-    def parse(self, file_content: bytes, training_type: TrainingType) -> Dict:
+    def parse(self, file_content: bytes, training_type: TrainingType, training_subtype: Optional[str] = None) -> Dict:
         """
         Parst Apple Watch CSV und gibt strukturierte Daten zurück
         
         Args:
             file_content: CSV Datei als Bytes
             training_type: RUNNING oder STRENGTH
+            training_subtype: interval, tempo, longrun, recovery, etc.
             
         Returns:
             Dict mit parsed data, metadata, validation errors
@@ -49,13 +50,14 @@ class TrainingCSVParser:
             
             # Nach Trainingstyp analysieren
             if training_type == TrainingType.RUNNING:
-                result = self._analyze_running(df)
+                result = self._analyze_running(df, training_subtype)
             else:
                 result = self._analyze_strength(df)
             
             result['success'] = True
             result['metadata'] = {
                 'training_type': training_type.value,
+                'training_subtype': training_subtype,
                 'total_rows': len(df),
                 'parsed_at': datetime.utcnow().isoformat(),
             }
@@ -107,7 +109,7 @@ class TrainingCSVParser:
         
         return df
     
-    def _analyze_running(self, df: pd.DataFrame) -> Dict:
+    def _analyze_running(self, df: pd.DataFrame, training_subtype: Optional[str] = None) -> Dict:
         """
         Analysiert Lauf-Training
         
@@ -120,6 +122,9 @@ class TrainingCSVParser:
         for lap_num, lap_df in df.groupby('lap'):
             lap_analysis = self._analyze_running_lap(lap_df, lap_num)
             laps_data.append(lap_analysis)
+        
+        # Classify laps
+        laps_data = self._classify_laps(laps_data, training_subtype)
         
         # Gesamt-Summary (nur Lap 1, ohne Cool-down)
         main_lap = df[df['lap'] == 1]
@@ -265,6 +270,90 @@ class TrainingCSVParser:
             },
         }
     
+    def _classify_laps(self, laps, training_subtype=None):
+        """Classify laps based on training type and metrics"""
+        if len(laps) == 0:
+            return laps
+        
+        # Add classification to each lap
+        for i, lap in enumerate(laps):
+            lap_num = lap['lap_number']
+            is_first = (i == 0)
+            is_last = (i == len(laps) - 1)
+            
+            # Default
+            suggested_type = 'unclassified'
+            confidence = 'low'
+            
+            # Get metrics
+            avg_hr = lap.get('avg_hr_bpm')
+            duration = lap.get('duration_seconds', 0)
+            
+            if training_subtype == 'interval':
+                # Interval training logic
+                if is_first and avg_hr and avg_hr < 140 and duration < 600:  # <10min warmup
+                    suggested_type = 'warmup'
+                    confidence = 'high'
+                elif is_last and avg_hr and avg_hr < 150 and duration < 600:  # <10min cooldown
+                    suggested_type = 'cooldown'
+                    confidence = 'high'
+                elif avg_hr and avg_hr > 160:
+                    suggested_type = 'interval'
+                    confidence = 'high' if avg_hr > 170 else 'medium'
+                elif avg_hr and avg_hr < 150:
+                    suggested_type = 'pause'
+                    confidence = 'medium'
+                else:
+                    suggested_type = 'interval'
+                    confidence = 'low'
+                    
+            elif training_subtype == 'tempo':
+                # Tempo run logic
+                if is_first and duration < 600:
+                    suggested_type = 'warmup'
+                    confidence = 'medium'
+                elif is_last and duration < 600:
+                    suggested_type = 'cooldown'
+                    confidence = 'medium'
+                else:
+                    suggested_type = 'tempo'
+                    confidence = 'high'
+                    
+            elif training_subtype == 'longrun':
+                # Long run logic
+                if is_first and duration < 600:
+                    suggested_type = 'warmup'
+                    confidence = 'medium'
+                elif is_last and duration < 600:
+                    suggested_type = 'cooldown'
+                    confidence = 'medium'
+                else:
+                    suggested_type = 'longrun'
+                    confidence = 'high'
+                    
+            elif training_subtype == 'recovery':
+                # Recovery run - all laps are recovery
+                suggested_type = 'recovery'
+                confidence = 'high'
+                
+            else:
+                # Fallback: heuristic based on metrics
+                if is_first and avg_hr and avg_hr < 140:
+                    suggested_type = 'warmup'
+                    confidence = 'low'
+                elif is_last and avg_hr and avg_hr < 150:
+                    suggested_type = 'cooldown'
+                    confidence = 'low'
+                elif avg_hr and avg_hr > 165:
+                    suggested_type = 'interval'
+                    confidence = 'low'
+            
+            lap['suggested_type'] = suggested_type
+            lap['confidence'] = confidence
+            lap['user_override'] = None  # Can be set by frontend
+        
+        return laps
+    
     def _format_duration(self, seconds: int) -> str:
         """Formatiert Sekunden zu HH:MM:SS oder MM:SS"""
         hours = seconds // 3600
@@ -283,4 +372,3 @@ class TrainingCSVParser:
         minutes = int(pace_min_per_km)
         seconds = int((pace_min_per_km - minutes) * 60)
         return f"{minutes}:{seconds:02d}"
-

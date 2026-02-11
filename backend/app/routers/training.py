@@ -47,7 +47,7 @@ async def upload_training(
         content = await csv_file.read()
         
         # Parse CSV
-        result = csv_parser.parse(content, training_type)
+        result = csv_parser.parse(content, training_type, training_subtype)
         
         if not result['success']:
             return TrainingUploadResponse(
