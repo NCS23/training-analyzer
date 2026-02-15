@@ -1,22 +1,21 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { Button } from '@nordlig/components';
 import UploadPage from './pages/Upload';
 
 function HomePage() {
+  const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--color-bg-base)]">
       <div className="max-w-7xl mx-auto py-12 px-4">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          🏃‍♂️ Training Analyzer
+        <h1 className="text-4xl font-bold text-[var(--color-text-base)] mb-4">
+          Training Analyzer
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-[var(--color-text-muted)] mb-8">
           AI-powered half-marathon training platform
         </p>
-        <Link 
-          to="/upload"
-          className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700"
-        >
-          Training hochladen →
-        </Link>
+        <Button variant="primary" onClick={() => navigate('/upload')}>
+          Training hochladen
+        </Button>
       </div>
     </div>
   );
