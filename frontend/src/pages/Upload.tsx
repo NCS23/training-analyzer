@@ -14,6 +14,8 @@ import {
   AlertDescription,
   Badge,
   Progress,
+  ToggleGroup,
+  ToggleGroupItem,
   Spinner,
   Table,
   TableHeader,
@@ -263,22 +265,18 @@ export default function UploadPage() {
 
             <div className="space-y-2">
               <Label>Trainingstyp</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  variant={formData.trainingType === 'running' ? 'primary' : 'ghost'}
-                  onClick={() => setFormData({ ...formData, trainingType: 'running', trainingSubtype: '' })}
-                >
-                  Laufen
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.trainingType === 'strength' ? 'primary' : 'ghost'}
-                  onClick={() => setFormData({ ...formData, trainingType: 'strength', trainingSubtype: '' })}
-                >
-                  Kraft
-                </Button>
-              </div>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={formData.trainingType}
+                onValueChange={(val) => {
+                  if (val) setFormData({ ...formData, trainingType: val as TrainingType, trainingSubtype: '' });
+                }}
+                className="w-full"
+              >
+                <ToggleGroupItem value="running" className="flex-1">Laufen</ToggleGroupItem>
+                <ToggleGroupItem value="strength" className="flex-1">Kraft</ToggleGroupItem>
+              </ToggleGroup>
             </div>
 
             <Textarea
