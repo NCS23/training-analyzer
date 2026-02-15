@@ -228,8 +228,8 @@ export default function UploadPage() {
         </header>
 
         {/* Upload Form */}
-        <Card elevation="raised" padding="spacious">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <Card elevation="raised" padding="spacious" className="overflow-hidden">
+          <form onSubmit={handleSubmit} className="space-y-6 min-w-0">
             <FileUpload
               label="CSV Datei"
               accept=".csv"
@@ -239,15 +239,15 @@ export default function UploadPage() {
               subText="Apple Watch Export (.csv)"
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="trainingDate">Trainingsdatum</Label>
                 <Input
                   id="trainingDate"
                   type="date"
                   value={formData.trainingDate}
                   onChange={(e) => setFormData({ ...formData, trainingDate: e.target.value })}
-                  className="w-full"
+                  className="w-full max-w-full"
                   required
                 />
               </div>
