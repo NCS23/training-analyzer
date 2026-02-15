@@ -21,7 +21,6 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Separator,
 } from '@nordlig/components';
 
 type TrainingType = 'running' | 'strength';
@@ -210,29 +209,35 @@ export default function UploadPage() {
   const currentSubtypes = formData.trainingType === 'running' ? runningSubtypes : strengthSubtypes;
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-base)] py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <Card elevation="raised">
-          <CardHeader>
-            <h1 className="text-2xl font-bold text-[var(--color-text-base)] flex items-center gap-2">
-              <Activity className="w-7 h-7 text-[color:var(--color-interactive-primary)]" aria-hidden="true" />
+    <div className="min-h-screen bg-[var(--color-bg-surface)] py-10 px-4">
+      <div className="max-w-3xl mx-auto space-y-10">
+
+        {/* Page Header */}
+        <header>
+          <div className="flex items-center gap-3 mb-2">
+            <Activity className="w-6 h-6 text-[color:var(--color-interactive-primary)]" aria-hidden="true" />
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-base)]">
               Training Upload
             </h1>
-          </CardHeader>
+          </div>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Lade deine Apple Watch Daten hoch und analysiere dein Training.
+          </p>
+        </header>
 
-          <CardBody>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* File Upload */}
-              <FileUpload
-                label="CSV Datei"
-                accept=".csv"
-                onUpload={handleFileUpload}
-                onRemove={handleFileRemove}
-                instructionText={formData.csvFile ? formData.csvFile.name : 'CSV Datei hier ablegen oder klicken'}
-                subText="Apple Watch Export (.csv)"
-              />
+        {/* Upload Form */}
+        <Card elevation="raised" padding="spacious">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <FileUpload
+              label="CSV Datei"
+              accept=".csv"
+              onUpload={handleFileUpload}
+              onRemove={handleFileRemove}
+              instructionText={formData.csvFile ? formData.csvFile.name : 'CSV Datei hier ablegen oder klicken'}
+              subText="Apple Watch Export (.csv)"
+            />
 
-              {/* Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="trainingDate">Trainingsdatum</Label>
                 <Input
@@ -240,142 +245,171 @@ export default function UploadPage() {
                   type="date"
                   value={formData.trainingDate}
                   onChange={(e) => setFormData({ ...formData, trainingDate: e.target.value })}
+                  className="w-full"
                   required
                 />
               </div>
 
-              {/* Training Type */}
               <div className="space-y-2">
-                <Label>Trainingstyp</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    type="button"
-                    variant={formData.trainingType === 'running' ? 'primary' : 'secondary'}
-                    onClick={() => setFormData({ ...formData, trainingType: 'running', trainingSubtype: '' })}
-                  >
-                    Laufen
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={formData.trainingType === 'strength' ? 'primary' : 'secondary'}
-                    onClick={() => setFormData({ ...formData, trainingType: 'strength', trainingSubtype: '' })}
-                  >
-                    Kraft
-                  </Button>
-                </div>
-              </div>
-
-              {/* Subtype */}
-              <div className="space-y-2">
-                <Label>Trainingsart (optional)</Label>
+                <Label>Trainingsart</Label>
                 <Select
-                  options={[{ value: '', label: '-- Auswählen --' }, ...currentSubtypes]}
+                  options={[{ value: '', label: 'Optional' }, ...currentSubtypes]}
                   value={formData.trainingSubtype}
                   onChange={(val) => setFormData({ ...formData, trainingSubtype: (val ?? '') as TrainingSubType | '' })}
-                  placeholder="-- Auswählen --"
+                  placeholder="Optional"
                 />
               </div>
+            </div>
 
-              {/* Notes */}
-              <Textarea
-                label="Notizen (optional)"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-                placeholder="Wie hast du dich gefühlt?"
-              />
+            <div className="space-y-2">
+              <Label>Trainingstyp</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant={formData.trainingType === 'running' ? 'primary' : 'ghost'}
+                  onClick={() => setFormData({ ...formData, trainingType: 'running', trainingSubtype: '' })}
+                >
+                  Laufen
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.trainingType === 'strength' ? 'primary' : 'ghost'}
+                  onClick={() => setFormData({ ...formData, trainingType: 'strength', trainingSubtype: '' })}
+                >
+                  Kraft
+                </Button>
+              </div>
+            </div>
 
-              {/* Error */}
-              {error && (
-                <Alert variant="error" closeable onClose={() => setError(null)}>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+            <Textarea
+              label="Notizen"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={2}
+              placeholder="Wie hast du dich gefühlt? (optional)"
+            />
+
+            {error && (
+              <Alert variant="error" closeable onClose={() => setError(null)}>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={loading || !formData.csvFile}
+              className="w-full"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner size="sm" aria-hidden="true" />
+                  Analysiere...
+                </span>
+              ) : (
+                'Training analysieren'
               )}
+            </Button>
+          </form>
+        </Card>
 
-              {/* Submit */}
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={loading || !formData.csvFile}
-                className="w-full"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Spinner size="sm" aria-hidden="true" />
-                    Analysiere...
-                  </span>
-                ) : (
-                  'Training analysieren'
-                )}
-              </Button>
-            </form>
+        {/* Results */}
+        {parsedData && (
+          <section className="space-y-6">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+              Analyse-Ergebnisse
+            </h2>
 
-            {/* Results */}
-            {parsedData && (
-              <div className="mt-8">
-                <Separator className="mb-6" />
-                <h2 className="text-xl font-bold text-[var(--color-text-base)] mb-4">
-                  Analyse-Ergebnisse
-                </h2>
-
-                {/* Summary */}
-                {parsedData.summary && (
-                  <Card elevation="raised" className="mb-6">
+            {/* Summary Stats */}
+            {parsedData.summary && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {parsedData.summary.total_distance_km && (
+                  <Card elevation="raised" padding="compact">
                     <CardBody>
-                      <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
-                        Zusammenfassung
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {parsedData.summary.total_distance_km && (
-                          <div>
-                            <p className="text-sm text-[var(--color-text-muted)]">Distanz</p>
-                            <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                              {parsedData.summary.total_distance_km} km
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm text-[var(--color-text-muted)]">Dauer</p>
-                          <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                            {parsedData.summary.total_duration_formatted}
-                          </p>
-                        </div>
-                        {parsedData.summary.avg_pace_formatted && (
-                          <div>
-                            <p className="text-sm text-[var(--color-text-muted)]">Pace</p>
-                            <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                              {parsedData.summary.avg_pace_formatted} /km
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm text-[var(--color-text-muted)]">Ø HF</p>
-                          <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                            {parsedData.summary.avg_hr_bpm} bpm
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Distanz</p>
+                      <p className="text-xl font-semibold text-[var(--color-text-base)]">
+                        {parsedData.summary.total_distance_km} km
+                      </p>
                     </CardBody>
                   </Card>
                 )}
+                <Card elevation="raised" padding="compact">
+                  <CardBody>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Dauer</p>
+                    <p className="text-xl font-semibold text-[var(--color-text-base)]">
+                      {parsedData.summary.total_duration_formatted}
+                    </p>
+                  </CardBody>
+                </Card>
+                {parsedData.summary.avg_pace_formatted && (
+                  <Card elevation="raised" padding="compact">
+                    <CardBody>
+                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Pace</p>
+                      <p className="text-xl font-semibold text-[var(--color-text-base)]">
+                        {parsedData.summary.avg_pace_formatted} /km
+                      </p>
+                    </CardBody>
+                  </Card>
+                )}
+                <Card elevation="raised" padding="compact">
+                  <CardBody>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Ø Herzfrequenz</p>
+                    <p className="text-xl font-semibold text-[var(--color-text-base)]">
+                      {parsedData.summary.avg_hr_bpm} bpm
+                    </p>
+                  </CardBody>
+                </Card>
+              </div>
+            )}
 
-                {/* HR Zones */}
-                {parsedData.hr_zones && (
-                  <div className={`grid gap-6 mb-6 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                    {/* Overall */}
-                    <Card elevation="raised">
-                      <CardBody>
-                        <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
-                          HF-Zonen Gesamt
-                        </h3>
-                        <p className="text-sm text-[var(--color-text-muted)] mb-4">
-                          {parsedData.laps?.length ? 'Komplette Session (alle Laps)' : 'Komplette Session'}
-                        </p>
+            {/* HR Zones */}
+            {parsedData.hr_zones && (
+              <div className={`grid gap-4 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                <Card elevation="raised">
+                  <CardBody>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-1">
+                      HF-Zonen Gesamt
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-4">
+                      {parsedData.laps?.length ? 'Alle Laps' : 'Komplette Session'}
+                    </p>
+                    <div className="space-y-3">
+                      {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+                        <div key={key}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-[var(--color-text-muted)]">{zone.label}</span>
+                            <span className="font-medium text-[var(--color-text-base)]">{zone.percentage}%</span>
+                          </div>
+                          <Progress
+                            value={zone.percentage}
+                            size="sm"
+                            color={
+                              key.includes('recovery') ? 'success' :
+                              key.includes('base') ? 'warning' :
+                              'error'
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+
+                {parsedData.laps && parsedData.laps.length > 0 && (
+                  <Card elevation="raised">
+                    <CardBody>
+                      <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-1">
+                        HF-Zonen Arbeits-Laps
+                      </h3>
+                      <p className="text-xs text-[var(--color-text-muted)] mb-4">
+                        Ohne Warm-up, Cool-down, Pausen
+                      </p>
+                      {parsedData.hr_zones_working ? (
                         <div className="space-y-3">
-                          {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+                          {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
                             <div key={key}>
-                              <div className="flex justify-between text-sm mb-1">
-                                <span className="text-[var(--color-text-base)]">{zone.label}</span>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-[var(--color-text-muted)]">{zone.label}</span>
                                 <span className="font-medium text-[var(--color-text-base)]">{zone.percentage}%</span>
                               </div>
                               <Progress
@@ -390,117 +424,79 @@ export default function UploadPage() {
                             </div>
                           ))}
                         </div>
-                      </CardBody>
-                    </Card>
-
-                    {/* Working Laps */}
-                    {parsedData.laps && parsedData.laps.length > 0 && (
-                      <Card elevation="raised">
-                        <CardBody>
-                          <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
-                            HF-Zonen Arbeits-Laps
-                          </h3>
-                          <p className="text-sm text-[var(--color-text-muted)] mb-4">
-                            Nur Intervalle/Tempo (ohne Warm-up/Cool-down/Pausen)
-                          </p>
-                          {parsedData.hr_zones_working ? (
-                            <div className="space-y-3">
-                              {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
-                                <div key={key}>
-                                  <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-[var(--color-text-base)]">{zone.label}</span>
-                                    <span className="font-medium text-[var(--color-text-base)]">{zone.percentage}%</span>
-                                  </div>
-                                  <Progress
-                                    value={zone.percentage}
-                                    size="sm"
-                                    color={
-                                      key.includes('recovery') ? 'success' :
-                                      key.includes('base') ? 'warning' :
-                                      'error'
-                                    }
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-[var(--color-text-muted)] text-sm mb-2">Noch nicht berechnet</p>
-                              <p className="text-[var(--color-text-muted)] text-xs">
-                                Überprüfe die Lap-Typen unten und klicke auf &quot;HF-Zonen berechnen&quot;
-                              </p>
-                            </div>
-                          )}
-                        </CardBody>
-                      </Card>
-                    )}
-                  </div>
-                )}
-
-                {/* Laps Table */}
-                {parsedData.laps && parsedData.laps.length > 0 && (
-                  <Card elevation="raised" className="mb-6">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <h3 className="text-lg font-semibold text-[var(--color-text-base)]">
-                        Laps ({parsedData.laps.length})
-                      </h3>
-                      <Button variant="primary" size="sm" onClick={recalculateHRZones}>
-                        <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
-                        HF-Zonen berechnen
-                      </Button>
-                    </CardHeader>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>#</TableHead>
-                            <TableHead>Typ</TableHead>
-                            <TableHead>Dauer</TableHead>
-                            <TableHead>Distanz</TableHead>
-                            <TableHead>Pace</TableHead>
-                            <TableHead>Ø HF</TableHead>
-                            <TableHead>Ø Kadenz</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {parsedData.laps.map((lap: Lap) => (
-                            <TableRow key={lap.lap_number}>
-                              <TableCell className="font-medium">{lap.lap_number}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Select
-                                    options={lapTypeOptions}
-                                    value={getEffectiveLapType(lap)}
-                                    onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
-                                    inputSize="sm"
-                                    className="w-40"
-                                  />
-                                  {lap.confidence && !lapOverrides[lap.lap_number] && (
-                                    <Badge
-                                      variant={confidenceBadgeVariant[lap.confidence]}
-                                      size="sm"
-                                    >
-                                      {lap.confidence}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>{lap.duration_formatted}</TableCell>
-                              <TableCell>{lap.distance_km ? `${lap.distance_km} km` : '-'}</TableCell>
-                              <TableCell>{lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}</TableCell>
-                              <TableCell>{lap.avg_hr_bpm ? `${lap.avg_hr_bpm} bpm` : '-'}</TableCell>
-                              <TableCell>{lap.avg_cadence_spm ? `${lap.avg_cadence_spm} spm` : '-'}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                      ) : (
+                        <p className="text-xs text-[var(--color-text-muted)] py-6 text-center">
+                          Überprüfe die Lap-Typen und klicke &quot;Neu berechnen&quot;
+                        </p>
+                      )}
+                    </CardBody>
                   </Card>
                 )}
               </div>
             )}
-          </CardBody>
-        </Card>
+
+            {/* Laps Table */}
+            {parsedData.laps && parsedData.laps.length > 0 && (
+              <Card elevation="raised">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <h3 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    Laps ({parsedData.laps.length})
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={recalculateHRZones}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                    Neu berechnen
+                  </Button>
+                </CardHeader>
+                <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead className="min-w-[200px]">Typ</TableHead>
+                        <TableHead>Dauer</TableHead>
+                        <TableHead>Distanz</TableHead>
+                        <TableHead>Pace</TableHead>
+                        <TableHead>Ø HF</TableHead>
+                        <TableHead>Kadenz</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parsedData.laps.map((lap: Lap) => (
+                        <TableRow key={lap.lap_number}>
+                          <TableCell className="font-medium text-[var(--color-text-muted)]">{lap.lap_number}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                options={lapTypeOptions}
+                                value={getEffectiveLapType(lap)}
+                                onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
+                                inputSize="sm"
+                                className="w-36"
+                              />
+                              {lap.confidence && !lapOverrides[lap.lap_number] && (
+                                <Badge
+                                  variant={confidenceBadgeVariant[lap.confidence]}
+                                  size="sm"
+                                >
+                                  {lap.confidence}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{lap.duration_formatted}</TableCell>
+                          <TableCell>{lap.distance_km ? `${lap.distance_km} km` : '-'}</TableCell>
+                          <TableCell>{lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}</TableCell>
+                          <TableCell>{lap.avg_hr_bpm ? `${lap.avg_hr_bpm}` : '-'}</TableCell>
+                          <TableCell>{lap.avg_cadence_spm ? `${lap.avg_cadence_spm}` : '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );
