@@ -212,7 +212,7 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)] py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <Card>
+        <Card elevation="raised">
           <CardHeader>
             <h1 className="text-2xl font-bold text-[var(--color-text-base)] flex items-center gap-2">
               <Activity className="w-7 h-7 text-[color:var(--color-interactive-primary)]" aria-hidden="true" />
@@ -320,7 +320,7 @@ export default function UploadPage() {
 
                 {/* Summary */}
                 {parsedData.summary && (
-                  <Card className="mb-6">
+                  <Card elevation="raised" className="mb-6">
                     <CardBody>
                       <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
                         Zusammenfassung
@@ -363,7 +363,7 @@ export default function UploadPage() {
                 {parsedData.hr_zones && (
                   <div className={`grid gap-6 mb-6 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
                     {/* Overall */}
-                    <Card>
+                    <Card elevation="raised">
                       <CardBody>
                         <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
                           HF-Zonen Gesamt
@@ -395,7 +395,7 @@ export default function UploadPage() {
 
                     {/* Working Laps */}
                     {parsedData.laps && parsedData.laps.length > 0 && (
-                      <Card>
+                      <Card elevation="raised">
                         <CardBody>
                           <h3 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
                             HF-Zonen Arbeits-Laps
@@ -439,7 +439,7 @@ export default function UploadPage() {
 
                 {/* Laps Table */}
                 {parsedData.laps && parsedData.laps.length > 0 && (
-                  <Card className="mb-6">
+                  <Card elevation="raised" className="mb-6">
                     <CardHeader className="flex flex-row items-center justify-between">
                       <h3 className="text-lg font-semibold text-[var(--color-text-base)]">
                         Laps ({parsedData.laps.length})
@@ -473,6 +473,7 @@ export default function UploadPage() {
                                     value={getEffectiveLapType(lap)}
                                     onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
                                     inputSize="sm"
+                                    className="w-40"
                                   />
                                   {lap.confidence && !lapOverrides[lap.lap_number] && (
                                     <Badge
