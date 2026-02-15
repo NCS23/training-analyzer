@@ -83,7 +83,8 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await fetch('http://192.168.68.52:8001/api/training/upload', {
+      const apiBase = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8001`;
+      const response = await fetch(`${apiBase}/api/training/upload`, {
         method: 'POST',
         body: data,
       });
