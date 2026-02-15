@@ -5,7 +5,7 @@ import {
   Card,
   CardHeader,
   CardBody,
-  Input,
+  DatePicker,
   Label,
   Select,
   Textarea,
@@ -31,7 +31,7 @@ type LapType = 'warmup' | 'interval' | 'pause' | 'tempo' | 'longrun' | 'cooldown
 
 interface UploadFormData {
   csvFile: File | null;
-  trainingDate: string;
+  trainingDate: Date;
   trainingType: TrainingType;
   trainingSubtype: TrainingSubType | '';
   notes: string;
@@ -89,7 +89,7 @@ const confidenceBadgeVariant = {
 export default function UploadPage() {
   const [formData, setFormData] = useState<UploadFormData>({
     csvFile: null,
-    trainingDate: new Date().toISOString().split('T')[0],
+    trainingDate: new Date(),
     trainingType: 'running',
     trainingSubtype: '',
     notes: '',
@@ -123,7 +123,7 @@ export default function UploadPage() {
 
     const data = new FormData();
     data.append('csv_file', formData.csvFile);
-    data.append('training_date', formData.trainingDate);
+    data.append('training_date', formData.trainingDate.toISOString().split('T')[0]);
     data.append('training_type', formData.trainingType);
     if (formData.trainingSubtype) {
       data.append('training_subtype', formData.trainingSubtype);
@@ -229,7 +229,7 @@ export default function UploadPage() {
 
         {/* Upload Form */}
         <Card elevation="raised" padding="spacious" className="overflow-hidden">
-          <form onSubmit={handleSubmit} className="space-y-6 min-w-0">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <FileUpload
               label="CSV Datei"
               accept=".csv"
@@ -239,16 +239,14 @@ export default function UploadPage() {
               subText="Apple Watch Export (.csv)"
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
-              <div className="space-y-2 min-w-0">
-                <Label htmlFor="trainingDate">Trainingsdatum</Label>
-                <Input
-                  id="trainingDate"
-                  type="date"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Trainingsdatum</Label>
+                <DatePicker
                   value={formData.trainingDate}
-                  onChange={(e) => setFormData({ ...formData, trainingDate: e.target.value })}
-                  className="w-full max-w-full"
-                  required
+                  onChange={(date) => { if (date) setFormData({ ...formData, trainingDate: date }); }}
+                  maxDate={new Date()}
+                  placeholder="Datum wählen"
                 />
               </div>
 
