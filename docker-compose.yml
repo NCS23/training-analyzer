@@ -42,8 +42,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: training-analyzer-frontend
-    environment:
-      - VITE_API_URL=http://192.168.68.52:8001
     ports:
       - "3002:3000"
     volumes:
