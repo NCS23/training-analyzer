@@ -82,16 +82,14 @@ jobs:
   backend-lint:
     name: Backend Lint & Typecheck
     runs-on: ubuntu-latest
-    container:
-      image: python:3.11-slim
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         working-directory: backend
         run: |
-          pip install --upgrade pip setuptools wheel
-          pip install ".[dev]"
+          python3 -m pip install --break-system-packages --upgrade pip setuptools wheel 2>/dev/null || pip install --upgrade pip setuptools wheel
+          python3 -m pip install --break-system-packages ".[dev]" 2>/dev/null || pip install ".[dev]"
 
       - name: Ruff lint
         working-directory: backend
@@ -108,16 +106,14 @@ jobs:
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    container:
-      image: python:3.11-slim
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         working-directory: backend
         run: |
-          pip install --upgrade pip setuptools wheel
-          pip install ".[dev]"
+          python3 -m pip install --break-system-packages --upgrade pip setuptools wheel 2>/dev/null || pip install --upgrade pip setuptools wheel
+          python3 -m pip install --break-system-packages ".[dev]" 2>/dev/null || pip install ".[dev]"
 
       - name: Run tests with coverage
         working-directory: backend
