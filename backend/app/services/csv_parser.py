@@ -2,15 +2,11 @@
 
 import io
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
 import pandas as pd
 
-
-class TrainingType(str, Enum):
-    RUNNING = "running"
-    STRENGTH = "strength"
+from app.models.training import TrainingType
 
 
 class TrainingCSVParser:
@@ -376,7 +372,7 @@ class TrainingCSVParser:
             return f"{hours:02d}:{minutes:02d}:{secs:02d}"
         return f"{minutes:02d}:{secs:02d}"
 
-    def _format_pace(self, pace_min_per_km: float) -> str:
+    def _format_pace(self, pace_min_per_km: Optional[float]) -> Optional[str]:
         """Formatiert Pace von Dezimalminuten zu MM:SS"""
         if not pace_min_per_km:
             return None

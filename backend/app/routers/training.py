@@ -42,7 +42,7 @@ async def upload_training(
     """
     try:
         # Validiere CSV Datei
-        if not csv_file.filename.endswith(".csv"):
+        if not csv_file.filename or not csv_file.filename.endswith(".csv"):
             raise HTTPException(status_code=400, detail="File must be a CSV file")
 
         # Lese CSV

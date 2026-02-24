@@ -20,7 +20,7 @@ class Workout:
 
     # Metadata
     csv_data: Optional[str] = None
-    warnings: list[str] = None
+    warnings: Optional[list[str]] = None
     ai_analysis: Optional[str] = None
 
     def __post_init__(self):
