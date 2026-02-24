@@ -49,12 +49,37 @@ interface Lap {
   user_override?: LapType;
 }
 
+interface HRZone {
+  label: string;
+  percentage: number;
+  seconds?: number;
+  minutes?: number;
+  range?: string;
+}
+
+interface SessionSummary {
+  duration_formatted?: string;
+  total_duration_formatted?: string;
+  distance_km?: number;
+  total_distance_km?: number;
+  avg_pace_formatted?: string;
+  avg_hr_bpm?: number;
+  max_hr_bpm?: number;
+  avg_cadence_spm?: number;
+  calories?: number;
+}
+
+interface HRTimeseriesPoint {
+  timestamp: number;
+  hr: number;
+}
+
 interface ParsedData {
   laps?: Lap[];
-  summary?: any;
-  hr_zones?: any;
-  hr_zones_working?: any;
-  hr_timeseries?: any[];
+  summary?: SessionSummary;
+  hr_zones?: Record<string, HRZone>;
+  hr_zones_working?: Record<string, HRZone>;
+  hr_timeseries?: HRTimeseriesPoint[];
 }
 
 const runningSubtypes: { value: TrainingSubType; label: string }[] = [
@@ -370,7 +395,7 @@ export default function UploadPage() {
                       {parsedData.laps?.length ? 'Alle Laps' : 'Komplette Session'}
                     </p>
                     <div className="space-y-3">
-                      {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, any]) => (
+                      {Object.entries(parsedData.hr_zones).map(([key, zone]: [string, HRZone]) => (
                         <div key={key}>
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-[var(--color-text-muted)]">{zone.label}</span>
@@ -402,7 +427,7 @@ export default function UploadPage() {
                       </p>
                       {parsedData.hr_zones_working ? (
                         <div className="space-y-3">
-                          {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, any]) => (
+                          {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, HRZone]) => (
                             <div key={key}>
                               <div className="flex justify-between text-xs mb-1">
                                 <span className="text-[var(--color-text-muted)]">{zone.label}</span>
