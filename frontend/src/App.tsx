@@ -7,9 +7,7 @@ function HomePage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)]">
       <div className="max-w-7xl mx-auto py-12 px-4">
-        <h1 className="text-4xl font-bold text-[var(--color-text-base)] mb-4">
-          Training Analyzer
-        </h1>
+        <h1 className="text-4xl font-bold text-[var(--color-text-base)] mb-4">Training Analyzer</h1>
         <p className="text-[var(--color-text-muted)] mb-8">
           AI-powered half-marathon training platform
         </p>

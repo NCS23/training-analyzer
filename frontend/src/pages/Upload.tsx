@@ -26,8 +26,22 @@ import {
 } from '@nordlig/components';
 
 type TrainingType = 'running' | 'strength';
-type TrainingSubType = 'interval' | 'tempo' | 'longrun' | 'recovery' | 'knee_dominant' | 'hip_dominant';
-type LapType = 'warmup' | 'interval' | 'pause' | 'tempo' | 'longrun' | 'cooldown' | 'recovery' | 'unclassified';
+type TrainingSubType =
+  | 'interval'
+  | 'tempo'
+  | 'longrun'
+  | 'recovery'
+  | 'knee_dominant'
+  | 'hip_dominant';
+type LapType =
+  | 'warmup'
+  | 'interval'
+  | 'pause'
+  | 'tempo'
+  | 'longrun'
+  | 'cooldown'
+  | 'recovery'
+  | 'unclassified';
 
 interface UploadFormData {
   csvFile: File | null;
@@ -192,17 +206,21 @@ export default function UploadPage() {
   const recalculateHRZones = () => {
     if (!parsedData?.laps) return;
 
-    const workingLaps = parsedData.laps.filter(lap => {
+    const workingLaps = parsedData.laps.filter((lap) => {
       const type = getEffectiveLapType(lap);
       return type !== 'warmup' && type !== 'cooldown' && type !== 'pause';
     });
 
     if (workingLaps.length > 0) {
       let totalSeconds = 0;
-      let zone1 = 0, zone2 = 0, zone3 = 0;
+      let zone1 = 0,
+        zone2 = 0,
+        zone3 = 0;
 
-      workingLaps.forEach(lap => {
-        const duration = lap.duration_formatted.split(':').reduce((acc, time) => (60 * acc) + +time, 0);
+      workingLaps.forEach((lap) => {
+        const duration = lap.duration_formatted
+          .split(':')
+          .reduce((acc, time) => 60 * acc + +time, 0);
         totalSeconds += duration;
         const hr = lap.avg_hr_bpm || 0;
         if (hr < 150) zone1 += duration;
@@ -238,11 +256,13 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-surface)] py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-10">
-
         {/* Page Header */}
         <header>
           <div className="flex items-center gap-3 mb-2">
-            <Activity className="w-6 h-6 text-[color:var(--color-interactive-primary)]" aria-hidden="true" />
+            <Activity
+              className="w-6 h-6 text-[color:var(--color-interactive-primary)]"
+              aria-hidden="true"
+            />
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-base)]">
               Training Upload
             </h1>
@@ -260,7 +280,9 @@ export default function UploadPage() {
               accept=".csv"
               onUpload={handleFileUpload}
               onRemove={handleFileRemove}
-              instructionText={formData.csvFile ? formData.csvFile.name : 'CSV Datei hier ablegen oder klicken'}
+              instructionText={
+                formData.csvFile ? formData.csvFile.name : 'CSV Datei hier ablegen oder klicken'
+              }
               subText="Apple Watch Export (.csv)"
             />
 
@@ -269,7 +291,9 @@ export default function UploadPage() {
                 <Label>Trainingsdatum</Label>
                 <DatePicker
                   value={formData.trainingDate}
-                  onChange={(date) => { if (date) setFormData({ ...formData, trainingDate: date }); }}
+                  onChange={(date) => {
+                    if (date) setFormData({ ...formData, trainingDate: date });
+                  }}
                   maxDate={new Date()}
                   placeholder="Datum wählen"
                 />
@@ -280,7 +304,12 @@ export default function UploadPage() {
                 <Select
                   options={[{ value: '', label: 'Optional' }, ...currentSubtypes]}
                   value={formData.trainingSubtype}
-                  onChange={(val) => setFormData({ ...formData, trainingSubtype: (val ?? '') as TrainingSubType | '' })}
+                  onChange={(val) =>
+                    setFormData({
+                      ...formData,
+                      trainingSubtype: (val ?? '') as TrainingSubType | '',
+                    })
+                  }
                   placeholder="Optional"
                 />
               </div>
@@ -293,12 +322,21 @@ export default function UploadPage() {
                 variant="outline"
                 value={formData.trainingType}
                 onValueChange={(val) => {
-                  if (val) setFormData({ ...formData, trainingType: val as TrainingType, trainingSubtype: '' });
+                  if (val)
+                    setFormData({
+                      ...formData,
+                      trainingType: val as TrainingType,
+                      trainingSubtype: '',
+                    });
                 }}
                 className="w-full"
               >
-                <ToggleGroupItem value="running" className="flex-1">Laufen</ToggleGroupItem>
-                <ToggleGroupItem value="strength" className="flex-1">Kraft</ToggleGroupItem>
+                <ToggleGroupItem value="running" className="flex-1">
+                  Laufen
+                </ToggleGroupItem>
+                <ToggleGroupItem value="strength" className="flex-1">
+                  Kraft
+                </ToggleGroupItem>
               </ToggleGroup>
             </div>
 
@@ -385,7 +423,9 @@ export default function UploadPage() {
 
             {/* HR Zones */}
             {parsedData.hr_zones && (
-              <div className={`grid gap-4 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+              <div
+                className={`grid gap-4 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+              >
                 <Card elevation="raised">
                   <CardBody>
                     <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-1">
@@ -399,15 +439,19 @@ export default function UploadPage() {
                         <div key={key}>
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-[var(--color-text-muted)]">{zone.label}</span>
-                            <span className="font-medium text-[var(--color-text-base)]">{zone.percentage}%</span>
+                            <span className="font-medium text-[var(--color-text-base)]">
+                              {zone.percentage}%
+                            </span>
                           </div>
                           <Progress
                             value={zone.percentage}
                             size="sm"
                             color={
-                              key.includes('recovery') ? 'success' :
-                              key.includes('base') ? 'warning' :
-                              'error'
+                              key.includes('recovery')
+                                ? 'success'
+                                : key.includes('base')
+                                  ? 'warning'
+                                  : 'error'
                             }
                           />
                         </div>
@@ -427,23 +471,31 @@ export default function UploadPage() {
                       </p>
                       {parsedData.hr_zones_working ? (
                         <div className="space-y-3">
-                          {Object.entries(parsedData.hr_zones_working).map(([key, zone]: [string, HRZone]) => (
-                            <div key={key}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-[var(--color-text-muted)]">{zone.label}</span>
-                                <span className="font-medium text-[var(--color-text-base)]">{zone.percentage}%</span>
+                          {Object.entries(parsedData.hr_zones_working).map(
+                            ([key, zone]: [string, HRZone]) => (
+                              <div key={key}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-[var(--color-text-muted)]">
+                                    {zone.label}
+                                  </span>
+                                  <span className="font-medium text-[var(--color-text-base)]">
+                                    {zone.percentage}%
+                                  </span>
+                                </div>
+                                <Progress
+                                  value={zone.percentage}
+                                  size="sm"
+                                  color={
+                                    key.includes('recovery')
+                                      ? 'success'
+                                      : key.includes('base')
+                                        ? 'warning'
+                                        : 'error'
+                                  }
+                                />
                               </div>
-                              <Progress
-                                value={zone.percentage}
-                                size="sm"
-                                color={
-                                  key.includes('recovery') ? 'success' :
-                                  key.includes('base') ? 'warning' :
-                                  'error'
-                                }
-                              />
-                            </div>
-                          ))}
+                            ),
+                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-[var(--color-text-muted)] py-6 text-center">
@@ -484,7 +536,9 @@ export default function UploadPage() {
                     <TableBody>
                       {parsedData.laps.map((lap: Lap) => (
                         <TableRow key={lap.lap_number}>
-                          <TableCell className="font-medium text-[var(--color-text-muted)]">{lap.lap_number}</TableCell>
+                          <TableCell className="font-medium text-[var(--color-text-muted)]">
+                            {lap.lap_number}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Select
@@ -495,10 +549,7 @@ export default function UploadPage() {
                                 className="w-36"
                               />
                               {lap.confidence && !lapOverrides[lap.lap_number] && (
-                                <Badge
-                                  variant={confidenceBadgeVariant[lap.confidence]}
-                                  size="sm"
-                                >
+                                <Badge variant={confidenceBadgeVariant[lap.confidence]} size="sm">
                                   {lap.confidence}
                                 </Badge>
                               )}
@@ -506,9 +557,13 @@ export default function UploadPage() {
                           </TableCell>
                           <TableCell>{lap.duration_formatted}</TableCell>
                           <TableCell>{lap.distance_km ? `${lap.distance_km} km` : '-'}</TableCell>
-                          <TableCell>{lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}</TableCell>
+                          <TableCell>
+                            {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
+                          </TableCell>
                           <TableCell>{lap.avg_hr_bpm ? `${lap.avg_hr_bpm}` : '-'}</TableCell>
-                          <TableCell>{lap.avg_cadence_spm ? `${lap.avg_cadence_spm}` : '-'}</TableCell>
+                          <TableCell>
+                            {lap.avg_cadence_spm ? `${lap.avg_cadence_spm}` : '-'}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
