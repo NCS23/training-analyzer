@@ -9,6 +9,18 @@
 
 ---
 
+## Grundregel: Kein Code ohne Issue
+
+**Es wird NICHTS ohne Gitea Issue gemacht.** Kein Feature, kein Bugfix, kein Refactoring, keine Config-Aenderung.
+
+- Vor jeder Arbeit MUSS ein Issue existieren oder erstellt werden
+- Das Issue MUSS Akzeptanzkriterien und Taskbreakdown enthalten
+- Der Branch-Name referenziert das Issue (z.B. `feature/E01-S01-csv-upload`)
+- Commits referenzieren das Issue im Body
+- Erst wenn das Issue geschlossen ist, ist die Arbeit abgeschlossen
+
+---
+
 ## Pflicht-Workflow (4 Phasen)
 
 Jedes Feature, jeder Bugfix, jede Aenderung durchlaeuft diese Phasen.
