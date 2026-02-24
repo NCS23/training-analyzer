@@ -7,7 +7,7 @@ from app.routers import training
 app = FastAPI(
     title="Training Analyzer API",
     description="API for analyzing running and strength training data",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 # CORS Middleware
@@ -22,9 +22,11 @@ app.add_middleware(
 # Register Routers
 app.include_router(training.router, prefix="/api")
 
+
 @app.get("/")
 async def root():
     return {"message": "Training Analyzer API", "version": "0.1.0"}
+
 
 @app.get("/health")
 async def health():

@@ -3,11 +3,11 @@ AI API Endpoints
 
 Manage AI providers and chat functionality.
 """
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.infrastructure.ai.ai_service import ai_service, AIProviderFactory
-
+from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ class ChatRequest(BaseModel):
 async def get_providers():
     """
     Get available AI providers and their status
-    
+
     **Returns:**
     - primary: Current primary provider
     - available: List of all available provider types
@@ -38,7 +38,7 @@ async def get_providers():
 async def chat(request: ChatRequest):
     """
     Chat with AI trainer
-    
+
     **Request:**
     ```json
     {
@@ -49,7 +49,7 @@ async def chat(request: ChatRequest):
         }
     }
     ```
-    
+
     **Returns:**
     AI response text
     """
@@ -61,28 +61,25 @@ async def chat(request: ChatRequest):
             "provider": ai_service.get_active_provider(),
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI chat failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"AI chat failed: {str(e)}") from e
 
 
 @router.post("/ai/providers/test/{provider_name}")
 async def test_provider(provider_name: str):
     """
     Test if a specific AI provider is working
-    
+
     **Parameters:**
     - provider_name: claude, ollama, or openai
-    
+
     **Returns:**
     Provider test results
     """
     try:
         provider = AIProviderFactory.create(provider_name)
-        
+
         is_available = provider.is_available()
-        
+
         if is_available:
             # Quick test
             test_data = {
@@ -92,9 +89,9 @@ async def test_provider(provider_name: str):
                 "pace": "6:00",
                 "hr_avg": 150,
             }
-            
+
             test_result = await provider.analyze_workout(test_data)
-            
+
             return {
                 "success": True,
                 "provider": provider.name,
@@ -106,13 +103,8 @@ async def test_provider(provider_name: str):
                 "success": False,
                 "provider": provider.name,
                 "available": False,
-                "error": f"{provider_name} is not available"
+                "error": f"{provider_name} is not available",
             }
-    
+
     except Exception as e:
-        return {
-            "success": False,
-            "provider": provider_name,
-            "available": False,
-            "error": str(e)
-        }
+        return {"success": False, "provider": provider_name, "available": False, "error": str(e)}
