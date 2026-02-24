@@ -92,7 +92,8 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: |
-          python3 -m pip install --break-system-packages -e ".[dev]" || pip install -e ".[dev]"
+          python3 -m pip install --break-system-packages --upgrade pip setuptools wheel 2>/dev/null || pip install --upgrade pip setuptools wheel
+          python3 -m pip install --break-system-packages ".[dev]" 2>/dev/null || pip install ".[dev]"
 
       - name: Ruff lint
         working-directory: backend
@@ -119,7 +120,8 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: |
-          python3 -m pip install --break-system-packages -e ".[dev]" || pip install -e ".[dev]"
+          python3 -m pip install --break-system-packages --upgrade pip setuptools wheel 2>/dev/null || pip install --upgrade pip setuptools wheel
+          python3 -m pip install --break-system-packages ".[dev]" 2>/dev/null || pip install ".[dev]"
 
       - name: Run tests with coverage
         working-directory: backend
