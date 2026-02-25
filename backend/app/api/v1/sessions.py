@@ -8,11 +8,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import WorkoutModel
+from app.infrastructure.database.models import AthleteModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.session import (
-    HRZoneResponse,
-    HRZonesResponse,
     LapOverrideRequest,
     LapOverrideResponse,
     LapResponse,
@@ -23,10 +21,20 @@ from app.models.session import (
 )
 from app.models.training import TrainingSubType, TrainingType
 from app.services.csv_parser import TrainingCSVParser
+from app.services.hr_zone_calculator import calculate_zone_distribution
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 csv_parser = TrainingCSVParser()
+
+
+async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:
+    """Holt Ruhe-HR und Max-HR des Athleten (wenn konfiguriert)."""
+    result = await db.execute(select(AthleteModel).limit(1))
+    athlete = result.scalar_one_or_none()
+    if athlete and athlete.resting_hr and athlete.max_hr:
+        return int(athlete.resting_hr), int(athlete.max_hr)  # type: ignore[arg-type]
+    return None, None
 
 
 @router.post("/upload/csv", response_model=SessionUploadResponse, status_code=201)
@@ -59,7 +67,12 @@ async def upload_csv(
     # Extrahiere Summary-Daten fuer DB-Felder
     summary = result.get("summary", {})
     laps = result.get("laps")
-    hr_zones = result.get("hr_zones")
+
+    # HR-Zonen: Karvonen (5-Zonen) wenn Athleten-Daten vorhanden, sonst 3-Zonen Fallback
+    resting_hr, max_hr = await _get_athlete_hr_settings(db)
+    hr_timeseries = result.get("hr_timeseries")
+    raw_hr_values = _extract_hr_values_from_result(result)
+    hr_zones = calculate_zone_distribution(raw_hr_values, resting_hr, max_hr)
 
     # Erstelle DB-Eintrag
     workout = WorkoutModel(
@@ -90,13 +103,14 @@ async def upload_csv(
             "laps": laps,
             "summary": summary,
             "hr_zones": hr_zones,
-            "hr_timeseries": result.get("hr_timeseries"),
+            "hr_timeseries": hr_timeseries,
         },
         metadata={
             **result.get("metadata", {}),
             "training_date": training_date.isoformat(),
             "training_subtype": training_subtype.value if training_subtype else None,
             "notes": notes,
+            "hr_zone_method": "karvonen" if resting_hr else "fixed_3zone",
         },
     )
 
@@ -213,6 +227,26 @@ async def delete_session(
 
 # --- Helper ---
 
+
+def _extract_hr_values_from_result(result: dict) -> list[int]:
+    """Extrahiert HR-Werte aus dem Parse-Ergebnis fuer die Zonen-Berechnung."""
+    # Aus HR-Timeseries (Krafttraining)
+    timeseries = result.get("hr_timeseries", [])
+    if timeseries:
+        return [int(p["hr_bpm"]) for p in timeseries if p.get("hr_bpm")]
+
+    # Aus Laps (Lauftraining) — verwende avg_hr_bpm pro Lap, gewichtet nach Dauer
+    laps = result.get("laps", [])
+    hr_values = []
+    for lap in laps:
+        avg_hr = lap.get("avg_hr_bpm")
+        duration = lap.get("duration_seconds", 0)
+        if avg_hr and duration > 0:
+            # Simuliere Sekundenwerte mit dem Durchschnitts-HR
+            hr_values.extend([int(avg_hr)] * duration)
+    return hr_values
+
+
 EXCLUDED_TYPES = {"warmup", "cooldown", "pause"}
 
 
@@ -242,7 +276,7 @@ def _format_pace(pace: Optional[float]) -> Optional[str]:
 
 def _calculate_working_laps_metrics(
     laps_raw: list[dict],
-) -> tuple[Optional[SessionSummaryResponse], Optional[HRZonesResponse]]:
+) -> tuple[Optional[SessionSummaryResponse], Optional[dict]]:
     """Berechnet Metriken nur fuer Working-Laps (ohne Warmup/Cooldown/Pause)."""
     working = [lap for lap in laps_raw if _get_effective_type(lap) not in EXCLUDED_TYPES]
 
@@ -277,38 +311,14 @@ def _calculate_working_laps_metrics(
         ),
     )
 
-    # HR Zones fuer Working-Laps (gewichtet nach Dauer)
-    zone1 = 0
-    zone2 = 0
-    zone3 = 0
+    # HR Zones fuer Working-Laps (gewichtet nach Dauer, 3-Zonen Fallback)
+    working_hr_values: list[int] = []
     for lap in working:
-        hr = lap.get("avg_hr_bpm", 0)
+        avg_hr = lap.get("avg_hr_bpm", 0)
         dur = lap.get("duration_seconds", 0)
-        if hr < 150:
-            zone1 += dur
-        elif hr < 160:
-            zone2 += dur
-        else:
-            zone3 += dur
+        if avg_hr and dur > 0:
+            working_hr_values.extend([int(avg_hr)] * dur)
 
-    total_zone_time = zone1 + zone2 + zone3
-
-    hr_zones = HRZonesResponse(
-        zone_1_recovery=HRZoneResponse(
-            seconds=zone1,
-            percentage=round(zone1 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
-            label="< 150 bpm",
-        ),
-        zone_2_base=HRZoneResponse(
-            seconds=zone2,
-            percentage=round(zone2 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
-            label="150-160 bpm",
-        ),
-        zone_3_tempo=HRZoneResponse(
-            seconds=zone3,
-            percentage=round(zone3 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
-            label="> 160 bpm",
-        ),
-    )
+    hr_zones = calculate_zone_distribution(working_hr_values)
 
     return summary, hr_zones

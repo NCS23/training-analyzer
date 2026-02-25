@@ -37,3 +37,14 @@ class WorkoutModel(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class AthleteModel(Base):
+    __tablename__ = "athletes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    resting_hr = Column(Integer)
+    max_hr = Column(Integer)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

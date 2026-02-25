@@ -1,9 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from './test/test-utils';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from './test/test-utils';
 import { DashboardPage } from './pages/Dashboard';
 import { SessionsPage } from './pages/Sessions';
 import { SettingsPage } from './pages/Settings';
 import { NotFoundPage } from './pages/NotFound';
+
+vi.mock('@/api/athlete', () => ({
+  getAthleteSettings: vi.fn().mockResolvedValue({
+    id: 1,
+    resting_hr: null,
+    max_hr: null,
+    karvonen_zones: null,
+  }),
+  updateAthleteSettings: vi.fn(),
+}));
 
 describe('Page stubs render correctly', () => {
   it('renders Dashboard page', () => {
@@ -16,9 +26,11 @@ describe('Page stubs render correctly', () => {
     expect(screen.getByText('Sessions')).toBeInTheDocument();
   });
 
-  it('renders Settings page', () => {
+  it('renders Settings page', async () => {
     render(<SettingsPage />);
-    expect(screen.getByText('Einstellungen')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Einstellungen')).toBeInTheDocument();
+    });
   });
 
   it('renders 404 page', () => {
