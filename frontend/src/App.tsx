@@ -1,32 +1,63 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { Button } from '@nordlig/components';
-import UploadPage from './pages/Upload';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Spinner } from '@nordlig/components';
+import { AppLayout } from './layouts/AppLayout';
 
-function HomePage() {
-  const navigate = useNavigate();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const DashboardPage = lazy(() =>
+  import('./pages/Dashboard').then((m) => ({ default: m.DashboardPage })),
+);
+const SessionsPage = lazy(() =>
+  import('./pages/Sessions').then((m) => ({ default: m.SessionsPage })),
+);
+const SessionDetailPage = lazy(() =>
+  import('./pages/SessionDetail').then((m) => ({ default: m.SessionDetailPage })),
+);
+const UploadPage = lazy(() => import('./pages/Upload'));
+const SettingsPage = lazy(() =>
+  import('./pages/Settings').then((m) => ({ default: m.SettingsPage })),
+);
+const NotFoundPage = lazy(() =>
+  import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
+);
+
+function PageLoader() {
   return (
-    <div className="min-h-screen bg-[var(--color-bg-base)]">
-      <div className="max-w-7xl mx-auto py-12 px-4">
-        <h1 className="text-4xl font-bold text-[var(--color-text-base)] mb-4">Training Analyzer</h1>
-        <p className="text-[var(--color-text-muted)] mb-8">
-          AI-powered half-marathon training platform
-        </p>
-        <Button variant="primary" onClick={() => navigate('/upload')}>
-          Training hochladen
-        </Button>
-      </div>
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Spinner size="lg" />
     </div>
   );
 }
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/upload" element={<UploadPage />} />
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/sessions" element={<SessionsPage />} />
+              <Route path="/sessions/new" element={<UploadPage />} />
+              <Route path="/sessions/:id" element={<SessionDetailPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

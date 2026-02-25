@@ -1,0 +1,59 @@
+"""Test data factories for domain entities."""
+
+from datetime import datetime
+
+from app.domain.entities.workout import Workout
+
+
+def make_workout(**overrides) -> Workout:
+    """Create a Workout entity with sensible defaults."""
+    defaults = {
+        "id": 1,
+        "date": datetime(2024, 3, 15, 7, 30),
+        "workout_type": "running",
+        "subtype": "interval",
+        "duration_sec": 3600,
+        "distance_km": 10.5,
+        "pace": "5:43",
+        "hr_avg": 155,
+        "hr_max": 178,
+        "hr_min": 120,
+    }
+    defaults.update(overrides)
+    return Workout(**defaults)
+
+
+def make_running_workout(**overrides) -> Workout:
+    """Create a running workout."""
+    return make_workout(workout_type="running", **overrides)
+
+
+def make_strength_workout(**overrides) -> Workout:
+    """Create a strength workout."""
+    return make_workout(
+        workout_type="strength",
+        subtype="knee_dominant",
+        distance_km=None,
+        pace=None,
+        duration_sec=2700,
+        **overrides,
+    )
+
+
+SAMPLE_CSV_RUNNING = """\
+Lap;Duration;Distance;Avg Pace;Avg Heart Rate;Max Heart Rate;Min Heart Rate;Avg Cadence
+1;05:00;1.00;5:00;140;150;130;170
+2;03:30;0.80;4:23;165;175;155;180
+3;02:00;0.30;6:40;135;145;125;160
+4;03:30;0.80;4:23;168;180;158;182
+5;05:00;1.00;5:00;130;140;120;165
+"""
+
+SAMPLE_CSV_STRENGTH = """\
+Timestamp;Heart Rate
+2024-03-15 07:30:00;80
+2024-03-15 07:30:10;85
+2024-03-15 07:30:20;110
+2024-03-15 07:30:30;130
+2024-03-15 07:30:40;145
+"""
