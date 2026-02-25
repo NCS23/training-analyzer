@@ -9,9 +9,9 @@
 │  ┌──────────────────┐                  │
 │  │ NAS              │                  │
 │  │ 192.168.68.52    │ ◄─── Training Analyzer App (Docker)
-│  │                  │      - Frontend: Port 3000
-│  │ - PostgreSQL     │      - Backend:  Port 8000
-│  │ - Backend API    │      - Database: Port 5432
+│  │                  │      - Frontend: Port 3002
+│  │ - PostgreSQL     │      - Backend:  Port 8001
+│  │ - Backend API    │      - Database: Port 5433
 │  │ - React Frontend │                  │
 │  └──────────────────┘                  │
 │           │                            │
@@ -44,7 +44,7 @@ http://192.168.68.66:5001
 
 ### Frontend (Browser) → Backend (auf NAS)
 ```
-http://192.168.68.52:8000
+http://192.168.68.52:8001
 ```
 
 ---
@@ -54,7 +54,7 @@ http://192.168.68.52:8000
 ### .env Datei auf dem NAS
 
 ```bash
-# Database (lokal auf NAS)
+# Database (intern im Docker-Netzwerk)
 DATABASE_URL=postgresql://training_user:training_pass@postgres:5432/training_analyzer
 
 # AI Provider
@@ -69,7 +69,7 @@ OLLAMA_MODEL=llama3.1:8b
 DOCLING_SERVER_URL=http://192.168.68.66:5001
 
 # CORS - Frontend auf NAS
-ALLOWED_ORIGINS=http://192.168.68.52:3000,http://localhost:3000
+ALLOWED_ORIGINS=http://192.168.68.52:3002,http://localhost:3000
 
 # Security
 SECRET_KEY=dein-generierter-key
@@ -116,10 +116,10 @@ curl http://192.168.68.66:5001/health
 
 ```bash
 # Frontend öffnen (NAS)
-open http://192.168.68.52:3000
+open http://192.168.68.52:3002
 
 # API Docs (NAS)
-open http://192.168.68.52:8000/docs
+open http://192.168.68.52:8001/docs
 
 # Ollama testen (Mac)
 curl http://192.168.68.66:11434/api/tags
@@ -133,10 +133,10 @@ curl http://192.168.68.66:5001/health
 ## 🔧 Wichtige URLs
 
 ### Auf dem NAS (192.168.68.52)
-- **Frontend:** http://192.168.68.52:3000
-- **Backend API:** http://192.168.68.52:8000
-- **API Docs:** http://192.168.68.52:8000/docs
-- **Health Check:** http://192.168.68.52:8000/health
+- **Frontend:** http://192.168.68.52:3002
+- **Backend API:** http://192.168.68.52:8001
+- **API Docs:** http://192.168.68.52:8001/docs
+- **Health Check:** http://192.168.68.52:8001/health
 
 ### Auf dem Mac (192.168.68.66)
 - **Ollama API:** http://192.168.68.66:11434
@@ -149,9 +149,9 @@ curl http://192.168.68.66:5001/health
 ### Auf dem NAS (192.168.68.52)
 
 Stelle sicher dass diese Ports offen sind:
-- **3000** - Frontend (für Browser-Zugriff)
-- **8000** - Backend API (für Frontend)
-- **5432** - PostgreSQL (nur intern zwischen Containern)
+- **3002** - Frontend (für Browser-Zugriff)
+- **8001** - Backend API (für Frontend)
+- **5433** - PostgreSQL (extern, intern 5432)
 
 ### Auf dem Mac (192.168.68.66)
 
@@ -197,7 +197,7 @@ curl http://192.168.68.66:5001/health
 # Falls CORS-Fehler:
 # Prüfe .env auf NAS:
 cat /volume1/docker/training-analyzer/.env | grep ALLOWED_ORIGINS
-# Sollte enthalten: http://192.168.68.52:3000
+# Sollte enthalten: http://192.168.68.52:3002
 ```
 
 ---
@@ -234,18 +234,18 @@ curl http://localhost:8000/api/v1/ai/providers
 
 | Service | Host | IP | Port |
 |---------|------|----|----- |
-| PostgreSQL | NAS | 192.168.68.52 | 5432 |
-| Backend API | NAS | 192.168.68.52 | 8000 |
-| Frontend | NAS | 192.168.68.52 | 3000 |
+| PostgreSQL | NAS | 192.168.68.52 | 5433 |
+| Backend API | NAS | 192.168.68.52 | 8001 |
+| Frontend | NAS | 192.168.68.52 | 3002 |
 | Ollama | Mac | 192.168.68.66 | 11434 |
 | Docling | Mac | 192.168.68.66 | 5001 |
 
 ### Netzwerk-Flows
 
 ```
-Browser → Frontend (192.168.68.52:3000)
-Frontend → Backend (192.168.68.52:8000)
-Backend → PostgreSQL (localhost:5432)
+Browser → Frontend (192.168.68.52:3002)
+Frontend → Backend (192.168.68.52:8001)
+Backend → PostgreSQL (localhost:5432 intern / 5433 extern)
 Backend → Ollama (192.168.68.66:11434)
 Backend → Docling (192.168.68.66:5001)
 ```
@@ -263,7 +263,7 @@ cd /volume1/docker/training-analyzer
 ./setup-nas.sh
 
 # 3. Frontend öffnen
-open http://192.168.68.52:3000
+open http://192.168.68.52:3002
 ```
 
 **Fertig! 🎉**
