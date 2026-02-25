@@ -31,6 +31,11 @@ class WorkoutModel(Base):
     hr_zones_json = Column(Text)
     notes = Column(Text)
 
+    # Training Type Klassifizierung
+    training_type_auto = Column(String(30))
+    training_type_confidence = Column(Integer)
+    training_type_override = Column(String(30))
+
     # AI
     ai_analysis = Column(Text)
 

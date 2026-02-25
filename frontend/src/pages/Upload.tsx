@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, RefreshCw, Save } from 'lucide-react';
-import { uploadTraining, updateLapOverrides } from '@/api/training';
+import { uploadTraining, updateLapOverrides, updateTrainingType } from '@/api/training';
+import type { TrainingTypeInfo } from '@/api/training';
 import {
   Button,
   Card,
@@ -127,6 +128,31 @@ const confidenceBadgeVariant = {
   low: 'error',
 } as const;
 
+const trainingTypeLabels: Record<string, string> = {
+  recovery: 'Recovery',
+  easy: 'Easy Run',
+  long_run: 'Long Run',
+  tempo: 'Tempo',
+  intervals: 'Intervall',
+  race: 'Wettkampf',
+  hill_repeats: 'Bergsprints',
+};
+
+const trainingTypeBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
+  recovery: 'info',
+  easy: 'success',
+  long_run: 'success',
+  tempo: 'warning',
+  intervals: 'error',
+  race: 'error',
+  hill_repeats: 'warning',
+};
+
+const trainingTypeOptions = Object.entries(trainingTypeLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
+
 export default function UploadPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<UploadFormData>({
@@ -144,6 +170,8 @@ export default function UploadPage() {
   const [lapOverrides, setLapOverrides] = useState<{ [key: number]: LapType }>({});
   const [savingOverrides, setSavingOverrides] = useState(false);
   const [overridesSaved, setOverridesSaved] = useState(false);
+  const [trainingTypeInfo, setTrainingTypeInfo] = useState<TrainingTypeInfo | null>(null);
+  const [savingTrainingType, setSavingTrainingType] = useState(false);
 
   const handleFileUpload = (files: File[]) => {
     if (files[0]) {
@@ -179,6 +207,17 @@ export default function UploadPage() {
         setParsedData(result.data as ParsedData);
         setSessionId(result.session_id);
         setLapOverrides({});
+
+        // Training Type aus Metadata extrahieren
+        const meta = result.metadata;
+        if (meta?.training_type_auto) {
+          setTrainingTypeInfo({
+            auto: meta.training_type_auto as string,
+            confidence: (meta.training_type_confidence as number) ?? null,
+            override: null,
+            effective: meta.training_type_auto as string,
+          });
+        }
       } else {
         setError(result.errors?.join(', ') || 'Upload fehlgeschlagen');
       }
@@ -273,6 +312,22 @@ export default function UploadPage() {
       setError('Speichern fehlgeschlagen: ' + (err as Error).message);
     } finally {
       setSavingOverrides(false);
+    }
+  };
+
+  const handleTrainingTypeOverride = async (newType: string | undefined) => {
+    if (!sessionId || !newType) return;
+
+    setSavingTrainingType(true);
+    try {
+      const result = await updateTrainingType(sessionId, newType);
+      if (result.training_type) {
+        setTrainingTypeInfo(result.training_type);
+      }
+    } catch (err) {
+      setError('Training Type speichern fehlgeschlagen: ' + (err as Error).message);
+    } finally {
+      setSavingTrainingType(false);
     }
   };
 
@@ -446,6 +501,54 @@ export default function UploadPage() {
                   </CardBody>
                 </Card>
               </div>
+            )}
+
+            {/* Training Type Classification */}
+            {trainingTypeInfo && (
+              <Card elevation="raised" padding="spacious">
+                <CardBody>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-[var(--color-text-muted)]">
+                        Erkannter Trainingstyp:
+                      </span>
+                      <Badge
+                        variant={
+                          trainingTypeBadgeVariant[trainingTypeInfo.effective ?? ''] ?? 'info'
+                        }
+                        size="md"
+                      >
+                        {trainingTypeLabels[trainingTypeInfo.effective ?? ''] ??
+                          trainingTypeInfo.effective}
+                      </Badge>
+                      {trainingTypeInfo.confidence !== null && !trainingTypeInfo.override && (
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          ({trainingTypeInfo.confidence}% Konfidenz)
+                        </span>
+                      )}
+                      {trainingTypeInfo.override && (
+                        <Badge variant="info" size="sm">
+                          Manuell
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {savingTrainingType ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <Select
+                          options={trainingTypeOptions}
+                          value={trainingTypeInfo.effective ?? undefined}
+                          onChange={handleTrainingTypeOverride}
+                          inputSize="sm"
+                          className="w-44"
+                          placeholder="Typ aendern"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
             )}
 
             {/* HR Zones */}

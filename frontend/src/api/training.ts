@@ -60,6 +60,42 @@ export async function updateLapOverrides(params: LapOverrideParams): Promise<Lap
   return response.data;
 }
 
+export interface TrainingTypeInfo {
+  auto: string | null;
+  confidence: number | null;
+  override: string | null;
+  effective: string | null;
+}
+
+export interface SessionDetail {
+  id: number;
+  date: string;
+  workout_type: string;
+  subtype: string | null;
+  training_type: TrainingTypeInfo | null;
+  duration_sec: number | null;
+  distance_km: number | null;
+  pace: string | null;
+  hr_avg: number | null;
+  hr_max: number | null;
+  hr_min: number | null;
+  cadence_avg: number | null;
+  notes: string | null;
+  laps: Record<string, unknown>[] | null;
+  hr_zones: Record<string, unknown> | null;
+}
+
+export async function updateTrainingType(
+  sessionId: number,
+  trainingType: string,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(
+    `/api/v1/sessions/${sessionId}/training-type`,
+    { training_type: trainingType },
+  );
+  return response.data;
+}
+
 export async function healthCheck(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/health');
   return response.data;

@@ -63,6 +63,15 @@ class SessionSummaryResponse(BaseModel):
     avg_cadence_spm: Optional[int] = None
 
 
+class TrainingTypeInfo(BaseModel):
+    """Training Type Klassifizierungsergebnis."""
+
+    auto: Optional[str] = None
+    confidence: Optional[int] = None
+    override: Optional[str] = None
+    effective: Optional[str] = None
+
+
 class SessionResponse(BaseModel):
     """Vollstaendige Session-Antwort."""
 
@@ -70,6 +79,7 @@ class SessionResponse(BaseModel):
     date: date
     workout_type: str
     subtype: Optional[str] = None
+    training_type: Optional[TrainingTypeInfo] = None
     duration_sec: Optional[int] = None
     distance_km: Optional[float] = None
     pace: Optional[str] = None
@@ -100,11 +110,28 @@ class SessionResponse(BaseModel):
             model_date.date() if isinstance(model_date, datetime) else model_date  # type: ignore[assignment]
         )
 
+        # Training Type Info
+        training_type = None
+        auto_type = str(model.training_type_auto) if model.training_type_auto else None
+        override_type = str(model.training_type_override) if model.training_type_override else None
+        if auto_type or override_type:
+            training_type = TrainingTypeInfo(
+                auto=auto_type,
+                confidence=(
+                    int(model.training_type_confidence)  # type: ignore[arg-type]
+                    if model.training_type_confidence
+                    else None
+                ),
+                override=override_type,
+                effective=override_type or auto_type,
+            )
+
         return cls(
             id=int(model.id),  # type: ignore[arg-type]
             date=session_date,
             workout_type=str(model.workout_type),
             subtype=model.subtype if model.subtype is None else str(model.subtype),
+            training_type=training_type,
             duration_sec=int(model.duration_sec) if model.duration_sec else None,  # type: ignore[arg-type]
             distance_km=float(model.distance_km) if model.distance_km else None,  # type: ignore[arg-type]
             pace=str(model.pace) if model.pace else None,
@@ -127,6 +154,7 @@ class SessionListItem(BaseModel):
     date: date
     workout_type: str
     subtype: Optional[str] = None
+    training_type: Optional[TrainingTypeInfo] = None
     duration_sec: Optional[int] = None
     distance_km: Optional[float] = None
     pace: Optional[str] = None
@@ -139,11 +167,28 @@ class SessionListItem(BaseModel):
             model_date.date() if isinstance(model_date, datetime) else model_date  # type: ignore[assignment]
         )
 
+        # Training Type Info
+        training_type = None
+        auto_type = str(model.training_type_auto) if model.training_type_auto else None
+        override_type = str(model.training_type_override) if model.training_type_override else None
+        if auto_type or override_type:
+            training_type = TrainingTypeInfo(
+                auto=auto_type,
+                confidence=(
+                    int(model.training_type_confidence)  # type: ignore[arg-type]
+                    if model.training_type_confidence
+                    else None
+                ),
+                override=override_type,
+                effective=override_type or auto_type,
+            )
+
         return cls(
             id=int(model.id),  # type: ignore[arg-type]
             date=session_date,
             workout_type=str(model.workout_type),
             subtype=model.subtype if model.subtype is None else str(model.subtype),
+            training_type=training_type,
             duration_sec=int(model.duration_sec) if model.duration_sec else None,  # type: ignore[arg-type]
             distance_km=float(model.distance_km) if model.distance_km else None,  # type: ignore[arg-type]
             pace=str(model.pace) if model.pace else None,
@@ -193,3 +238,9 @@ class LapOverrideResponse(BaseModel):
     laps: list[LapResponse]
     summary_working: Optional[SessionSummaryResponse] = None
     hr_zones_working: Optional[dict] = None
+
+
+class TrainingTypeOverrideRequest(BaseModel):
+    """Request fuer Training Type Override."""
+
+    training_type: str

@@ -18,10 +18,12 @@ from app.models.session import (
     SessionResponse,
     SessionSummaryResponse,
     SessionUploadResponse,
+    TrainingTypeOverrideRequest,
 )
 from app.models.training import TrainingSubType, TrainingType
 from app.services.csv_parser import TrainingCSVParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
+from app.services.training_type_classifier import classify_training_type
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -74,11 +76,25 @@ async def upload_csv(
     raw_hr_values = _extract_hr_values_from_result(result)
     hr_zones = calculate_zone_distribution(raw_hr_values, resting_hr, max_hr)
 
+    # Automatische Training Type Klassifizierung (nur fuer Running)
+    classification = None
+    if training_type == TrainingType.RUNNING:
+        classification = classify_training_type(
+            duration_sec=summary.get("total_duration_seconds", 0),
+            hr_avg=summary.get("avg_hr_bpm"),
+            hr_max=summary.get("max_hr_bpm"),
+            distance_km=summary.get("total_distance_km"),
+            laps=laps,
+            hr_zone_distribution=hr_zones or None,
+        )
+
     # Erstelle DB-Eintrag
     workout = WorkoutModel(
         date=datetime.combine(training_date, datetime.min.time()),
         workout_type=training_type.value,
         subtype=training_subtype.value if training_subtype else None,
+        training_type_auto=classification.training_type if classification else None,
+        training_type_confidence=classification.confidence if classification else None,
         duration_sec=summary.get("total_duration_seconds"),
         distance_km=summary.get("total_distance_km"),
         pace=summary.get("avg_pace_formatted"),
@@ -111,6 +127,9 @@ async def upload_csv(
             "training_subtype": training_subtype.value if training_subtype else None,
             "notes": notes,
             "hr_zone_method": "karvonen" if resting_hr else "fixed_3zone",
+            "training_type_auto": classification.training_type if classification else None,
+            "training_type_confidence": classification.confidence if classification else None,
+            "training_type_reasons": classification.reasons if classification else None,
         },
     )
 
@@ -206,6 +225,44 @@ async def update_lap_overrides(
         summary_working=summary_working,
         hr_zones_working=hr_zones_working,
     )
+
+
+VALID_TRAINING_TYPES = {
+    "recovery",
+    "easy",
+    "long_run",
+    "tempo",
+    "intervals",
+    "race",
+    "hill_repeats",
+}
+
+
+@router.patch("/{session_id}/training-type", response_model=SessionResponse)
+async def update_training_type(
+    session_id: int,
+    body: TrainingTypeOverrideRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Setzt manuellen Training Type Override."""
+    if body.training_type not in VALID_TRAINING_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ungueltiger Training Type. Erlaubt: {', '.join(sorted(VALID_TRAINING_TYPES))}",
+        )
+
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    workout.training_type_override = body.training_type  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionResponse.from_db(workout)
 
 
 @router.delete("/{session_id}", status_code=204)
