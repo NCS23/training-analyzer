@@ -51,9 +51,7 @@ export interface LapOverrideResponse {
   hr_zones_working?: Record<string, unknown>;
 }
 
-export async function updateLapOverrides(
-  params: LapOverrideParams,
-): Promise<LapOverrideResponse> {
+export async function updateLapOverrides(params: LapOverrideParams): Promise<LapOverrideResponse> {
   const response = await apiClient.patch<LapOverrideResponse>(
     `/api/v1/sessions/${params.sessionId}/laps`,
     { overrides: params.overrides },
