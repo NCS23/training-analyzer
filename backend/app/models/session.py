@@ -79,7 +79,7 @@ class SessionResponse(BaseModel):
     cadence_avg: Optional[int] = None
     notes: Optional[str] = None
     laps: Optional[list[LapResponse]] = None
-    hr_zones: Optional[HRZonesResponse] = None
+    hr_zones: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 
@@ -93,8 +93,7 @@ class SessionResponse(BaseModel):
 
         hr_zones = None
         if model.hr_zones_json:
-            zones_raw = json.loads(str(model.hr_zones_json))
-            hr_zones = HRZonesResponse(**zones_raw)
+            hr_zones = json.loads(str(model.hr_zones_json))
 
         model_date = model.date  # type: ignore[assignment]
         session_date: date = (
@@ -193,4 +192,4 @@ class LapOverrideResponse(BaseModel):
     success: bool
     laps: list[LapResponse]
     summary_working: Optional[SessionSummaryResponse] = None
-    hr_zones_working: Optional[HRZonesResponse] = None
+    hr_zones_working: Optional[dict] = None
