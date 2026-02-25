@@ -10,7 +10,7 @@ export interface TrainingUploadParams {
 
 export interface TrainingUploadResponse {
   success: boolean;
-  training_id?: number;
+  session_id?: number;
   data?: Record<string, unknown>;
   errors?: string[];
   metadata?: Record<string, unknown>;
@@ -30,9 +30,11 @@ export async function uploadTraining(
     formData.append('notes', params.notes);
   }
 
-  const response = await apiClient.post<TrainingUploadResponse>('/api/training/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await apiClient.post<TrainingUploadResponse>(
+    '/api/v1/sessions/upload/csv',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
 
   return response.data;
 }

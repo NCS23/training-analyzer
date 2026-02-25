@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Activity, RefreshCw } from 'lucide-react';
+import { uploadTraining } from '@/api/training';
 import {
   Button,
   Card,
@@ -126,6 +128,7 @@ const confidenceBadgeVariant = {
 } as const;
 
 export default function UploadPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<UploadFormData>({
     csvFile: null,
     trainingDate: new Date(),
@@ -135,6 +138,7 @@ export default function UploadPage() {
   });
 
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lapOverrides, setLapOverrides] = useState<{ [key: number]: LapType }>({});
@@ -160,28 +164,18 @@ export default function UploadPage() {
     setLoading(true);
     setError(null);
 
-    const data = new FormData();
-    data.append('csv_file', formData.csvFile);
-    data.append('training_date', formData.trainingDate.toISOString().split('T')[0]);
-    data.append('training_type', formData.trainingType);
-    if (formData.trainingSubtype) {
-      data.append('training_subtype', formData.trainingSubtype);
-    }
-    if (formData.notes) {
-      data.append('notes', formData.notes);
-    }
-
     try {
-      const apiBase = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8001`;
-      const response = await fetch(`${apiBase}/api/training/upload`, {
-        method: 'POST',
-        body: data,
+      const result = await uploadTraining({
+        csvFile: formData.csvFile,
+        trainingDate: formData.trainingDate.toISOString().split('T')[0],
+        trainingType: formData.trainingType,
+        trainingSubtype: formData.trainingSubtype || undefined,
+        notes: formData.notes || undefined,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        setParsedData(result.data);
+      if (result.success && result.session_id) {
+        setParsedData(result.data as ParsedData);
+        setSessionId(result.session_id);
         setLapOverrides({});
       } else {
         setError(result.errors?.join(', ') || 'Upload fehlgeschlagen');
@@ -570,6 +564,14 @@ export default function UploadPage() {
                   </Table>
                 </div>
               </Card>
+            )}
+            {/* Success Action */}
+            {sessionId && (
+              <div className="flex justify-end">
+                <Button variant="primary" onClick={() => navigate(`/sessions/${sessionId}`)}>
+                  Zur Session
+                </Button>
+              </div>
             )}
           </section>
         )}
