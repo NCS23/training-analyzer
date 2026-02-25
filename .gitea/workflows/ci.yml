@@ -141,7 +141,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via Docker
+      - name: Install Docker + Compose
         run: |
-          echo "Deployment wird spaeter konfiguriert"
-          # /workspace/training-analyzer/deploy-from-runner.sh
+          apt-get update -qq
+          apt-get install -y -qq docker.io docker-compose rsync
+
+      - name: Sync code to NAS
+        run: |
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'venv' \
+            --exclude '__pycache__' \
+            --exclude 'postgres-data' \
+            --exclude '.env' \
+            ./ /volume1/docker/training-analyzer/
+
+      - name: Build and deploy containers
+        run: |
+          cd /volume1/docker/training-analyzer
+          docker-compose up -d --build backend frontend
+          sleep 5
+          docker-compose ps

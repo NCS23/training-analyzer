@@ -1,32 +1,48 @@
-# 🚀 Deployment Workflow
+# Deployment Workflow
 
-## Automatisches Deployment
+## Automatisches Deployment via Gitea Actions
 
 Bei jedem `git push` auf `main`:
-1. Gitea Webhook triggert → `http://192.168.68.52:9000/deploy`
-2. Webhook Server führt aus → `/volume1/docker/training-analyzer/webhook-deploy.sh`
-3. Script macht:
-   - Git pull
-   - Docker rebuild (backend + frontend)
-   - Containers neu starten
+1. CI Pipeline laeuft (Lint, Tests, Build)
+2. Nach Erfolg: Deploy-Job synct Code nach `/volume1/docker/training-analyzer/`
+3. `docker-compose up -d --build backend frontend` startet die Container neu
 
 ## Manuelles Deployment
+
 ```bash
-/volume1/docker/training-analyzer/webhook-deploy.sh
+ssh -p 47 admin@192.168.68.52
+cd /volume1/docker/training-analyzer
+git pull origin main
+docker-compose up -d --build backend frontend
 ```
 
-## Webhook Server
+## Runner-Konfiguration (Voraussetzung)
 
-- **Port:** 9000
-- **Script:** `/volume1/docker/training-analyzer/webhook-server.py`
-- **Logs:** `/volume1/docker/training-analyzer/webhook.log`
+Der act_runner auf dem NAS braucht Docker Socket + Projektverzeichnis-Zugriff.
+In der Runner-Config (`config.yaml`) muessen diese Volumes gemountet sein:
 
-### Webhook Server neustarten:
-```bash
-pkill -f webhook-server.py
-nohup python3 /volume1/docker/training-analyzer/webhook-server.py > /volume1/docker/training-analyzer/webhook.log 2>&1 &
+```yaml
+container:
+  options: >-
+    -v /var/run/docker.sock:/var/run/docker.sock
+    -v /volume1/docker/training-analyzer:/volume1/docker/training-analyzer
+  valid_volumes:
+    - /var/run/docker.sock
+    - /volume1/docker
 ```
 
-## Gitea Actions (deaktiviert)
+Nach Aenderung: Runner neu starten.
 
-Gitea Actions wurde durch Webhook ersetzt (zu komplex mit Docker Socket).
+## Ports
+
+| Service    | Port |
+|------------|------|
+| Frontend   | 3002 |
+| Backend    | 8001 |
+| PostgreSQL | 5433 |
+
+## URLs
+
+- **Frontend:** http://192.168.68.52:3002
+- **Backend API:** http://192.168.68.52:8001
+- **API Docs:** http://192.168.68.52:8001/docs
