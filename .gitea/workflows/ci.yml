@@ -160,6 +160,11 @@ jobs:
             --exclude '.env' \
             ./ /volume1/docker/training-analyzer/
 
+      - name: Ensure data directories exist
+        run: |
+          mkdir -p /volume1/docker/training-analyzer/backend-data
+          mkdir -p /volume1/docker/training-analyzer/postgres-data
+
       - name: Build and deploy containers
         run: |
           cd /volume1/docker/training-analyzer
