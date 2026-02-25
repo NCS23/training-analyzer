@@ -244,3 +244,9 @@ class TrainingTypeOverrideRequest(BaseModel):
     """Request fuer Training Type Override."""
 
     training_type: str
+
+
+class NotesUpdateRequest(BaseModel):
+    """Request fuer Notizen-Update."""
+
+    notes: Optional[str] = None

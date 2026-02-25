@@ -67,6 +67,28 @@ export interface TrainingTypeInfo {
   effective: string | null;
 }
 
+export interface LapDetail {
+  lap_number: number;
+  duration_seconds: number;
+  duration_formatted: string;
+  distance_km: number | null;
+  pace_min_per_km: number | null;
+  pace_formatted: string | null;
+  avg_hr_bpm: number | null;
+  max_hr_bpm: number | null;
+  min_hr_bpm: number | null;
+  avg_cadence_spm: number | null;
+  suggested_type: string | null;
+  confidence: string | null;
+  user_override: string | null;
+}
+
+export interface HRZone {
+  seconds: number;
+  percentage: number;
+  label: string;
+}
+
 export interface SessionDetail {
   id: number;
   date: string;
@@ -81,8 +103,10 @@ export interface SessionDetail {
   hr_min: number | null;
   cadence_avg: number | null;
   notes: string | null;
-  laps: Record<string, unknown>[] | null;
-  hr_zones: Record<string, unknown> | null;
+  laps: LapDetail[] | null;
+  hr_zones: Record<string, HRZone> | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export async function updateTrainingType(
@@ -93,6 +117,25 @@ export async function updateTrainingType(
     `/api/v1/sessions/${sessionId}/training-type`,
     { training_type: trainingType },
   );
+  return response.data;
+}
+
+export async function getSession(sessionId: number): Promise<SessionDetail> {
+  const response = await apiClient.get<SessionDetail>(`/api/v1/sessions/${sessionId}`);
+  return response.data;
+}
+
+export async function deleteSession(sessionId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/sessions/${sessionId}`);
+}
+
+export async function updateSessionNotes(
+  sessionId: number,
+  notes: string | null,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/notes`, {
+    notes,
+  });
   return response.data;
 }
 

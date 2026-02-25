@@ -14,6 +14,7 @@ from app.models.session import (
     LapOverrideRequest,
     LapOverrideResponse,
     LapResponse,
+    NotesUpdateRequest,
     SessionListResponse,
     SessionResponse,
     SessionSummaryResponse,
@@ -259,6 +260,27 @@ async def update_training_type(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     workout.training_type_override = body.training_type  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionResponse.from_db(workout)
+
+
+@router.patch("/{session_id}/notes", response_model=SessionResponse)
+async def update_notes(
+    session_id: int,
+    body: NotesUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Aktualisiert die Notizen einer Session."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    workout.notes = body.notes  # type: ignore[assignment]
     await db.commit()
     await db.refresh(workout)
 
