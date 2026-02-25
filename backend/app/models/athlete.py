@@ -26,7 +26,9 @@ class AthleteSettingsResponse(BaseModel):
     karvonen_zones: Optional[list[dict]] = None
 
     @classmethod
-    def from_db(cls, model: AthleteModel, zones: Optional[list[dict]] = None) -> AthleteSettingsResponse:
+    def from_db(
+        cls, model: AthleteModel, zones: Optional[list[dict]] = None
+    ) -> AthleteSettingsResponse:
         return cls(
             id=int(model.id),  # type: ignore[arg-type]
             resting_hr=int(model.resting_hr) if model.resting_hr else None,  # type: ignore[arg-type]
