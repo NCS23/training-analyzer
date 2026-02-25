@@ -11,8 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models import WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.session import (
+    HRZoneResponse,
+    HRZonesResponse,
+    LapOverrideRequest,
+    LapOverrideResponse,
+    LapResponse,
     SessionListResponse,
     SessionResponse,
+    SessionSummaryResponse,
     SessionUploadResponse,
 )
 from app.models.training import TrainingSubType, TrainingType
@@ -144,6 +150,50 @@ async def get_session(
     return SessionResponse.from_db(workout)
 
 
+@router.patch("/{session_id}/laps", response_model=LapOverrideResponse)
+async def update_lap_overrides(
+    session_id: int,
+    body: LapOverrideRequest,
+    db: AsyncSession = Depends(get_db),
+) -> LapOverrideResponse:
+    """Aktualisiert Lap-Type Overrides und berechnet Working-Laps Metriken."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if not workout.laps_json:
+        raise HTTPException(status_code=400, detail="Session hat keine Laps.")
+
+    # Parse existing laps
+    laps_raw = json.loads(str(workout.laps_json))
+
+    # Apply overrides
+    override_map = {o.lap_number: o.user_override for o in body.overrides}
+    for lap in laps_raw:
+        lap_num = lap["lap_number"]
+        if lap_num in override_map:
+            lap["user_override"] = override_map[lap_num]
+
+    # Save updated laps back to DB
+    workout.laps_json = json.dumps(laps_raw)  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    # Build response with working-laps aggregation
+    laps = [LapResponse(**lap) for lap in laps_raw]
+    summary_working, hr_zones_working = _calculate_working_laps_metrics(laps_raw)
+
+    return LapOverrideResponse(
+        success=True,
+        laps=laps,
+        summary_working=summary_working,
+        hr_zones_working=hr_zones_working,
+    )
+
+
 @router.delete("/{session_id}", status_code=204)
 async def delete_session(
     session_id: int,
@@ -159,3 +209,106 @@ async def delete_session(
 
     await db.delete(workout)
     await db.commit()
+
+
+# --- Helper ---
+
+EXCLUDED_TYPES = {"warmup", "cooldown", "pause"}
+
+
+def _get_effective_type(lap: dict) -> str:
+    """Gibt den effektiven Lap-Typ zurueck (Override > Suggested)."""
+    return lap.get("user_override") or lap.get("suggested_type") or "unclassified"
+
+
+def _format_duration(seconds: int) -> str:
+    """Formatiert Sekunden zu HH:MM:SS oder MM:SS."""
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def _format_pace(pace: Optional[float]) -> Optional[str]:
+    """Formatiert Pace von Dezimalminuten zu MM:SS."""
+    if not pace:
+        return None
+    minutes = int(pace)
+    seconds = int((pace - minutes) * 60)
+    return f"{minutes}:{seconds:02d}"
+
+
+def _calculate_working_laps_metrics(
+    laps_raw: list[dict],
+) -> tuple[Optional[SessionSummaryResponse], Optional[HRZonesResponse]]:
+    """Berechnet Metriken nur fuer Working-Laps (ohne Warmup/Cooldown/Pause)."""
+    working = [lap for lap in laps_raw if _get_effective_type(lap) not in EXCLUDED_TYPES]
+
+    if not working:
+        return None, None
+
+    total_duration = sum(lap.get("duration_seconds", 0) for lap in working)
+    total_distance = sum(lap.get("distance_km", 0) or 0 for lap in working)
+
+    hr_values = [lap["avg_hr_bpm"] for lap in working if lap.get("avg_hr_bpm")]
+    cadence_values = [lap["avg_cadence_spm"] for lap in working if lap.get("avg_cadence_spm")]
+
+    avg_pace = (total_duration / 60) / total_distance if total_distance > 0 else None
+
+    summary = SessionSummaryResponse(
+        total_duration_seconds=total_duration,
+        total_duration_formatted=_format_duration(total_duration),
+        total_distance_km=round(total_distance, 2) if total_distance > 0 else None,
+        avg_pace_min_per_km=round(avg_pace, 2) if avg_pace else None,
+        avg_pace_formatted=_format_pace(avg_pace),
+        avg_hr_bpm=round(sum(hr_values) / len(hr_values)) if hr_values else None,
+        max_hr_bpm=max(
+            (lap.get("max_hr_bpm") or lap.get("avg_hr_bpm", 0) for lap in working),
+            default=None,
+        ),
+        min_hr_bpm=min(
+            (lap.get("min_hr_bpm") or lap.get("avg_hr_bpm", 999) for lap in working),
+            default=None,
+        ),
+        avg_cadence_spm=(
+            round(sum(cadence_values) / len(cadence_values)) if cadence_values else None
+        ),
+    )
+
+    # HR Zones fuer Working-Laps (gewichtet nach Dauer)
+    zone1 = 0
+    zone2 = 0
+    zone3 = 0
+    for lap in working:
+        hr = lap.get("avg_hr_bpm", 0)
+        dur = lap.get("duration_seconds", 0)
+        if hr < 150:
+            zone1 += dur
+        elif hr < 160:
+            zone2 += dur
+        else:
+            zone3 += dur
+
+    total_zone_time = zone1 + zone2 + zone3
+
+    hr_zones = HRZonesResponse(
+        zone_1_recovery=HRZoneResponse(
+            seconds=zone1,
+            percentage=round(zone1 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
+            label="< 150 bpm",
+        ),
+        zone_2_base=HRZoneResponse(
+            seconds=zone2,
+            percentage=round(zone2 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
+            label="150-160 bpm",
+        ),
+        zone_3_tempo=HRZoneResponse(
+            seconds=zone3,
+            percentage=round(zone3 / total_zone_time * 100, 1) if total_zone_time > 0 else 0,
+            label="> 160 bpm",
+        ),
+    )
+
+    return summary, hr_zones

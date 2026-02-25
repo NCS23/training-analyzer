@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, RefreshCw } from 'lucide-react';
-import { uploadTraining } from '@/api/training';
+import { Activity, RefreshCw, Save } from 'lucide-react';
+import { uploadTraining, updateLapOverrides } from '@/api/training';
 import {
   Button,
   Card,
@@ -142,6 +142,8 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lapOverrides, setLapOverrides] = useState<{ [key: number]: LapType }>({});
+  const [savingOverrides, setSavingOverrides] = useState(false);
+  const [overridesSaved, setOverridesSaved] = useState(false);
 
   const handleFileUpload = (files: File[]) => {
     if (files[0]) {
@@ -190,6 +192,7 @@ export default function UploadPage() {
   const handleLapTypeChange = (lapNumber: number, newType: string | undefined) => {
     if (newType) {
       setLapOverrides({ ...lapOverrides, [lapNumber]: newType as LapType });
+      setOverridesSaved(false);
     }
   };
 
@@ -244,6 +247,36 @@ export default function UploadPage() {
       });
     }
   };
+
+  const handleSaveOverrides = async () => {
+    if (!sessionId || Object.keys(lapOverrides).length === 0) return;
+
+    setSavingOverrides(true);
+    try {
+      const overrides = Object.entries(lapOverrides).map(([lapNumber, type]) => ({
+        lap_number: Number(lapNumber),
+        user_override: type,
+      }));
+
+      const result = await updateLapOverrides({ sessionId, overrides });
+
+      if (result.success && parsedData) {
+        setParsedData({
+          ...parsedData,
+          laps: result.laps as unknown as Lap[],
+          hr_zones_working: result.hr_zones_working as unknown as Record<string, HRZone>,
+        });
+        setOverridesSaved(true);
+        setLapOverrides({});
+      }
+    } catch (err) {
+      setError('Speichern fehlgeschlagen: ' + (err as Error).message);
+    } finally {
+      setSavingOverrides(false);
+    }
+  };
+
+  const hasUnsavedOverrides = Object.keys(lapOverrides).length > 0;
 
   const currentSubtypes = formData.trainingType === 'running' ? runningSubtypes : strengthSubtypes;
 
@@ -509,10 +542,32 @@ export default function UploadPage() {
                   <h3 className="text-sm font-semibold text-[var(--color-text-base)]">
                     Laps ({parsedData.laps.length})
                   </h3>
-                  <Button variant="ghost" size="sm" onClick={recalculateHRZones}>
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                    Neu berechnen
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={recalculateHRZones}>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                      Neu berechnen
+                    </Button>
+                    {sessionId && hasUnsavedOverrides && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSaveOverrides}
+                        disabled={savingOverrides}
+                      >
+                        {savingOverrides ? (
+                          <Spinner size="sm" aria-hidden="true" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                        )}
+                        Speichern
+                      </Button>
+                    )}
+                    {overridesSaved && !hasUnsavedOverrides && (
+                      <Badge variant="success" size="sm">
+                        Gespeichert
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
                   <Table>

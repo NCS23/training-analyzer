@@ -5,6 +5,7 @@ import UploadPage from './Upload';
 // Mock the API module
 vi.mock('@/api/training', () => ({
   uploadTraining: vi.fn(),
+  updateLapOverrides: vi.fn(),
 }));
 
 // Mock useNavigate

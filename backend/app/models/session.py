@@ -169,3 +169,28 @@ class SessionUploadResponse(BaseModel):
     data: Optional[dict] = None
     errors: Optional[list[str]] = None
     metadata: Optional[dict] = None
+
+
+# --- Request Schemas ---
+
+
+class LapOverride(BaseModel):
+    """Einzelner Lap-Override vom User."""
+
+    lap_number: int
+    user_override: str
+
+
+class LapOverrideRequest(BaseModel):
+    """Request fuer Lap-Type Overrides."""
+
+    overrides: list[LapOverride]
+
+
+class LapOverrideResponse(BaseModel):
+    """Antwort nach Lap-Override Update."""
+
+    success: bool
+    laps: list[LapResponse]
+    summary_working: Optional[SessionSummaryResponse] = None
+    hr_zones_working: Optional[HRZonesResponse] = None

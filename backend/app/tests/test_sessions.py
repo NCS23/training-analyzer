@@ -308,3 +308,148 @@ async def test_pagination(client: AsyncClient) -> None:
     response = await client.get("/api/v1/sessions?page=2&page_size=2")
     body = response.json()
     assert len(body["sessions"]) == 1
+
+
+# --- Lap Override Tests (E01-S02) ---
+
+
+async def _upload_running_session(client: AsyncClient) -> int:
+    """Hilfsfunktion: Upload Running CSV, gibt session_id zurueck."""
+    upload = await client.post(
+        "/api/v1/sessions/upload/csv",
+        files=_make_csv_upload(RUNNING_CSV),
+        data={
+            "training_date": "2024-03-15",
+            "training_type": "running",
+            "training_subtype": "interval",
+        },
+    )
+    return upload.json()["session_id"]
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides(client: AsyncClient) -> None:
+    """Lap-Type Overrides werden gespeichert."""
+    session_id = await _upload_running_session(client)
+
+    response = await client.patch(
+        f"/api/v1/sessions/{session_id}/laps",
+        json={
+            "overrides": [
+                {"lap_number": 1, "user_override": "warmup"},
+                {"lap_number": 3, "user_override": "cooldown"},
+            ]
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+
+    # Verify overrides in response
+    laps = body["laps"]
+    lap1 = next(lap for lap in laps if lap["lap_number"] == 1)
+    lap3 = next(lap for lap in laps if lap["lap_number"] == 3)
+    assert lap1["user_override"] == "warmup"
+    assert lap3["user_override"] == "cooldown"
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides_persisted(client: AsyncClient) -> None:
+    """Lap-Overrides sind nach GET noch vorhanden."""
+    session_id = await _upload_running_session(client)
+
+    # Patch
+    await client.patch(
+        f"/api/v1/sessions/{session_id}/laps",
+        json={"overrides": [{"lap_number": 2, "user_override": "interval"}]},
+    )
+
+    # Get session detail
+    response = await client.get(f"/api/v1/sessions/{session_id}")
+    body = response.json()
+    lap2 = next(lap for lap in body["laps"] if lap["lap_number"] == 2)
+    assert lap2["user_override"] == "interval"
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides_returns_working_metrics(client: AsyncClient) -> None:
+    """PATCH gibt Working-Laps Summary und HR-Zonen zurueck."""
+    session_id = await _upload_running_session(client)
+
+    response = await client.patch(
+        f"/api/v1/sessions/{session_id}/laps",
+        json={
+            "overrides": [
+                {"lap_number": 1, "user_override": "warmup"},
+                {"lap_number": 3, "user_override": "cooldown"},
+            ]
+        },
+    )
+    body = response.json()
+
+    # Working metrics should exclude warmup (lap 1) and cooldown (lap 3)
+    assert body["summary_working"] is not None
+    assert body["summary_working"]["total_duration_seconds"] > 0
+    assert body["hr_zones_working"] is not None
+    assert "zone_1_recovery" in body["hr_zones_working"]
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides_not_found(client: AsyncClient) -> None:
+    """PATCH fuer nicht existierende Session gibt 404."""
+    response = await client.patch(
+        "/api/v1/sessions/9999/laps",
+        json={"overrides": [{"lap_number": 1, "user_override": "warmup"}]},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides_no_laps(client: AsyncClient) -> None:
+    """PATCH fuer Session ohne Laps gibt 400."""
+    # Upload strength CSV (hat keine Laps)
+    upload = await client.post(
+        "/api/v1/sessions/upload/csv",
+        files=_make_csv_upload(STRENGTH_CSV),
+        data={
+            "training_date": "2024-03-16",
+            "training_type": "strength",
+        },
+    )
+    session_id = upload.json()["session_id"]
+
+    response = await client.patch(
+        f"/api/v1/sessions/{session_id}/laps",
+        json={"overrides": [{"lap_number": 1, "user_override": "warmup"}]},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_patch_lap_overrides_working_excludes_warmup_cooldown(
+    client: AsyncClient,
+) -> None:
+    """Working-Laps Metriken schliessen Warmup/Cooldown/Pause aus."""
+    session_id = await _upload_running_session(client)
+
+    # Get original detail to compare
+    detail = await client.get(f"/api/v1/sessions/{session_id}")
+    all_laps = detail.json()["laps"]
+    total_duration_all = sum(lap["duration_seconds"] for lap in all_laps)
+
+    # Override first as warmup, last as cooldown
+    response = await client.patch(
+        f"/api/v1/sessions/{session_id}/laps",
+        json={
+            "overrides": [
+                {"lap_number": 1, "user_override": "warmup"},
+                {"lap_number": 3, "user_override": "cooldown"},
+            ]
+        },
+    )
+    body = response.json()
+
+    # Working duration should be less than total
+    working_duration = body["summary_working"]["total_duration_seconds"]
+    assert working_duration < total_duration_all
+    assert working_duration > 0
