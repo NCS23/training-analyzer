@@ -1,6 +1,12 @@
+import logging
+
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Convert sync URL to async if needed
 database_url = settings.database_url
@@ -19,8 +25,27 @@ async def get_db():
 
 
 async def init_db():
-    # Create tables if they don't exist
+    """Create tables and ensure schema is up to date."""
     from app.infrastructure.database.models import Base
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_columns_exist)
+
+
+def _ensure_columns_exist(conn):
+    """Add missing columns to existing tables (lightweight auto-migration)."""
+    from app.infrastructure.database.models import Base
+
+    inspector = sa_inspect(conn)
+    for table_name, table in Base.metadata.tables.items():
+        if not inspector.has_table(table_name):
+            continue
+        existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+        for col in table.columns:
+            if col.name not in existing_cols:
+                col_type = col.type.compile(conn.engine.dialect)
+                nullable = "NULL" if col.nullable else "NOT NULL"
+                sql = f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type} {nullable}'
+                logger.info(f"Adding missing column: {table_name}.{col.name}")
+                conn.execute(text(sql))
