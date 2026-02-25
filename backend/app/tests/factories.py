@@ -1,34 +1,44 @@
 """Test data factories for domain entities."""
 
 from datetime import datetime
+from typing import Optional
 
 from app.domain.entities.workout import Workout
 
 
-def make_workout(**overrides) -> Workout:
+def make_workout(
+    id: Optional[int] = 1,
+    date: Optional[datetime] = None,
+    workout_type: str = "running",
+    subtype: Optional[str] = "interval",
+    duration_sec: Optional[int] = 3600,
+    distance_km: Optional[float] = 10.5,
+    pace: Optional[str] = "5:43",
+    hr_avg: Optional[int] = 155,
+    hr_max: Optional[int] = 178,
+    hr_min: Optional[int] = 120,
+) -> Workout:
     """Create a Workout entity with sensible defaults."""
-    defaults = {
-        "id": 1,
-        "date": datetime(2024, 3, 15, 7, 30),
-        "workout_type": "running",
-        "subtype": "interval",
-        "duration_sec": 3600,
-        "distance_km": 10.5,
-        "pace": "5:43",
-        "hr_avg": 155,
-        "hr_max": 178,
-        "hr_min": 120,
-    }
-    defaults.update(overrides)
-    return Workout(**defaults)
+    return Workout(
+        id=id,
+        date=date or datetime(2024, 3, 15, 7, 30),
+        workout_type=workout_type,
+        subtype=subtype,
+        duration_sec=duration_sec,
+        distance_km=distance_km,
+        pace=pace,
+        hr_avg=hr_avg,
+        hr_max=hr_max,
+        hr_min=hr_min,
+    )
 
 
-def make_running_workout(**overrides) -> Workout:
+def make_running_workout(**overrides) -> Workout:  # type: ignore[no-untyped-def]
     """Create a running workout."""
     return make_workout(workout_type="running", **overrides)
 
 
-def make_strength_workout(**overrides) -> Workout:
+def make_strength_workout(**overrides) -> Workout:  # type: ignore[no-untyped-def]
     """Create a strength workout."""
     return make_workout(
         workout_type="strength",
