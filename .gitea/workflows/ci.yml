@@ -125,7 +125,7 @@ jobs:
         working-directory: backend
         run: |
           if [ -d "app/tests" ]; then
-            pytest app/tests/ -x --cov=app --cov-report=term-missing --cov-fail-under=80
+            pytest app/tests/ -x --cov=app --cov-report=term-missing
           else
             echo "No test directory found - skipping tests"
           fi

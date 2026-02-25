@@ -64,7 +64,9 @@ dev = [
     "faker>=22.0.0",
     "factory-boy>=3.3.0",
     "httpx>=0.26.0",  # For testing async endpoints
-    
+    "aiosqlite>=0.20.0",  # Async SQLite for test DB
+    "greenlet>=3.0.0",  # Required by async SQLAlchemy
+
     # Code Quality
     "ruff>=0.1.14",
     "mypy>=1.8.0",
