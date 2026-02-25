@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,16 +21,16 @@ class LapResponse(BaseModel):
     lap_number: int
     duration_seconds: int
     duration_formatted: str
-    distance_km: float | None = None
-    pace_min_per_km: float | None = None
-    pace_formatted: str | None = None
-    avg_hr_bpm: int | None = None
-    max_hr_bpm: int | None = None
-    min_hr_bpm: int | None = None
-    avg_cadence_spm: int | None = None
-    suggested_type: str | None = None
-    confidence: str | None = None
-    user_override: str | None = None
+    distance_km: Optional[float] = None
+    pace_min_per_km: Optional[float] = None
+    pace_formatted: Optional[str] = None
+    avg_hr_bpm: Optional[int] = None
+    max_hr_bpm: Optional[int] = None
+    min_hr_bpm: Optional[int] = None
+    avg_cadence_spm: Optional[int] = None
+    suggested_type: Optional[str] = None
+    confidence: Optional[str] = None
+    user_override: Optional[str] = None
 
 
 class HRZoneResponse(BaseModel):
@@ -54,13 +54,13 @@ class SessionSummaryResponse(BaseModel):
 
     total_duration_seconds: int
     total_duration_formatted: str
-    total_distance_km: float | None = None
-    avg_pace_min_per_km: float | None = None
-    avg_pace_formatted: str | None = None
-    avg_hr_bpm: int | None = None
-    max_hr_bpm: int | None = None
-    min_hr_bpm: int | None = None
-    avg_cadence_spm: int | None = None
+    total_distance_km: Optional[float] = None
+    avg_pace_min_per_km: Optional[float] = None
+    avg_pace_formatted: Optional[str] = None
+    avg_hr_bpm: Optional[int] = None
+    max_hr_bpm: Optional[int] = None
+    min_hr_bpm: Optional[int] = None
+    avg_cadence_spm: Optional[int] = None
 
 
 class SessionResponse(BaseModel):
@@ -69,17 +69,17 @@ class SessionResponse(BaseModel):
     id: int
     date: date
     workout_type: str
-    subtype: str | None = None
-    duration_sec: int | None = None
-    distance_km: float | None = None
-    pace: str | None = None
-    hr_avg: int | None = None
-    hr_max: int | None = None
-    hr_min: int | None = None
-    cadence_avg: int | None = None
-    notes: str | None = None
-    laps: list[LapResponse] | None = None
-    hr_zones: HRZonesResponse | None = None
+    subtype: Optional[str] = None
+    duration_sec: Optional[int] = None
+    distance_km: Optional[float] = None
+    pace: Optional[str] = None
+    hr_avg: Optional[int] = None
+    hr_max: Optional[int] = None
+    hr_min: Optional[int] = None
+    cadence_avg: Optional[int] = None
+    notes: Optional[str] = None
+    laps: Optional[list[LapResponse]] = None
+    hr_zones: Optional[HRZonesResponse] = None
     created_at: datetime
     updated_at: datetime
 
@@ -127,11 +127,11 @@ class SessionListItem(BaseModel):
     id: int
     date: date
     workout_type: str
-    subtype: str | None = None
-    duration_sec: int | None = None
-    distance_km: float | None = None
-    pace: str | None = None
-    hr_avg: int | None = None
+    subtype: Optional[str] = None
+    duration_sec: Optional[int] = None
+    distance_km: Optional[float] = None
+    pace: Optional[str] = None
+    hr_avg: Optional[int] = None
 
     @classmethod
     def from_db(cls, model: WorkoutModel) -> SessionListItem:
@@ -165,7 +165,7 @@ class SessionUploadResponse(BaseModel):
     """Antwort nach erfolgreichem Upload."""
 
     success: bool
-    session_id: int | None = None
-    data: dict | None = None
-    errors: list[str] | None = None
-    metadata: dict | None = None
+    session_id: Optional[int] = None
+    data: Optional[dict] = None
+    errors: Optional[list[str]] = None
+    metadata: Optional[dict] = None
