@@ -1,6 +1,7 @@
 """Tests fuer Session Detail View API (E01-S05)."""
 
 import io
+from typing import Optional
 
 import pytest
 from httpx import AsyncClient
@@ -28,7 +29,7 @@ def _upload_csv(csv_content: str = RUNNING_CSV) -> dict:
     }
 
 
-async def _create_session(client: AsyncClient, notes: str | None = None) -> int:
+async def _create_session(client: AsyncClient, notes: Optional[str] = None) -> int:
     """Erstellt eine Session und gibt die ID zurueck."""
     data = {
         "training_date": "2025-02-25",
