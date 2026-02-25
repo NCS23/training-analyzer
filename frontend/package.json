@@ -18,9 +18,9 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@nordlig/components": "file:./packages/nordlig-components-1.0.0-alpha.tgz",
-    "@nordlig/styles": "file:./packages/nordlig-styles-1.0.0-alpha.tgz",
-    "@nordlig/tokens": "file:./packages/nordlig-tokens-1.0.0-alpha.tgz",
+    "@nordlig/components": "file:./packages/nordlig-components-1.0.0.tgz",
+    "@nordlig/styles": "file:./packages/nordlig-styles-1.0.0.tgz",
+    "@nordlig/tokens": "file:./packages/nordlig-tokens-1.0.0.tgz",
     "@tanstack/react-query": "^5.20.0",
     "axios": "^1.6.7",
     "date-fns": "^3.3.1",

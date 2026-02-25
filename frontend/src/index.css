@@ -1,5 +1,5 @@
-@import '@nordlig/styles/dist/tokens.css';
-@import '@nordlig/styles/dist/dark-tokens.css';
+@import '@nordlig/styles';
+@import '@nordlig/styles/dark';
 
 @tailwind base;
 @tailwind components;
