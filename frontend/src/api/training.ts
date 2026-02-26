@@ -288,6 +288,17 @@ export async function getSessionTrack(sessionId: number): Promise<SessionTrackRe
   return response.data;
 }
 
+export interface WorkingZonesResponse {
+  hr_zones_working: Record<string, HRZone> | null;
+}
+
+export async function getWorkingZones(sessionId: number): Promise<WorkingZonesResponse> {
+  const response = await apiClient.get<WorkingZonesResponse>(
+    `/api/v1/sessions/${sessionId}/working-zones`,
+  );
+  return response.data;
+}
+
 export async function healthCheck(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/health');
   return response.data;

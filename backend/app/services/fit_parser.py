@@ -5,7 +5,7 @@ from typing import Optional
 
 from app.models.training import TrainingType
 from app.services.gps_extractor import extract_gps_track
-from app.services.parser_interface import TrainingParser
+from app.services.parser_interface import TrainingParser, classify_laps
 
 
 class TrainingFITParser(TrainingParser):
@@ -51,6 +51,7 @@ class TrainingFITParser(TrainingParser):
             laps = None
             if detected_type == TrainingType.RUNNING and laps_data:
                 laps = self._build_laps(laps_data)
+                laps = classify_laps(laps, training_subtype)
 
             # Build HR timeseries (for strength or as raw data)
             hr_timeseries = self._build_hr_timeseries(records_data)

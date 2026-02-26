@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getSession,
   getSessionTrack,
+  getWorkingZones,
   deleteSession,
   updateSessionNotes,
   updateSessionDate,
@@ -161,17 +162,13 @@ export function SessionDetailPage() {
         }
       }
 
-      // Fetch working HR zones if laps have types (overrides or suggested)
+      // Fetch working HR zones (read-only) if laps have types
       const hasLapTypes = loadedLaps.some((l) => l.user_override || l.suggested_type);
       if (hasLapTypes && loadedLaps.length > 0) {
         try {
-          const overrides = loadedLaps.map((l) => ({
-            lap_number: l.lap_number,
-            user_override: l.user_override || l.suggested_type || 'unclassified',
-          }));
-          const result = await updateLapOverrides({ sessionId, overrides });
+          const result = await getWorkingZones(sessionId);
           if (result.hr_zones_working) {
-            setWorkingHrZones(result.hr_zones_working as Record<string, HRZone>);
+            setWorkingHrZones(result.hr_zones_working);
           }
         } catch {
           // Silently fail — working HR zones are optional

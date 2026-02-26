@@ -113,17 +113,27 @@ def _to_degrees(value) -> Optional[float]:
 
 
 def _calculate_elevation(points: list[dict]) -> tuple[Optional[float], Optional[float]]:
-    """Calculate total ascent and descent from elevation data."""
+    """Calculate total ascent and descent from elevation data.
+
+    Downsamples to 10-second intervals to filter GPS altitude noise,
+    then applies a 1m threshold. This is the standard approach used
+    by Strava and other platforms for per-second GPS data.
+    """
     alts = [p["alt"] for p in points if "alt" in p]
     if len(alts) < 2:
         return None, None
 
+    # Downsample to ~10s intervals to smooth noise
+    step = max(1, min(10, len(alts) // 20))
+    sampled = alts[::step]
+    if sampled[-1] != alts[-1]:
+        sampled.append(alts[-1])
+
     ascent = 0.0
     descent = 0.0
 
-    for i in range(1, len(alts)):
-        diff = alts[i] - alts[i - 1]
-        # Threshold to filter noise (< 1m changes)
+    for i in range(1, len(sampled)):
+        diff = sampled[i] - sampled[i - 1]
         if diff > 1.0:
             ascent += diff
         elif diff < -1.0:

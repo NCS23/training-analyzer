@@ -424,6 +424,24 @@ async def get_session_track(
     return {"has_gps": True, "track": track}
 
 
+@router.get("/{session_id}/working-zones")
+async def get_working_zones(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Berechnet Working-Laps HR-Zonen (ohne DB-Schreibzugriff)."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout or not workout.laps_json:
+        return {"hr_zones_working": None}
+
+    laps_raw = json.loads(str(workout.laps_json))
+    _, hr_zones = _calculate_working_laps_metrics(laps_raw)
+    return {"hr_zones_working": hr_zones}
+
+
 @router.patch("/{session_id}/laps", response_model=LapOverrideResponse)
 async def update_lap_overrides(
     session_id: int,

@@ -7,6 +7,7 @@ from typing import Optional
 import pandas as pd
 
 from app.models.training import TrainingType
+from app.services.parser_interface import classify_laps
 
 
 class TrainingCSVParser:
@@ -139,7 +140,7 @@ class TrainingCSVParser:
             laps_data.append(lap_analysis)
 
         # Classify laps
-        laps_data = self._classify_laps(laps_data, training_subtype)
+        laps_data = classify_laps(laps_data, training_subtype)
 
         # Gesamt-Summary und HF-Zonen über ALLE Laps
         summary = self._calculate_running_summary(df)
@@ -282,89 +283,6 @@ class TrainingCSVParser:
                 "label": "> 160 bpm",
             },
         }
-
-    def _classify_laps(self, laps, training_subtype=None):
-        """Classify laps based on training type and metrics"""
-        if len(laps) == 0:
-            return laps
-
-        # Add classification to each lap
-        for i, lap in enumerate(laps):
-            is_first = i == 0
-            is_last = i == len(laps) - 1
-
-            # Default
-            suggested_type = "unclassified"
-            confidence = "low"
-
-            # Get metrics
-            avg_hr = lap.get("avg_hr_bpm")
-            duration = lap.get("duration_seconds", 0)
-
-            if training_subtype == "interval":
-                # Interval training logic
-                if is_first and avg_hr and avg_hr < 140 and duration < 600:  # <10min warmup
-                    suggested_type = "warmup"
-                    confidence = "high"
-                elif is_last and avg_hr and avg_hr < 150 and duration < 600:  # <10min cooldown
-                    suggested_type = "cooldown"
-                    confidence = "high"
-                elif avg_hr and avg_hr > 160:
-                    suggested_type = "interval"
-                    confidence = "high" if avg_hr > 170 else "medium"
-                elif avg_hr and avg_hr < 150:
-                    suggested_type = "pause"
-                    confidence = "medium"
-                else:
-                    suggested_type = "interval"
-                    confidence = "low"
-
-            elif training_subtype == "tempo":
-                # Tempo run logic
-                if is_first and duration < 600:
-                    suggested_type = "warmup"
-                    confidence = "medium"
-                elif is_last and duration < 600:
-                    suggested_type = "cooldown"
-                    confidence = "medium"
-                else:
-                    suggested_type = "tempo"
-                    confidence = "high"
-
-            elif training_subtype == "longrun":
-                # Long run logic
-                if is_first and duration < 600:
-                    suggested_type = "warmup"
-                    confidence = "medium"
-                elif is_last and duration < 600:
-                    suggested_type = "cooldown"
-                    confidence = "medium"
-                else:
-                    suggested_type = "longrun"
-                    confidence = "high"
-
-            elif training_subtype == "recovery":
-                # Recovery run - all laps are recovery
-                suggested_type = "recovery"
-                confidence = "high"
-
-            else:
-                # Fallback: heuristic based on metrics
-                if is_first and avg_hr and avg_hr < 140:
-                    suggested_type = "warmup"
-                    confidence = "low"
-                elif is_last and avg_hr and avg_hr < 150:
-                    suggested_type = "cooldown"
-                    confidence = "low"
-                elif avg_hr and avg_hr > 165:
-                    suggested_type = "interval"
-                    confidence = "low"
-
-            lap["suggested_type"] = suggested_type
-            lap["confidence"] = confidence
-            lap["user_override"] = None  # Can be set by frontend
-
-        return laps
 
     def _format_duration(self, seconds: int) -> str:
         """Formatiert Sekunden zu HH:MM:SS oder MM:SS"""
