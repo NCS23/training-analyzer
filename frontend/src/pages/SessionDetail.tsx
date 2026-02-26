@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getSession,
+  getSessionTrack,
   deleteSession,
   updateSessionNotes,
   updateSessionDate,
   updateTrainingType,
   updateLapOverrides,
 } from '@/api/training';
-import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo } from '@/api/training';
+import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo, GPSTrack } from '@/api/training';
+import { RouteMap } from '@/features/maps';
 import {
   trainingTypeLabels,
   trainingTypeBadgeVariant,
@@ -122,6 +124,9 @@ export function SessionDetailPage() {
   // Date state
   const [savingDate, setSavingDate] = useState(false);
 
+  // GPS track state
+  const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
+
   // Edit mode — auto-open when laps need review
   const [isEditing, setIsEditing] = useState(false);
   const [localLaps, setLocalLaps] = useState<LapDetail[]>([]);
@@ -143,6 +148,18 @@ export function SessionDetailPage() {
       setTrainingTypeInfo(data.training_type);
       const loadedLaps = data.laps || [];
       setLocalLaps(loadedLaps);
+
+      // Load GPS track if available
+      if (data.has_gps) {
+        try {
+          const trackData = await getSessionTrack(sessionId);
+          if (trackData.has_gps && trackData.track) {
+            setGpsTrack(trackData.track);
+          }
+        } catch {
+          // Silently fail — GPS track is optional
+        }
+      }
 
       // Fetch working HR zones if laps have types (overrides or suggested)
       const hasLapTypes = loadedLaps.some((l) => l.user_override || l.suggested_type);
@@ -557,6 +574,30 @@ export function SessionDetailPage() {
           </CardBody>
         </Card>
       </section>
+
+      {/* GPS Route Map */}
+      {gpsTrack && gpsTrack.points.length > 0 && (
+        <section aria-label="GPS Route">
+          <Card elevation="raised">
+            <CardHeader>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
+            </CardHeader>
+            <CardBody>
+              <RouteMap points={gpsTrack.points} height="350px" />
+              {(gpsTrack.total_ascent_m != null || gpsTrack.total_descent_m != null) && (
+                <div className="flex gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
+                  {gpsTrack.total_ascent_m != null && (
+                    <span>↑ {gpsTrack.total_ascent_m} m Anstieg</span>
+                  )}
+                  {gpsTrack.total_descent_m != null && (
+                    <span>↓ {gpsTrack.total_descent_m} m Abstieg</span>
+                  )}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </section>
+      )}
 
       {/* Insights */}
       {(() => {
