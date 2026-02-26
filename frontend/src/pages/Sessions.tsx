@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardBody, Badge, Spinner, Toolbar, ToolbarButton } from '@nordlig/components';
-import { Upload, Dumbbell, Footprints, Activity, ChevronRight } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardBody,
+  Badge,
+  Spinner,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@nordlig/components';
+import { Upload, Dumbbell, Footprints, Activity, ChevronRight, EllipsisVertical } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { format, parseISO } from 'date-fns';
@@ -68,25 +78,24 @@ export function SessionsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-            <Activity className="w-5 h-5 text-[var(--color-primary-1-600)]" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Sessions</h1>
-            <p className="text-xs text-[var(--color-text-muted)]">{sessions.length} Trainings</p>
-          </div>
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+      <header className="flex items-end justify-between gap-4 pb-2">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Sessions</h1>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">{sessions.length} Trainings</p>
         </div>
-        <Toolbar aria-label="Session-Aktionen">
-          <ToolbarButton
-            onClick={() => navigate('/sessions/new')}
-            icon={<Upload />}
-          >
-            Hochladen
-          </ToolbarButton>
-        </Toolbar>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+              <EllipsisVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem icon={<Upload className="w-4 h-4" />} onSelect={() => navigate('/sessions/new')}>
+              Training hochladen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {sessions.length === 0 ? (
@@ -120,19 +129,19 @@ export function SessionsPage() {
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && navigate(`/sessions/${session.id}`)}
               >
-                <Card elevation="raised" padding="compact">
+                <Card elevation="raised">
                   <CardBody>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[var(--color-primary-1-50)]">
-                          {session.workout_type === 'strength' ? (
-                            <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
-                          ) : (
-                            <Footprints className="w-5 h-5 text-[var(--color-primary-1-500)]" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[var(--color-text-base)]">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-[var(--color-primary-1-50)]">
+                        {session.workout_type === 'strength' ? (
+                          <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                        ) : (
+                          <Footprints className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-[var(--color-text-base)] truncate">
                             {(() => {
                               try {
                                 return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
@@ -143,30 +152,30 @@ export function SessionsPage() {
                               }
                             })()}
                           </p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <Badge variant="info" size="sm">
-                              {workoutTypeLabels[session.workout_type] || session.workout_type}
+                          <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="info" size="xs">
+                            {workoutTypeLabels[session.workout_type] || session.workout_type}
+                          </Badge>
+                          {effectiveType && (
+                            <Badge
+                              variant={trainingTypeBadgeVariant[effectiveType] ?? 'info'}
+                              size="xs"
+                            >
+                              {trainingTypeLabels[effectiveType] ?? effectiveType}
                             </Badge>
-                            {effectiveType && (
-                              <Badge
-                                variant={trainingTypeBadgeVariant[effectiveType] ?? 'info'}
-                                size="sm"
-                              >
-                                {trainingTypeLabels[effectiveType] ?? effectiveType}
-                              </Badge>
-                            )}
-                            <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                              {session.distance_km && <span>{session.distance_km} km</span>}
-                              {session.duration_sec && (
-                                <span>{formatDuration(session.duration_sec)}</span>
-                              )}
-                              {session.pace && <span>{session.pace} /km</span>}
-                              {session.hr_avg && <span>{session.hr_avg} bpm</span>}
-                            </div>
-                          </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+                          {session.distance_km && <span>{session.distance_km} km</span>}
+                          {session.duration_sec && (
+                            <span>{formatDuration(session.duration_sec)}</span>
+                          )}
+                          {session.pace && <span>{session.pace} /km</span>}
+                          {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                     </div>
                   </CardBody>
                 </Card>

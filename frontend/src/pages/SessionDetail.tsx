@@ -34,11 +34,12 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Toolbar,
-  ToolbarButton,
-  ToolbarSeparator,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -52,11 +53,11 @@ import {
 } from '@nordlig/components';
 import {
   ArrowLeft,
-  Dumbbell,
   Calendar,
   Trash2,
   Check,
   Pencil,
+  EllipsisVertical,
   Clock,
   MapPin,
   Timer,
@@ -281,7 +282,7 @@ export function SessionDetailPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
         <nav>
           <button
             onClick={() => navigate('/sessions')}
@@ -320,7 +321,7 @@ export function SessionDetailPage() {
   // Error state
   if (error && !session) {
     return (
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
         <nav>
           <button
             onClick={() => navigate('/sessions')}
@@ -389,7 +390,7 @@ export function SessionDetailPage() {
     });
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       {/* Back link */}
       <nav>
         <button
@@ -402,17 +403,10 @@ export function SessionDetailPage() {
       </nav>
 
       {/* Page header */}
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-            {session.workout_type === 'strength' ? (
-              <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-600)]" />
-            ) : (
-              <Footprints className="w-5 h-5 text-[var(--color-primary-1-600)]" />
-            )}
-          </div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">
+      <header className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
               {workoutTypeHeadings[session.workout_type] || session.workout_type}{' '}
               {formatDateShort(session.date)}
             </h1>
@@ -426,48 +420,59 @@ export function SessionDetailPage() {
             )}
           </div>
         </div>
-        <Toolbar aria-label="Session-Aktionen" className="shrink-0">
-          <ToolbarButton
-            onClick={() => setIsEditing(true)}
-            icon={<Pencil />}
-            aria-label="Bearbeiten"
-            disabled={isEditing}
-          />
-          <ToolbarSeparator />
-          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogTrigger asChild>
-              <ToolbarButton
-                icon={<Trash2 />}
-                aria-label="Session löschen"
-              />
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Session löschen?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten dieser Trainingseinheit werden unwiderruflich gelöscht.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={deleting} className="!bg-red-500 !text-white">
-                  {deleting ? <Spinner size="sm" /> : 'Löschen'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </Toolbar>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+              <EllipsisVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              icon={<Pencil />}
+              disabled={isEditing}
+              onSelect={() => setIsEditing(true)}
+            >
+              Bearbeiten
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              icon={<Trash2 />}
+              destructive
+              onSelect={() => setShowDeleteConfirm(true)}
+            >
+              Löschen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Session löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten dieser Trainingseinheit werden unwiderruflich gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="!bg-red-500 !text-white">
+              {deleting ? <Spinner size="sm" /> : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit mode banner */}
       {isEditing && (
-        <div className="flex items-center justify-between rounded-[var(--radius-component-md)] bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)] px-4 py-2.5">
-          <span className="text-sm text-[var(--color-text-info)]">
-            <Pencil className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
-            Bearbeitungsmodus — Trainingstyp, Laps und Notizen können angepasst werden.
+        <div className="flex items-center justify-between gap-2 rounded-[var(--radius-component-md)] bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)] px-4 py-2">
+          <span className="text-sm text-[var(--color-text-info)] flex items-center gap-1.5">
+            <Pencil className="w-3.5 h-3.5 shrink-0" />
+            Bearbeitungsmodus
           </span>
-          <Button variant="ghost" size="sm" className="!text-[var(--color-text-info)] hover:!bg-[var(--color-bg-info)]" onClick={() => setIsEditing(false)}>
-            <Check className="w-3.5 h-3.5 mr-1" />
+          <Button variant="secondary" size="sm" className="shrink-0 !border-[var(--color-border-info)] !text-[var(--color-text-info)]" onClick={() => setIsEditing(false)}>
+            <Check className="w-3.5 h-3.5" />
             Fertig
           </Button>
         </div>
@@ -652,7 +657,7 @@ export function SessionDetailPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">#</TableHead>
+                    <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
                     <TableHead>Typ</TableHead>
                     <TableHead>Dauer</TableHead>
                     <TableHead>Distanz</TableHead>
@@ -666,7 +671,7 @@ export function SessionDetailPage() {
                     const effectiveType = lap.user_override || lap.suggested_type || 'unclassified';
                     return (
                       <TableRow key={lap.lap_number}>
-                        <TableCell className="font-medium text-[var(--color-text-muted)]">
+                        <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
                           {lap.lap_number}
                         </TableCell>
                         <TableCell>
@@ -689,7 +694,7 @@ export function SessionDetailPage() {
                                       ? 'error'
                                       : 'success'
                               }
-                              size="sm"
+                              size="xs"
                             >
                               {lapTypeLabels[effectiveType] || effectiveType}
                             </Badge>

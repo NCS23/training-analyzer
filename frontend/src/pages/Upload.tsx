@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload } from 'lucide-react';
 import { parseTraining, uploadTraining } from '@/api/training';
 import type { ParsedLap, TrainingParseResponse } from '@/api/training';
 import {
@@ -191,18 +190,13 @@ export default function UploadPage() {
   /* ---- Render ---- */
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       {/* Page Header */}
-      <header className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-          <Upload className="w-5 h-5 text-[var(--color-primary-1-600)]" aria-hidden="true" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Training Upload</h1>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Apple Watch Daten hochladen
-          </p>
-        </div>
+      <header>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Training Upload</h1>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Lade eine Exportdatei deiner Sportuhr hoch
+        </p>
       </header>
 
       {/* Step Card */}
@@ -212,19 +206,18 @@ export default function UploadPage() {
           <>
             <CardHeader>
               <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
-                CSV Datei hochladen
+                Training importieren
               </h2>
             </CardHeader>
             <CardBody className="space-y-4">
               <FileUpload
-                label="CSV Datei"
                 accept=".csv"
                 onUpload={handleFileUpload}
                 onRemove={handleFileRemove}
                 instructionText={
-                  formData.csvFile ? formData.csvFile.name : 'CSV Datei hier ablegen oder klicken'
+                  formData.csvFile ? formData.csvFile.name : 'Datei hier ablegen oder klicken'
                 }
-                subText="Apple Watch Export (.csv)"
+                subText="Unterstützt: Apple Watch CSV"
               />
 
               <div className="space-y-2">
@@ -296,16 +289,13 @@ export default function UploadPage() {
                 Klassifikation prüfen
               </h2>
               <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                Die folgenden Zuordnungen wurden automatisch erkannt. Passe sie bei Bedarf an — sie bestimmen, wie dein Training in der Auswertung kategorisiert wird.
+                Automatisch erkannte Zuordnungen. Bei Bedarf anpassen.
               </p>
             </CardHeader>
-            <CardBody className="space-y-8">
+            <CardBody className="space-y-6">
               {/* Training Type */}
-              <div>
-                <Label className="mb-1">Trainingstyp</Label>
-                <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                  Bestimmt die Gesamtkategorisierung deiner Session (z.B. Easy Run, Tempo, Intervall).
-                </p>
+              <div className="space-y-2">
+                <Label>Trainingstyp</Label>
                 <Select
                   options={trainingTypeOptions}
                   value={effectiveType ?? undefined}
@@ -316,16 +306,13 @@ export default function UploadPage() {
 
               {/* Lap Table */}
               {laps && laps.length > 0 && (
-                <div>
-                  <Label className="mb-1">Lap-Klassifikation ({laps.length} Laps)</Label>
-                  <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                    Jeder Lap wurde einem Typ zugeordnet. Das beeinflusst die Berechnung von Arbeitsphasen und Erholungszeiten.
-                  </p>
+                <div className="space-y-2">
+                  <Label>Laps ({laps.length})</Label>
                   <div className="overflow-x-auto rounded-[var(--radius-component-md)] border border-[var(--color-border-default)]">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-12">#</TableHead>
+                          <TableHead className="w-8">#</TableHead>
                           <TableHead>Typ</TableHead>
                           <TableHead>Dauer</TableHead>
                           <TableHead>Pace</TableHead>
@@ -354,7 +341,7 @@ export default function UploadPage() {
                                     }
                                   }}
                                   inputSize="sm"
-                                  className="w-36"
+                                  className="w-32 min-w-0"
                                 />
                               </TableCell>
                               <TableCell>{lap.duration_formatted}</TableCell>

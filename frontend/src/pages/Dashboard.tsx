@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardBody, Spinner, Toolbar, ToolbarButton } from '@nordlig/components';
-import { Upload, LayoutDashboard, Activity, Clock, MapPin, Heart, TrendingUp } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardBody,
+  Spinner,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@nordlig/components';
+import { Upload, Activity, Clock, MapPin, Heart, TrendingUp, EllipsisVertical } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { format, parseISO } from 'date-fns';
@@ -56,12 +65,9 @@ export function DashboardPage() {
 
   if (totalSessions === 0) {
     return (
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-        <header className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-            <LayoutDashboard className="w-5 h-5 text-[var(--color-primary-1-600)]" />
-          </div>
-          <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+        <header>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
         </header>
 
         <Card elevation="raised">
@@ -89,22 +95,21 @@ export function DashboardPage() {
   const recentSessions = sessions.slice(0, 5);
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-            <LayoutDashboard className="w-5 h-5 text-[var(--color-primary-1-600)]" />
-          </div>
-          <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
-        </div>
-        <Toolbar aria-label="Dashboard-Aktionen">
-          <ToolbarButton
-            onClick={() => navigate('/sessions/new')}
-            icon={<Upload />}
-          >
-            Hochladen
-          </ToolbarButton>
-        </Toolbar>
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+      <header className="flex items-end justify-between gap-4 pb-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+              <EllipsisVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem icon={<Upload className="w-4 h-4" />} onSelect={() => navigate('/sessions/new')}>
+              Training hochladen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {/* Summary Stats */}
@@ -199,13 +204,13 @@ export function DashboardPage() {
             >
               <Card elevation="raised" padding="compact">
                 <CardBody>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-primary-1-50)]">
-                        <Activity className="w-4 h-4 text-[var(--color-primary-1-500)]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-[var(--color-text-base)]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-[var(--color-primary-1-50)]">
+                      <Activity className="w-4 h-4 text-[var(--color-primary-1-500)]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-[var(--color-text-base)] truncate">
                           {(() => {
                             try {
                               return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
@@ -216,18 +221,18 @@ export function DashboardPage() {
                             }
                           })()}
                         </p>
-                        <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                          {session.distance_km && <span>{session.distance_km} km</span>}
-                          {session.duration_sec && (
-                            <span>{formatDuration(session.duration_sec)}</span>
-                          )}
-                          {session.hr_avg && <span>{session.hr_avg} bpm</span>}
-                        </div>
+                        <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                          {session.workout_type === 'running' ? 'Laufen' : 'Kraft'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+                        {session.distance_km && <span>{session.distance_km} km</span>}
+                        {session.duration_sec && (
+                          <span>{formatDuration(session.duration_sec)}</span>
+                        )}
+                        {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {session.workout_type === 'running' ? 'Laufen' : 'Kraft'}
-                    </span>
                   </div>
                 </CardBody>
               </Card>

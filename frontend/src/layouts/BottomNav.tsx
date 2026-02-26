@@ -10,14 +10,14 @@ const navItems = [
 
 export function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-sidebar-bg)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-around">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 py-2 min-w-[64px] min-h-[56px] text-[10px] transition-colors ${
+              `flex flex-col items-center justify-center gap-1 py-2 min-w-[64px] min-h-[48px] text-[10px] transition-colors ${
                 isActive
                   ? 'text-[color:var(--color-interactive-primary)] font-medium'
                   : 'text-[var(--color-text-muted)]'

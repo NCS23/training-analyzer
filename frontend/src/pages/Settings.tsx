@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Heart } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -82,19 +81,12 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       <header>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-accent-3-100)]">
-            <Heart className="w-5 h-5 text-[var(--color-accent-3-600)]" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
-            </p>
-          </div>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
+        </p>
       </header>
 
       {/* HR Settings */}
