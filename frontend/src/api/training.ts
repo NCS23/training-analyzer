@@ -1,13 +1,17 @@
 import { apiClient } from './client';
 
 export interface TrainingUploadParams {
-  csvFile: File;
+  csvFile: File;  // Kept for backwards compat, supports CSV and FIT
   trainingDate: string;
   trainingType: 'running' | 'strength';
   trainingSubtype?: string;
   notes?: string;
   lapOverrides?: Record<number, string>;
   trainingTypeOverride?: string;
+}
+
+function isFitFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.fit');
 }
 
 export interface TrainingUploadResponse {
@@ -68,16 +72,34 @@ interface SessionListApiResponse {
   page_size: number;
 }
 
-export async function listSessions(): Promise<SessionSummary[]> {
-  const response = await apiClient.get<SessionListApiResponse>('/api/v1/sessions?page_size=100');
-  return response.data.sessions;
+export interface SessionListResult {
+  sessions: SessionSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listSessions(
+  page = 1,
+  pageSize = 20,
+): Promise<SessionListResult> {
+  const response = await apiClient.get<SessionListApiResponse>(
+    `/api/v1/sessions?page=${page}&page_size=${pageSize}`,
+  );
+  return {
+    sessions: response.data.sessions,
+    total: response.data.total,
+    page: response.data.page,
+    pageSize: response.data.page_size,
+  };
 }
 
 export async function parseTraining(
   params: Omit<TrainingUploadParams, 'lapOverrides' | 'trainingTypeOverride'>,
 ): Promise<TrainingParseResponse> {
+  const fit = isFitFile(params.csvFile);
   const formData = new FormData();
-  formData.append('csv_file', params.csvFile);
+  formData.append(fit ? 'fit_file' : 'csv_file', params.csvFile);
   formData.append('training_date', params.trainingDate);
   formData.append('training_type', params.trainingType);
   if (params.trainingSubtype) {
@@ -88,7 +110,7 @@ export async function parseTraining(
   }
 
   const response = await apiClient.post<TrainingParseResponse>(
-    '/api/v1/sessions/parse',
+    fit ? '/api/v1/sessions/parse/fit' : '/api/v1/sessions/parse',
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   );
@@ -99,8 +121,9 @@ export async function parseTraining(
 export async function uploadTraining(
   params: TrainingUploadParams,
 ): Promise<TrainingUploadResponse> {
+  const fit = isFitFile(params.csvFile);
   const formData = new FormData();
-  formData.append('csv_file', params.csvFile);
+  formData.append(fit ? 'fit_file' : 'csv_file', params.csvFile);
   formData.append('training_date', params.trainingDate);
   formData.append('training_type', params.trainingType);
   if (params.trainingSubtype) {
@@ -117,7 +140,7 @@ export async function uploadTraining(
   }
 
   const response = await apiClient.post<TrainingUploadResponse>(
-    '/api/v1/sessions/upload/csv',
+    fit ? '/api/v1/sessions/upload/fit' : '/api/v1/sessions/upload/csv',
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   );

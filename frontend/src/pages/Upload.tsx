@@ -87,7 +87,7 @@ export default function UploadPage() {
   // Step 0 → next: Parse CSV, then review (running) or upload directly (strength)
   const handleNext = async () => {
     if (!formData.csvFile) {
-      setError('Bitte CSV Datei auswählen');
+      setError('Bitte Datei auswählen');
       return;
     }
 
@@ -211,13 +211,13 @@ export default function UploadPage() {
             </CardHeader>
             <CardBody className="space-y-4">
               <FileUpload
-                accept=".csv"
+                accept=".csv,.fit"
                 onUpload={handleFileUpload}
                 onRemove={handleFileRemove}
                 instructionText={
                   formData.csvFile ? formData.csvFile.name : 'Datei hier ablegen oder klicken'
                 }
-                subText="Unterstützt: Apple Watch CSV"
+                subText="Unterstützt: CSV, Garmin/Wahoo FIT"
               />
 
               <div className="space-y-2">

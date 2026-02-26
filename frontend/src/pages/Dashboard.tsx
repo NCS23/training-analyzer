@@ -34,8 +34,8 @@ export function DashboardPage() {
 
   const loadSessions = async () => {
     try {
-      const data = await listSessions();
-      setSessions(data);
+      const result = await listSessions(1, 100);
+      setSessions(result.sessions);
     } catch {
       // ignore
     } finally {

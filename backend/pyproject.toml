@@ -44,6 +44,7 @@ dependencies = [
     # Data Processing
     "pandas>=2.2.0",
     "numpy>=1.26.0",
+    "fitparse>=1.2.0",  # Garmin FIT file parsing
     
     # Security
     "python-jose[cryptography]>=3.3.0",

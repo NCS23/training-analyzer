@@ -25,12 +25,14 @@ from app.models.session import (
 )
 from app.models.training import TrainingSubType, TrainingType
 from app.services.csv_parser import TrainingCSVParser
+from app.services.fit_parser import TrainingFITParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
 from app.services.training_type_classifier import classify_training_type
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 csv_parser = TrainingCSVParser()
+fit_parser = TrainingFITParser()
 
 
 async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:
@@ -47,13 +49,15 @@ async def _parse_and_classify(
     training_type: TrainingType,
     training_subtype: Optional[TrainingSubType],
     db: AsyncSession,
+    parser=None,
 ) -> dict:
-    """Parst CSV und klassifiziert — ohne DB-Schreibzugriff.
+    """Parst Trainingsdatei und klassifiziert — ohne DB-Schreibzugriff.
 
     Returns dict mit keys: success, errors?, result, summary, laps,
     hr_timeseries, hr_zones, classification, resting_hr, metadata.
     """
-    result = csv_parser.parse(content, training_type, training_subtype)
+    active_parser = parser or csv_parser
+    result = active_parser.parse(content, training_type, training_subtype)
 
     if not result["success"]:
         return {"success": False, "errors": result.get("errors", ["Unbekannter Parse-Fehler"])}
@@ -110,6 +114,42 @@ async def parse_csv(
         raise HTTPException(status_code=400, detail="CSV-Datei ist leer.")
 
     parsed = await _parse_and_classify(content, training_type, training_subtype, db)
+
+    if not parsed["success"]:
+        return SessionParseResponse(success=False, errors=parsed["errors"])
+
+    return SessionParseResponse(
+        success=True,
+        data={
+            "laps": parsed["laps"],
+            "summary": parsed["summary"],
+        },
+        metadata={
+            **parsed["metadata"],
+            "training_type_auto": parsed["classification"].training_type if parsed["classification"] else None,
+            "training_type_confidence": parsed["classification"].confidence if parsed["classification"] else None,
+        },
+    )
+
+
+@router.post("/parse/fit", response_model=SessionParseResponse)
+async def parse_fit(
+    fit_file: UploadFile = File(..., description="Garmin/Wahoo FIT File"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_type: TrainingType = Form(..., description="Trainingstyp"),
+    training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
+    notes: Optional[str] = Form(None, description="Notizen"),
+    db: AsyncSession = Depends(get_db),
+) -> SessionParseResponse:
+    """Parse FIT file und klassifiziere — ohne Session zu erstellen."""
+    if not fit_file.filename or not fit_file.filename.lower().endswith(".fit"):
+        raise HTTPException(status_code=400, detail="Nur FIT-Dateien werden akzeptiert.")
+
+    content = await fit_file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="FIT-Datei ist leer.")
+
+    parsed = await _parse_and_classify(content, training_type, training_subtype, db, parser=fit_parser)
 
     if not parsed["success"]:
         return SessionParseResponse(success=False, errors=parsed["errors"])
@@ -188,6 +228,96 @@ async def upload_csv(
         hr_min=summary.get("min_hr_bpm"),
         cadence_avg=summary.get("avg_cadence_spm"),
         csv_data=content.decode("utf-8"),
+        laps_json=json.dumps(laps) if laps else None,
+        hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
+        notes=notes,
+    )
+
+    db.add(workout)
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionUploadResponse(
+        success=True,
+        session_id=int(workout.id),  # type: ignore[arg-type]
+        data={
+            "laps": laps,
+            "summary": summary,
+            "hr_zones": parsed["hr_zones"],
+            "hr_timeseries": parsed["hr_timeseries"],
+        },
+        metadata={
+            **parsed["metadata"],
+            "training_date": training_date.isoformat(),
+            "training_subtype": training_subtype.value if training_subtype else None,
+            "notes": notes,
+            "hr_zone_method": "karvonen" if parsed["resting_hr"] else "fixed_3zone",
+            "training_type_auto": classification.training_type if classification else None,
+            "training_type_confidence": classification.confidence if classification else None,
+            "training_type_reasons": classification.reasons if classification else None,
+        },
+    )
+
+
+@router.post("/upload/fit", response_model=SessionUploadResponse, status_code=201)
+async def upload_fit(
+    fit_file: UploadFile = File(..., description="Garmin/Wahoo FIT File"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_type: TrainingType = Form(..., description="Trainingstyp"),
+    training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
+    notes: Optional[str] = Form(None, description="Notizen"),
+    lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
+    training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
+    db: AsyncSession = Depends(get_db),
+) -> SessionUploadResponse:
+    """Upload FIT file und speichere als Session."""
+    if not fit_file.filename or not fit_file.filename.lower().endswith(".fit"):
+        raise HTTPException(status_code=400, detail="Nur FIT-Dateien werden akzeptiert.")
+
+    content = await fit_file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="FIT-Datei ist leer.")
+
+    parsed = await _parse_and_classify(content, training_type, training_subtype, db, parser=fit_parser)
+
+    if not parsed["success"]:
+        return SessionUploadResponse(success=False, errors=parsed["errors"])
+
+    summary = parsed["summary"]
+    laps = parsed["laps"]
+    classification = parsed["classification"]
+
+    # Apply lap overrides
+    if lap_overrides_json and laps:
+        try:
+            overrides = json.loads(lap_overrides_json)
+            for lap in laps:
+                lap_num = str(lap["lap_number"])
+                if lap_num in overrides:
+                    lap["user_override"] = overrides[lap_num]
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Apply training type override
+    effective_training_type_override = training_type_override
+    if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
+        effective_training_type_override = None
+
+    workout = WorkoutModel(
+        date=datetime.combine(training_date, datetime.min.time()),
+        workout_type=training_type.value,
+        subtype=training_subtype.value if training_subtype else None,
+        training_type_auto=classification.training_type if classification else None,
+        training_type_confidence=classification.confidence if classification else None,
+        training_type_override=effective_training_type_override,
+        duration_sec=summary.get("total_duration_seconds"),
+        distance_km=summary.get("total_distance_km"),
+        pace=summary.get("avg_pace_formatted"),
+        hr_avg=summary.get("avg_hr_bpm"),
+        hr_max=summary.get("max_hr_bpm"),
+        hr_min=summary.get("min_hr_bpm"),
+        cadence_avg=summary.get("avg_cadence_spm"),
+        csv_data=None,  # No CSV for FIT files
         laps_json=json.dumps(laps) if laps else None,
         hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
         notes=notes,

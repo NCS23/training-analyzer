@@ -68,6 +68,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { generateInsights } from '@/utils/insights';
+import type { InsightType } from '@/utils/insights';
 
 const workoutTypeHeadings: Record<string, string> = {
   running: 'Lauftraining',
@@ -555,6 +557,63 @@ export function SessionDetailPage() {
           </CardBody>
         </Card>
       </section>
+
+      {/* Insights */}
+      {(() => {
+        const insights = generateInsights(session);
+        if (insights.length === 0) return null;
+
+        const iconMap: Record<InsightType, string> = {
+          positive: '✓',
+          warning: '!',
+          neutral: '→',
+        };
+        const colorMap: Record<InsightType, { bg: string; text: string; border: string }> = {
+          positive: {
+            bg: 'bg-[var(--color-bg-success-subtle)]',
+            text: 'text-[var(--color-text-success)]',
+            border: 'border-[var(--color-border-success)]',
+          },
+          warning: {
+            bg: 'bg-[var(--color-bg-warning-subtle)]',
+            text: 'text-[var(--color-text-warning)]',
+            border: 'border-[var(--color-border-warning)]',
+          },
+          neutral: {
+            bg: 'bg-[var(--color-bg-surface)]',
+            text: 'text-[var(--color-text-muted)]',
+            border: 'border-[var(--color-border-default)]',
+          },
+        };
+
+        return (
+          <section aria-label="Insights">
+            <Card elevation="raised">
+              <CardHeader>
+                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Insights</h2>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-2">
+                  {insights.map((insight, i) => {
+                    const colors = colorMap[insight.type];
+                    return (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-2.5 rounded-[var(--radius-component-md)] border px-3 py-2.5 ${colors.bg} ${colors.border}`}
+                      >
+                        <span className={`text-xs font-bold shrink-0 mt-0.5 ${colors.text}`}>
+                          {iconMap[insight.type]}
+                        </span>
+                        <p className="text-sm text-[var(--color-text-base)]">{insight.message}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardBody>
+            </Card>
+          </section>
+        );
+      })()}
 
       {/* HR Zones — side by side */}
       {hrZones && Object.keys(hrZones).length > 0 && (
