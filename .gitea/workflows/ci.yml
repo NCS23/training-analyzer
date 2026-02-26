@@ -23,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: for i in 1 2 3; do npm ci && break || sleep 10; done
 
       - name: ESLint
         working-directory: frontend
@@ -50,7 +50,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: for i in 1 2 3; do npm ci && break || sleep 10; done
 
       - name: Run tests with coverage
         working-directory: frontend
@@ -70,7 +70,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: for i in 1 2 3; do npm ci && break || sleep 10; done
 
       - name: Build
         working-directory: frontend
