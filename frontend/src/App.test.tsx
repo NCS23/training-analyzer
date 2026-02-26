@@ -15,15 +15,23 @@ vi.mock('@/api/athlete', () => ({
   updateAthleteSettings: vi.fn(),
 }));
 
+vi.mock('@/api/training', () => ({
+  listSessions: vi.fn().mockResolvedValue([]),
+}));
+
 describe('Page stubs render correctly', () => {
-  it('renders Dashboard page', () => {
+  it('renders Dashboard page', async () => {
     render(<DashboardPage />);
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    });
   });
 
-  it('renders Sessions page', () => {
+  it('renders Sessions page', async () => {
     render(<SessionsPage />);
-    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Sessions')).toBeInTheDocument();
+    });
   });
 
   it('renders Settings page', async () => {

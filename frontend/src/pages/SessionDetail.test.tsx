@@ -112,11 +112,11 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('8.5 km')).toBeInTheDocument();
+      expect(screen.getByText('8.5')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('145 bpm')).toBeInTheDocument();
-    expect(screen.getByText('4:42 /km')).toBeInTheDocument();
+    expect(screen.getByText('145')).toBeInTheDocument();
+    expect(screen.getByText('4:42')).toBeInTheDocument();
   });
 
   it('renders metrics grid with all values', async () => {
@@ -129,8 +129,8 @@ describe('SessionDetailPage', () => {
       expect(screen.getByLabelText('Kennzahlen')).toBeInTheDocument();
     });
     // Check specific metric values (unique per card)
-    expect(screen.getByText('8.5 km')).toBeInTheDocument();
-    expect(screen.getByText('4:42 /km')).toBeInTheDocument();
+    expect(screen.getByText('8.5')).toBeInTheDocument();
+    expect(screen.getByText('4:42')).toBeInTheDocument();
   });
 
   it('renders training type badge', async () => {
@@ -251,7 +251,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('8.5 km')).toBeInTheDocument();
+      expect(screen.getByText('8.5')).toBeInTheDocument();
     });
     expect(screen.queryByText(/Laps/)).not.toBeInTheDocument();
   });
@@ -263,7 +263,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('8.5 km')).toBeInTheDocument();
+      expect(screen.getByText('8.5')).toBeInTheDocument();
     });
     expect(screen.queryByText('HF-Zonen Verteilung')).not.toBeInTheDocument();
   });
