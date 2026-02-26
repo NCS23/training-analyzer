@@ -180,7 +180,7 @@ class TrainingCSVParser:
             "avg_hr_bpm": round(hr_values.mean()) if len(hr_values) > 0 else None,
             "max_hr_bpm": int(hr_values.max()) if len(hr_values) > 0 else None,
             "min_hr_bpm": int(hr_values.min()) if len(hr_values) > 0 else None,
-            "avg_cadence_spm": round(cadence_values.mean()) if len(cadence_values) > 0 else None,
+            "avg_cadence_spm": round(cadence_values.mean() * 2) if len(cadence_values) > 0 else None,
         }
 
     def _calculate_running_summary(self, df: pd.DataFrame) -> dict:
@@ -202,7 +202,7 @@ class TrainingCSVParser:
             "avg_hr_bpm": round(hr_values.mean()) if len(hr_values) > 0 else None,
             "max_hr_bpm": int(hr_values.max()) if len(hr_values) > 0 else None,
             "min_hr_bpm": int(hr_values.min()) if len(hr_values) > 0 else None,
-            "avg_cadence_spm": round(cadence_values.mean()) if len(cadence_values) > 0 else None,
+            "avg_cadence_spm": round(cadence_values.mean() * 2) if len(cadence_values) > 0 else None,
         }
 
     def _analyze_strength(self, df: pd.DataFrame) -> dict:
