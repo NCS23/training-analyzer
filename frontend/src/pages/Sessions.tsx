@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardBody, Badge, Spinner } from '@nordlig/components';
-import { Upload, Dumbbell, Activity, ChevronRight } from 'lucide-react';
+import { Button, Card, CardBody, Badge, Spinner, Toolbar, ToolbarButton } from '@nordlig/components';
+import { Upload, Dumbbell, Footprints, Activity, ChevronRight } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { format, parseISO } from 'date-fns';
@@ -72,21 +72,25 @@ export function SessionsPage() {
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-            <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-600)]" />
+            <Activity className="w-5 h-5 text-[var(--color-primary-1-600)]" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Sessions</h1>
+            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Sessions</h1>
             <p className="text-xs text-[var(--color-text-muted)]">{sessions.length} Trainings</p>
           </div>
         </div>
-        <Button variant="primary" size="sm" onClick={() => navigate('/sessions/new')}>
-          <Upload className="w-4 h-4 mr-2" />
-          Hochladen
-        </Button>
+        <Toolbar aria-label="Session-Aktionen">
+          <ToolbarButton
+            onClick={() => navigate('/sessions/new')}
+            icon={<Upload />}
+          >
+            Hochladen
+          </ToolbarButton>
+        </Toolbar>
       </header>
 
       {sessions.length === 0 ? (
-        <Card elevation="raised" className="bg-white">
+        <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--color-primary-1-50)] mb-4">
               <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
@@ -116,12 +120,16 @@ export function SessionsPage() {
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && navigate(`/sessions/${session.id}`)}
               >
-                <Card elevation="raised" padding="compact" className="bg-white">
+                <Card elevation="raised" padding="compact">
                   <CardBody>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[var(--color-primary-1-50)]">
-                          <Activity className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                          {session.workout_type === 'strength' ? (
+                            <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                          ) : (
+                            <Footprints className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-[var(--color-text-base)]">

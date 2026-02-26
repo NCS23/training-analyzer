@@ -2,6 +2,7 @@ import { type ReactElement } from 'react';
 import { render, type RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '@nordlig/components';
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -21,7 +22,9 @@ function AllProviders({ children }: { children: React.ReactNode }) {
   const queryClient = createTestQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <BrowserRouter>
+        <ToastProvider>{children}</ToastProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }

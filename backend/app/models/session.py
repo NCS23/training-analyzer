@@ -215,6 +215,15 @@ class SessionUploadResponse(BaseModel):
     metadata: Optional[dict] = None
 
 
+class SessionParseResponse(BaseModel):
+    """Antwort nach CSV-Parse (ohne Session-Erstellung)."""
+
+    success: bool
+    data: Optional[dict] = None
+    errors: Optional[list[str]] = None
+    metadata: Optional[dict] = None
+
+
 # --- Request Schemas ---
 
 
@@ -250,3 +259,9 @@ class NotesUpdateRequest(BaseModel):
     """Request fuer Notizen-Update."""
 
     notes: Optional[str] = None
+
+
+class DateUpdateRequest(BaseModel):
+    """Request fuer Datums-Update."""
+
+    date: date

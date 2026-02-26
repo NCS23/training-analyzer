@@ -4,13 +4,14 @@ import {
   Card,
   CardHeader,
   CardBody,
+  CardFooter,
   Button,
   Input,
   Label,
   Alert,
   AlertDescription,
-  Badge,
   Spinner,
+  useToast,
 } from '@nordlig/components';
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
 import type { KarvonenZone } from '@/api/athlete';
@@ -21,8 +22,8 @@ export function SettingsPage() {
   const [zones, setZones] = useState<KarvonenZone[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadSettings();
@@ -57,7 +58,6 @@ export function SettingsPage() {
 
     setSaving(true);
     setError(null);
-    setSaved(false);
 
     try {
       const result = await updateAthleteSettings({
@@ -65,7 +65,7 @@ export function SettingsPage() {
         max_hr: mhr,
       });
       setZones(result.karvonen_zones);
-      setSaved(true);
+      toast({ title: 'Einstellungen gespeichert', variant: 'success' });
     } catch {
       setError('Speichern fehlgeschlagen');
     } finally {
@@ -82,14 +82,14 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <header>
         <div className="flex items-center gap-3 mb-1">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-accent-3-100)]">
             <Heart className="w-5 h-5 text-[var(--color-accent-3-600)]" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
+            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
             <p className="text-sm text-[var(--color-text-muted)]">
               Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
             </p>
@@ -98,11 +98,11 @@ export function SettingsPage() {
       </header>
 
       {/* HR Settings */}
-      <Card elevation="raised" padding="spacious" className="bg-white">
+      <Card elevation="raised" padding="spacious">
         <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Herzfrequenz</h2>
         </CardHeader>
-        <CardBody className="space-y-4">
+        <CardBody>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="resting-hr">Ruheherzfrequenz (bpm)</Label>
@@ -113,10 +113,7 @@ export function SettingsPage() {
                 max={120}
                 placeholder="z.B. 50"
                 value={restingHr}
-                onChange={(e) => {
-                  setRestingHr(e.target.value);
-                  setSaved(false);
-                }}
+                onChange={(e) => setRestingHr(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -128,40 +125,31 @@ export function SettingsPage() {
                 max={230}
                 placeholder="z.B. 190"
                 value={maxHr}
-                onChange={(e) => {
-                  setMaxHr(e.target.value);
-                  setSaved(false);
-                }}
+                onChange={(e) => setMaxHr(e.target.value)}
               />
             </div>
           </div>
 
           {error && (
-            <Alert variant="error" closeable onClose={() => setError(null)}>
+            <Alert variant="error" closeable onClose={() => setError(null)} className="mt-4">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              disabled={saving || !restingHr || !maxHr}
-            >
-              {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
-            </Button>
-            {saved && (
-              <Badge variant="success" size="sm">
-                Gespeichert
-              </Badge>
-            )}
-          </div>
         </CardBody>
+        <CardFooter className="justify-end pt-4">
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={saving || !restingHr || !maxHr}
+          >
+            {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
+          </Button>
+        </CardFooter>
       </Card>
 
       {/* Karvonen Zones Preview */}
       {zones && (
-        <Card elevation="raised" padding="spacious" className="bg-white">
+        <Card elevation="raised" padding="spacious">
           <CardHeader>
             <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
               Karvonen-Zonen (5 Zonen)

@@ -9,6 +9,7 @@ vi.mock('@/api/training', () => ({
   deleteSession: vi.fn(),
   updateSessionNotes: vi.fn(),
   updateTrainingType: vi.fn(),
+  updateLapOverrides: vi.fn(),
 }));
 
 // Mock useParams and useNavigate
@@ -22,6 +23,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Session with confirmed (user_override set) laps — no auto-edit
 const mockSession: SessionDetail = {
   id: 1,
   date: '2025-02-25',
@@ -55,7 +57,7 @@ const mockSession: SessionDetail = {
       avg_cadence_spm: 165,
       suggested_type: 'warmup',
       confidence: 'high',
-      user_override: null,
+      user_override: 'warmup',
     },
     {
       lap_number: 2,
@@ -70,7 +72,7 @@ const mockSession: SessionDetail = {
       avg_cadence_spm: 175,
       suggested_type: 'tempo',
       confidence: 'medium',
-      user_override: null,
+      user_override: 'tempo',
     },
   ],
   hr_zones: {
@@ -82,6 +84,12 @@ const mockSession: SessionDetail = {
   updated_at: '2025-02-25T08:15:00',
 };
 
+// Session with unconfirmed laps — triggers auto-edit + classification banner
+const mockSessionUnconfirmed: SessionDetail = {
+  ...mockSession,
+  laps: mockSession.laps!.map((l) => ({ ...l, user_override: null })),
+};
+
 async function getMocks() {
   const mod = await import('@/api/training');
   return {
@@ -89,6 +97,7 @@ async function getMocks() {
     deleteSession: vi.mocked(mod.deleteSession),
     updateSessionNotes: vi.mocked(mod.updateSessionNotes),
     updateTrainingType: vi.mocked(mod.updateTrainingType),
+    updateLapOverrides: vi.mocked(mod.updateLapOverrides),
   };
 }
 
@@ -128,21 +137,41 @@ describe('SessionDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Kennzahlen')).toBeInTheDocument();
     });
-    // Check specific metric values (unique per card)
     expect(screen.getByText('8.5')).toBeInTheDocument();
     expect(screen.getByText('4:42')).toBeInTheDocument();
   });
 
-  it('renders training type badge', async () => {
+  it('shows training type badge in header', async () => {
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Trainingstyp:')).toBeInTheDocument();
+      expect(screen.getByText('Easy Run')).toBeInTheDocument();
     });
-    expect(screen.getByText('(75% Konfidenz)')).toBeInTheDocument();
+  });
+
+  it('shows edit fields only in edit mode', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue(mockSession);
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Easy Run')).toBeInTheDocument();
+    });
+
+    // Edit fields not visible in read-only mode
+    expect(screen.queryByText('Trainingstyp')).not.toBeInTheDocument();
+    expect(screen.queryByText('Datum')).not.toBeInTheDocument();
+
+    // Enter edit mode
+    fireEvent.click(screen.getByLabelText('Bearbeiten'));
+
+    // Now edit fields should be visible
+    expect(screen.getByText('Trainingstyp')).toBeInTheDocument();
+    expect(screen.getByText('Datum')).toBeInTheDocument();
   });
 
   it('renders HR zones', async () => {
@@ -152,7 +181,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('HF-Zonen Verteilung')).toBeInTheDocument();
+      expect(screen.getByText('HF-Zonen Gesamt')).toBeInTheDocument();
     });
   });
 
@@ -169,7 +198,19 @@ describe('SessionDetailPage', () => {
     expect(screen.getByText('10:00')).toBeInTheDocument();
   });
 
-  it('renders notes field with existing notes', async () => {
+  it('shows lap badges in read-only mode', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue(mockSession);
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Warm-up')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Tempo')).toBeInTheDocument();
+  });
+
+  it('renders notes as read-only text by default', async () => {
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
@@ -178,8 +219,57 @@ describe('SessionDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Notizen')).toBeInTheDocument();
     });
-    const textarea = screen.getByDisplayValue('Gutes Training');
-    expect(textarea).toBeInTheDocument();
+    // Notes shown as text, not textarea
+    expect(screen.getByText('Gutes Training')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('shows textarea for notes in edit mode', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue(mockSession);
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Notizen')).toBeInTheDocument();
+    });
+
+    // Enter edit mode
+    fireEvent.click(screen.getByLabelText('Bearbeiten'));
+
+    // Now textarea should be visible
+    expect(screen.getByDisplayValue('Gutes Training')).toBeInTheDocument();
+  });
+
+  it('shows "Keine Notizen" when notes are empty', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue({ ...mockSession, notes: null });
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Keine Notizen')).toBeInTheDocument();
+    });
+  });
+
+  it('toggles edit mode with pencil button and Fertig banner', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue(mockSession);
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Bearbeiten')).toBeInTheDocument();
+    });
+
+    // Click pencil to enter edit mode
+    fireEvent.click(screen.getByLabelText('Bearbeiten'));
+    expect(screen.getByLabelText('Bearbeiten')).toBeDisabled();
+    expect(screen.getByText('Fertig')).toBeInTheDocument();
+
+    // Click "Fertig" banner button to exit edit mode
+    fireEvent.click(screen.getByText('Fertig'));
+    expect(screen.getByLabelText('Bearbeiten')).toBeEnabled();
   });
 
   it('shows delete confirmation dialog', async () => {
@@ -189,28 +279,11 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Session loeschen')).toBeInTheDocument();
+      expect(screen.getByLabelText('Session löschen')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Session loeschen'));
-    expect(screen.getByText('Wirklich loeschen?')).toBeInTheDocument();
-    expect(screen.getByText('Ja, loeschen')).toBeInTheDocument();
-    expect(screen.getByText('Abbrechen')).toBeInTheDocument();
-  });
-
-  it('cancels delete when clicking Abbrechen', async () => {
-    const { getSession } = await getMocks();
-    getSession.mockResolvedValue(mockSession);
-
-    render(<SessionDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Session loeschen')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText('Session loeschen'));
-    fireEvent.click(screen.getByText('Abbrechen'));
-    expect(screen.queryByText('Wirklich loeschen?')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Session löschen'));
+    expect(screen.getByText('Session löschen?')).toBeInTheDocument();
   });
 
   it('deletes session and navigates away', async () => {
@@ -221,11 +294,11 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Session loeschen')).toBeInTheDocument();
+      expect(screen.getByLabelText('Session löschen')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Session loeschen'));
-    fireEvent.click(screen.getByText('Ja, loeschen'));
+    fireEvent.click(screen.getByLabelText('Session löschen'));
+    fireEvent.click(screen.getByText('Löschen'));
 
     await waitFor(() => {
       expect(deleteSession).toHaveBeenCalledWith(1);
@@ -266,5 +339,21 @@ describe('SessionDetailPage', () => {
       expect(screen.getByText('8.5')).toBeInTheDocument();
     });
     expect(screen.queryByText('HF-Zonen Verteilung')).not.toBeInTheDocument();
+  });
+
+  it('does not auto-open edit mode for unconfirmed laps', async () => {
+    const { getSession } = await getMocks();
+    getSession.mockResolvedValue(mockSessionUnconfirmed);
+
+    render(<SessionDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('8.5')).toBeInTheDocument();
+    });
+
+    // Edit mode should NOT be auto-opened (classification review now happens on upload page)
+    expect(screen.getByLabelText('Bearbeiten')).toBeInTheDocument();
+    // No classification banner
+    expect(screen.queryByText(/automatisch erkannt/)).not.toBeInTheDocument();
   });
 });

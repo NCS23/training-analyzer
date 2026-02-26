@@ -10,7 +10,7 @@ const navItems = [
 
 export function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-bg-base)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-sidebar-bg)]">
       <div className="flex justify-around">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink

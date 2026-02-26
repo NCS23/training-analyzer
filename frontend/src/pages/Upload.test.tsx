@@ -4,8 +4,8 @@ import UploadPage from './Upload';
 
 // Mock the API module
 vi.mock('@/api/training', () => ({
+  parseTraining: vi.fn(),
   uploadTraining: vi.fn(),
-  updateLapOverrides: vi.fn(),
 }));
 
 // Mock useNavigate
@@ -18,15 +18,24 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+async function getMocks() {
+  const mod = await import('@/api/training');
+  return {
+    parseTraining: vi.mocked(mod.parseTraining),
+    uploadTraining: vi.mocked(mod.uploadTraining),
+  };
+}
+
 describe('UploadPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders the upload form', () => {
+  it('renders the upload wizard', () => {
     render(<UploadPage />);
     expect(screen.getByText('Training Upload')).toBeInTheDocument();
-    expect(screen.getByText('Training analysieren')).toBeInTheDocument();
+    expect(screen.getByText('CSV Datei hochladen')).toBeInTheDocument();
+    expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 
   it('renders training type toggle', () => {
@@ -35,92 +44,151 @@ describe('UploadPage', () => {
     expect(screen.getByText('Kraft')).toBeInTheDocument();
   });
 
-  it('submit button is disabled without file', () => {
+  it('Weiter button is disabled without file', () => {
     render(<UploadPage />);
-    const button = screen.getByText('Training analysieren');
+    const button = screen.getByText('Weiter');
     expect(button).toBeDisabled();
   });
 
-  it('shows error when submitting without file', async () => {
-    render(<UploadPage />);
-    // Trigger form submit via the button (which is disabled, so we try the form directly)
-    const form = screen.getByText('Training analysieren').closest('form');
-    if (form) {
-      fireEvent.submit(form);
-    }
-    await waitFor(() => {
-      expect(screen.getByText('Bitte CSV Datei auswählen')).toBeInTheDocument();
-    });
-  });
-
-  it('shows success and navigate button after upload', async () => {
-    const { uploadTraining } = await import('@/api/training');
-    const mockUpload = vi.mocked(uploadTraining);
-    mockUpload.mockResolvedValue({
+  it('shows review step after successful parse', async () => {
+    const { parseTraining } = await getMocks();
+    parseTraining.mockResolvedValue({
       success: true,
-      session_id: 42,
       data: {
-        summary: {
-          total_duration_seconds: 840,
-          total_duration_formatted: '14:00',
-          total_distance_km: 2.5,
-          avg_hr_bpm: 145,
-        },
         laps: [
           {
             lap_number: 1,
             duration_seconds: 300,
             duration_formatted: '05:00',
-            distance_km: 0.9,
-            avg_hr_bpm: 135,
-            suggested_type: 'warmup',
+            distance_km: 1.0,
+            pace_min_per_km: 5.0,
+            pace_formatted: '5:00',
+            avg_hr_bpm: 140,
+            suggested_type: 'easy',
             confidence: 'high',
           },
         ],
-        hr_zones: {
-          zone_1_recovery: { seconds: 300, percentage: 35.7, label: '< 150 bpm' },
-          zone_2_base: { seconds: 240, percentage: 28.6, label: '150-160 bpm' },
-          zone_3_tempo: { seconds: 300, percentage: 35.7, label: '> 160 bpm' },
+        summary: {
+          total_duration_seconds: 300,
+          total_duration_formatted: '05:00',
+          total_distance_km: 1.0,
+          avg_hr_bpm: 140,
+          avg_pace_formatted: '5:00',
         },
+      },
+      metadata: {
+        training_type_auto: 'easy',
+        training_type_confidence: 85,
       },
     });
 
     render(<UploadPage />);
 
-    // We can't easily simulate file upload in jsdom, but we can test the result display
-    // by directly calling the mock and checking the state. Instead, let's verify the component
-    // renders the key UI elements correctly.
-    expect(screen.getByText('Trainingstyp')).toBeInTheDocument();
-    expect(screen.getByText('Notizen')).toBeInTheDocument();
+    // Simulate file upload via the FileUpload's onUpload callback
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+    Object.defineProperty(fileInput, 'files', { value: [file] });
+    fireEvent.change(fileInput);
+
+    // Click "Weiter"
+    const button = screen.getByText('Weiter');
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByText('Klassifikation prüfen')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Session anlegen')).toBeInTheDocument();
+    expect(screen.getByText('Zurück')).toBeInTheDocument();
   });
 
-  it('shows error message from API', async () => {
-    const { uploadTraining } = await import('@/api/training');
-    const mockUpload = vi.mocked(uploadTraining);
-    mockUpload.mockResolvedValue({
-      success: false,
-      errors: ['Fehlende Spalten: date, timestamp'],
+  it('navigates back from review to upload step', async () => {
+    const { parseTraining } = await getMocks();
+    parseTraining.mockResolvedValue({
+      success: true,
+      data: {
+        laps: null,
+        summary: {
+          total_duration_seconds: 600,
+          avg_hr_bpm: 130,
+        },
+      },
+      metadata: {
+        training_type_auto: 'easy',
+        training_type_confidence: 90,
+      },
     });
 
     render(<UploadPage />);
-    // Verify the error alert component exists in the UI pattern
-    expect(screen.getByText('Training Upload')).toBeInTheDocument();
+
+    // Upload file and go to review
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+    Object.defineProperty(fileInput, 'files', { value: [file] });
+    fireEvent.change(fileInput);
+
+    fireEvent.click(screen.getByText('Weiter'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Klassifikation prüfen')).toBeInTheDocument();
+    });
+
+    // Click "Zurück"
+    fireEvent.click(screen.getByText('Zurück'));
+
+    expect(screen.getByText('CSV Datei hochladen')).toBeInTheDocument();
+    expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 
-  it('renders subtype options for running', () => {
+  it('creates session and navigates on success', async () => {
+    const { parseTraining, uploadTraining } = await getMocks();
+    parseTraining.mockResolvedValue({
+      success: true,
+      data: {
+        laps: null,
+        summary: { total_duration_seconds: 600, avg_hr_bpm: 130 },
+      },
+      metadata: { training_type_auto: 'easy', training_type_confidence: 90 },
+    });
+    uploadTraining.mockResolvedValue({ success: true, session_id: 42 });
+
     render(<UploadPage />);
-    // Running is default, so running subtypes should be available
-    expect(screen.getByText('Trainingsart')).toBeInTheDocument();
+
+    // Upload file and go to review
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+    Object.defineProperty(fileInput, 'files', { value: [file] });
+    fireEvent.change(fileInput);
+
+    fireEvent.click(screen.getByText('Weiter'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Session anlegen')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Session anlegen'));
+
+    await waitFor(() => {
+      expect(uploadTraining).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('/sessions/42', { state: { uploaded: true } });
+    });
   });
 
-  it('switches subtypes when training type changes', async () => {
+  it('shows error when parse fails', async () => {
+    const { parseTraining } = await getMocks();
+    parseTraining.mockRejectedValue(new Error('Network error'));
+
     render(<UploadPage />);
 
-    // Click on "Kraft" toggle
-    const kraftButton = screen.getByText('Kraft');
-    fireEvent.click(kraftButton);
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+    Object.defineProperty(fileInput, 'files', { value: [file] });
+    fireEvent.change(fileInput);
 
-    // The subtype label should still be visible
-    expect(screen.getByText('Trainingsart')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Weiter'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Netzwerkfehler/)).toBeInTheDocument();
+    });
   });
 });

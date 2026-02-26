@@ -6,6 +6,8 @@ export interface TrainingUploadParams {
   trainingType: 'running' | 'strength';
   trainingSubtype?: string;
   notes?: string;
+  lapOverrides?: Record<number, string>;
+  trainingTypeOverride?: string;
 }
 
 export interface TrainingUploadResponse {
@@ -14,6 +16,37 @@ export interface TrainingUploadResponse {
   data?: Record<string, unknown>;
   errors?: string[];
   metadata?: Record<string, unknown>;
+}
+
+export interface ParsedLap {
+  lap_number: number;
+  duration_seconds: number;
+  duration_formatted: string;
+  distance_km: number | null;
+  pace_min_per_km: number | null;
+  pace_formatted: string | null;
+  avg_hr_bpm: number | null;
+  suggested_type: string | null;
+  confidence: string | null;
+}
+
+export interface TrainingParseResponse {
+  success: boolean;
+  data?: {
+    laps: ParsedLap[] | null;
+    summary: {
+      total_duration_seconds: number;
+      total_duration_formatted?: string;
+      total_distance_km?: number;
+      avg_hr_bpm?: number;
+      avg_pace_formatted?: string;
+    };
+  };
+  errors?: string[];
+  metadata?: {
+    training_type_auto?: string | null;
+    training_type_confidence?: number | null;
+  };
 }
 
 export interface SessionSummary {
@@ -40,6 +73,29 @@ export async function listSessions(): Promise<SessionSummary[]> {
   return response.data.sessions;
 }
 
+export async function parseTraining(
+  params: Omit<TrainingUploadParams, 'lapOverrides' | 'trainingTypeOverride'>,
+): Promise<TrainingParseResponse> {
+  const formData = new FormData();
+  formData.append('csv_file', params.csvFile);
+  formData.append('training_date', params.trainingDate);
+  formData.append('training_type', params.trainingType);
+  if (params.trainingSubtype) {
+    formData.append('training_subtype', params.trainingSubtype);
+  }
+  if (params.notes) {
+    formData.append('notes', params.notes);
+  }
+
+  const response = await apiClient.post<TrainingParseResponse>(
+    '/api/v1/sessions/parse',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+
+  return response.data;
+}
+
 export async function uploadTraining(
   params: TrainingUploadParams,
 ): Promise<TrainingUploadResponse> {
@@ -52,6 +108,12 @@ export async function uploadTraining(
   }
   if (params.notes) {
     formData.append('notes', params.notes);
+  }
+  if (params.lapOverrides && Object.keys(params.lapOverrides).length > 0) {
+    formData.append('lap_overrides_json', JSON.stringify(params.lapOverrides));
+  }
+  if (params.trainingTypeOverride) {
+    formData.append('training_type_override', params.trainingTypeOverride);
   }
 
   const response = await apiClient.post<TrainingUploadResponse>(
@@ -159,6 +221,16 @@ export async function updateSessionNotes(
 ): Promise<SessionDetail> {
   const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/notes`, {
     notes,
+  });
+  return response.data;
+}
+
+export async function updateSessionDate(
+  sessionId: number,
+  date: string,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/date`, {
+    date,
   });
   return response.data;
 }

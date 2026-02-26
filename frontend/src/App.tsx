@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Spinner } from '@nordlig/components';
+import { Spinner, ToastProvider } from '@nordlig/components';
 import { AppLayout } from './layouts/AppLayout';
 
 const queryClient = new QueryClient({
@@ -43,19 +43,21 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/sessions" element={<SessionsPage />} />
-              <Route path="/sessions/new" element={<UploadPage />} />
-              <Route path="/sessions/:id" element={<SessionDetailPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-          </Routes>
-        </Suspense>
+        <ToastProvider position="bottom-right">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/sessions" element={<SessionsPage />} />
+                <Route path="/sessions/new" element={<UploadPage />} />
+                <Route path="/sessions/:id" element={<SessionDetailPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

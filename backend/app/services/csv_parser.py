@@ -53,15 +53,19 @@ class TrainingCSVParser:
             # Bereinige Daten (leere Zeilen am Anfang/Ende)
             df = self._clean_dataframe(df)
 
+            # Auto-detect: Kraft-CSVs haben keine Running-Spalten
+            has_running_columns = all(col in df.columns for col in self.RUNNING_COLUMNS)
+            effective_type = training_type if has_running_columns else TrainingType.STRENGTH
+
             # Nach Trainingstyp analysieren
-            if training_type == TrainingType.RUNNING:
+            if effective_type == TrainingType.RUNNING:
                 result = self._analyze_running(df, training_subtype)
             else:
                 result = self._analyze_strength(df)
 
             result["success"] = True
             result["metadata"] = {
-                "training_type": training_type.value,
+                "training_type": effective_type.value,
                 "training_subtype": training_subtype,
                 "total_rows": len(df),
                 "parsed_at": datetime.utcnow().isoformat(),

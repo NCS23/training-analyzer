@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardBody, Spinner } from '@nordlig/components';
+import { Button, Card, CardBody, Spinner, Toolbar, ToolbarButton } from '@nordlig/components';
 import { Upload, LayoutDashboard, Activity, Clock, MapPin, Heart, TrendingUp } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
@@ -61,10 +61,10 @@ export function DashboardPage() {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
             <LayoutDashboard className="w-5 h-5 text-[var(--color-primary-1-600)]" />
           </div>
-          <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
         </header>
 
-        <Card elevation="raised" className="bg-white">
+        <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--color-primary-1-50)] mb-4">
               <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
@@ -95,12 +95,16 @@ export function DashboardPage() {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
             <LayoutDashboard className="w-5 h-5 text-[var(--color-primary-1-600)]" />
           </div>
-          <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
         </div>
-        <Button variant="primary" size="sm" onClick={() => navigate('/sessions/new')}>
-          <Upload className="w-4 h-4 mr-2" />
-          Hochladen
-        </Button>
+        <Toolbar aria-label="Dashboard-Aktionen">
+          <ToolbarButton
+            onClick={() => navigate('/sessions/new')}
+            icon={<Upload />}
+          >
+            Hochladen
+          </ToolbarButton>
+        </Toolbar>
       </header>
 
       {/* Summary Stats */}
@@ -108,7 +112,7 @@ export function DashboardPage() {
         <Card
           elevation="raised"
           padding="compact"
-          className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]"
+          className="border-l-4 border-l-[var(--color-primary-1-500)]"
         >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
@@ -123,7 +127,7 @@ export function DashboardPage() {
         <Card
           elevation="raised"
           padding="compact"
-          className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]"
+          className="border-l-4 border-l-[var(--color-accent-1-500)]"
         >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
@@ -141,7 +145,7 @@ export function DashboardPage() {
         <Card
           elevation="raised"
           padding="compact"
-          className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]"
+          className="border-l-4 border-l-[var(--color-accent-2-500)]"
         >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
@@ -159,7 +163,7 @@ export function DashboardPage() {
           <Card
             elevation="raised"
             padding="compact"
-            className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]"
+            className="border-l-4 border-l-[var(--color-accent-3-500)]"
           >
             <CardBody>
               <div className="flex items-center gap-1.5 mb-1">
@@ -193,7 +197,7 @@ export function DashboardPage() {
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && navigate(`/sessions/${session.id}`)}
             >
-              <Card elevation="raised" padding="compact" className="bg-white">
+              <Card elevation="raised" padding="compact">
                 <CardBody>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

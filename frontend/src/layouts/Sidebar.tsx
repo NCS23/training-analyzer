@@ -9,9 +9,9 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside className="hidden md:flex flex-col w-60 h-screen border-r border-[var(--color-border-default)] bg-[var(--color-bg-base)]">
+    <aside className="hidden md:flex flex-col w-60 sticky top-0 h-screen border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)]">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-4 h-14 border-b border-[var(--color-border-default)]">
+      <div className="flex items-center gap-2 px-4 h-14 border-b border-[var(--color-sidebar-border)]">
         <Dumbbell className="w-5 h-5 text-[color:var(--color-interactive-primary)]" />
         <span className="text-sm font-semibold text-[var(--color-text-base)] tracking-tight">
           Training Analyzer
@@ -27,8 +27,8 @@ export function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-component-md)] text-sm transition-colors min-h-[44px] ${
                 isActive
-                  ? 'bg-[var(--color-interactive-primary)] text-[var(--color-text-on-primary)] font-medium'
-                  : 'text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-base)]'
+                  ? 'bg-[var(--color-sidebar-item-active)] text-[var(--color-sidebar-text-active)] font-medium'
+                  : 'text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-item-hover)] hover:text-[var(--color-text-base)]'
               }`
             }
           >

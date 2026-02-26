@@ -11,11 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models import AthleteModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.session import (
+    DateUpdateRequest,
     LapOverrideRequest,
     LapOverrideResponse,
     LapResponse,
     NotesUpdateRequest,
     SessionListResponse,
+    SessionParseResponse,
     SessionResponse,
     SessionSummaryResponse,
     SessionUploadResponse,
@@ -40,44 +42,32 @@ async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Opt
     return None, None
 
 
-@router.post("/upload/csv", response_model=SessionUploadResponse, status_code=201)
-async def upload_csv(
-    csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
-    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
-    training_type: TrainingType = Form(..., description="Trainingstyp"),
-    training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
-    notes: Optional[str] = Form(None, description="Notizen"),
-    db: AsyncSession = Depends(get_db),
-) -> SessionUploadResponse:
-    """Upload Apple Watch CSV und speichere als Session."""
-    # Validiere Dateiformat
-    if not csv_file.filename or not csv_file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Nur CSV-Dateien werden akzeptiert.")
+async def _parse_and_classify(
+    content: bytes,
+    training_type: TrainingType,
+    training_subtype: Optional[TrainingSubType],
+    db: AsyncSession,
+) -> dict:
+    """Parst CSV und klassifiziert — ohne DB-Schreibzugriff.
 
-    content = await csv_file.read()
-    if len(content) == 0:
-        raise HTTPException(status_code=400, detail="CSV-Datei ist leer.")
-
-    # Parse CSV
+    Returns dict mit keys: success, errors?, result, summary, laps,
+    hr_timeseries, hr_zones, classification, resting_hr, metadata.
+    """
     result = csv_parser.parse(content, training_type, training_subtype)
 
     if not result["success"]:
-        return SessionUploadResponse(
-            success=False,
-            errors=result.get("errors", ["Unbekannter Parse-Fehler"]),
-        )
+        return {"success": False, "errors": result.get("errors", ["Unbekannter Parse-Fehler"])}
 
-    # Extrahiere Summary-Daten fuer DB-Felder
     summary = result.get("summary", {})
     laps = result.get("laps")
-
-    # HR-Zonen: Karvonen (5-Zonen) wenn Athleten-Daten vorhanden, sonst 3-Zonen Fallback
-    resting_hr, max_hr = await _get_athlete_hr_settings(db)
     hr_timeseries = result.get("hr_timeseries")
+
+    # HR-Zonen
+    resting_hr, max_hr = await _get_athlete_hr_settings(db)
     raw_hr_values = _extract_hr_values_from_result(result)
     hr_zones = calculate_zone_distribution(raw_hr_values, resting_hr, max_hr)
 
-    # Automatische Training Type Klassifizierung (nur fuer Running)
+    # Training Type Klassifizierung (nur Running)
     classification = None
     if training_type == TrainingType.RUNNING:
         classification = classify_training_type(
@@ -89,6 +79,99 @@ async def upload_csv(
             hr_zone_distribution=hr_zones or None,
         )
 
+    return {
+        "success": True,
+        "result": result,
+        "summary": summary,
+        "laps": laps,
+        "hr_timeseries": hr_timeseries,
+        "hr_zones": hr_zones,
+        "classification": classification,
+        "resting_hr": resting_hr,
+        "metadata": result.get("metadata", {}),
+    }
+
+
+@router.post("/parse", response_model=SessionParseResponse)
+async def parse_csv(
+    csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_type: TrainingType = Form(..., description="Trainingstyp"),
+    training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
+    notes: Optional[str] = Form(None, description="Notizen"),
+    db: AsyncSession = Depends(get_db),
+) -> SessionParseResponse:
+    """Parse CSV und klassifiziere — ohne Session zu erstellen."""
+    if not csv_file.filename or not csv_file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Nur CSV-Dateien werden akzeptiert.")
+
+    content = await csv_file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="CSV-Datei ist leer.")
+
+    parsed = await _parse_and_classify(content, training_type, training_subtype, db)
+
+    if not parsed["success"]:
+        return SessionParseResponse(success=False, errors=parsed["errors"])
+
+    return SessionParseResponse(
+        success=True,
+        data={
+            "laps": parsed["laps"],
+            "summary": parsed["summary"],
+        },
+        metadata={
+            **parsed["metadata"],
+            "training_type_auto": parsed["classification"].training_type if parsed["classification"] else None,
+            "training_type_confidence": parsed["classification"].confidence if parsed["classification"] else None,
+        },
+    )
+
+
+@router.post("/upload/csv", response_model=SessionUploadResponse, status_code=201)
+async def upload_csv(
+    csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_type: TrainingType = Form(..., description="Trainingstyp"),
+    training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
+    notes: Optional[str] = Form(None, description="Notizen"),
+    lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
+    training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
+    db: AsyncSession = Depends(get_db),
+) -> SessionUploadResponse:
+    """Upload Apple Watch CSV und speichere als Session."""
+    if not csv_file.filename or not csv_file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Nur CSV-Dateien werden akzeptiert.")
+
+    content = await csv_file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="CSV-Datei ist leer.")
+
+    parsed = await _parse_and_classify(content, training_type, training_subtype, db)
+
+    if not parsed["success"]:
+        return SessionUploadResponse(success=False, errors=parsed["errors"])
+
+    summary = parsed["summary"]
+    laps = parsed["laps"]
+    classification = parsed["classification"]
+
+    # Apply lap overrides from review step
+    if lap_overrides_json and laps:
+        try:
+            overrides = json.loads(lap_overrides_json)
+            for lap in laps:
+                lap_num = str(lap["lap_number"])
+                if lap_num in overrides:
+                    lap["user_override"] = overrides[lap_num]
+        except (json.JSONDecodeError, KeyError):
+            pass  # Ignore malformed overrides
+
+    # Apply training type override from review step
+    effective_training_type_override = training_type_override
+    if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
+        effective_training_type_override = None
+
     # Erstelle DB-Eintrag
     workout = WorkoutModel(
         date=datetime.combine(training_date, datetime.min.time()),
@@ -96,6 +179,7 @@ async def upload_csv(
         subtype=training_subtype.value if training_subtype else None,
         training_type_auto=classification.training_type if classification else None,
         training_type_confidence=classification.confidence if classification else None,
+        training_type_override=effective_training_type_override,
         duration_sec=summary.get("total_duration_seconds"),
         distance_km=summary.get("total_distance_km"),
         pace=summary.get("avg_pace_formatted"),
@@ -105,7 +189,7 @@ async def upload_csv(
         cadence_avg=summary.get("avg_cadence_spm"),
         csv_data=content.decode("utf-8"),
         laps_json=json.dumps(laps) if laps else None,
-        hr_zones_json=json.dumps(hr_zones) if hr_zones else None,
+        hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
         notes=notes,
     )
 
@@ -119,15 +203,15 @@ async def upload_csv(
         data={
             "laps": laps,
             "summary": summary,
-            "hr_zones": hr_zones,
-            "hr_timeseries": hr_timeseries,
+            "hr_zones": parsed["hr_zones"],
+            "hr_timeseries": parsed["hr_timeseries"],
         },
         metadata={
-            **result.get("metadata", {}),
+            **parsed["metadata"],
             "training_date": training_date.isoformat(),
             "training_subtype": training_subtype.value if training_subtype else None,
             "notes": notes,
-            "hr_zone_method": "karvonen" if resting_hr else "fixed_3zone",
+            "hr_zone_method": "karvonen" if parsed["resting_hr"] else "fixed_3zone",
             "training_type_auto": classification.training_type if classification else None,
             "training_type_confidence": classification.confidence if classification else None,
             "training_type_reasons": classification.reasons if classification else None,
@@ -281,6 +365,27 @@ async def update_notes(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     workout.notes = body.notes  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionResponse.from_db(workout)
+
+
+@router.patch("/{session_id}/date", response_model=SessionResponse)
+async def update_date(
+    session_id: int,
+    body: DateUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Aktualisiert das Datum einer Session."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    workout.date = body.date  # type: ignore[assignment]
     await db.commit()
     await db.refresh(workout)
 

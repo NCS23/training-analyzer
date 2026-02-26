@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getSession, deleteSession, updateSessionNotes, updateTrainingType } from '@/api/training';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+  getSession,
+  deleteSession,
+  updateSessionNotes,
+  updateSessionDate,
+  updateTrainingType,
+  updateLapOverrides,
+} from '@/api/training';
 import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo } from '@/api/training';
+import {
+  trainingTypeLabels,
+  trainingTypeBadgeVariant,
+  trainingTypeOptions,
+  lapTypeLabels,
+  lapTypeOptions,
+} from '@/constants/training';
 import {
   Button,
   Card,
@@ -20,50 +34,43 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  Toolbar,
+  ToolbarButton,
+  ToolbarSeparator,
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+  DatePicker,
+  Label,
+  useToast,
 } from '@nordlig/components';
-import { ArrowLeft, Calendar, Trash2, Check } from 'lucide-react';
+import {
+  ArrowLeft,
+  Dumbbell,
+  Calendar,
+  Trash2,
+  Check,
+  Pencil,
+  Clock,
+  MapPin,
+  Timer,
+  Heart,
+  HeartPulse,
+  Footprints,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-const trainingTypeLabels: Record<string, string> = {
-  recovery: 'Recovery',
-  easy: 'Easy Run',
-  long_run: 'Long Run',
-  tempo: 'Tempo',
-  intervals: 'Intervall',
-  race: 'Wettkampf',
-  hill_repeats: 'Bergsprints',
-};
-
-const trainingTypeBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
-  recovery: 'info',
-  easy: 'success',
-  long_run: 'success',
-  tempo: 'warning',
-  intervals: 'error',
-  race: 'error',
-  hill_repeats: 'warning',
-};
-
-const trainingTypeOptions = Object.entries(trainingTypeLabels).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const workoutTypeLabels: Record<string, string> = {
-  running: 'Laufen',
-  strength: 'Kraft',
-};
-
-const lapTypeLabels: Record<string, string> = {
-  warmup: 'Warm-up',
-  interval: 'Intervall',
-  pause: 'Pause',
-  tempo: 'Tempo',
-  longrun: 'Long Run',
-  cooldown: 'Cool-down',
-  recovery: 'Recovery',
-  unclassified: 'Unklassifiziert',
+const workoutTypeHeadings: Record<string, string> = {
+  running: 'Lauftraining',
+  strength: 'Krafttraining',
 };
 
 function formatDuration(seconds: number): string {
@@ -76,9 +83,9 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
-function formatDate(dateStr: string): string {
+function formatDateShort(dateStr: string): string {
   try {
-    return format(parseISO(dateStr), 'EEEE, d. MMMM yyyy', { locale: de });
+    return format(parseISO(dateStr), 'dd.MM.yyyy', { locale: de });
   } catch {
     return dateStr;
   }
@@ -87,6 +94,8 @@ function formatDate(dateStr: string): string {
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const sessionId = Number(id);
 
   const [session, setSession] = useState<SessionDetail | null>(null);
@@ -95,7 +104,7 @@ export function SessionDetailPage() {
 
   // Notes state
   const [notes, setNotes] = useState('');
-  const [notesSaved, setNotesSaved] = useState(false);
+
   const [savingNotes, setSavingNotes] = useState(false);
   const notesTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -106,6 +115,15 @@ export function SessionDetailPage() {
   // Training type state
   const [trainingTypeInfo, setTrainingTypeInfo] = useState<TrainingTypeInfo | null>(null);
   const [savingTrainingType, setSavingTrainingType] = useState(false);
+
+  // Date state
+  const [savingDate, setSavingDate] = useState(false);
+
+  // Edit mode — auto-open when laps need review
+  const [isEditing, setIsEditing] = useState(false);
+  const [localLaps, setLocalLaps] = useState<LapDetail[]>([]);
+  const [workingHrZones, setWorkingHrZones] = useState<Record<string, HRZone> | null>(null);
+  const [savingLaps, setSavingLaps] = useState(false);
 
   const loadSession = useCallback(async () => {
     if (!sessionId || isNaN(sessionId)) {
@@ -120,6 +138,26 @@ export function SessionDetailPage() {
       setSession(data);
       setNotes(data.notes || '');
       setTrainingTypeInfo(data.training_type);
+      const loadedLaps = data.laps || [];
+      setLocalLaps(loadedLaps);
+
+      // Fetch working HR zones if laps have types (overrides or suggested)
+      const hasLapTypes = loadedLaps.some((l) => l.user_override || l.suggested_type);
+      if (hasLapTypes && loadedLaps.length > 0) {
+        try {
+          const overrides = loadedLaps.map((l) => ({
+            lap_number: l.lap_number,
+            user_override: l.user_override || l.suggested_type || 'unclassified',
+          }));
+          const result = await updateLapOverrides({ sessionId, overrides });
+          if (result.hr_zones_working) {
+            setWorkingHrZones(result.hr_zones_working as Record<string, HRZone>);
+          }
+        } catch {
+          // Silently fail — working HR zones are optional
+        }
+      }
+
     } catch {
       setError('Session konnte nicht geladen werden.');
     } finally {
@@ -131,6 +169,15 @@ export function SessionDetailPage() {
     loadSession();
   }, [loadSession]);
 
+  // Show toast after upload redirect
+  useEffect(() => {
+    if ((location.state as { uploaded?: boolean })?.uploaded) {
+      // Clear state first to prevent duplicate toast in StrictMode
+      window.history.replaceState({}, '');
+      toast({ title: 'Training erfolgreich hochgeladen', variant: 'success' });
+    }
+  }, [location.state, toast]);
+
   // Auto-save notes with debounce
   const saveNotes = useCallback(
     async (value: string) => {
@@ -138,8 +185,7 @@ export function SessionDetailPage() {
       setSavingNotes(true);
       try {
         await updateSessionNotes(sessionId, value || null);
-        setNotesSaved(true);
-        setTimeout(() => setNotesSaved(false), 2000);
+        toast({ title: 'Notizen gespeichert', variant: 'success' });
       } catch {
         setError('Notizen konnten nicht gespeichert werden.');
       } finally {
@@ -152,7 +198,6 @@ export function SessionDetailPage() {
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setNotes(value);
-    setNotesSaved(false);
 
     if (notesTimer.current) clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => saveNotes(value), 1000);
@@ -164,6 +209,7 @@ export function SessionDetailPage() {
     setDeleting(true);
     try {
       await deleteSession(sessionId);
+      toast({ title: 'Session gelöscht', variant: 'success' });
       navigate('/sessions', { replace: true });
     } catch {
       setError('Session konnte nicht geloescht werden.');
@@ -180,6 +226,7 @@ export function SessionDetailPage() {
       if (result.training_type) {
         setTrainingTypeInfo(result.training_type);
       }
+      toast({ title: 'Trainingstyp gespeichert', variant: 'success' });
     } catch {
       setError('Training Type konnte nicht gespeichert werden.');
     } finally {
@@ -187,28 +234,81 @@ export function SessionDetailPage() {
     }
   };
 
+  // Date override
+  const handleDateChange = async (newDate: Date | undefined) => {
+    if (!sessionId || !newDate || !session) return;
+    const dateStr = format(newDate, 'yyyy-MM-dd');
+    if (dateStr === session.date) return;
+    setSavingDate(true);
+    try {
+      const result = await updateSessionDate(sessionId, dateStr);
+      setSession(result);
+      toast({ title: 'Datum gespeichert', variant: 'success' });
+    } catch {
+      setError('Datum konnte nicht gespeichert werden.');
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
+  // Lap type override
+  const handleLapTypeChange = async (lapNumber: number, newType: string | undefined) => {
+    if (!sessionId || !newType) return;
+    setSavingLaps(true);
+    try {
+      const overrides = localLaps.map((l) => ({
+        lap_number: l.lap_number,
+        user_override:
+          l.lap_number === lapNumber
+            ? newType
+            : l.user_override || l.suggested_type || 'unclassified',
+      }));
+      const result = await updateLapOverrides({ sessionId, overrides });
+      if (result.laps) {
+        setLocalLaps(result.laps as unknown as LapDetail[]);
+      }
+      if (result.hr_zones_working) {
+        setWorkingHrZones(result.hr_zones_working as Record<string, HRZone>);
+      }
+      toast({ title: 'Lap-Typ gespeichert', variant: 'success' });
+    } catch {
+      setError('Lap-Typ konnte nicht gespeichert werden.');
+    } finally {
+      setSavingLaps(false);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/sessions')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="h-7 w-48 bg-[var(--color-bg-muted)] rounded animate-pulse" />
-        </div>
-        {/* Skeleton cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} elevation="raised" padding="compact" className="bg-white">
-              <CardBody>
-                <div className="h-4 w-16 bg-[var(--color-bg-muted)] rounded animate-pulse mb-2" />
-                <div className="h-7 w-24 bg-[var(--color-bg-muted)] rounded animate-pulse" />
-              </CardBody>
-            </Card>
-          ))}
-        </div>
-        <Card elevation="raised" className="bg-white">
+        <nav>
+          <button
+            onClick={() => navigate('/sessions')}
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Sessions
+          </button>
+        </nav>
+        <Card elevation="raised">
+          <CardBody className="space-y-4">
+            <div className="h-6 w-56 bg-[var(--color-bg-muted)] rounded animate-pulse" />
+            <div className="border-t border-[var(--color-border-default)]" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3"
+                >
+                  <div className="h-4 w-16 bg-[var(--color-bg-muted)] rounded animate-pulse mb-2" />
+                  <div className="h-7 w-20 bg-[var(--color-bg-muted)] rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+        <Card elevation="raised">
           <CardBody className="flex items-center justify-center py-12">
             <Spinner size="lg" />
           </CardBody>
@@ -221,12 +321,15 @@ export function SessionDetailPage() {
   if (error && !session) {
     return (
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/sessions')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Session</h1>
-        </div>
+        <nav>
+          <button
+            onClick={() => navigate('/sessions')}
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Sessions
+          </button>
+        </nav>
         <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -236,91 +339,139 @@ export function SessionDetailPage() {
 
   if (!session) return null;
 
-  const laps = session.laps || [];
   const hrZones = session.hr_zones;
 
   // Collect all metrics into a flat list for a clean grid
-  const metrics: { label: string; value: string; unit: string }[] = [];
+  const metrics: { label: string; value: string; unit: string; icon: LucideIcon }[] = [];
   if (session.duration_sec != null)
-    metrics.push({ label: 'Dauer', value: formatDuration(session.duration_sec), unit: '' });
+    metrics.push({
+      label: 'Dauer',
+      value: formatDuration(session.duration_sec),
+      unit: '',
+      icon: Clock,
+    });
   if (session.distance_km != null)
-    metrics.push({ label: 'Distanz', value: String(session.distance_km), unit: 'km' });
-  if (session.pace) metrics.push({ label: 'Pace', value: session.pace, unit: '/km' });
+    metrics.push({
+      label: 'Distanz',
+      value: String(session.distance_km),
+      unit: 'km',
+      icon: MapPin,
+    });
+  if (session.pace)
+    metrics.push({ label: 'Pace', value: session.pace, unit: '/km', icon: Timer });
   if (session.hr_avg != null)
-    metrics.push({ label: 'Ø Herzfrequenz', value: String(session.hr_avg), unit: 'bpm' });
+    metrics.push({
+      label: 'Ø Herzfrequenz',
+      value: String(session.hr_avg),
+      unit: 'bpm',
+      icon: Heart,
+    });
   if (session.hr_max != null)
-    metrics.push({ label: 'Max HF', value: String(session.hr_max), unit: 'bpm' });
+    metrics.push({
+      label: 'Max HF',
+      value: String(session.hr_max),
+      unit: 'bpm',
+      icon: HeartPulse,
+    });
   if (session.hr_min != null)
-    metrics.push({ label: 'Min HF', value: String(session.hr_min), unit: 'bpm' });
+    metrics.push({
+      label: 'Min HF',
+      value: String(session.hr_min),
+      unit: 'bpm',
+      icon: HeartPulse,
+    });
   if (session.cadence_avg != null)
-    metrics.push({ label: 'Ø Kadenz', value: String(session.cadence_avg), unit: 'spm' });
+    metrics.push({
+      label: 'Ø Kadenz',
+      value: String(session.cadence_avg),
+      unit: 'spm',
+      icon: Footprints,
+    });
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/sessions')}
-            aria-label="Zurueck zur Liste"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-[var(--color-text-base)] truncate">
-              {formatDate(session.date)}
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Back link */}
+      <nav>
+        <button
+          onClick={() => navigate('/sessions')}
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Sessions
+        </button>
+      </nav>
+
+      {/* Page header */}
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
+            {session.workout_type === 'strength' ? (
+              <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-600)]" />
+            ) : (
+              <Footprints className="w-5 h-5 text-[var(--color-primary-1-600)]" />
+            )}
+          </div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-3xl font-semibold text-[var(--color-text-base)]">
+              {workoutTypeHeadings[session.workout_type] || session.workout_type}{' '}
+              {formatDateShort(session.date)}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="info" size="sm">
-                {workoutTypeLabels[session.workout_type] || session.workout_type}
+            {trainingTypeInfo?.effective && (
+              <Badge
+                variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
+                size="xs"
+              >
+                {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
               </Badge>
-              {trainingTypeInfo?.effective && (
-                <Badge
-                  variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
-                  size="sm"
-                >
-                  {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-                </Badge>
-              )}
-              {trainingTypeInfo?.override && (
-                <Badge variant="info" size="sm">
-                  Manuell
-                </Badge>
-              )}
-            </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {!showDeleteConfirm ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-              aria-label="Session loeschen"
-            >
-              <Trash2 className="w-4 h-4 text-[var(--color-text-error)]" />
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--color-text-error)]">Wirklich loeschen?</span>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="bg-[var(--color-bg-error)] hover:bg-[var(--color-bg-error-hover)]"
-              >
-                {deleting ? <Spinner size="sm" /> : 'Ja, loeschen'}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>
-                Abbrechen
-              </Button>
-            </div>
-          )}
-        </div>
+        <Toolbar aria-label="Session-Aktionen" className="shrink-0">
+          <ToolbarButton
+            onClick={() => setIsEditing(true)}
+            icon={<Pencil />}
+            aria-label="Bearbeiten"
+            disabled={isEditing}
+          />
+          <ToolbarSeparator />
+          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogTrigger asChild>
+              <ToolbarButton
+                icon={<Trash2 />}
+                aria-label="Session löschen"
+              />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Session löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten dieser Trainingseinheit werden unwiderruflich gelöscht.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={deleting} className="!bg-red-500 !text-white">
+                  {deleting ? <Spinner size="sm" /> : 'Löschen'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </Toolbar>
       </header>
+
+      {/* Edit mode banner */}
+      {isEditing && (
+        <div className="flex items-center justify-between rounded-[var(--radius-component-md)] bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)] px-4 py-2.5">
+          <span className="text-sm text-[var(--color-text-info)]">
+            <Pencil className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+            Bearbeitungsmodus — Trainingstyp, Laps und Notizen können angepasst werden.
+          </span>
+          <Button variant="ghost" size="sm" className="!text-[var(--color-text-info)] hover:!bg-[var(--color-bg-info)]" onClick={() => setIsEditing(false)}>
+            <Check className="w-3.5 h-3.5 mr-1" />
+            Fertig
+          </Button>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (
@@ -329,14 +480,62 @@ export function SessionDetailPage() {
         </Alert>
       )}
 
-      {/* Metrics — single card, clean grid */}
-      <section aria-label="Kennzahlen">
-        <Card elevation="raised" className="bg-white">
+      {/* Edit fields — only in edit mode */}
+      {isEditing && (
+        <Card elevation="raised">
           <CardBody>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Datum</Label>
+                {savingDate ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <DatePicker
+                    value={parseISO(session.date)}
+                    onChange={handleDateChange}
+                    inputSize="sm"
+                  />
+                )}
+              </div>
+              {session.workout_type === 'running' && (
+                <div className="space-y-1.5">
+                  <Label>Trainingstyp</Label>
+                  {savingTrainingType ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <Select
+                      options={trainingTypeOptions}
+                      value={trainingTypeInfo?.effective ?? undefined}
+                      onChange={handleTrainingTypeOverride}
+                      inputSize="sm"
+                      placeholder="Typ ändern"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Metrics */}
+      <section aria-label="Kennzahlen">
+        <Card elevation="raised">
+          <CardBody>
+            {/* Metrics grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {metrics.map((m) => (
-                <div key={m.label}>
-                  <p className="text-xs text-[var(--color-text-muted)] mb-0.5">{m.label}</p>
+                <div
+                  key={m.label}
+                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3"
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <m.icon
+                      className="w-3.5 h-3.5 text-[var(--color-text-muted)]"
+                      aria-hidden="true"
+                    />
+                    <p className="text-xs text-[var(--color-text-muted)]">{m.label}</p>
+                  </div>
                   <p className="text-xl font-semibold text-[var(--color-text-base)] tabular-nums">
                     {m.value}
                     {m.unit && (
@@ -352,113 +551,102 @@ export function SessionDetailPage() {
         </Card>
       </section>
 
-      {/* Training Type Override */}
-      {session.workout_type === 'running' && (
-        <Card elevation="raised" className="bg-white">
-          <CardBody>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-[var(--color-text-muted)]">Trainingstyp:</span>
-                {trainingTypeInfo?.effective ? (
-                  <>
-                    <Badge
-                      variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
-                      size="md"
-                    >
-                      {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-                    </Badge>
-                    {trainingTypeInfo.confidence != null && !trainingTypeInfo.override && (
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        ({trainingTypeInfo.confidence}% Konfidenz)
-                      </span>
-                    )}
-                    {trainingTypeInfo.override && (
-                      <Badge variant="info" size="sm">
-                        Manuell
-                      </Badge>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-sm text-[var(--color-text-muted)]">Nicht erkannt</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {savingTrainingType ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <Select
-                    options={trainingTypeOptions}
-                    value={trainingTypeInfo?.effective ?? undefined}
-                    onChange={handleTrainingTypeOverride}
-                    inputSize="sm"
-                    className="w-44"
-                    placeholder="Typ aendern"
-                  />
-                )}
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* HR Zones */}
+      {/* HR Zones — side by side */}
       {hrZones && Object.keys(hrZones).length > 0 && (
         <section aria-label="Herzfrequenz-Zonen">
-          <Card elevation="raised" className="bg-white">
-            <CardHeader>
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                HF-Zonen Verteilung
-              </h2>
-            </CardHeader>
-            <CardBody>
-              <div className="space-y-3">
-                {Object.entries(hrZones).map(([key, zone]: [string, HRZone]) => (
-                  <div key={key}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-[var(--color-text-muted)]">{zone.label}</span>
-                      <span className="font-medium text-[var(--color-text-base)]">
-                        {zone.percentage}%
-                        {zone.seconds != null && (
-                          <span className="text-[var(--color-text-muted)] ml-1">
-                            ({formatDuration(zone.seconds)})
-                          </span>
-                        )}
-                      </span>
+          <div className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+            {/* Gesamt */}
+            <Card elevation="raised">
+              <CardHeader>
+                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                  HF-Zonen Gesamt
+                </h2>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-3">
+                  {Object.entries(hrZones).map(([key, zone]: [string, HRZone]) => (
+                    <div key={key}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-[var(--color-text-muted)]">{zone.label}</span>
+                        <span className="font-medium text-[var(--color-text-base)]">
+                          {zone.percentage}%
+                          {zone.seconds != null && (
+                            <span className="text-[var(--color-text-muted)] ml-1">
+                              ({formatDuration(zone.seconds)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <Progress
+                        value={zone.percentage}
+                        size="sm"
+                        color={
+                          key.includes('recovery') || key.includes('zone_1')
+                            ? 'success'
+                            : key.includes('base') || key.includes('zone_2')
+                              ? 'warning'
+                              : 'error'
+                        }
+                      />
                     </div>
-                    <Progress
-                      value={zone.percentage}
-                      size="sm"
-                      color={
-                        key.includes('recovery') || key.includes('zone_1')
-                          ? 'success'
-                          : key.includes('base') || key.includes('zone_2')
-                            ? 'warning'
-                            : 'error'
-                      }
-                    />
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Arbeitsbereich — only when available */}
+            {workingHrZones && (
+              <Card elevation="raised">
+                <CardHeader>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    HF-Zonen Arbeitsbereich
+                  </h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="space-y-3">
+                    {Object.entries(workingHrZones).map(([key, zone]: [string, HRZone]) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-[var(--color-text-muted)]">{zone.label}</span>
+                          <span className="font-medium text-[var(--color-text-base)]">
+                            {zone.percentage}%
+                            {zone.seconds != null && (
+                              <span className="text-[var(--color-text-muted)] ml-1">
+                                ({formatDuration(zone.seconds)})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <Progress
+                          value={zone.percentage}
+                          size="sm"
+                          color={
+                            key.includes('recovery') || key.includes('zone_1')
+                              ? 'success'
+                              : key.includes('base') || key.includes('zone_2')
+                                ? 'warning'
+                                : 'error'
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="sr-only">
-                {Object.entries(hrZones).map(([, zone]: [string, HRZone]) => (
-                  <span key={zone.label}>
-                    {zone.label}: {zone.percentage}%.{' '}
-                  </span>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
+                </CardBody>
+              </Card>
+            )}
+          </div>
         </section>
       )}
 
       {/* Laps Table */}
-      {laps.length > 0 && (
+      {localLaps.length > 0 && (
         <section aria-label="Laps">
-          <Card elevation="raised" className="bg-white">
-            <CardHeader>
+          <Card elevation="raised">
+            <CardHeader className="flex flex-row items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Laps ({laps.length})
+                Laps ({localLaps.length})
               </h2>
+              {isEditing && savingLaps && <Spinner size="sm" />}
             </CardHeader>
             <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
               <Table>
@@ -474,7 +662,7 @@ export function SessionDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {laps.map((lap: LapDetail) => {
+                  {localLaps.map((lap: LapDetail) => {
                     const effectiveType = lap.user_override || lap.suggested_type || 'unclassified';
                     return (
                       <TableRow key={lap.lap_number}>
@@ -482,20 +670,30 @@ export function SessionDetailPage() {
                           {lap.lap_number}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              effectiveType === 'warmup' || effectiveType === 'cooldown'
-                                ? 'info'
-                                : effectiveType === 'pause'
-                                  ? 'warning'
-                                  : effectiveType === 'interval'
-                                    ? 'error'
-                                    : 'success'
-                            }
-                            size="sm"
-                          >
-                            {lapTypeLabels[effectiveType] || effectiveType}
-                          </Badge>
+                          {isEditing ? (
+                            <Select
+                              options={lapTypeOptions}
+                              value={effectiveType}
+                              onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
+                              inputSize="sm"
+                              className="w-36"
+                            />
+                          ) : (
+                            <Badge
+                              variant={
+                                effectiveType === 'warmup' || effectiveType === 'cooldown'
+                                  ? 'info'
+                                  : effectiveType === 'pause'
+                                    ? 'warning'
+                                    : effectiveType === 'interval'
+                                      ? 'error'
+                                      : 'success'
+                              }
+                              size="sm"
+                            >
+                              {lapTypeLabels[effectiveType] || effectiveType}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>{lap.duration_formatted}</TableCell>
                         <TableCell>
@@ -520,26 +718,26 @@ export function SessionDetailPage() {
 
       {/* Notes */}
       <section aria-label="Notizen">
-        <Card elevation="raised" className="bg-white">
+        <Card elevation="raised">
           <CardHeader className="flex flex-row items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Notizen</h2>
-            <div className="flex items-center gap-2">
-              {savingNotes && <Spinner size="sm" />}
-              {notesSaved && (
-                <span className="flex items-center gap-1 text-xs text-[var(--color-text-success)]">
-                  <Check className="w-3 h-3" aria-hidden />
-                  Gespeichert
-                </span>
-              )}
-            </div>
+            {isEditing && savingNotes && <Spinner size="sm" />}
           </CardHeader>
           <CardBody>
-            <Textarea
-              value={notes}
-              onChange={handleNotesChange}
-              rows={3}
-              placeholder="Wie hast du dich gefuehlt? Notizen zum Training..."
-            />
+            {isEditing ? (
+              <Textarea
+                value={notes}
+                onChange={handleNotesChange}
+                rows={3}
+                placeholder="Wie hast du dich gefuehlt? Notizen zum Training..."
+              />
+            ) : (
+              <p className="text-sm text-[var(--color-text-base)]">
+                {notes || (
+                  <span className="text-[var(--color-text-muted)]">Keine Notizen</span>
+                )}
+              </p>
+            )}
           </CardBody>
         </Card>
       </section>

@@ -4,6 +4,8 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "./node_modules/@nordlig/components/dist/**/*.{js,mjs}",
+    // pnpm stores packages in .pnpm — include real path for reliable class detection
+    "./node_modules/.pnpm/**/node_modules/@nordlig/components/dist/**/*.{js,mjs}",
   ],
   theme: {
     extend: {
