@@ -214,6 +214,7 @@ export interface SessionDetail {
   notes: string | null;
   laps: LapDetail[] | null;
   hr_zones: Record<string, HRZone> | null;
+  has_gps: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -255,6 +256,35 @@ export async function updateSessionDate(
   const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/date`, {
     date,
   });
+  return response.data;
+}
+
+export interface GPSPoint {
+  lat: number;
+  lng: number;
+  alt?: number;
+  hr?: number;
+  seconds: number;
+}
+
+export interface GPSTrack {
+  points: GPSPoint[];
+  start_location: { lat: number; lng: number };
+  end_location: { lat: number; lng: number };
+  total_points: number;
+  total_ascent_m: number | null;
+  total_descent_m: number | null;
+}
+
+export interface SessionTrackResponse {
+  has_gps: boolean;
+  track: GPSTrack | null;
+}
+
+export async function getSessionTrack(sessionId: number): Promise<SessionTrackResponse> {
+  const response = await apiClient.get<SessionTrackResponse>(
+    `/api/v1/sessions/${sessionId}/track`,
+  );
   return response.data;
 }
 

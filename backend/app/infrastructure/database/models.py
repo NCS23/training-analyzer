@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -30,6 +30,10 @@ class WorkoutModel(Base):
     laps_json = Column(Text)
     hr_zones_json = Column(Text)
     notes = Column(Text)
+
+    # GPS
+    gps_track_json = Column(Text)
+    has_gps = Column(Boolean, default=False, nullable=False, server_default="0")
 
     # Training Type Klassifizierung
     training_type_auto = Column(String(30))

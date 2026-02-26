@@ -90,6 +90,7 @@ class SessionResponse(BaseModel):
     notes: Optional[str] = None
     laps: Optional[list[LapResponse]] = None
     hr_zones: Optional[dict] = None
+    has_gps: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -142,6 +143,7 @@ class SessionResponse(BaseModel):
             notes=str(model.notes) if model.notes else None,
             laps=laps,
             hr_zones=hr_zones,
+            has_gps=bool(model.has_gps),
             created_at=model.created_at,  # type: ignore[arg-type]
             updated_at=model.updated_at,  # type: ignore[arg-type]
         )

@@ -80,6 +80,7 @@ const mockSession: SessionDetail = {
     zone_2_base: { seconds: 240, percentage: 28.6, label: '150-160 bpm' },
     zone_3_tempo: { seconds: 300, percentage: 35.7, label: '> 160 bpm' },
   },
+  has_gps: false,
   created_at: '2025-02-25T08:00:00',
   updated_at: '2025-02-25T08:15:00',
 };

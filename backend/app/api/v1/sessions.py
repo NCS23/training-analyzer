@@ -93,6 +93,7 @@ async def _parse_and_classify(
         "classification": classification,
         "resting_hr": resting_hr,
         "metadata": result.get("metadata", {}),
+        "gps_track": result.get("gps_track"),
     }
 
 
@@ -303,6 +304,8 @@ async def upload_fit(
     if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
         effective_training_type_override = None
 
+    gps_track = parsed.get("gps_track")
+
     workout = WorkoutModel(
         date=datetime.combine(training_date, datetime.min.time()),
         workout_type=training_type.value,
@@ -320,6 +323,8 @@ async def upload_fit(
         csv_data=None,  # No CSV for FIT files
         laps_json=json.dumps(laps) if laps else None,
         hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
+        gps_track_json=json.dumps(gps_track) if gps_track else None,
+        has_gps=bool(gps_track),
         notes=notes,
     )
 
@@ -345,6 +350,7 @@ async def upload_fit(
             "training_type_auto": classification.training_type if classification else None,
             "training_type_confidence": classification.confidence if classification else None,
             "training_type_reasons": classification.reasons if classification else None,
+            "has_gps": bool(gps_track),
         },
     )
 
@@ -396,6 +402,26 @@ async def get_session(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     return SessionResponse.from_db(workout)
+
+
+@router.get("/{session_id}/track")
+async def get_session_track(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """GPS Track einer Session (separater Endpoint fuer Performance)."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if not workout.gps_track_json:
+        return {"has_gps": False, "track": None}
+
+    track = json.loads(str(workout.gps_track_json))
+    return {"has_gps": True, "track": track}
 
 
 @router.patch("/{session_id}/laps", response_model=LapOverrideResponse)

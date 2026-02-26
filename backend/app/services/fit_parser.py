@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.models.training import TrainingType
+from app.services.gps_extractor import extract_gps_track
 from app.services.parser_interface import TrainingParser
 
 
@@ -54,6 +55,9 @@ class TrainingFITParser(TrainingParser):
             # Build HR timeseries (for strength or as raw data)
             hr_timeseries = self._build_hr_timeseries(records_data)
 
+            # Extract GPS track
+            gps_track = extract_gps_track(records_data)
+
             result: dict = {
                 "success": True,
                 "metadata": {
@@ -70,6 +74,8 @@ class TrainingFITParser(TrainingParser):
                 result["laps"] = laps
             if hr_timeseries:
                 result["hr_timeseries"] = hr_timeseries
+            if gps_track:
+                result["gps_track"] = gps_track
 
             return result
 
