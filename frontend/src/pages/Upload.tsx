@@ -342,10 +342,7 @@ export default function UploadPage() {
         <header>
           <div className="flex items-center gap-3 mb-1">
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
-              <Activity
-                className="w-5 h-5 text-[var(--color-primary-1-600)]"
-                aria-hidden="true"
-              />
+              <Activity className="w-5 h-5 text-[var(--color-primary-1-600)]" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-base)]">
@@ -359,7 +356,11 @@ export default function UploadPage() {
         </header>
 
         {/* Upload Form */}
-        <Card elevation="raised" padding="spacious" className="overflow-hidden bg-white border border-[var(--color-border-default)]">
+        <Card
+          elevation="raised"
+          padding="spacious"
+          className="overflow-hidden bg-white border border-[var(--color-border-default)]"
+        >
           <form onSubmit={handleSubmit} className="space-y-6">
             <FileUpload
               label="CSV Datei"
@@ -472,38 +473,71 @@ export default function UploadPage() {
             {parsedData.summary && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {parsedData.summary.total_distance_km && (
-                  <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]">
+                  <Card
+                    elevation="raised"
+                    padding="compact"
+                    className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]"
+                  >
                     <CardBody>
-                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Distanz</p>
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                        Distanz
+                      </p>
                       <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                        {parsedData.summary.total_distance_km} <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
+                        {parsedData.summary.total_distance_km}{' '}
+                        <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                          km
+                        </span>
                       </p>
                     </CardBody>
                   </Card>
                 )}
-                <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]">
+                <Card
+                  elevation="raised"
+                  padding="compact"
+                  className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]"
+                >
                   <CardBody>
-                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Dauer</p>
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                      Dauer
+                    </p>
                     <p className="text-2xl font-bold text-[var(--color-text-base)]">
                       {parsedData.summary.total_duration_formatted}
                     </p>
                   </CardBody>
                 </Card>
                 {parsedData.summary.avg_pace_formatted && (
-                  <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]">
+                  <Card
+                    elevation="raised"
+                    padding="compact"
+                    className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]"
+                  >
                     <CardBody>
-                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Pace</p>
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                        Pace
+                      </p>
                       <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                        {parsedData.summary.avg_pace_formatted} <span className="text-sm font-normal text-[var(--color-text-muted)]">/km</span>
+                        {parsedData.summary.avg_pace_formatted}{' '}
+                        <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                          /km
+                        </span>
                       </p>
                     </CardBody>
                   </Card>
                 )}
-                <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]">
+                <Card
+                  elevation="raised"
+                  padding="compact"
+                  className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]"
+                >
                   <CardBody>
-                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Ø Herzfrequenz</p>
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                      Ø Herzfrequenz
+                    </p>
                     <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                      {parsedData.summary.avg_hr_bpm} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
+                      {parsedData.summary.avg_hr_bpm}{' '}
+                      <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                        bpm
+                      </span>
                     </p>
                   </CardBody>
                 </Card>

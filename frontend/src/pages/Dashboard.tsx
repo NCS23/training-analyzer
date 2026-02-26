@@ -1,20 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Button,
-  Card,
-  CardBody,
-  Spinner,
-} from '@nordlig/components';
-import {
-  Upload,
-  LayoutDashboard,
-  Activity,
-  Clock,
-  MapPin,
-  Heart,
-  TrendingUp,
-} from 'lucide-react';
+import { Button, Card, CardBody, Spinner } from '@nordlig/components';
+import { Upload, LayoutDashboard, Activity, Clock, MapPin, Heart, TrendingUp } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { format, parseISO } from 'date-fns';
@@ -59,9 +46,13 @@ export function DashboardPage() {
   const totalSessions = sessions.length;
   const totalDistance = sessions.reduce((sum, s) => sum + (s.distance_km || 0), 0);
   const totalDuration = sessions.reduce((sum, s) => sum + (s.duration_sec || 0), 0);
-  const avgHr = sessions.length > 0
-    ? Math.round(sessions.reduce((sum, s) => sum + (s.hr_avg || 0), 0) / sessions.filter(s => s.hr_avg).length)
-    : 0;
+  const avgHr =
+    sessions.length > 0
+      ? Math.round(
+          sessions.reduce((sum, s) => sum + (s.hr_avg || 0), 0) /
+            sessions.filter((s) => s.hr_avg).length,
+        )
+      : 0;
 
   if (totalSessions === 0) {
     return (
@@ -82,7 +73,8 @@ export function DashboardPage() {
               Willkommen beim Training Analyzer
             </h2>
             <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">
-              Noch keine Trainings vorhanden. Lade dein erstes Training hoch, um deine Analyse zu starten.
+              Noch keine Trainings vorhanden. Lade dein erstes Training hoch, um deine Analyse zu
+              starten.
             </p>
             <Button variant="primary" onClick={() => navigate('/sessions/new')}>
               <Upload className="w-4 h-4 mr-2" />
@@ -113,44 +105,72 @@ export function DashboardPage() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]">
+        <Card
+          elevation="raised"
+          padding="compact"
+          className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]"
+        >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-[var(--color-primary-1-500)]" />
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Sessions</p>
+              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                Sessions
+              </p>
             </div>
             <p className="text-2xl font-bold text-[var(--color-text-base)]">{totalSessions}</p>
           </CardBody>
         </Card>
-        <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]">
+        <Card
+          elevation="raised"
+          padding="compact"
+          className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]"
+        >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
               <MapPin className="w-3.5 h-3.5 text-[var(--color-accent-1-500)]" />
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Distanz</p>
+              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                Distanz
+              </p>
             </div>
             <p className="text-2xl font-bold text-[var(--color-text-base)]">
-              {totalDistance.toFixed(1)} <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
+              {totalDistance.toFixed(1)}{' '}
+              <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
             </p>
           </CardBody>
         </Card>
-        <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]">
+        <Card
+          elevation="raised"
+          padding="compact"
+          className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]"
+        >
           <CardBody>
             <div className="flex items-center gap-1.5 mb-1">
               <Clock className="w-3.5 h-3.5 text-[var(--color-accent-2-500)]" />
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Trainingszeit</p>
+              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                Trainingszeit
+              </p>
             </div>
-            <p className="text-2xl font-bold text-[var(--color-text-base)]">{formatDuration(totalDuration)}</p>
+            <p className="text-2xl font-bold text-[var(--color-text-base)]">
+              {formatDuration(totalDuration)}
+            </p>
           </CardBody>
         </Card>
         {avgHr > 0 && (
-          <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]">
+          <Card
+            elevation="raised"
+            padding="compact"
+            className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]"
+          >
             <CardBody>
               <div className="flex items-center gap-1.5 mb-1">
                 <Heart className="w-3.5 h-3.5 text-[var(--color-accent-3-500)]" />
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Ø HF</p>
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Ø HF
+                </p>
               </div>
               <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                {avgHr} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
+                {avgHr}{' '}
+                <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
               </p>
             </CardBody>
           </Card>
@@ -184,7 +204,9 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-[var(--color-text-base)]">
                           {(() => {
                             try {
-                              return format(parseISO(session.date), 'EEEE, d. MMM yyyy', { locale: de });
+                              return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
+                                locale: de,
+                              });
                             } catch {
                               return session.date;
                             }
@@ -192,7 +214,9 @@ export function DashboardPage() {
                         </p>
                         <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                           {session.distance_km && <span>{session.distance_km} km</span>}
-                          {session.duration_sec && <span>{formatDuration(session.duration_sec)}</span>}
+                          {session.duration_sec && (
+                            <span>{formatDuration(session.duration_sec)}</span>
+                          )}
                           {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                         </div>
                       </div>

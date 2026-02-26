@@ -86,10 +86,7 @@ export function SettingsPage() {
       <header>
         <div className="flex items-center gap-3 mb-1">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-accent-3-100)]">
-            <Heart
-              className="w-5 h-5 text-[var(--color-accent-3-600)]"
-              aria-hidden="true"
-            />
+            <Heart className="w-5 h-5 text-[var(--color-accent-3-600)]" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>

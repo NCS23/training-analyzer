@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Button,
-  Card,
-  CardBody,
-  Badge,
-  Spinner,
-} from '@nordlig/components';
+import { Button, Card, CardBody, Badge, Spinner } from '@nordlig/components';
 import { Upload, Dumbbell, Activity, ChevronRight } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
@@ -133,7 +127,9 @@ export function SessionsPage() {
                           <p className="text-sm font-medium text-[var(--color-text-base)]">
                             {(() => {
                               try {
-                                return format(parseISO(session.date), 'EEEE, d. MMM yyyy', { locale: de });
+                                return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
+                                  locale: de,
+                                });
                               } catch {
                                 return session.date;
                               }
@@ -153,7 +149,9 @@ export function SessionsPage() {
                             )}
                             <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                               {session.distance_km && <span>{session.distance_km} km</span>}
-                              {session.duration_sec && <span>{formatDuration(session.duration_sec)}</span>}
+                              {session.duration_sec && (
+                                <span>{formatDuration(session.duration_sec)}</span>
+                              )}
                               {session.pace && <span>{session.pace} /km</span>}
                               {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                             </div>

@@ -327,11 +327,17 @@ export function SessionDetailPage() {
       <section aria-label="Kennzahlen">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {session.duration_sec != null && (
-            <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]">
+            <Card
+              elevation="raised"
+              padding="compact"
+              className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]"
+            >
               <CardBody>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Clock className="w-3.5 h-3.5 text-[var(--color-accent-1-500)]" aria-hidden />
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Dauer</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Dauer
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-[var(--color-text-base)]">
                   {formatDuration(session.duration_sec)}
@@ -340,40 +346,61 @@ export function SessionDetailPage() {
             </Card>
           )}
           {session.distance_km != null && (
-            <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]">
+            <Card
+              elevation="raised"
+              padding="compact"
+              className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]"
+            >
               <CardBody>
                 <div className="flex items-center gap-1.5 mb-1">
                   <MapPin className="w-3.5 h-3.5 text-[var(--color-primary-1-500)]" aria-hidden />
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Distanz</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Distanz
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                  {session.distance_km} <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
+                  {session.distance_km}{' '}
+                  <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
                 </p>
               </CardBody>
             </Card>
           )}
           {session.pace && (
-            <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]">
+            <Card
+              elevation="raised"
+              padding="compact"
+              className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]"
+            >
               <CardBody>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Timer className="w-3.5 h-3.5 text-[var(--color-accent-2-500)]" aria-hidden />
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Pace</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Pace
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                  {session.pace} <span className="text-sm font-normal text-[var(--color-text-muted)]">/km</span>
+                  {session.pace}{' '}
+                  <span className="text-sm font-normal text-[var(--color-text-muted)]">/km</span>
                 </p>
               </CardBody>
             </Card>
           )}
           {session.hr_avg != null && (
-            <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]">
+            <Card
+              elevation="raised"
+              padding="compact"
+              className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]"
+            >
               <CardBody>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Heart className="w-3.5 h-3.5 text-[var(--color-accent-3-500)]" aria-hidden />
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Ø Herzfrequenz</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Ø Herzfrequenz
+                  </p>
                 </div>
                 <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                  {session.hr_avg} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
+                  {session.hr_avg}{' '}
+                  <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
                 </p>
               </CardBody>
             </Card>
@@ -385,9 +412,12 @@ export function SessionDetailPage() {
             {session.hr_max != null && (
               <Card elevation="raised" padding="compact" className="bg-white">
                 <CardBody>
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Max HF</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                    Max HF
+                  </p>
                   <p className="text-lg font-semibold text-[var(--color-text-base)]">
-                    {session.hr_max} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
+                    {session.hr_max}{' '}
+                    <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
                   </p>
                 </CardBody>
               </Card>
@@ -395,9 +425,12 @@ export function SessionDetailPage() {
             {session.hr_min != null && (
               <Card elevation="raised" padding="compact" className="bg-white">
                 <CardBody>
-                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Min HF</p>
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
+                    Min HF
+                  </p>
                   <p className="text-lg font-semibold text-[var(--color-text-base)]">
-                    {session.hr_min} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
+                    {session.hr_min}{' '}
+                    <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
                   </p>
                 </CardBody>
               </Card>
@@ -410,10 +443,13 @@ export function SessionDetailPage() {
                       className="w-3.5 h-3.5 text-[var(--color-primary-1-500)]"
                       aria-hidden
                     />
-                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Ø Kadenz</p>
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                      Ø Kadenz
+                    </p>
                   </div>
                   <p className="text-lg font-semibold text-[var(--color-text-base)]">
-                    {session.cadence_avg} <span className="text-sm font-normal text-[var(--color-text-muted)]">spm</span>
+                    {session.cadence_avg}{' '}
+                    <span className="text-sm font-normal text-[var(--color-text-muted)]">spm</span>
                   </p>
                 </CardBody>
               </Card>
