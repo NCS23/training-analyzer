@@ -16,6 +16,30 @@ export interface TrainingUploadResponse {
   metadata?: Record<string, unknown>;
 }
 
+export interface SessionSummary {
+  id: number;
+  date: string;
+  workout_type: string;
+  subtype: string | null;
+  training_type: TrainingTypeInfo | null;
+  duration_sec: number | null;
+  distance_km: number | null;
+  pace: string | null;
+  hr_avg: number | null;
+}
+
+interface SessionListApiResponse {
+  sessions: SessionSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export async function listSessions(): Promise<SessionSummary[]> {
+  const response = await apiClient.get<SessionListApiResponse>('/api/v1/sessions?page_size=100');
+  return response.data.sessions;
+}
+
 export async function uploadTraining(
   params: TrainingUploadParams,
 ): Promise<TrainingUploadResponse> {

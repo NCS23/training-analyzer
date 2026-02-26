@@ -84,20 +84,24 @@ export function SettingsPage() {
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
       <header>
-        <div className="flex items-center gap-3 mb-2">
-          <Heart
-            className="w-6 h-6 text-[color:var(--color-interactive-primary)]"
-            aria-hidden="true"
-          />
-          <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-accent-3-100)]">
+            <Heart
+              className="w-5 h-5 text-[var(--color-accent-3-600)]"
+              aria-hidden="true"
+            />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
-        </p>
       </header>
 
       {/* HR Settings */}
-      <Card elevation="raised" padding="spacious">
+      <Card elevation="raised" padding="spacious" className="bg-white">
         <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Herzfrequenz</h2>
         </CardHeader>
@@ -160,7 +164,7 @@ export function SettingsPage() {
 
       {/* Karvonen Zones Preview */}
       {zones && (
-        <Card elevation="raised" padding="spacious">
+        <Card elevation="raised" padding="spacious" className="bg-white">
           <CardHeader>
             <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
               Karvonen-Zonen (5 Zonen)

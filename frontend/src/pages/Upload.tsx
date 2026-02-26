@@ -336,26 +336,30 @@ export default function UploadPage() {
   const currentSubtypes = formData.trainingType === 'running' ? runningSubtypes : strengthSubtypes;
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-surface)] py-10 px-4">
-      <div className="max-w-3xl mx-auto space-y-10">
+    <div className="py-8 px-4">
+      <div className="max-w-3xl mx-auto space-y-8">
         {/* Page Header */}
         <header>
-          <div className="flex items-center gap-3 mb-2">
-            <Activity
-              className="w-6 h-6 text-[color:var(--color-interactive-primary)]"
-              aria-hidden="true"
-            />
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-base)]">
-              Training Upload
-            </h1>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-primary-1-100)]">
+              <Activity
+                className="w-5 h-5 text-[var(--color-primary-1-600)]"
+                aria-hidden="true"
+              />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-base)]">
+                Training Upload
+              </h1>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Lade deine Apple Watch Daten hoch und analysiere dein Training.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Lade deine Apple Watch Daten hoch und analysiere dein Training.
-          </p>
         </header>
 
         {/* Upload Form */}
-        <Card elevation="raised" padding="spacious" className="overflow-hidden">
+        <Card elevation="raised" padding="spacious" className="overflow-hidden bg-white border border-[var(--color-border-default)]">
           <form onSubmit={handleSubmit} className="space-y-6">
             <FileUpload
               label="CSV Datei"
@@ -457,46 +461,49 @@ export default function UploadPage() {
         {/* Results */}
         {parsedData && (
           <section className="space-y-6">
-            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
-              Analyse-Ergebnisse
-            </h2>
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 rounded-full bg-[var(--color-primary-1-500)]" />
+              <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+                Analyse-Ergebnisse
+              </h2>
+            </div>
 
             {/* Summary Stats */}
             {parsedData.summary && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {parsedData.summary.total_distance_km && (
-                  <Card elevation="raised" padding="compact">
+                  <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-primary-1-500)]">
                     <CardBody>
-                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Distanz</p>
-                      <p className="text-xl font-semibold text-[var(--color-text-base)]">
-                        {parsedData.summary.total_distance_km} km
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Distanz</p>
+                      <p className="text-2xl font-bold text-[var(--color-text-base)]">
+                        {parsedData.summary.total_distance_km} <span className="text-sm font-normal text-[var(--color-text-muted)]">km</span>
                       </p>
                     </CardBody>
                   </Card>
                 )}
-                <Card elevation="raised" padding="compact">
+                <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-1-500)]">
                   <CardBody>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Dauer</p>
-                    <p className="text-xl font-semibold text-[var(--color-text-base)]">
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Dauer</p>
+                    <p className="text-2xl font-bold text-[var(--color-text-base)]">
                       {parsedData.summary.total_duration_formatted}
                     </p>
                   </CardBody>
                 </Card>
                 {parsedData.summary.avg_pace_formatted && (
-                  <Card elevation="raised" padding="compact">
+                  <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-2-500)]">
                     <CardBody>
-                      <p className="text-xs text-[var(--color-text-muted)] mb-1">Pace</p>
-                      <p className="text-xl font-semibold text-[var(--color-text-base)]">
-                        {parsedData.summary.avg_pace_formatted} /km
+                      <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Pace</p>
+                      <p className="text-2xl font-bold text-[var(--color-text-base)]">
+                        {parsedData.summary.avg_pace_formatted} <span className="text-sm font-normal text-[var(--color-text-muted)]">/km</span>
                       </p>
                     </CardBody>
                   </Card>
                 )}
-                <Card elevation="raised" padding="compact">
+                <Card elevation="raised" padding="compact" className="bg-white border-l-4 border-l-[var(--color-accent-3-500)]">
                   <CardBody>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Ø Herzfrequenz</p>
-                    <p className="text-xl font-semibold text-[var(--color-text-base)]">
-                      {parsedData.summary.avg_hr_bpm} bpm
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Ø Herzfrequenz</p>
+                    <p className="text-2xl font-bold text-[var(--color-text-base)]">
+                      {parsedData.summary.avg_hr_bpm} <span className="text-sm font-normal text-[var(--color-text-muted)]">bpm</span>
                     </p>
                   </CardBody>
                 </Card>
@@ -505,7 +512,7 @@ export default function UploadPage() {
 
             {/* Training Type Classification */}
             {trainingTypeInfo && (
-              <Card elevation="raised" padding="spacious">
+              <Card elevation="raised" padding="spacious" className="bg-white">
                 <CardBody>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -556,7 +563,7 @@ export default function UploadPage() {
               <div
                 className={`grid gap-4 ${parsedData.laps?.length ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
               >
-                <Card elevation="raised">
+                <Card elevation="raised" className="bg-white">
                   <CardBody>
                     <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-1">
                       HF-Zonen Gesamt
@@ -591,7 +598,7 @@ export default function UploadPage() {
                 </Card>
 
                 {parsedData.laps && parsedData.laps.length > 0 && (
-                  <Card elevation="raised">
+                  <Card elevation="raised" className="bg-white">
                     <CardBody>
                       <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-1">
                         HF-Zonen Arbeits-Laps
@@ -640,7 +647,7 @@ export default function UploadPage() {
 
             {/* Laps Table */}
             {parsedData.laps && parsedData.laps.length > 0 && (
-              <Card elevation="raised">
+              <Card elevation="raised" className="bg-white">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <h3 className="text-sm font-semibold text-[var(--color-text-base)]">
                     Laps ({parsedData.laps.length})
