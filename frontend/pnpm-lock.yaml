@@ -482,11 +482,11 @@ packages:
       react-dom: '>=18.0.0'
 
   '@nordlig/styles@file:packages/nordlig-styles-1.0.0.tgz':
-    resolution: {integrity: sha512-jhDUl+iFmiY98SaM6VJzqCvaoITgMDyRJx64ARxW9CLGawYqRjZeea2vmi1hNZIso2wfN9t2FFT5Sij3GXzJFQ==, tarball: file:packages/nordlig-styles-1.0.0.tgz}
+    resolution: {integrity: sha512-vr/L8Bn/dsYCfZsDnSvvV+HUzddB1iQLSgNvrejw66+h2dM2jNYAd+lDbFRlXsTPbcGknJ1GAkUjmNV6ngGf8Q==, tarball: file:packages/nordlig-styles-1.0.0.tgz}
     version: 1.0.0
 
   '@nordlig/tokens@file:packages/nordlig-tokens-1.0.0.tgz':
-    resolution: {integrity: sha512-lLx0/hqbRmilpPxnxaCNIFZNoz5wk6T+QdzSWSAv0m9+CDg5WJ8UdBxWLUzpbh3AyFxZvI1w+ujJu/mxXGJNtw==, tarball: file:packages/nordlig-tokens-1.0.0.tgz}
+    resolution: {integrity: sha512-/JBpEjGJUUCtL6w9ybfKlovj69cXYAfnvicaZ751HTWFAkaavYcLXGPhcS4rg4M8DcoOPscBBlQbb66LBHpcVg==, tarball: file:packages/nordlig-tokens-1.0.0.tgz}
     version: 1.0.0
 
   '@radix-ui/number@1.1.1':
