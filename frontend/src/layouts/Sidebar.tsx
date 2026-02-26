@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Settings, Upload } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Settings } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
-  { to: '/sessions/new', label: 'Upload', icon: Upload },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 
