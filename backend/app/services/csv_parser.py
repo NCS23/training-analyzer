@@ -1,12 +1,13 @@
 """CSV Parser für Apple Watch Training Exports (Laufen & Krafttraining)"""
 
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
 
 from app.models.training import TrainingType
+from app.services.gps_extractor import extract_gps_track
 from app.services.parser_interface import classify_laps
 
 
@@ -146,11 +147,18 @@ class TrainingCSVParser:
         summary = self._calculate_running_summary(df)
         hr_zones = self._calculate_hr_zones(df)
 
-        return {
+        # GPS Track
+        gps_track = self._extract_gps(df)
+
+        result: dict = {
             "laps": laps_data,
             "summary": summary,
             "hr_zones": hr_zones,
         }
+        if gps_track:
+            result["gps_track"] = gps_track
+
+        return result
 
     def _analyze_running_lap(self, lap_df: pd.DataFrame, lap_num: int) -> dict:
         """Analysiert einen einzelnen Lauf-Lap"""
@@ -244,6 +252,29 @@ class TrainingCSVParser:
             "hr_zones": hr_zones,
             "hr_timeseries": hr_timeseries,
         }
+
+    def _extract_gps(self, df: pd.DataFrame) -> Optional[dict]:
+        """Extrahiert GPS-Track aus latitude/longitude Spalten."""
+        if "latitude" not in df.columns or "longitude" not in df.columns:
+            return None
+
+        has_coords = df["latitude"].notna() & df["longitude"].notna()
+        if has_coords.sum() < 2:
+            return None
+
+        # Konvertiere CSV-Zeilen ins Format das extract_gps_track() erwartet
+        base_time = datetime(2000, 1, 1)
+        records = []
+        for _, row in df[has_coords].iterrows():
+            records.append({
+                "position_lat": row["latitude"],
+                "position_long": row["longitude"],
+                "enhanced_altitude": row.get("elevation (meter)") if pd.notna(row.get("elevation (meter)")) else None,
+                "heart_rate": int(row["hr (count/min)"]) if pd.notna(row.get("hr (count/min)")) else None,
+                "timestamp": base_time + timedelta(seconds=float(row.get("since_start", 0))),
+            })
+
+        return extract_gps_track(records)
 
     def _calculate_hr_zones(self, df: pd.DataFrame) -> dict:
         """

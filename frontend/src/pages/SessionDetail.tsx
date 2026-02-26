@@ -4,13 +4,15 @@ import {
   getSession,
   getSessionTrack,
   getWorkingZones,
+  getKmSplits,
+  recalculateSessionZones,
   deleteSession,
   updateSessionNotes,
   updateSessionDate,
   updateTrainingType,
   updateLapOverrides,
 } from '@/api/training';
-import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo, GPSTrack } from '@/api/training';
+import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo, GPSTrack, KmSplit } from '@/api/training';
 import { RouteMap } from '@/features/maps';
 import {
   trainingTypeLabels,
@@ -25,7 +27,6 @@ import {
   CardHeader,
   CardBody,
   Badge,
-  Progress,
   Select,
   Textarea,
   Spinner,
@@ -50,7 +51,14 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
   DatePicker,
+  Input,
   Label,
   useToast,
 } from '@nordlig/components';
@@ -67,6 +75,7 @@ import {
   Heart,
   HeartPulse,
   Footprints,
+  RefreshCw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -95,6 +104,13 @@ function formatDateShort(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+/** Fallback colors for 3-zone model (no Karvonen data). */
+function fallbackZoneColor(key: string): string {
+  if (key.includes('recovery') || key.includes('zone_1')) return '#94a3b8';
+  if (key.includes('base') || key.includes('zone_2')) return '#10b981';
+  return '#f59e0b';
 }
 
 export function SessionDetailPage() {
@@ -128,11 +144,21 @@ export function SessionDetailPage() {
   // GPS track state
   const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
 
+  // Km splits state
+  const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
+  const [splitsTab, setSplitsTab] = useState<'laps' | 'km'>('laps');
+
   // Edit mode — auto-open when laps need review
   const [isEditing, setIsEditing] = useState(false);
   const [localLaps, setLocalLaps] = useState<LapDetail[]>([]);
   const [workingHrZones, setWorkingHrZones] = useState<Record<string, HRZone> | null>(null);
   const [savingLaps, setSavingLaps] = useState(false);
+
+  // Recalculate zones dialog
+  const [showRecalcDialog, setShowRecalcDialog] = useState(false);
+  const [recalcRestingHr, setRecalcRestingHr] = useState('');
+  const [recalcMaxHr, setRecalcMaxHr] = useState('');
+  const [recalculating, setRecalculating] = useState(false);
 
   const loadSession = useCallback(async () => {
     if (!sessionId || isNaN(sessionId)) {
@@ -150,7 +176,7 @@ export function SessionDetailPage() {
       const loadedLaps = data.laps || [];
       setLocalLaps(loadedLaps);
 
-      // Load GPS track if available
+      // Load GPS track + km splits if available
       if (data.has_gps) {
         try {
           const trackData = await getSessionTrack(sessionId);
@@ -159,6 +185,14 @@ export function SessionDetailPage() {
           }
         } catch {
           // Silently fail — GPS track is optional
+        }
+        try {
+          const splitsData = await getKmSplits(sessionId);
+          if (splitsData.has_splits && splitsData.splits) {
+            setKmSplits(splitsData.splits);
+          }
+        } catch {
+          // Silently fail — km splits are optional
         }
       }
 
@@ -292,6 +326,42 @@ export function SessionDetailPage() {
       setError('Lap-Typ konnte nicht gespeichert werden.');
     } finally {
       setSavingLaps(false);
+    }
+  };
+
+  // Open recalculate dialog with current session's stored HR values
+  const openRecalcDialog = () => {
+    setRecalcRestingHr(session?.athlete_resting_hr?.toString() ?? '');
+    setRecalcMaxHr(session?.athlete_max_hr?.toString() ?? '');
+    setShowRecalcDialog(true);
+  };
+
+  // Recalculate HR zones with user-specified values
+  const handleRecalculateZones = async () => {
+    if (!sessionId) return;
+    const rhr = parseInt(recalcRestingHr, 10);
+    const mhr = parseInt(recalcMaxHr, 10);
+    if (isNaN(rhr) || isNaN(mhr) || rhr >= mhr) {
+      toast({ title: 'Ruhe-HF muss kleiner als Max-HF sein', variant: 'error' });
+      return;
+    }
+    setRecalculating(true);
+    try {
+      const result = await recalculateSessionZones(sessionId, { resting_hr: rhr, max_hr: mhr });
+      if (result.hr_zones) {
+        setSession((prev) => prev ? {
+          ...prev,
+          hr_zones: result.hr_zones,
+          athlete_resting_hr: result.athlete_resting_hr,
+          athlete_max_hr: result.athlete_max_hr,
+        } : prev);
+      }
+      setShowRecalcDialog(false);
+      toast({ title: 'HF-Zonen aktualisiert', variant: 'success' });
+    } catch {
+      toast({ title: 'Neuberechnung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -480,6 +550,57 @@ export function SessionDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Recalculate zones dialog */}
+      <Dialog open={showRecalcDialog} onOpenChange={setShowRecalcDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>HF-Zonen neu berechnen</DialogTitle>
+            <DialogDescription>
+              Gib die Herzfrequenz-Werte ein, die fuer diese Session gelten sollen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="recalc-resting">Ruhe-HF (bpm)</Label>
+              <Input
+                id="recalc-resting"
+                type="number"
+                min={30}
+                max={120}
+                value={recalcRestingHr}
+                onChange={(e) => setRecalcRestingHr(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="recalc-max">Max-HF (bpm)</Label>
+              <Input
+                id="recalc-max"
+                type="number"
+                min={120}
+                max={230}
+                value={recalcMaxHr}
+                onChange={(e) => setRecalcMaxHr(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setShowRecalcDialog(false)}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleRecalculateZones}
+              disabled={recalculating || !recalcRestingHr || !recalcMaxHr}
+            >
+              {recalculating ? <Spinner size="sm" /> : 'Berechnen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit mode banner */}
       {isEditing && (
         <div className="flex items-center justify-between gap-2 rounded-[var(--radius-component-md)] bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)] px-4 py-2">
@@ -659,17 +780,28 @@ export function SessionDetailPage() {
           <div className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
             {/* Gesamt */}
             <Card elevation="raised">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   HF-Zonen Gesamt
                 </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openRecalcDialog}
+                  aria-label="Zonen neu berechnen"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span className="text-xs">Aktualisieren</span>
+                </Button>
               </CardHeader>
               <CardBody>
                 <div className="space-y-3">
                   {Object.entries(hrZones).map(([key, zone]: [string, HRZone]) => (
                     <div key={key}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-[var(--color-text-muted)]">{zone.label}</span>
+                        <span className="text-[var(--color-text-muted)]">
+                          {zone.name ? `${zone.name} (${zone.label})` : zone.label}
+                        </span>
                         <span className="font-medium text-[var(--color-text-base)]">
                           {zone.percentage}%
                           {zone.seconds != null && (
@@ -679,17 +811,15 @@ export function SessionDetailPage() {
                           )}
                         </span>
                       </div>
-                      <Progress
-                        value={zone.percentage}
-                        size="sm"
-                        color={
-                          key.includes('recovery') || key.includes('zone_1')
-                            ? 'success'
-                            : key.includes('base') || key.includes('zone_2')
-                              ? 'warning'
-                              : 'error'
-                        }
-                      />
+                      <div className="h-1.5 w-full rounded-full bg-[var(--color-bg-subtle)]">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${Math.min(zone.percentage, 100)}%`,
+                            backgroundColor: zone.color ?? fallbackZoneColor(key),
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -709,7 +839,9 @@ export function SessionDetailPage() {
                     {Object.entries(workingHrZones).map(([key, zone]: [string, HRZone]) => (
                       <div key={key}>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-[var(--color-text-muted)]">{zone.label}</span>
+                          <span className="text-[var(--color-text-muted)]">
+                            {zone.name ? `${zone.name} (${zone.label})` : zone.label}
+                          </span>
                           <span className="font-medium text-[var(--color-text-base)]">
                             {zone.percentage}%
                             {zone.seconds != null && (
@@ -719,17 +851,15 @@ export function SessionDetailPage() {
                             )}
                           </span>
                         </div>
-                        <Progress
-                          value={zone.percentage}
-                          size="sm"
-                          color={
-                            key.includes('recovery') || key.includes('zone_1')
-                              ? 'success'
-                              : key.includes('base') || key.includes('zone_2')
-                                ? 'warning'
-                                : 'error'
-                          }
-                        />
+                        <div className="h-1.5 w-full rounded-full bg-[var(--color-bg-subtle)]">
+                          <div
+                            className="h-full rounded-full transition-all duration-500 ease-out"
+                            style={{
+                              width: `${Math.min(zone.percentage, 100)}%`,
+                              backgroundColor: zone.color ?? fallbackZoneColor(key),
+                            }}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -740,80 +870,145 @@ export function SessionDetailPage() {
         </section>
       )}
 
-      {/* Laps Table */}
-      {localLaps.length > 0 && (
+      {/* Laps / Km Splits */}
+      {(localLaps.length > 0 || kmSplits) && (
         <section aria-label="Laps">
           <Card elevation="raised">
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Laps ({localLaps.length})
-              </h2>
-              {isEditing && savingLaps && <Spinner size="sm" />}
+              <div className="flex items-center gap-1">
+                {localLaps.length > 0 && (
+                  <button
+                    onClick={() => setSplitsTab('laps')}
+                    className={`text-sm font-semibold px-3 py-1 rounded-[var(--radius-component-sm)] transition-colors ${
+                      splitsTab === 'laps'
+                        ? 'bg-[var(--color-bg-muted)] text-[var(--color-text-base)]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
+                    }`}
+                  >
+                    Geraete-Laps ({localLaps.length})
+                  </button>
+                )}
+                {kmSplits && (
+                  <button
+                    onClick={() => setSplitsTab('km')}
+                    className={`text-sm font-semibold px-3 py-1 rounded-[var(--radius-component-sm)] transition-colors ${
+                      splitsTab === 'km'
+                        ? 'bg-[var(--color-bg-muted)] text-[var(--color-text-base)]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
+                    }`}
+                  >
+                    Kilometer ({kmSplits.length})
+                  </button>
+                )}
+              </div>
+              {isEditing && savingLaps && splitsTab === 'laps' && <Spinner size="sm" />}
             </CardHeader>
-            <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
-                    <TableHead>Typ</TableHead>
-                    <TableHead>Dauer</TableHead>
-                    <TableHead>Distanz</TableHead>
-                    <TableHead>Pace</TableHead>
-                    <TableHead>Ø HF</TableHead>
-                    <TableHead>Kadenz</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {localLaps.map((lap: LapDetail) => {
-                    const effectiveType = lap.user_override || lap.suggested_type || 'unclassified';
-                    return (
-                      <TableRow key={lap.lap_number}>
+
+            {/* Device Laps Table */}
+            {splitsTab === 'laps' && localLaps.length > 0 && (
+              <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
+                      <TableHead>Typ</TableHead>
+                      <TableHead>Dauer</TableHead>
+                      <TableHead>Distanz</TableHead>
+                      <TableHead>Pace</TableHead>
+                      <TableHead>Ø HF</TableHead>
+                      <TableHead>Kadenz</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {localLaps.map((lap: LapDetail) => {
+                      const effectiveType = lap.user_override || lap.suggested_type || 'unclassified';
+                      return (
+                        <TableRow key={lap.lap_number}>
+                          <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
+                            {lap.lap_number}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Select
+                                options={lapTypeOptions}
+                                value={effectiveType}
+                                onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
+                                inputSize="sm"
+                                className="w-36"
+                              />
+                            ) : (
+                              <Badge
+                                variant={
+                                  effectiveType === 'warmup' || effectiveType === 'cooldown'
+                                    ? 'info'
+                                    : effectiveType === 'pause'
+                                      ? 'warning'
+                                      : effectiveType === 'interval'
+                                        ? 'error'
+                                        : 'success'
+                                }
+                                size="xs"
+                              >
+                                {lapTypeLabels[effectiveType] || effectiveType}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{lap.duration_formatted}</TableCell>
+                          <TableCell>
+                            {lap.distance_km != null ? `${lap.distance_km} km` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
+                          </TableCell>
+                          <TableCell>{lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}</TableCell>
+                          <TableCell>
+                            {lap.avg_cadence_spm != null ? `${lap.avg_cadence_spm}` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {/* Km Splits Table */}
+            {splitsTab === 'km' && kmSplits && (
+              <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">km</TableHead>
+                      <TableHead>Dauer</TableHead>
+                      <TableHead>Pace</TableHead>
+                      <TableHead>Ø HF</TableHead>
+                      <TableHead>Anstieg</TableHead>
+                      <TableHead>Abstieg</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {kmSplits.map((split) => (
+                      <TableRow key={split.km_number}>
                         <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
-                          {lap.lap_number}
+                          {split.is_partial ? split.distance_km : split.km_number}
+                        </TableCell>
+                        <TableCell>{split.duration_formatted}</TableCell>
+                        <TableCell>
+                          {split.pace_formatted ? `${split.pace_formatted} /km` : '-'}
+                        </TableCell>
+                        <TableCell>{split.avg_hr_bpm ?? '-'}</TableCell>
+                        <TableCell>
+                          {split.elevation_gain_m != null ? `${split.elevation_gain_m} m` : '-'}
                         </TableCell>
                         <TableCell>
-                          {isEditing ? (
-                            <Select
-                              options={lapTypeOptions}
-                              value={effectiveType}
-                              onChange={(val) => handleLapTypeChange(lap.lap_number, val)}
-                              inputSize="sm"
-                              className="w-36"
-                            />
-                          ) : (
-                            <Badge
-                              variant={
-                                effectiveType === 'warmup' || effectiveType === 'cooldown'
-                                  ? 'info'
-                                  : effectiveType === 'pause'
-                                    ? 'warning'
-                                    : effectiveType === 'interval'
-                                      ? 'error'
-                                      : 'success'
-                              }
-                              size="xs"
-                            >
-                              {lapTypeLabels[effectiveType] || effectiveType}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{lap.duration_formatted}</TableCell>
-                        <TableCell>
-                          {lap.distance_km != null ? `${lap.distance_km} km` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
-                        </TableCell>
-                        <TableCell>{lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}</TableCell>
-                        <TableCell>
-                          {lap.avg_cadence_spm != null ? `${lap.avg_cadence_spm}` : '-'}
+                          {split.elevation_loss_m != null ? `${split.elevation_loss_m} m` : '-'}
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </Card>
         </section>
       )}

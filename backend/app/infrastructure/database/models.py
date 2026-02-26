@@ -35,6 +35,10 @@ class WorkoutModel(Base):
     gps_track_json = Column(Text)
     has_gps = Column(Boolean, default=False, nullable=False, server_default="0")
 
+    # Athlete settings snapshot (at time of upload)
+    athlete_resting_hr = Column(Integer)
+    athlete_max_hr = Column(Integer)
+
     # Training Type Klassifizierung
     training_type_auto = Column(String(30))
     training_type_confidence = Column(Integer)

@@ -196,6 +196,9 @@ export interface HRZone {
   seconds: number;
   percentage: number;
   label: string;
+  zone?: number;
+  name?: string;
+  color?: string;
 }
 
 export interface SessionDetail {
@@ -215,6 +218,8 @@ export interface SessionDetail {
   laps: LapDetail[] | null;
   hr_zones: Record<string, HRZone> | null;
   has_gps: boolean;
+  athlete_resting_hr: number | null;
+  athlete_max_hr: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -288,6 +293,31 @@ export async function getSessionTrack(sessionId: number): Promise<SessionTrackRe
   return response.data;
 }
 
+export interface KmSplit {
+  km_number: number;
+  distance_km: number;
+  duration_seconds: number;
+  duration_formatted: string;
+  pace_min_per_km: number | null;
+  pace_formatted: string | null;
+  avg_hr_bpm: number | null;
+  elevation_gain_m: number | null;
+  elevation_loss_m: number | null;
+  is_partial: boolean;
+}
+
+export interface KmSplitsResponse {
+  has_splits: boolean;
+  splits: KmSplit[] | null;
+}
+
+export async function getKmSplits(sessionId: number): Promise<KmSplitsResponse> {
+  const response = await apiClient.get<KmSplitsResponse>(
+    `/api/v1/sessions/${sessionId}/km-splits`,
+  );
+  return response.data;
+}
+
 export interface WorkingZonesResponse {
   hr_zones_working: Record<string, HRZone> | null;
 }
@@ -295,6 +325,24 @@ export interface WorkingZonesResponse {
 export async function getWorkingZones(sessionId: number): Promise<WorkingZonesResponse> {
   const response = await apiClient.get<WorkingZonesResponse>(
     `/api/v1/sessions/${sessionId}/working-zones`,
+  );
+  return response.data;
+}
+
+export interface RecalculateZonesResponse {
+  success: boolean;
+  hr_zones: Record<string, HRZone>;
+  athlete_resting_hr: number | null;
+  athlete_max_hr: number | null;
+}
+
+export async function recalculateSessionZones(
+  sessionId: number,
+  params?: { resting_hr: number; max_hr: number },
+): Promise<RecalculateZonesResponse> {
+  const response = await apiClient.post<RecalculateZonesResponse>(
+    `/api/v1/sessions/${sessionId}/recalculate-zones`,
+    params ?? {},
   );
   return response.data;
 }

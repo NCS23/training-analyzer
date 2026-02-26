@@ -91,6 +91,8 @@ class SessionResponse(BaseModel):
     laps: Optional[list[LapResponse]] = None
     hr_zones: Optional[dict] = None
     has_gps: bool = False
+    athlete_resting_hr: Optional[int] = None
+    athlete_max_hr: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -144,6 +146,8 @@ class SessionResponse(BaseModel):
             laps=laps,
             hr_zones=hr_zones,
             has_gps=bool(model.has_gps),
+            athlete_resting_hr=int(model.athlete_resting_hr) if model.athlete_resting_hr else None,  # type: ignore[arg-type]
+            athlete_max_hr=int(model.athlete_max_hr) if model.athlete_max_hr else None,  # type: ignore[arg-type]
             created_at=model.created_at,  # type: ignore[arg-type]
             updated_at=model.updated_at,  # type: ignore[arg-type]
         )
@@ -267,3 +271,10 @@ class DateUpdateRequest(BaseModel):
     """Request fuer Datums-Update."""
 
     date: date
+
+
+class RecalculateZonesRequest(BaseModel):
+    """Request fuer HF-Zonen Neuberechnung mit optionalen HR-Werten."""
+
+    resting_hr: Optional[int] = None
+    max_hr: Optional[int] = None

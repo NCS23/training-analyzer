@@ -16,6 +16,7 @@ from app.models.session import (
     LapOverrideResponse,
     LapResponse,
     NotesUpdateRequest,
+    RecalculateZonesRequest,
     SessionListResponse,
     SessionParseResponse,
     SessionResponse,
@@ -27,6 +28,7 @@ from app.models.training import TrainingSubType, TrainingType
 from app.services.csv_parser import TrainingCSVParser
 from app.services.fit_parser import TrainingFITParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
+from app.services.km_split_calculator import calculate_km_splits
 from app.services.training_type_classifier import classify_training_type
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -92,6 +94,7 @@ async def _parse_and_classify(
         "hr_zones": hr_zones,
         "classification": classification,
         "resting_hr": resting_hr,
+        "max_hr": max_hr,
         "metadata": result.get("metadata", {}),
         "gps_track": result.get("gps_track"),
     }
@@ -213,6 +216,9 @@ async def upload_csv(
     if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
         effective_training_type_override = None
 
+    # GPS Track
+    gps_track = parsed.get("gps_track")
+
     # Erstelle DB-Eintrag
     workout = WorkoutModel(
         date=datetime.combine(training_date, datetime.min.time()),
@@ -231,6 +237,10 @@ async def upload_csv(
         csv_data=content.decode("utf-8"),
         laps_json=json.dumps(laps) if laps else None,
         hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
+        gps_track_json=json.dumps(gps_track) if gps_track else None,
+        has_gps=bool(gps_track),
+        athlete_resting_hr=parsed["resting_hr"],
+        athlete_max_hr=parsed["max_hr"],
         notes=notes,
     )
 
@@ -325,6 +335,8 @@ async def upload_fit(
         hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
         gps_track_json=json.dumps(gps_track) if gps_track else None,
         has_gps=bool(gps_track),
+        athlete_resting_hr=parsed["resting_hr"],
+        athlete_max_hr=parsed["max_hr"],
         notes=notes,
     )
 
@@ -424,6 +436,27 @@ async def get_session_track(
     return {"has_gps": True, "track": track}
 
 
+@router.get("/{session_id}/km-splits")
+async def get_km_splits(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Per-Kilometer Splits berechnet aus GPS Track."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if not workout.gps_track_json:
+        return {"has_splits": False, "splits": None}
+
+    track = json.loads(str(workout.gps_track_json))
+    splits = calculate_km_splits(track)
+    return {"has_splits": bool(splits), "splits": splits}
+
+
 @router.get("/{session_id}/working-zones")
 async def get_working_zones(
     session_id: int,
@@ -437,8 +470,15 @@ async def get_working_zones(
     if not workout or not workout.laps_json:
         return {"hr_zones_working": None}
 
+    # Use session's stored athlete settings (historized), fallback to current
+    resting_hr = workout.athlete_resting_hr
+    max_hr = workout.athlete_max_hr
+    if resting_hr is None or max_hr is None:
+        resting_hr, max_hr = await _get_athlete_hr_settings(db)
+
     laps_raw = json.loads(str(workout.laps_json))
-    _, hr_zones = _calculate_working_laps_metrics(laps_raw)
+    gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
+    _, hr_zones = _calculate_working_laps_metrics(laps_raw, resting_hr, max_hr, gps_track)
     return {"hr_zones_working": hr_zones}
 
 
@@ -474,9 +514,14 @@ async def update_lap_overrides(
     await db.commit()
     await db.refresh(workout)
 
-    # Build response with working-laps aggregation
+    # Build response with working-laps aggregation (use session's stored settings)
+    resting_hr = workout.athlete_resting_hr
+    max_hr = workout.athlete_max_hr
+    if resting_hr is None or max_hr is None:
+        resting_hr, max_hr = await _get_athlete_hr_settings(db)
+    gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
     laps = [LapResponse(**lap) for lap in laps_raw]
-    summary_working, hr_zones_working = _calculate_working_laps_metrics(laps_raw)
+    summary_working, hr_zones_working = _calculate_working_laps_metrics(laps_raw, resting_hr, max_hr, gps_track)
 
     return LapOverrideResponse(
         success=True,
@@ -583,7 +628,87 @@ async def delete_session(
     await db.commit()
 
 
+@router.post("/{session_id}/recalculate-zones")
+async def recalculate_session_zones(
+    session_id: int,
+    body: Optional[RecalculateZonesRequest] = None,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Berechnet HR-Zonen einer einzelnen Session neu.
+
+    Optionale HR-Werte im Body; ohne Body werden aktuelle Athleten-Einstellungen verwendet.
+    """
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    # Determine HR settings: body > current athlete settings
+    resting_hr = body.resting_hr if body and body.resting_hr else None
+    max_hr = body.max_hr if body and body.max_hr else None
+    if resting_hr is None or max_hr is None:
+        current_resting, current_max = await _get_athlete_hr_settings(db)
+        resting_hr = resting_hr or current_resting
+        max_hr = max_hr or current_max
+
+    hr_values = _extract_hr_from_stored_data(workout)
+    if not hr_values:
+        raise HTTPException(status_code=400, detail="Keine HR-Daten vorhanden fuer Neuberechnung.")
+
+    new_zones = calculate_zone_distribution(hr_values, resting_hr, max_hr)
+    if not new_zones:
+        raise HTTPException(status_code=400, detail="Zonen konnten nicht berechnet werden.")
+
+    workout.hr_zones_json = json.dumps(new_zones)  # type: ignore[assignment]
+    # Update athlete snapshot on session
+    if resting_hr:
+        workout.athlete_resting_hr = resting_hr  # type: ignore[assignment]
+    if max_hr:
+        workout.athlete_max_hr = max_hr  # type: ignore[assignment]
+
+    await db.commit()
+    return {
+        "success": True,
+        "hr_zones": new_zones,
+        "athlete_resting_hr": resting_hr,
+        "athlete_max_hr": max_hr,
+    }
+
+
 # --- Helper ---
+
+
+def _extract_hr_from_stored_data(workout: WorkoutModel) -> list[int]:
+    """Extract per-second HR values from stored session data.
+
+    Priority: GPS track (per-second) > CSV re-parse > empty.
+    """
+    # 1. GPS track points (best: per-second HR)
+    if workout.gps_track_json:
+        track = json.loads(str(workout.gps_track_json))
+        points = track.get("points", [])
+        hr_values = [int(p["hr"]) for p in points if p.get("hr") is not None]
+        if hr_values:
+            return hr_values
+
+    # 2. CSV data (re-parse for HR timeseries)
+    if workout.csv_data:
+        try:
+            result = csv_parser.parse(
+                workout.csv_data.encode("utf-8"),  # type: ignore[union-attr]
+                TrainingType(str(workout.workout_type)),
+                None,
+            )
+            if result.get("success"):
+                ts = result.get("hr_timeseries", [])
+                if ts:
+                    return [int(p["hr_bpm"]) for p in ts if p.get("hr_bpm")]
+        except Exception:
+            pass
+
+    return []
 
 
 def _extract_hr_values_from_result(result: dict) -> list[int]:
@@ -634,6 +759,9 @@ def _format_pace(pace: Optional[float]) -> Optional[str]:
 
 def _calculate_working_laps_metrics(
     laps_raw: list[dict],
+    resting_hr: Optional[int] = None,
+    max_hr: Optional[int] = None,
+    gps_track: Optional[dict] = None,
 ) -> tuple[Optional[SessionSummaryResponse], Optional[dict]]:
     """Berechnet Metriken nur fuer Working-Laps (ohne Warmup/Cooldown/Pause)."""
     working = [lap for lap in laps_raw if _get_effective_type(lap) not in EXCLUDED_TYPES]
@@ -669,14 +797,73 @@ def _calculate_working_laps_metrics(
         ),
     )
 
-    # HR Zones fuer Working-Laps (gewichtet nach Dauer, 3-Zonen Fallback)
-    working_hr_values: list[int] = []
-    for lap in working:
-        avg_hr = lap.get("avg_hr_bpm", 0)
-        dur = lap.get("duration_seconds", 0)
-        if avg_hr and dur > 0:
-            working_hr_values.extend([int(avg_hr)] * dur)
+    # HR Zones: prefer per-second GPS HR data over lap averages
+    working_hr_values = _extract_working_hr_from_gps(laps_raw, gps_track)
 
-    hr_zones = calculate_zone_distribution(working_hr_values)
+    if not working_hr_values:
+        # Fallback: expand lap averages (less accurate)
+        working_hr_values = []
+        for lap in working:
+            avg_hr = lap.get("avg_hr_bpm", 0)
+            dur = lap.get("duration_seconds", 0)
+            if avg_hr and dur > 0:
+                working_hr_values.extend([int(avg_hr)] * dur)
+
+    hr_zones = calculate_zone_distribution(working_hr_values, resting_hr, max_hr)
 
     return summary, hr_zones
+
+
+def _extract_working_hr_from_gps(
+    laps_raw: list[dict],
+    gps_track: Optional[dict],
+) -> list[int]:
+    """Extract per-second HR values from GPS track for working laps only.
+
+    Computes time ranges for each lap, filters to working laps,
+    then collects GPS HR values that fall within those time ranges.
+    """
+    if not gps_track or "points" not in gps_track:
+        return []
+
+    points = gps_track["points"]
+    if not points or not any(p.get("hr") for p in points):
+        return []
+
+    # Build time ranges for working laps
+    working_ranges: list[tuple[float, float]] = []
+    elapsed = 0.0
+    for lap in laps_raw:
+        dur = lap.get("duration_seconds", 0)
+        if dur <= 0:
+            continue
+        lap_start = elapsed
+        lap_end = elapsed + dur
+        elapsed = lap_end
+
+        if _get_effective_type(lap) not in EXCLUDED_TYPES:
+            working_ranges.append((lap_start, lap_end))
+
+    if not working_ranges:
+        return []
+
+    # Collect GPS HR values within working time ranges
+    hr_values: list[int] = []
+    range_idx = 0
+    for p in points:
+        sec = p.get("seconds", 0)
+        hr = p.get("hr")
+        if hr is None:
+            continue
+
+        # Advance range index if past current range
+        while range_idx < len(working_ranges) and sec >= working_ranges[range_idx][1]:
+            range_idx += 1
+
+        if range_idx >= len(working_ranges):
+            break
+
+        if working_ranges[range_idx][0] <= sec < working_ranges[range_idx][1]:
+            hr_values.append(int(hr))
+
+    return hr_values

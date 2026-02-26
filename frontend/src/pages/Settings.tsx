@@ -14,7 +14,6 @@ import {
 } from '@nordlig/components';
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
 import type { KarvonenZone } from '@/api/athlete';
-
 export function SettingsPage() {
   const [restingHr, setRestingHr] = useState('');
   const [maxHr, setMaxHr] = useState('');
@@ -176,6 +175,7 @@ export function SettingsPage() {
           </CardBody>
         </Card>
       )}
+
     </div>
   );
 }

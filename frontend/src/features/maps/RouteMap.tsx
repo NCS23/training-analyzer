@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
-import type { LatLngBoundsExpression, LatLngTuple } from 'leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { GPSPoint } from '@/api/training';
 
 /* ------------------------------------------------------------------ */
-/*  Tile Layers                                                        */
+/*  Tile config                                                        */
 /* ------------------------------------------------------------------ */
 
 const TILES = {
@@ -22,26 +21,7 @@ const TILES = {
 } as const;
 
 /* ------------------------------------------------------------------ */
-/*  Auto-fit bounds                                                    */
-/* ------------------------------------------------------------------ */
-
-function FitBounds({ positions }: { positions: LatLngTuple[] }) {
-  const map = useMap();
-  const fitted = useRef(false);
-
-  useEffect(() => {
-    if (positions.length > 0 && !fitted.current) {
-      const bounds: LatLngBoundsExpression = positions;
-      map.fitBounds(bounds, { padding: [30, 30] });
-      fitted.current = true;
-    }
-  }, [map, positions]);
-
-  return null;
-}
-
-/* ------------------------------------------------------------------ */
-/*  RouteMap                                                           */
+/*  RouteMap — plain Leaflet, no react-leaflet wrapper                 */
 /* ------------------------------------------------------------------ */
 
 export interface RouteMapProps {
@@ -57,35 +37,49 @@ export function RouteMap({
   className = '',
   darkMode = false,
 }: RouteMapProps) {
-  const positions: LatLngTuple[] = points.map((p) => [p.lat, p.lng]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+
+  const positions: L.LatLngTuple[] = points.map((p) => [p.lat, p.lng]);
+
+  useEffect(() => {
+    if (!containerRef.current || positions.length === 0) return;
+
+    // Prevent double-init in StrictMode
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    const map = L.map(containerRef.current, {
+      scrollWheelZoom: true,
+    });
+    mapRef.current = map;
+
+    const tile = darkMode ? TILES.dark : TILES.light;
+    L.tileLayer(tile.url, { attribution: tile.attribution }).addTo(map);
+
+    L.polyline(positions, {
+      color: '#3b82f6',
+      weight: 3,
+      opacity: 0.85,
+    }).addTo(map);
+
+    map.fitBounds(L.latLngBounds(positions), { padding: [30, 30] });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [positions.length, darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (positions.length === 0) return null;
 
-  const center = positions[Math.floor(positions.length / 2)];
-  const tile = darkMode ? TILES.dark : TILES.light;
-
   return (
     <div
-      className={`rounded-[var(--radius-component-md)] overflow-hidden border border-[var(--color-border-default)] ${className}`}
+      ref={containerRef}
+      className={`isolate rounded-[var(--radius-component-md)] overflow-hidden border border-[var(--color-border-default)] ${className}`}
       style={{ height }}
-    >
-      <MapContainer
-        center={center}
-        zoom={13}
-        scrollWheelZoom={true}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer url={tile.url} attribution={tile.attribution} />
-        <Polyline
-          positions={positions}
-          pathOptions={{
-            color: 'var(--color-interactive-primary, #3b82f6)',
-            weight: 3,
-            opacity: 0.85,
-          }}
-        />
-        <FitBounds positions={positions} />
-      </MapContainer>
-    </div>
+    />
   );
 }
