@@ -168,6 +168,7 @@ jobs:
       - name: Build and deploy containers
         run: |
           cd /volume1/docker/training-analyzer
-          docker-compose up -d --build backend frontend
+          DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose build backend frontend
+          docker-compose up -d backend frontend
           sleep 5
           docker-compose ps
