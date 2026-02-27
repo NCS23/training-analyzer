@@ -47,17 +47,48 @@ function formatPace(paceMinPerKm: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/** Build tooltip HTML for a GPS point. */
-function buildPointTooltip(p: GPSPoint, distKm: number): string {
-  const lines: string[] = [];
-  if (p.alt != null) lines.push(`${Math.round(p.alt)} m`);
-  lines.push(`${distKm.toFixed(2)} km`);
+/** Calculate pace for a point, with haversine fallback from neighbors. */
+function getPointPace(points: GPSPoint[], idx: number): number | null {
+  const p = points[idx];
   if (p.speed != null && p.speed > 0) {
     const pace = 1000 / p.speed / 60;
-    if (pace > 1 && pace < 30) lines.push(`${formatPace(pace)} /km`);
+    return pace > 1 && pace < 30 ? pace : null;
   }
-  if (p.hr != null) lines.push(`${p.hr} bpm`);
-  return lines.join('<br>');
+  if (idx === 0) return null;
+  const prev = points[idx - 1];
+  const dt = p.seconds - prev.seconds;
+  if (dt <= 0) return null;
+  const R = 6371000;
+  const dLat = ((p.lat - prev.lat) * Math.PI) / 180;
+  const dLng = ((p.lng - prev.lng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((prev.lat * Math.PI) / 180) * Math.cos((p.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  if (dist < 0.1 || dist > 500) return null;
+  const pace = 1000 / (dist / dt) / 60;
+  return pace > 1 && pace < 30 ? pace : null;
+}
+
+/** Build tooltip HTML for a GPS point, adapted to the current map mode. */
+function buildPointTooltip(points: GPSPoint[], idx: number, distKm: number, mode: HeatMapMode): string {
+  const p = points[idx];
+  const dist = `${distKm.toFixed(2)} km`;
+  const pace = getPointPace(points, idx);
+
+  if (mode === 'pace') {
+    if (pace != null) return `<b>${formatPace(pace)} /km</b><br>${dist}`;
+    return dist;
+  }
+
+  if (mode === 'hr') {
+    if (p.hr != null) return `<b>${p.hr} bpm</b><br>${dist}`;
+    return dist;
+  }
+
+  // Route mode: altitude + distance only
+  if (p.alt != null) return `<b>${Math.round(p.alt)} m</b><br>${dist}`;
+  return dist;
 }
 
 export function RouteMap({
@@ -76,6 +107,8 @@ export function RouteMap({
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const onHoverPointRef = useRef(onHoverPoint);
   onHoverPointRef.current = onHoverPoint;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   // Pre-compute cumulative distances for tooltip display
   const cumulativeDistKm = useRef<number[]>([]);
@@ -134,8 +167,8 @@ export function RouteMap({
         }
       }
 
-      // Only match if within 20px
-      return bestDist < 400 ? bestIdx : null;
+      // Only match if within 30px
+      return bestDist < 900 ? bestIdx : null;
     },
     [points],
   );
@@ -179,7 +212,7 @@ export function RouteMap({
     // Invisible wide polyline for easy mouse interaction
     const hitArea = L.polyline(positions, {
       color: 'transparent',
-      weight: 20,
+      weight: 40,
       opacity: 0,
       interactive: true,
     }).addTo(layerGroup);
@@ -189,9 +222,8 @@ export function RouteMap({
       if (idx != null) {
         onHoverPointRef.current?.(idx);
         // Show tooltip on hover marker
-        const p = points[idx];
         const distKm = cumulativeDistKm.current[idx] ?? 0;
-        const tooltipHtml = buildPointTooltip(p, distKm);
+        const tooltipHtml = buildPointTooltip(points, idx, distKm, modeRef.current);
         if (hoverMarkerRef.current) {
           hoverMarkerRef.current
             .unbindTooltip()
@@ -253,7 +285,7 @@ export function RouteMap({
     const p = points[hoveredPointIndex];
     const latlng = L.latLng(p.lat, p.lng);
     const distKm = cumulativeDistKm.current[hoveredPointIndex] ?? 0;
-    const tooltipHtml = buildPointTooltip(p, distKm);
+    const tooltipHtml = buildPointTooltip(points, hoveredPointIndex, distKm, mode);
 
     if (hoverMarkerRef.current) {
       hoverMarkerRef.current.setLatLng(latlng);
@@ -273,6 +305,7 @@ export function RouteMap({
         weight: 2,
         fillColor: '#3b82f6',
         fillOpacity: 1,
+        interactive: false,
       }).addTo(map);
       hoverMarkerRef.current
         .bindTooltip(tooltipHtml, {
@@ -283,7 +316,7 @@ export function RouteMap({
         })
         .openTooltip();
     }
-  }, [hoveredPointIndex, points]);
+  }, [hoveredPointIndex, points, mode]);
 
   if (positions.length === 0) return null;
 
