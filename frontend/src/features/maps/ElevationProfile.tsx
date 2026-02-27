@@ -81,8 +81,10 @@ export function ElevationProfile({
   const handleMouseMove = useCallback(
     (state: Record<string, unknown>) => {
       if (!onHoverPoint) return;
-      const idx = typeof state?.activeTooltipIndex === 'number' ? state.activeTooltipIndex : null;
-      if (idx != null && profileData[idx]) {
+      // Recharts passes activeTooltipIndex as string
+      const raw = state?.activeTooltipIndex;
+      const idx = raw != null ? Number(raw) : null;
+      if (idx != null && !isNaN(idx) && profileData[idx]) {
         onHoverPoint(profileData[idx].pointIndex);
       }
     },
