@@ -43,3 +43,11 @@ dist/
 
 # Node
 package-lock.json
+
+# Training data files
+*.fit
+*.csv
+
+# Coverage
+.coverage
+coverage/
