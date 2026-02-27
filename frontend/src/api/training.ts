@@ -79,9 +79,31 @@ export interface SessionListResult {
   pageSize: number;
 }
 
-export async function listSessions(page = 1, pageSize = 20): Promise<SessionListResult> {
+export interface SessionFilters {
+  workoutType?: string;
+  trainingType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+}
+
+export async function listSessions(
+  page = 1,
+  pageSize = 20,
+  filters?: SessionFilters,
+): Promise<SessionListResult> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (filters?.workoutType) params.set('workout_type', filters.workoutType);
+  if (filters?.trainingType) params.set('training_type', filters.trainingType);
+  if (filters?.dateFrom) params.set('date_from', filters.dateFrom);
+  if (filters?.dateTo) params.set('date_to', filters.dateTo);
+  if (filters?.search) params.set('search', filters.search);
+
   const response = await apiClient.get<SessionListApiResponse>(
-    `/api/v1/sessions?page=${page}&page_size=${pageSize}`,
+    `/api/v1/sessions?${params.toString()}`,
   );
   return {
     sessions: response.data.sessions,

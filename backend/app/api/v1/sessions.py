@@ -389,26 +389,50 @@ async def upload_fit(
 async def list_sessions(
     page: int = Query(1, ge=1, description="Seitennummer"),
     page_size: int = Query(20, ge=1, le=100, description="Eintraege pro Seite"),
-    workout_type: Optional[TrainingType] = Query(None, description="Filter nach Typ"),
+    workout_type: Optional[TrainingType] = Query(None, description="Filter nach Workout-Typ"),
+    training_type: Optional[str] = Query(None, description="Filter nach Training-Typ (effective)"),
+    date_from: Optional[date] = Query(None, description="Datum ab (inklusiv)"),
+    date_to: Optional[date] = Query(None, description="Datum bis (inklusiv)"),
+    search: Optional[str] = Query(None, description="Freitext-Suche (Notizen)"),
     db: AsyncSession = Depends(get_db),
 ) -> SessionListResponse:
-    """Liste aller Sessions mit Paginierung."""
+    """Liste aller Sessions mit Paginierung und Filtern."""
+    from app.models.session import SessionListItem
+
+    # Build shared filter conditions
+    conditions = []
+    if workout_type:
+        conditions.append(WorkoutModel.workout_type == workout_type.value)
+    if date_from:
+        conditions.append(WorkoutModel.date >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        conditions.append(WorkoutModel.date <= datetime.combine(date_to, datetime.max.time()))
+    if training_type:
+        # Effective type: override takes priority, fallback to auto
+        conditions.append(
+            func.coalesce(
+                WorkoutModel.training_type_override,
+                WorkoutModel.training_type_auto,
+            )
+            == training_type
+        )
+    if search and search.strip():
+        conditions.append(WorkoutModel.notes.ilike(f"%{search.strip()}%"))
+
     # Count query
     count_query = select(func.count(WorkoutModel.id))
-    if workout_type:
-        count_query = count_query.where(WorkoutModel.workout_type == workout_type.value)
+    for cond in conditions:
+        count_query = count_query.where(cond)
     total = (await db.execute(count_query)).scalar() or 0
 
     # Data query
     query = select(WorkoutModel).order_by(WorkoutModel.date.desc())
-    if workout_type:
-        query = query.where(WorkoutModel.workout_type == workout_type.value)
+    for cond in conditions:
+        query = query.where(cond)
     query = query.offset((page - 1) * page_size).limit(page_size)
 
     result = await db.execute(query)
     workouts = result.scalars().all()
-
-    from app.models.session import SessionListItem
 
     return SessionListResponse(
         sessions=[SessionListItem.from_db(w) for w in workouts],

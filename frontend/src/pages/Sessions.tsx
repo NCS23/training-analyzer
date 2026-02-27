@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  Select,
+  Input,
 } from '@nordlig/components';
 import {
   Upload,
@@ -20,9 +22,12 @@ import {
   Activity,
   ChevronRight,
   EllipsisVertical,
+  Search,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
-import type { SessionSummary } from '@/api/training';
+import type { SessionSummary, SessionFilters } from '@/api/training';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -33,6 +38,12 @@ const workoutTypeLabels: Record<string, string> = {
   strength: 'Kraft',
 };
 
+const workoutTypeOptions = [
+  { value: '', label: 'Alle Typen' },
+  { value: 'running', label: 'Laufen' },
+  { value: 'strength', label: 'Kraft' },
+];
+
 const trainingTypeLabels: Record<string, string> = {
   recovery: 'Recovery',
   easy: 'Easy Run',
@@ -42,6 +53,17 @@ const trainingTypeLabels: Record<string, string> = {
   race: 'Wettkampf',
   hill_repeats: 'Bergsprints',
 };
+
+const trainingTypeOptions = [
+  { value: '', label: 'Alle Trainingstypen' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'easy', label: 'Easy Run' },
+  { value: 'long_run', label: 'Long Run' },
+  { value: 'tempo', label: 'Tempo' },
+  { value: 'intervals', label: 'Intervall' },
+  { value: 'race', label: 'Wettkampf' },
+  { value: 'hill_repeats', label: 'Bergsprints' },
+];
 
 const trainingTypeBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
   recovery: 'info',
@@ -99,6 +121,14 @@ function SessionsLoadingSkeleton() {
   );
 }
 
+/* ─── Filter helpers ─── */
+
+const EMPTY_FILTERS: SessionFilters = {};
+
+function hasActiveFilters(filters: SessionFilters): boolean {
+  return !!(filters.workoutType || filters.trainingType || filters.dateFrom || filters.dateTo || filters.search);
+}
+
 /* ─── Main Component ─── */
 
 export function SessionsPage() {
@@ -108,30 +138,70 @@ export function SessionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const loadSessions = useCallback(async (page: number) => {
-    setLoading(true);
-    try {
-      const result = await listSessions(page, PAGE_SIZE);
-      setSessions(result.sessions);
-      setTotal(result.total);
-      setCurrentPage(result.page);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Filters
+  const [filters, setFilters] = useState<SessionFilters>(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const loadSessions = useCallback(
+    async (page: number, currentFilters: SessionFilters) => {
+      setLoading(true);
+      try {
+        const result = await listSessions(page, PAGE_SIZE, currentFilters);
+        setSessions(result.sessions);
+        setTotal(result.total);
+        setCurrentPage(result.page);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    loadSessions(1);
-  }, [loadSessions]);
+    loadSessions(1, filters);
+  }, [loadSessions, filters]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const handlePageChange = (page: number) => {
-    loadSessions(page);
+    loadSessions(page, filters);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const updateFilter = (key: keyof SessionFilters, value: string | undefined) => {
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value || undefined };
+      // Clean undefined keys
+      Object.keys(next).forEach((k) => {
+        if (next[k as keyof SessionFilters] === undefined) {
+          delete next[k as keyof SessionFilters];
+        }
+      });
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      updateFilter('search', value.trim() || undefined);
+    }, 400);
+  };
+
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setSearchInput('');
+    setCurrentPage(1);
+  };
+
+  const active = hasActiveFilters(filters);
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
@@ -141,25 +211,104 @@ export function SessionsPage() {
             Sessions
           </h1>
           {!loading && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">{total} Trainings</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              {total} {active ? 'Treffer' : 'Trainings'}
+            </p>
           )}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-              <EllipsisVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              icon={<Upload className="w-4 h-4" />}
-              onSelect={() => navigate('/sessions/new')}
-            >
-              Training hochladen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant={active ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={() => setShowFilters((prev) => !prev)}
+            aria-label="Filter"
+            aria-expanded={showFilters}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {active && (
+              <span className="text-xs ml-1">Filter</span>
+            )}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+                <EllipsisVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                icon={<Upload className="w-4 h-4" />}
+                onSelect={() => navigate('/sessions/new')}
+              >
+                Training hochladen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
+
+      {/* Filter bar */}
+      {showFilters && (
+        <Card elevation="raised">
+          <CardBody>
+            <div className="space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
+                <Input
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  placeholder="Notizen durchsuchen..."
+                  inputSize="sm"
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Dropdowns + dates */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Select
+                  options={workoutTypeOptions}
+                  value={filters.workoutType ?? ''}
+                  onChange={(val) => updateFilter('workoutType', val || undefined)}
+                  inputSize="sm"
+                  placeholder="Workout-Typ"
+                />
+                <Select
+                  options={trainingTypeOptions}
+                  value={filters.trainingType ?? ''}
+                  onChange={(val) => updateFilter('trainingType', val || undefined)}
+                  inputSize="sm"
+                  placeholder="Trainingstyp"
+                />
+                <Input
+                  type="date"
+                  value={filters.dateFrom ?? ''}
+                  onChange={(e) => updateFilter('dateFrom', e.target.value || undefined)}
+                  inputSize="sm"
+                  aria-label="Datum von"
+                />
+                <Input
+                  type="date"
+                  value={filters.dateTo ?? ''}
+                  onChange={(e) => updateFilter('dateTo', e.target.value || undefined)}
+                  inputSize="sm"
+                  aria-label="Datum bis"
+                />
+              </div>
+
+              {/* Clear */}
+              {active && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="w-3.5 h-3.5" />
+                    Filter zurücksetzen
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {loading ? (
         <SessionsLoadingSkeleton />
@@ -170,15 +319,24 @@ export function SessionsPage() {
               <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
-              Keine Sessions vorhanden
+              {active ? 'Keine Treffer' : 'Keine Sessions vorhanden'}
             </h2>
             <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">
-              Lade dein erstes Training hoch, um hier deine Trainingshistorie zu sehen.
+              {active
+                ? 'Versuche andere Filterkriterien oder setze die Filter zurück.'
+                : 'Lade dein erstes Training hoch, um hier deine Trainingshistorie zu sehen.'}
             </p>
-            <Button variant="primary" onClick={() => navigate('/sessions/new')}>
-              <Upload className="w-4 h-4 mr-2" />
-              Training hochladen
-            </Button>
+            {active ? (
+              <Button variant="secondary" onClick={clearFilters}>
+                <X className="w-4 h-4 mr-2" />
+                Filter zurücksetzen
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={() => navigate('/sessions/new')}>
+                <Upload className="w-4 h-4 mr-2" />
+                Training hochladen
+              </Button>
+            )}
           </CardBody>
         </Card>
       ) : (
