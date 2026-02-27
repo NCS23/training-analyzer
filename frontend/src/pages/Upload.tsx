@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parseTraining, uploadTraining } from '@/api/training';
 import type { ParsedLap, TrainingParseResponse } from '@/api/training';
-import {
-  trainingTypeOptions,
-  lapTypeOptions,
-} from '@/constants/training';
+import { trainingTypeOptions, lapTypeOptions } from '@/constants/training';
 import {
   Button,
   Card,
@@ -193,7 +190,9 @@ export default function UploadPage() {
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       {/* Page Header */}
       <header>
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Training Upload</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Training Upload
+        </h1>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
           Lade eine Exportdatei deiner Sportuhr hoch
         </p>

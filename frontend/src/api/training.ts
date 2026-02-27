@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 
 export interface TrainingUploadParams {
-  csvFile: File;  // Kept for backwards compat, supports CSV and FIT
+  csvFile: File; // Kept for backwards compat, supports CSV and FIT
   trainingDate: string;
   trainingType: 'running' | 'strength';
   trainingSubtype?: string;
@@ -79,10 +79,7 @@ export interface SessionListResult {
   pageSize: number;
 }
 
-export async function listSessions(
-  page = 1,
-  pageSize = 20,
-): Promise<SessionListResult> {
+export async function listSessions(page = 1, pageSize = 20): Promise<SessionListResult> {
   const response = await apiClient.get<SessionListApiResponse>(
     `/api/v1/sessions?page=${page}&page_size=${pageSize}`,
   );
@@ -254,10 +251,7 @@ export async function updateSessionNotes(
   return response.data;
 }
 
-export async function updateSessionDate(
-  sessionId: number,
-  date: string,
-): Promise<SessionDetail> {
+export async function updateSessionDate(sessionId: number, date: string): Promise<SessionDetail> {
   const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/date`, {
     date,
   });
@@ -287,9 +281,7 @@ export interface SessionTrackResponse {
 }
 
 export async function getSessionTrack(sessionId: number): Promise<SessionTrackResponse> {
-  const response = await apiClient.get<SessionTrackResponse>(
-    `/api/v1/sessions/${sessionId}/track`,
-  );
+  const response = await apiClient.get<SessionTrackResponse>(`/api/v1/sessions/${sessionId}/track`);
   return response.data;
 }
 
@@ -312,9 +304,7 @@ export interface KmSplitsResponse {
 }
 
 export async function getKmSplits(sessionId: number): Promise<KmSplitsResponse> {
-  const response = await apiClient.get<KmSplitsResponse>(
-    `/api/v1/sessions/${sessionId}/km-splits`,
-  );
+  const response = await apiClient.get<KmSplitsResponse>(`/api/v1/sessions/${sessionId}/km-splits`);
   return response.data;
 }
 

@@ -67,7 +67,9 @@ export function DashboardPage() {
     return (
       <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+            Dashboard
+          </h1>
         </header>
 
         <Card elevation="raised">
@@ -97,7 +99,9 @@ export function DashboardPage() {
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       <header className="flex items-end justify-between gap-4 pb-2">
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Dashboard
+        </h1>
         <DropdownMenu>
           <DropdownMenuTrigger>
             <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
@@ -105,7 +109,10 @@ export function DashboardPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem icon={<Upload className="w-4 h-4" />} onSelect={() => navigate('/sessions/new')}>
+            <DropdownMenuItem
+              icon={<Upload className="w-4 h-4" />}
+              onSelect={() => navigate('/sessions/new')}
+            >
               Training hochladen
             </DropdownMenuItem>
           </DropdownMenuContent>

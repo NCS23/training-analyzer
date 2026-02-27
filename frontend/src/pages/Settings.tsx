@@ -82,7 +82,9 @@ export function SettingsPage() {
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Einstellungen</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Einstellungen
+        </h1>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
           Herzfrequenz-Daten fuer die Karvonen-Zonenberechnung.
         </p>
@@ -128,11 +130,7 @@ export function SettingsPage() {
           )}
         </CardBody>
         <CardFooter className="justify-end pt-4">
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={saving || !restingHr || !maxHr}
-          >
+          <Button variant="primary" onClick={handleSave} disabled={saving || !restingHr || !maxHr}>
             {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
           </Button>
         </CardFooter>
@@ -175,7 +173,6 @@ export function SettingsPage() {
           </CardBody>
         </Card>
       )}
-
     </div>
   );
 }

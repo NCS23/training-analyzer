@@ -100,10 +100,7 @@ export function generateInsights(session: SessionDetail): Insight[] {
       const bpmHint = baseUpperBpm ? ` (bei dir unter ${baseUpperBpm} bpm)` : '';
 
       // Easy/Recovery: too much time in high zones
-      if (
-        (effectiveType === 'easy' || effectiveType === 'recovery') &&
-        highPercent > 30
-      ) {
+      if ((effectiveType === 'easy' || effectiveType === 'recovery') && highPercent > 30) {
         const label = effectiveType === 'easy' ? 'Easy Run' : 'Recovery Run';
         const zoneNames = karvonen ? 'Tempo, Threshold oder VO2max' : 'Tempo';
         insights.push({
@@ -122,10 +119,7 @@ export function generateInsights(session: SessionDetail): Insight[] {
       }
 
       // Good zone distribution for easy/recovery
-      if (
-        (effectiveType === 'easy' || effectiveType === 'recovery') &&
-        lowPercent >= 85
-      ) {
+      if ((effectiveType === 'easy' || effectiveType === 'recovery') && lowPercent >= 85) {
         insights.push({
           type: 'positive',
           message: `${Math.round(lowPercent)}% in Recovery- und Base-Zonen — genau so baut man Grundlagenausdauer auf.`,
@@ -148,8 +142,7 @@ export function generateInsights(session: SessionDetail): Insight[] {
 
       if (paces.length >= 3) {
         const avgPace = paces.reduce((a, b) => a + b, 0) / paces.length;
-        const variance =
-          paces.reduce((s, p) => s + Math.pow(p - avgPace, 2), 0) / paces.length;
+        const variance = paces.reduce((s, p) => s + Math.pow(p - avgPace, 2), 0) / paces.length;
         const cv = (Math.sqrt(variance) / avgPace) * 100;
 
         if (cv < 5) {

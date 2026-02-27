@@ -13,7 +13,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@nordlig/components';
-import { Upload, Dumbbell, Footprints, Activity, ChevronRight, EllipsisVertical } from 'lucide-react';
+import {
+  Upload,
+  Dumbbell,
+  Footprints,
+  Activity,
+  ChevronRight,
+  EllipsisVertical,
+} from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { format, parseISO } from 'date-fns';
@@ -130,7 +137,9 @@ export function SessionsPage() {
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
       <header className="flex items-end justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Sessions</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+            Sessions
+          </h1>
           {!loading && (
             <p className="text-xs text-[var(--color-text-muted)] mt-1">{total} Trainings</p>
           )}
@@ -142,7 +151,10 @@ export function SessionsPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem icon={<Upload className="w-4 h-4" />} onSelect={() => navigate('/sessions/new')}>
+            <DropdownMenuItem
+              icon={<Upload className="w-4 h-4" />}
+              onSelect={() => navigate('/sessions/new')}
+            >
               Training hochladen
             </DropdownMenuItem>
           </DropdownMenuContent>

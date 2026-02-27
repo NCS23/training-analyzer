@@ -12,7 +12,14 @@ import {
   updateTrainingType,
   updateLapOverrides,
 } from '@/api/training';
-import type { SessionDetail, LapDetail, HRZone, TrainingTypeInfo, GPSTrack, KmSplit } from '@/api/training';
+import type {
+  SessionDetail,
+  LapDetail,
+  HRZone,
+  TrainingTypeInfo,
+  GPSTrack,
+  KmSplit,
+} from '@/api/training';
 import { RouteMap } from '@/features/maps';
 import {
   trainingTypeLabels,
@@ -208,7 +215,6 @@ export function SessionDetailPage() {
           // Silently fail — working HR zones are optional
         }
       }
-
     } catch {
       setError('Session konnte nicht geladen werden.');
     } finally {
@@ -349,12 +355,16 @@ export function SessionDetailPage() {
     try {
       const result = await recalculateSessionZones(sessionId, { resting_hr: rhr, max_hr: mhr });
       if (result.hr_zones) {
-        setSession((prev) => prev ? {
-          ...prev,
-          hr_zones: result.hr_zones,
-          athlete_resting_hr: result.athlete_resting_hr,
-          athlete_max_hr: result.athlete_max_hr,
-        } : prev);
+        setSession((prev) =>
+          prev
+            ? {
+                ...prev,
+                hr_zones: result.hr_zones,
+                athlete_resting_hr: result.athlete_resting_hr,
+                athlete_max_hr: result.athlete_max_hr,
+              }
+            : prev,
+        );
       }
       setShowRecalcDialog(false);
       toast({ title: 'HF-Zonen aktualisiert', variant: 'success' });
@@ -444,8 +454,7 @@ export function SessionDetailPage() {
       unit: 'km',
       icon: MapPin,
     });
-  if (session.pace)
-    metrics.push({ label: 'Pace', value: session.pace, unit: '/km', icon: Timer });
+  if (session.pace) metrics.push({ label: 'Pace', value: session.pace, unit: '/km', icon: Timer });
   if (session.hr_avg != null)
     metrics.push({
       label: 'Ø Herzfrequenz',
@@ -538,12 +547,17 @@ export function SessionDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Session löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten dieser Trainingseinheit werden unwiderruflich gelöscht.
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten dieser Trainingseinheit
+              werden unwiderruflich gelöscht.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="!bg-red-500 !text-white">
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="!bg-red-500 !text-white"
+            >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -584,10 +598,7 @@ export function SessionDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setShowRecalcDialog(false)}
-            >
+            <Button variant="secondary" onClick={() => setShowRecalcDialog(false)}>
               Abbrechen
             </Button>
             <Button
@@ -608,7 +619,12 @@ export function SessionDetailPage() {
             <Pencil className="w-3.5 h-3.5 shrink-0" />
             Bearbeitungsmodus
           </span>
-          <Button variant="secondary" size="sm" className="shrink-0 !border-[var(--color-border-info)] !text-[var(--color-text-info)]" onClick={() => setIsEditing(false)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0 !border-[var(--color-border-info)] !text-[var(--color-text-info)]"
+            onClick={() => setIsEditing(false)}
+          >
             <Check className="w-3.5 h-3.5" />
             Fertig
           </Button>
@@ -777,7 +793,9 @@ export function SessionDetailPage() {
       {/* HR Zones — side by side */}
       {hrZones && Object.keys(hrZones).length > 0 && (
         <section aria-label="Herzfrequenz-Zonen">
-          <div className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+          <div
+            className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+          >
             {/* Gesamt */}
             <Card elevation="raised">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -910,7 +928,9 @@ export function SessionDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
+                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
+                        #
+                      </TableHead>
                       <TableHead>Typ</TableHead>
                       <TableHead>Dauer</TableHead>
                       <TableHead>Distanz</TableHead>
@@ -921,7 +941,8 @@ export function SessionDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {localLaps.map((lap: LapDetail) => {
-                      const effectiveType = lap.user_override || lap.suggested_type || 'unclassified';
+                      const effectiveType =
+                        lap.user_override || lap.suggested_type || 'unclassified';
                       return (
                         <TableRow key={lap.lap_number}>
                           <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
@@ -960,7 +981,9 @@ export function SessionDetailPage() {
                           <TableCell>
                             {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
                           </TableCell>
-                          <TableCell>{lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}</TableCell>
+                          <TableCell>
+                            {lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}
+                          </TableCell>
                           <TableCell>
                             {lap.avg_cadence_spm != null ? `${lap.avg_cadence_spm}` : '-'}
                           </TableCell>
@@ -978,7 +1001,9 @@ export function SessionDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">km</TableHead>
+                      <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
+                        km
+                      </TableHead>
                       <TableHead>Dauer</TableHead>
                       <TableHead>Pace</TableHead>
                       <TableHead>Ø HF</TableHead>
@@ -1030,9 +1055,7 @@ export function SessionDetailPage() {
               />
             ) : (
               <p className="text-sm text-[var(--color-text-base)]">
-                {notes || (
-                  <span className="text-[var(--color-text-muted)]">Keine Notizen</span>
-                )}
+                {notes || <span className="text-[var(--color-text-muted)]">Keine Notizen</span>}
               </p>
             )}
           </CardBody>
