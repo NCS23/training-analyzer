@@ -20,7 +20,7 @@ import type {
   GPSTrack,
   KmSplit,
 } from '@/api/training';
-import { RouteMap } from '@/features/maps';
+import { RouteMap, ElevationProfile } from '@/features/maps';
 import {
   trainingTypeLabels,
   trainingTypeBadgeVariant,
@@ -150,6 +150,7 @@ export function SessionDetailPage() {
 
   // GPS track state
   const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   // Km splits state
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
@@ -709,25 +710,26 @@ export function SessionDetailPage() {
         </Card>
       </section>
 
-      {/* GPS Route Map */}
+      {/* GPS Route Map + Elevation Profile */}
       {gpsTrack && gpsTrack.points.length > 0 && (
         <section aria-label="GPS Route">
           <Card elevation="raised">
             <CardHeader>
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
             </CardHeader>
-            <CardBody>
-              <RouteMap points={gpsTrack.points} height="350px" />
-              {(gpsTrack.total_ascent_m != null || gpsTrack.total_descent_m != null) && (
-                <div className="flex gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
-                  {gpsTrack.total_ascent_m != null && (
-                    <span>↑ {gpsTrack.total_ascent_m} m Anstieg</span>
-                  )}
-                  {gpsTrack.total_descent_m != null && (
-                    <span>↓ {gpsTrack.total_descent_m} m Abstieg</span>
-                  )}
-                </div>
-              )}
+            <CardBody className="space-y-4">
+              <RouteMap
+                points={gpsTrack.points}
+                height="350px"
+                hoveredPointIndex={hoveredPointIndex}
+              />
+              <ElevationProfile
+                points={gpsTrack.points}
+                totalAscentM={gpsTrack.total_ascent_m}
+                totalDescentM={gpsTrack.total_descent_m}
+                onHoverPoint={setHoveredPointIndex}
+                hoveredPointIndex={hoveredPointIndex}
+              />
             </CardBody>
           </Card>
         </section>

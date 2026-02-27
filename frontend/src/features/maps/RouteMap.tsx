@@ -28,6 +28,8 @@ export interface RouteMapProps {
   height?: string;
   className?: string;
   darkMode?: boolean;
+  /** Index of point to highlight with a marker (for chart sync). */
+  hoveredPointIndex?: number | null;
 }
 
 export function RouteMap({
@@ -35,12 +37,15 @@ export function RouteMap({
   height = '300px',
   className = '',
   darkMode = false,
+  hoveredPointIndex,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
 
   const positions: L.LatLngTuple[] = points.map((p) => [p.lat, p.lng]);
 
+  // Map initialization
   useEffect(() => {
     if (!containerRef.current || positions.length === 0) return;
 
@@ -67,10 +72,41 @@ export function RouteMap({
     map.fitBounds(L.latLngBounds(positions), { padding: [30, 30] });
 
     return () => {
+      hoverMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
   }, [positions.length, darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hover marker (separate effect to avoid map re-init)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (hoveredPointIndex == null || !points[hoveredPointIndex]) {
+      // Remove marker when not hovering
+      if (hoverMarkerRef.current) {
+        hoverMarkerRef.current.remove();
+        hoverMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const p = points[hoveredPointIndex];
+    const latlng = L.latLng(p.lat, p.lng);
+
+    if (hoverMarkerRef.current) {
+      hoverMarkerRef.current.setLatLng(latlng);
+    } else {
+      hoverMarkerRef.current = L.circleMarker(latlng, {
+        radius: 6,
+        color: '#fff',
+        weight: 2,
+        fillColor: '#3b82f6',
+        fillOpacity: 1,
+      }).addTo(map);
+    }
+  }, [hoveredPointIndex, points]);
 
   if (positions.length === 0) return null;
 
