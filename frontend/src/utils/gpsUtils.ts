@@ -15,6 +15,8 @@ export interface ElevationDataPoint {
   seconds: number;
   /** Heart rate if available. */
   hr?: number;
+  /** Pace in min/km if available. */
+  paceMinKm?: number;
 }
 
 export interface ElevationSummary {
@@ -59,12 +61,30 @@ export function buildElevationProfile(points: GPSPoint[]): ElevationDataPoint[] 
       }
     }
 
+    // Calculate pace from speed or haversine fallback
+    let paceMinKm: number | undefined;
+    if (p.speed != null && p.speed > 0) {
+      paceMinKm = 1000 / p.speed / 60;
+    } else if (i > 0) {
+      const prev = points[i - 1];
+      const dt = p.seconds - prev.seconds;
+      const dist = haversineMeters(prev.lat, prev.lng, p.lat, p.lng);
+      if (dt > 0 && dist > 0.1 && dist < 500) {
+        paceMinKm = 1000 / (dist / dt) / 60;
+      }
+    }
+    // Clamp unreasonable paces
+    if (paceMinKm != null && (paceMinKm < 1 || paceMinKm > 30)) {
+      paceMinKm = undefined;
+    }
+
     result.push({
       distanceKm: Math.round((cumulativeDistM / 1000) * 1000) / 1000,
       altitudeM: p.alt,
       pointIndex: i,
       seconds: p.seconds,
       hr: p.hr,
+      paceMinKm,
     });
   }
 

@@ -94,9 +94,13 @@ export function buildPaceSegments(points: GPSPoint[], segmentLengthM = 100): Rou
 
   if (allPaces.length === 0) return [];
 
-  // Relative scale: normalize to session min/max
-  const minPace = Math.min(...allPaces);
-  const maxPace = Math.max(...allPaces);
+  // Percentile-based normalization (P5/P95) so outliers like
+  // cooldown walking don't compress the color range.
+  const sorted = [...allPaces].sort((a, b) => a - b);
+  const p5Idx = Math.floor(sorted.length * 0.05);
+  const p95Idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+  const minPace = sorted[p5Idx];
+  const maxPace = sorted[p95Idx];
   const paceRange = maxPace - minPace || 1;
 
   const segments: RouteSegment[] = [];
@@ -121,8 +125,8 @@ export function buildPaceSegments(points: GPSPoint[], segmentLengthM = 100): Rou
     if (acc.cumulativeDistM >= segmentLengthM) {
       if (acc.values.length > 0 && acc.positions.length >= 2) {
         const avgPace = acc.values.reduce((a, b) => a + b, 0) / acc.values.length;
-        // Higher t = faster (lower pace number = faster)
-        const t = 1 - (avgPace - minPace) / paceRange;
+        // t=0 → green (fast/low pace), t=1 → red (slow/high pace)
+        const t = (avgPace - minPace) / paceRange;
         segments.push({
           positions: acc.positions,
           color: paceColor(t),

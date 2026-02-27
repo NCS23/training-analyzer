@@ -48,13 +48,13 @@ export function MapLegend({ mode, minPace, maxPace, zones }: MapLegendProps) {
     if (minPace == null || maxPace == null) return null;
     return (
       <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-        <span className="tabular-nums">{formatPace(maxPace)}</span>
+        <span className="tabular-nums">{formatPace(minPace)}</span>
         <div
           className="h-2 flex-1 min-w-[80px] rounded-full"
           style={{ background: paceGradient() }}
-          aria-label={`Pace: ${formatPace(maxPace)} bis ${formatPace(minPace)} /km`}
+          aria-label={`Pace: ${formatPace(minPace)} bis ${formatPace(maxPace)} /km`}
         />
-        <span className="tabular-nums">{formatPace(minPace)}</span>
+        <span className="tabular-nums">{formatPace(maxPace)}</span>
         <span>/km</span>
       </div>
     );

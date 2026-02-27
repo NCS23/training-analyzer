@@ -3,23 +3,22 @@ import { paceColor, hrZoneColor, computeHRZoneBoundaries } from './colorScale';
 import type { HRZoneBoundary } from './colorScale';
 
 describe('paceColor', () => {
-  it('returns green-ish for t=0 (slowest)', () => {
+  it('returns green-ish for t=0 (fastest)', () => {
     const color = paceColor(0);
-    // Should be rgb(0,200,50) — green
-    expect(color).toMatch(/^rgb\(/);
-    expect(color).toContain(',200,');
+    // Should be rgb(0,220,30) — green
+    expect(color).toBe('rgb(0,220,30)');
   });
 
-  it('returns red-ish for t=1 (fastest)', () => {
+  it('returns red-ish for t=1 (slowest)', () => {
     const color = paceColor(1);
-    // Should be rgb(255,0,50) — red
-    expect(color).toMatch(/^rgb\(255,/);
+    // Should be rgb(255,0,30) — red
+    expect(color).toBe('rgb(255,0,30)');
   });
 
   it('returns yellow-ish for t=0.5 (middle)', () => {
     const color = paceColor(0.5);
-    // Should be rgb(255,200,50) — yellow
-    expect(color).toBe('rgb(255,200,50)');
+    // Should be rgb(255,220,30) — yellow
+    expect(color).toBe('rgb(255,220,30)');
   });
 
   it('clamps values below 0', () => {

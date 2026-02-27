@@ -44,8 +44,8 @@ export function computeHRZoneBoundaries(restingHr: number, maxHr: number): HRZon
 /* ------------------------------------------------------------------ */
 
 /**
- * Interpolate between green (slow) → yellow → red (fast).
- * @param t Normalized value 0..1 where 0=slowest, 1=fastest
+ * Interpolate between green (fast) → yellow → red (slow).
+ * @param t Normalized value 0..1 where 0=fastest, 1=slowest
  */
 export function paceColor(t: number): string {
   const clamped = Math.max(0, Math.min(1, t));
@@ -55,14 +55,14 @@ export function paceColor(t: number): string {
     // Green → Yellow
     const s = clamped * 2;
     r = Math.round(s * 255);
-    g = 200;
-    b = 50;
+    g = 220;
+    b = 30;
   } else {
     // Yellow → Red
     const s = (clamped - 0.5) * 2;
     r = 255;
-    g = Math.round(200 * (1 - s));
-    b = 50;
+    g = Math.round(220 * (1 - s));
+    b = 30;
   }
 
   return `rgb(${r},${g},${b})`;

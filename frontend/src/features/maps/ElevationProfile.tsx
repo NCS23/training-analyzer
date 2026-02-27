@@ -36,6 +36,12 @@ interface TooltipPayloadItem {
   payload: ElevationDataPoint;
 }
 
+function formatPace(paceMinPerKm: number): string {
+  const mins = Math.floor(paceMinPerKm);
+  const secs = Math.round((paceMinPerKm - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 function ElevationTooltipContent({
   active,
   payload,
@@ -49,6 +55,9 @@ function ElevationTooltipContent({
     <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1.5 text-xs shadow-sm">
       <p className="font-medium text-[var(--color-text-base)]">{Math.round(d.altitudeM)} m</p>
       <p className="text-[var(--color-text-muted)]">{d.distanceKm.toFixed(2)} km</p>
+      {d.paceMinKm != null && (
+        <p className="text-[var(--color-text-muted)]">{formatPace(d.paceMinKm)} /km</p>
+      )}
       {d.hr != null && <p className="text-[var(--color-text-muted)]">{d.hr} bpm</p>}
     </div>
   );
