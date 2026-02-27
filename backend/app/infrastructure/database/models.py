@@ -33,7 +33,7 @@ class WorkoutModel(Base):
 
     # GPS
     gps_track_json = Column(Text)
-    has_gps = Column(Boolean, default=False, nullable=False, server_default="0")
+    has_gps = Column(Boolean, default=False, nullable=False, server_default="false")
 
     # Athlete settings snapshot (at time of upload)
     athlete_resting_hr = Column(Integer)
