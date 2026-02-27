@@ -456,7 +456,7 @@ export function SettingsPage() {
               {zones.map((zone) => (
                 <div
                   key={zone.zone}
-                  className="flex items-center justify-between py-2 px-3 rounded-md"
+                  className="flex items-center justify-between py-2 px-3 rounded-[var(--radius-md)]"
                   style={{ backgroundColor: `${zone.color}15` }}
                 >
                   <div className="flex items-center gap-3">

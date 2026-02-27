@@ -665,7 +665,7 @@ export function SessionDetailPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="!bg-red-500 !text-white"
+              className="!bg-[var(--color-bg-error)] !text-[var(--color-text-on-error)]"
             >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>

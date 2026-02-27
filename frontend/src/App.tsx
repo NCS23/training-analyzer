@@ -27,8 +27,8 @@ class ErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div className="p-6 max-w-2xl mx-auto mt-12 space-y-4">
-          <h1 className="text-xl font-semibold text-red-600">Etwas ist schiefgelaufen</h1>
-          <pre className="text-sm bg-gray-100 dark:bg-gray-900 rounded p-4 overflow-auto whitespace-pre-wrap">
+          <h1 className="text-xl font-semibold text-[var(--color-text-error)]">Etwas ist schiefgelaufen</h1>
+          <pre className="text-sm bg-[var(--color-bg-subtle)] rounded-[var(--radius-component-sm)] p-4 overflow-auto whitespace-pre-wrap text-[var(--color-text-base)]">
             {this.state.error?.message}
             {'\n\n'}
             {this.state.error?.stack}
@@ -38,7 +38,7 @@ class ErrorBoundary extends Component<
               this.setState({ hasError: false, error: null });
               window.location.reload();
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
+            className="px-4 py-2 bg-[var(--color-interactive-primary)] text-[var(--color-text-on-primary)] rounded-[var(--radius-component-sm)] text-sm"
           >
             Seite neu laden
           </button>

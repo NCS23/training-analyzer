@@ -52,7 +52,7 @@ function ElevationTooltipContent({
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1.5 text-xs shadow-sm">
+    <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1.5 text-xs shadow-[var(--shadow-sm)]">
       <p className="font-medium text-[var(--color-text-base)]">{Math.round(d.altitudeM)} m</p>
       <p className="text-[var(--color-text-muted)]">{d.distanceKm.toFixed(2)} km</p>
       {d.paceMinKm != null && (

@@ -103,7 +103,7 @@ export function DashboardPage() {
 
         <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--color-primary-1-50)] mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-primary-1-50)] mb-4">
               <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
@@ -435,7 +435,7 @@ export function DashboardPage() {
           {recentSessions.map((session) => (
             <div
               key={session.id}
-              className="cursor-pointer hover:shadow-md transition-shadow rounded-[var(--radius-component-md)]"
+              className="cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow rounded-[var(--radius-component-md)]"
               onClick={() => navigate(`/sessions/${session.id}`)}
               role="button"
               tabIndex={0}
@@ -444,7 +444,7 @@ export function DashboardPage() {
               <Card elevation="raised" padding="compact">
                 <CardBody>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-[var(--color-primary-1-50)]">
+                    <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-[var(--radius-lg)] bg-[var(--color-primary-1-50)]">
                       <Activity className="w-4 h-4 text-[var(--color-primary-1-500)]" />
                     </div>
                     <div className="flex-1 min-w-0">

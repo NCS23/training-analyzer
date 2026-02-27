@@ -89,7 +89,7 @@ function SessionCardSkeleton() {
     <Card elevation="raised">
       <CardBody>
         <div className="flex items-center gap-4">
-          <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
+          <Skeleton className="w-11 h-11 rounded-[var(--radius-xl)] shrink-0" />
           <div className="flex-1 space-y-2.5">
             <Skeleton className="h-4 w-48 rounded" />
             <div className="flex gap-1.5">
@@ -296,7 +296,7 @@ export function SessionsPage() {
       ) : sessions.length === 0 ? (
         <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--color-primary-1-50)] mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-primary-1-50)] mb-4">
               <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
@@ -328,7 +328,7 @@ export function SessionsPage() {
               return (
                 <div
                   key={session.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow rounded-[var(--radius-component-md)]"
+                  className="cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow rounded-[var(--radius-component-md)]"
                   onClick={() => navigate(`/sessions/${session.id}`)}
                   role="button"
                   tabIndex={0}
@@ -337,7 +337,7 @@ export function SessionsPage() {
                   <Card elevation="raised">
                     <CardBody>
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-xl bg-[var(--color-primary-1-50)]">
+                        <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-[var(--radius-xl)] bg-[var(--color-primary-1-50)]">
                           {session.workout_type === 'strength' ? (
                             <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
                           ) : (
