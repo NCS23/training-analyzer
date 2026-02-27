@@ -5,16 +5,14 @@ services:
     image: postgres:15-alpine
     container_name: training-analyzer-db
     environment:
-      POSTGRES_USER: training_user
-      POSTGRES_PASSWORD: training_pass
-      POSTGRES_DB: training_analyzer
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-training_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-training_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-training_analyzer}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /volume1/docker/training-analyzer/postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U training_user"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-training_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,12 +25,11 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://training_user:training_pass@postgres:5432/training_analyzer
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-training_user}:${POSTGRES_PASSWORD:-training_pass}@postgres:5432/${POSTGRES_DB:-training_analyzer}
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - backend_data:/app/data
+      - /volume1/docker/training-analyzer/backend-data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,14 +41,10 @@ services:
       dockerfile: Dockerfile
     container_name: training-analyzer-frontend
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-  backend_data:
 
 networks:
   default:
