@@ -280,6 +280,9 @@ class TrainingCSVParser:
                     "heart_rate": int(row["hr (count/min)"])
                     if pd.notna(row.get("hr (count/min)"))
                     else None,
+                    "speed": float(row["speed (m/s)"])
+                    if pd.notna(row.get("speed (m/s)"))
+                    else None,
                     "timestamp": base_time + timedelta(seconds=float(row.get("since_start", 0))),
                 }
             )

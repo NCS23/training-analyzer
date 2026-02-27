@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { GPSPoint } from '@/api/training';
+import type { RouteSegment } from '@/utils/segmentBuilder';
+import type { HeatMapMode } from '@/utils/colorScale';
 
 /* ------------------------------------------------------------------ */
 /*  Tile config                                                        */
@@ -30,6 +32,10 @@ export interface RouteMapProps {
   darkMode?: boolean;
   /** Index of point to highlight with a marker (for chart sync). */
   hoveredPointIndex?: number | null;
+  /** Display mode: plain route, pace heat map, or HR heat map. */
+  mode?: HeatMapMode;
+  /** Colored segments for pace/hr modes. */
+  segments?: RouteSegment[];
 }
 
 export function RouteMap({
@@ -38,14 +44,17 @@ export function RouteMap({
   className = '',
   darkMode = false,
   hoveredPointIndex,
+  mode = 'route',
+  segments,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
 
   const positions: L.LatLngTuple[] = points.map((p) => [p.lat, p.lng]);
 
-  // Map initialization
+  // Map initialization (only tiles + bounds, no route drawing)
   useEffect(() => {
     if (!containerRef.current || positions.length === 0) return;
 
@@ -63,20 +72,50 @@ export function RouteMap({
     const tile = darkMode ? TILES.dark : TILES.light;
     L.tileLayer(tile.url, { attribution: tile.attribution }).addTo(map);
 
-    L.polyline(positions, {
-      color: '#3b82f6',
-      weight: 3,
-      opacity: 0.85,
-    }).addTo(map);
-
     map.fitBounds(L.latLngBounds(positions), { padding: [30, 30] });
 
     return () => {
       hoverMarkerRef.current = null;
+      routeLayerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
   }, [positions.length, darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Route rendering (separate effect — reacts to mode/segments changes)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || positions.length === 0) return;
+
+    // Remove previous route layer
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+
+    const layerGroup = L.layerGroup().addTo(map);
+    routeLayerRef.current = layerGroup;
+
+    if (mode !== 'route' && segments && segments.length > 0) {
+      // Heat map: colored segments
+      for (const seg of segments) {
+        const polyline = L.polyline(seg.positions, {
+          color: seg.color,
+          weight: 4,
+          opacity: 0.9,
+        });
+        polyline.bindTooltip(seg.label, { sticky: true, direction: 'top', offset: [0, -8] });
+        layerGroup.addLayer(polyline);
+      }
+    } else {
+      // Default: single blue line
+      L.polyline(positions, {
+        color: '#3b82f6',
+        weight: 3,
+        opacity: 0.85,
+      }).addTo(layerGroup);
+    }
+  }, [mode, segments, positions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hover marker (separate effect to avoid map re-init)
   useEffect(() => {

@@ -263,6 +263,7 @@ export interface GPSPoint {
   lng: number;
   alt?: number;
   hr?: number;
+  speed?: number; // m/s
   seconds: number;
 }
 

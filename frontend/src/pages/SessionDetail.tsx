@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getSession,
@@ -20,7 +20,10 @@ import type {
   GPSTrack,
   KmSplit,
 } from '@/api/training';
-import { RouteMap, ElevationProfile } from '@/features/maps';
+import { RouteMap, ElevationProfile, MapLegend } from '@/features/maps';
+import type { HeatMapMode } from '@/utils/colorScale';
+import { computeHRZoneBoundaries } from '@/utils/colorScale';
+import { buildPaceSegments, buildHRSegments } from '@/utils/segmentBuilder';
 import {
   trainingTypeLabels,
   trainingTypeBadgeVariant,
@@ -67,6 +70,8 @@ import {
   DatePicker,
   Input,
   Label,
+  ToggleGroup,
+  ToggleGroupItem,
   useToast,
 } from '@nordlig/components';
 import {
@@ -151,6 +156,7 @@ export function SessionDetailPage() {
   // GPS track state
   const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
+  const [mapMode, setMapMode] = useState<HeatMapMode>('route');
 
   // Km splits state
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
@@ -376,6 +382,28 @@ export function SessionDetailPage() {
     }
   };
 
+  // Heat map segment computation (must be before early returns)
+  const hrZoneBoundaries = useMemo(() => {
+    if (session?.athlete_resting_hr != null && session?.athlete_max_hr != null) {
+      return computeHRZoneBoundaries(session.athlete_resting_hr, session.athlete_max_hr);
+    }
+    return null;
+  }, [session?.athlete_resting_hr, session?.athlete_max_hr]);
+
+  const mapSegments = useMemo(() => {
+    if (!gpsTrack || gpsTrack.points.length < 2) return undefined;
+    if (mapMode === 'pace') return buildPaceSegments(gpsTrack.points);
+    if (mapMode === 'hr' && hrZoneBoundaries)
+      return buildHRSegments(gpsTrack.points, hrZoneBoundaries);
+    return undefined;
+  }, [gpsTrack, mapMode, hrZoneBoundaries]);
+
+  const paceRange = useMemo(() => {
+    if (mapMode !== 'pace' || !mapSegments || mapSegments.length === 0) return null;
+    const paces = mapSegments.map((s) => s.value);
+    return { min: Math.min(...paces), max: Math.max(...paces) };
+  }, [mapMode, mapSegments]);
+
   // Loading state
   if (loading) {
     return (
@@ -484,6 +512,8 @@ export function SessionDetailPage() {
       unit: 'spm',
       icon: Footprints,
     });
+
+  const canShowHR = hrZoneBoundaries != null;
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
@@ -714,15 +744,47 @@ export function SessionDetailPage() {
       {gpsTrack && gpsTrack.points.length > 0 && (
         <section aria-label="GPS Route">
           <Card elevation="raised">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={mapMode}
+                onValueChange={(val) => {
+                  if (val) setMapMode(val as HeatMapMode);
+                }}
+                className="gap-0"
+              >
+                <ToggleGroupItem value="route" className="text-xs px-2.5 py-1">
+                  Route
+                </ToggleGroupItem>
+                <ToggleGroupItem value="pace" className="text-xs px-2.5 py-1">
+                  Pace
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="hr"
+                  className="text-xs px-2.5 py-1"
+                  disabled={!canShowHR}
+                  title={canShowHR ? undefined : 'HF-Daten (Ruhe-/Max-HF) fehlen'}
+                >
+                  HF
+                </ToggleGroupItem>
+              </ToggleGroup>
             </CardHeader>
             <CardBody className="space-y-4">
               <RouteMap
                 points={gpsTrack.points}
                 height="350px"
                 hoveredPointIndex={hoveredPointIndex}
+                mode={mapMode}
+                segments={mapSegments}
               />
+              {mapMode === 'pace' && paceRange && (
+                <MapLegend mode="pace" minPace={paceRange.min} maxPace={paceRange.max} />
+              )}
+              {mapMode === 'hr' && hrZoneBoundaries && (
+                <MapLegend mode="hr" zones={hrZoneBoundaries} />
+              )}
               <ElevationProfile
                 points={gpsTrack.points}
                 totalAscentM={gpsTrack.total_ascent_m}

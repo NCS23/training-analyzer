@@ -60,6 +60,10 @@ def extract_gps_track(records: list[dict]) -> Optional[dict]:
         if hr is not None:
             point["hr"] = int(hr)
 
+        speed = record.get("enhanced_speed") or record.get("speed")
+        if speed is not None:
+            point["speed"] = round(float(speed), 2)
+
         points.append(point)
 
     if not points:
