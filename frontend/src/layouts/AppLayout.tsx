@@ -8,12 +8,13 @@ import {
   Icon,
   Text,
 } from '@nordlig/components';
-import { LayoutDashboard, Dumbbell, Settings } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, TrendingUp, Settings } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
+  { to: '/trends', label: 'Trends', icon: TrendingUp },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 

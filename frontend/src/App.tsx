@@ -76,6 +76,9 @@ const UploadPage = lazy(() => import('./pages/Upload'));
 const SettingsPage = lazy(() =>
   import('./pages/Settings').then((m) => ({ default: m.SettingsPage })),
 );
+const TrendsPage = lazy(() =>
+  import('./pages/Trends').then((m) => ({ default: m.TrendsPage })),
+);
 const NotFoundPage = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -102,6 +105,7 @@ function App() {
                   <Route path="/sessions" element={<SessionsPage />} />
                   <Route path="/sessions/new" element={<UploadPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
+                  <Route path="/trends" element={<TrendsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
