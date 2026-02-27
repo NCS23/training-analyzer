@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   Select,
   Input,
+  DatePicker,
 } from '@nordlig/components';
 import {
   Upload,
@@ -24,7 +25,6 @@ import {
   EllipsisVertical,
   Search,
   X,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary, SessionFilters } from '@/api/training';
@@ -140,7 +140,6 @@ export function SessionsPage() {
 
   // Filters
   const [filters, setFilters] = useState<SessionFilters>(EMPTY_FILTERS);
-  const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -216,99 +215,81 @@ export function SessionsPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant={active ? 'primary' : 'ghost'}
-            size="sm"
-            onClick={() => setShowFilters((prev) => !prev)}
-            aria-label="Filter"
-            aria-expanded={showFilters}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            {active && (
-              <span className="text-xs ml-1">Filter</span>
-            )}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-                <EllipsisVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                icon={<Upload className="w-4 h-4" />}
-                onSelect={() => navigate('/sessions/new')}
-              >
-                Training hochladen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+              <EllipsisVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              icon={<Upload className="w-4 h-4" />}
+              onSelect={() => navigate('/sessions/new')}
+            >
+              Training hochladen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
-      {/* Filter bar */}
-      {showFilters && (
-        <Card elevation="raised">
-          <CardBody>
-            <div className="space-y-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
-                <Input
-                  value={searchInput}
-                  onChange={handleSearchChange}
-                  placeholder="Notizen durchsuchen..."
-                  inputSize="sm"
-                  className="pl-9"
-                />
-              </div>
-
-              {/* Dropdowns + dates */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Select
-                  options={workoutTypeOptions}
-                  value={filters.workoutType ?? ''}
-                  onChange={(val) => updateFilter('workoutType', val || undefined)}
-                  inputSize="sm"
-                  placeholder="Workout-Typ"
-                />
-                <Select
-                  options={trainingTypeOptions}
-                  value={filters.trainingType ?? ''}
-                  onChange={(val) => updateFilter('trainingType', val || undefined)}
-                  inputSize="sm"
-                  placeholder="Trainingstyp"
-                />
-                <Input
-                  type="date"
-                  value={filters.dateFrom ?? ''}
-                  onChange={(e) => updateFilter('dateFrom', e.target.value || undefined)}
-                  inputSize="sm"
-                  aria-label="Datum von"
-                />
-                <Input
-                  type="date"
-                  value={filters.dateTo ?? ''}
-                  onChange={(e) => updateFilter('dateTo', e.target.value || undefined)}
-                  inputSize="sm"
-                  aria-label="Datum bis"
-                />
-              </div>
-
-              {/* Clear */}
-              {active && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    <X className="w-3.5 h-3.5" />
-                    Filter zurücksetzen
-                  </Button>
-                </div>
-              )}
+      {/* Filter bar — always visible */}
+      <Card elevation="raised">
+        <CardBody>
+          <div className="space-y-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
+              <Input
+                value={searchInput}
+                onChange={handleSearchChange}
+                placeholder="Notizen durchsuchen..."
+                inputSize="sm"
+                className="pl-9"
+              />
             </div>
-          </CardBody>
-        </Card>
-      )}
+
+            {/* Dropdowns + dates */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Select
+                options={workoutTypeOptions}
+                value={filters.workoutType ?? ''}
+                onChange={(val) => updateFilter('workoutType', val || undefined)}
+                inputSize="sm"
+                placeholder="Workout-Typ"
+              />
+              <Select
+                options={trainingTypeOptions}
+                value={filters.trainingType ?? ''}
+                onChange={(val) => updateFilter('trainingType', val || undefined)}
+                inputSize="sm"
+                placeholder="Trainingstyp"
+              />
+              <DatePicker
+                value={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
+                onChange={(d) => updateFilter('dateFrom', d ? format(d, 'yyyy-MM-dd') : undefined)}
+                inputSize="sm"
+                placeholder="Von"
+              />
+              <DatePicker
+                value={filters.dateTo ? parseISO(filters.dateTo) : undefined}
+                onChange={(d) => updateFilter('dateTo', d ? format(d, 'yyyy-MM-dd') : undefined)}
+                inputSize="sm"
+                placeholder="Bis"
+              />
+            </div>
+
+            {/* Clear */}
+            {active && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="w-3.5 h-3.5" />
+                  Filter zurücksetzen
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardBody>
+      </Card>
 
       {loading ? (
         <SessionsLoadingSkeleton />

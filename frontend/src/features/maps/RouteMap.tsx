@@ -147,6 +147,7 @@ export function RouteMap({
 
     const map = L.map(containerRef.current, {
       scrollWheelZoom: true,
+      maxZoom: 19,
     });
     mapRef.current = map;
 
@@ -156,7 +157,7 @@ export function RouteMap({
       maxZoom: tile.maxZoom,
     }).addTo(map);
 
-    map.fitBounds(L.latLngBounds(positions), { padding: [30, 30] });
+    map.fitBounds(L.latLngBounds(positions), { padding: [30, 30], maxZoom: 17 });
 
     return () => {
       hoverMarkerRef.current = null;
