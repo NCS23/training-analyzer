@@ -4,6 +4,8 @@ import 'leaflet/dist/leaflet.css';
 import type { GPSPoint } from '@/api/training';
 import type { RouteSegment } from '@/utils/segmentBuilder';
 import type { HeatMapMode } from '@/utils/colorScale';
+import type { KmMarkerData, LapMarkerData } from '@/utils/mapMarkers';
+import { buildKmPopupHtml, buildLapPopupHtml, LAP_TYPE_COLORS, LAP_TYPE_DASHED } from '@/utils/mapMarkers';
 
 /* ------------------------------------------------------------------ */
 /*  Tile config                                                        */
@@ -38,6 +40,22 @@ export interface RouteMapProps {
   mode?: HeatMapMode;
   /** Colored segments for pace/hr modes. */
   segments?: RouteSegment[];
+  /** Km boundary markers for split visualization. */
+  kmMarkers?: KmMarkerData[];
+  /** Show/hide km markers layer. */
+  showKmMarkers?: boolean;
+  /** Lap boundary markers. */
+  lapMarkers?: LapMarkerData[];
+  /** Show/hide lap markers layer. */
+  showLapMarkers?: boolean;
+  /** Called when a km marker is clicked. */
+  onKmMarkerClick?: (kmNumber: number) => void;
+  /** Called when a lap marker is clicked. */
+  onLapMarkerClick?: (lapNumber: number) => void;
+  /** Highlighted km number (for table row hover sync). */
+  highlightedKm?: number | null;
+  /** Highlighted lap number (for table row hover sync). */
+  highlightedLap?: number | null;
 }
 
 /** Format pace as M:SS string. */
@@ -100,13 +118,27 @@ export function RouteMap({
   onHoverPoint,
   mode = 'route',
   segments,
+  kmMarkers,
+  showKmMarkers = false,
+  lapMarkers,
+  showLapMarkers = false,
+  onKmMarkerClick,
+  onLapMarkerClick,
+  highlightedKm,
+  highlightedLap,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const kmMarkerLayerRef = useRef<L.LayerGroup | null>(null);
+  const lapMarkerLayerRef = useRef<L.LayerGroup | null>(null);
   const onHoverPointRef = useRef(onHoverPoint);
   onHoverPointRef.current = onHoverPoint;
+  const onKmMarkerClickRef = useRef(onKmMarkerClick);
+  onKmMarkerClickRef.current = onKmMarkerClick;
+  const onLapMarkerClickRef = useRef(onLapMarkerClick);
+  onLapMarkerClickRef.current = onLapMarkerClick;
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
@@ -138,6 +170,8 @@ export function RouteMap({
     return () => {
       hoverMarkerRef.current = null;
       routeLayerRef.current = null;
+      kmMarkerLayerRef.current = null;
+      lapMarkerLayerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -317,6 +351,83 @@ export function RouteMap({
         .openTooltip();
     }
   }, [hoveredPointIndex, points, mode]);
+
+  // Km marker layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (kmMarkerLayerRef.current) {
+      kmMarkerLayerRef.current.remove();
+      kmMarkerLayerRef.current = null;
+    }
+
+    if (!showKmMarkers || !kmMarkers || kmMarkers.length === 0) return;
+
+    const layer = L.layerGroup().addTo(map);
+    kmMarkerLayerRef.current = layer;
+
+    for (const km of kmMarkers) {
+      const isHighlighted = highlightedKm === km.km_number;
+      const label = km.is_partial ? km.distance_km.toFixed(1) : String(km.km_number);
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="
+          width:24px;height:24px;border-radius:50%;
+          background:${isHighlighted ? '#dbeafe' : '#fff'};
+          border:2px solid ${isHighlighted ? '#3b82f6' : '#374151'};
+          color:${isHighlighted ? '#1d4ed8' : '#374151'};
+          font-size:10px;font-weight:600;
+          display:flex;align-items:center;justify-content:center;
+          box-shadow:0 1px 3px rgba(0,0,0,0.2);
+        ">${label}</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+
+      const marker = L.marker([km.lat, km.lng], { icon, interactive: true });
+      marker.bindPopup(buildKmPopupHtml(km), { maxWidth: 200, className: 'km-split-popup' });
+      marker.on('click', () => onKmMarkerClickRef.current?.(km.km_number));
+      layer.addLayer(marker);
+    }
+  }, [kmMarkers, showKmMarkers, highlightedKm]);
+
+  // Lap marker layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (lapMarkerLayerRef.current) {
+      lapMarkerLayerRef.current.remove();
+      lapMarkerLayerRef.current = null;
+    }
+
+    if (!showLapMarkers || !lapMarkers || lapMarkers.length === 0) return;
+
+    const layer = L.layerGroup().addTo(map);
+    lapMarkerLayerRef.current = layer;
+
+    for (const lm of lapMarkers) {
+      const isHighlighted = highlightedLap === lm.lap_number;
+      const color = LAP_TYPE_COLORS[lm.type] || '#64748b';
+      const dashArray = LAP_TYPE_DASHED.has(lm.type) ? '4 4' : undefined;
+
+      const marker = L.circleMarker([lm.lat, lm.lng], {
+        radius: isHighlighted ? 10 : 8,
+        color,
+        weight: isHighlighted ? 4 : 3,
+        fillColor: '#ffffff',
+        fillOpacity: 0.9,
+        dashArray,
+        interactive: true,
+      });
+
+      marker.bindPopup(buildLapPopupHtml(lm), { maxWidth: 200, className: 'lap-popup' });
+      marker.on('click', () => onLapMarkerClickRef.current?.(lm.lap_number));
+      layer.addLayer(marker);
+    }
+  }, [lapMarkers, showLapMarkers, highlightedLap]);
 
   if (positions.length === 0) return null;
 

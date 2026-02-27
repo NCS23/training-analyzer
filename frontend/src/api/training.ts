@@ -187,6 +187,8 @@ export interface LapDetail {
   suggested_type: string | null;
   confidence: string | null;
   user_override: string | null;
+  start_seconds: number | null;
+  end_seconds: number | null;
 }
 
 export interface HRZone {
@@ -297,6 +299,8 @@ export interface KmSplit {
   elevation_gain_m: number | null;
   elevation_loss_m: number | null;
   is_partial: boolean;
+  boundary_lat: number | null;
+  boundary_lng: number | null;
 }
 
 export interface KmSplitsResponse {

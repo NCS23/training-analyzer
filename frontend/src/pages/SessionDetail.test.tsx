@@ -64,6 +64,8 @@ const mockSession: SessionDetail = {
       suggested_type: 'warmup',
       confidence: 'high',
       user_override: 'warmup',
+      start_seconds: 0,
+      end_seconds: 300,
     },
     {
       lap_number: 2,
@@ -79,6 +81,8 @@ const mockSession: SessionDetail = {
       suggested_type: 'tempo',
       confidence: 'medium',
       user_override: 'tempo',
+      start_seconds: 300,
+      end_seconds: 900,
     },
   ],
   hr_zones: {

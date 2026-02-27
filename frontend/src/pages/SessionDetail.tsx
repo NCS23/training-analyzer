@@ -24,6 +24,7 @@ import { RouteMap, ElevationProfile, MapLegend } from '@/features/maps';
 import type { HeatMapMode } from '@/utils/colorScale';
 import { computeHRZoneBoundaries } from '@/utils/colorScale';
 import { buildPaceSegments, buildHRSegments } from '@/utils/segmentBuilder';
+import type { KmMarkerData, LapMarkerData } from '@/utils/mapMarkers';
 import {
   trainingTypeLabels,
   trainingTypeBadgeVariant,
@@ -161,6 +162,12 @@ export function SessionDetailPage() {
   // Km splits state
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
   const [splitsTab, setSplitsTab] = useState<'laps' | 'km'>('laps');
+
+  // Map overlay markers
+  const [showKmMarkers, setShowKmMarkers] = useState(true);
+  const [showLapMarkers, setShowLapMarkers] = useState(true);
+  const [highlightedKm, setHighlightedKm] = useState<number | null>(null);
+  const [highlightedLap, setHighlightedLap] = useState<number | null>(null);
 
   // Edit mode — auto-open when laps need review
   const [isEditing, setIsEditing] = useState(false);
@@ -403,6 +410,58 @@ export function SessionDetailPage() {
     const paces = mapSegments.map((s) => s.value);
     return { min: Math.min(...paces), max: Math.max(...paces) };
   }, [mapMode, mapSegments]);
+
+  // Km marker data from splits (boundary coordinates)
+  const kmMarkerData = useMemo((): KmMarkerData[] | undefined => {
+    if (!kmSplits) return undefined;
+    return kmSplits
+      .filter((s) => s.boundary_lat != null && s.boundary_lng != null)
+      .map((s) => ({
+        km_number: s.km_number,
+        lat: s.boundary_lat!,
+        lng: s.boundary_lng!,
+        pace_formatted: s.pace_formatted,
+        avg_hr_bpm: s.avg_hr_bpm,
+        duration_formatted: s.duration_formatted,
+        elevation_gain_m: s.elevation_gain_m,
+        elevation_loss_m: s.elevation_loss_m,
+        is_partial: s.is_partial,
+        distance_km: s.distance_km,
+      }));
+  }, [kmSplits]);
+
+  // Lap marker data: correlate laps with GPS points via start_seconds
+  const lapMarkerData = useMemo((): LapMarkerData[] | undefined => {
+    if (!localLaps || localLaps.length === 0 || !gpsTrack) return undefined;
+    const pts = gpsTrack.points;
+    if (pts.length === 0) return undefined;
+
+    return localLaps
+      .filter((lap) => lap.start_seconds != null)
+      .map((lap) => {
+        const targetSec = lap.start_seconds!;
+        // Binary search for nearest GPS point
+        let lo = 0;
+        let hi = pts.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (pts[mid].seconds < targetSec) lo = mid + 1;
+          else hi = mid;
+        }
+        const pt = pts[lo];
+        const type = lap.user_override || lap.suggested_type || 'unclassified';
+        return {
+          lap_number: lap.lap_number,
+          lat: pt.lat,
+          lng: pt.lng,
+          type,
+          pace_formatted: lap.pace_formatted,
+          duration_formatted: lap.duration_formatted,
+          avg_hr_bpm: lap.avg_hr_bpm,
+          distance_km: lap.distance_km,
+        };
+      });
+  }, [localLaps, gpsTrack]);
 
   // Loading state
   if (loading) {
@@ -771,6 +830,33 @@ export function SessionDetailPage() {
                 </ToggleGroupItem>
               </ToggleGroup>
             </CardHeader>
+            {/* Overlay toggles */}
+            {(kmMarkerData?.length || lapMarkerData?.length) && (
+              <div className="flex items-center gap-4 px-[var(--spacing-card-padding-normal)] pb-1 text-xs text-[var(--color-text-muted)]">
+                {kmMarkerData && kmMarkerData.length > 0 && (
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
+                    <input
+                      type="checkbox"
+                      checked={showKmMarkers}
+                      onChange={(e) => setShowKmMarkers(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-[var(--color-primary-1-500)]"
+                    />
+                    Km-Marker
+                  </label>
+                )}
+                {lapMarkerData && lapMarkerData.length > 0 && (
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
+                    <input
+                      type="checkbox"
+                      checked={showLapMarkers}
+                      onChange={(e) => setShowLapMarkers(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-[var(--color-primary-1-500)]"
+                    />
+                    Lap-Marker
+                  </label>
+                )}
+              </div>
+            )}
             <CardBody className="space-y-4">
               <RouteMap
                 points={gpsTrack.points}
@@ -779,6 +865,20 @@ export function SessionDetailPage() {
                 onHoverPoint={setHoveredPointIndex}
                 mode={mapMode}
                 segments={mapSegments}
+                kmMarkers={kmMarkerData}
+                showKmMarkers={showKmMarkers}
+                lapMarkers={lapMarkerData}
+                showLapMarkers={showLapMarkers}
+                onKmMarkerClick={(km) => {
+                  setSplitsTab('km');
+                  setHighlightedKm(km);
+                }}
+                onLapMarkerClick={(lap) => {
+                  setSplitsTab('laps');
+                  setHighlightedLap(lap);
+                }}
+                highlightedKm={highlightedKm}
+                highlightedLap={highlightedLap}
               />
               {mapMode === 'pace' && paceRange && (
                 <MapLegend mode="pace" minPace={paceRange.min} maxPace={paceRange.max} />
@@ -1009,7 +1109,16 @@ export function SessionDetailPage() {
                       const effectiveType =
                         lap.user_override || lap.suggested_type || 'unclassified';
                       return (
-                        <TableRow key={lap.lap_number}>
+                        <TableRow
+                          key={lap.lap_number}
+                          onMouseEnter={() => setHighlightedLap(lap.lap_number)}
+                          onMouseLeave={() => setHighlightedLap(null)}
+                          className={
+                            highlightedLap === lap.lap_number
+                              ? 'bg-[var(--color-bg-info-subtle)]'
+                              : ''
+                          }
+                        >
                           <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
                             {lap.lap_number}
                           </TableCell>
@@ -1078,7 +1187,16 @@ export function SessionDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {kmSplits.map((split) => (
-                      <TableRow key={split.km_number}>
+                      <TableRow
+                        key={split.km_number}
+                        onMouseEnter={() => setHighlightedKm(split.km_number)}
+                        onMouseLeave={() => setHighlightedKm(null)}
+                        className={
+                          highlightedKm === split.km_number
+                            ? 'bg-[var(--color-bg-info-subtle)]'
+                            : ''
+                        }
+                      >
                         <TableCell className="font-medium text-[var(--color-text-muted)] sticky left-0 z-10 bg-[var(--color-bg-elevated)]">
                           {split.is_partial ? split.distance_km : split.km_number}
                         </TableCell>

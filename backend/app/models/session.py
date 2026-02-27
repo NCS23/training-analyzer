@@ -31,6 +31,8 @@ class LapResponse(BaseModel):
     suggested_type: Optional[str] = None
     confidence: Optional[str] = None
     user_override: Optional[str] = None
+    start_seconds: Optional[float] = None
+    end_seconds: Optional[float] = None
 
 
 class HRZoneResponse(BaseModel):
@@ -102,6 +104,13 @@ class SessionResponse(BaseModel):
         laps = None
         if model.laps_json:
             laps_raw = json.loads(str(model.laps_json))
+            # Compute cumulative start/end seconds for each lap
+            elapsed = 0.0
+            for lap_dict in laps_raw:
+                dur = lap_dict.get("duration_seconds", 0)
+                lap_dict["start_seconds"] = elapsed
+                lap_dict["end_seconds"] = elapsed + dur
+                elapsed += dur
             laps = [LapResponse(**lap) for lap in laps_raw]
 
         hr_zones = None

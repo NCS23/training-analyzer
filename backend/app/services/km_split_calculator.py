@@ -52,6 +52,8 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
             remaining = km_boundary - cumulative_distance
             ratio = remaining / seg_dist if seg_dist > 0 else 1.0
             boundary_seconds = prev["seconds"] + ratio * (curr["seconds"] - prev["seconds"])
+            boundary_lat = prev["lat"] + ratio * (curr["lat"] - prev["lat"])
+            boundary_lng = prev["lng"] + ratio * (curr["lng"] - prev["lng"])
 
             duration_sec = max(1, int(round(boundary_seconds - km_start_seconds)))
             pace: Optional[float] = duration_sec / 60.0
@@ -67,6 +69,8 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
                     elev_gain,
                     elev_loss,
                     is_partial=False,
+                    boundary_lat=round(boundary_lat, 6),
+                    boundary_lng=round(boundary_lng, 6),
                 )
             )
 
@@ -109,6 +113,8 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
                 elev_gain,
                 elev_loss,
                 is_partial=True,
+                boundary_lat=round(float(last_point["lat"]), 6),
+                boundary_lng=round(float(last_point["lng"]), 6),
             )
         )
 
@@ -124,6 +130,8 @@ def _build_split(
     elev_gain: Optional[float],
     elev_loss: Optional[float],
     is_partial: bool,
+    boundary_lat: Optional[float] = None,
+    boundary_lng: Optional[float] = None,
 ) -> dict:
     """Build a single km split dict."""
     pace_formatted = None
@@ -149,6 +157,8 @@ def _build_split(
         "elevation_gain_m": elev_gain,
         "elevation_loss_m": elev_loss,
         "is_partial": is_partial,
+        "boundary_lat": boundary_lat,
+        "boundary_lng": boundary_lng,
     }
 
 
