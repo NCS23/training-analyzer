@@ -6,22 +6,8 @@ import type { RouteSegment } from '@/utils/segmentBuilder';
 import type { HeatMapMode } from '@/utils/colorScale';
 import type { KmMarkerData, LapMarkerData } from '@/utils/mapMarkers';
 import { buildKmPopupHtml, buildLapPopupHtml, LAP_TYPE_COLORS, LAP_TYPE_DASHED } from '@/utils/mapMarkers';
-
-/* ------------------------------------------------------------------ */
-/*  Tile config                                                        */
-/* ------------------------------------------------------------------ */
-
-const TILES = {
-  light: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-  },
-} as const;
+import type { MapTileStyle } from './tileStyles';
+import { TILES } from './tileStyles';
 
 /* ------------------------------------------------------------------ */
 /*  RouteMap — plain Leaflet, no react-leaflet wrapper                 */
@@ -31,7 +17,8 @@ export interface RouteMapProps {
   points: GPSPoint[];
   height?: string;
   className?: string;
-  darkMode?: boolean;
+  /** Map tile style. Default: 'streets'. */
+  tileStyle?: MapTileStyle;
   /** Index of point to highlight with a marker (for chart sync). */
   hoveredPointIndex?: number | null;
   /** Called when user hovers on route. pointIndex into GPSPoint[], or null. */
@@ -113,7 +100,7 @@ export function RouteMap({
   points,
   height = '300px',
   className = '',
-  darkMode = false,
+  tileStyle = 'streets',
   hoveredPointIndex,
   onHoverPoint,
   mode = 'route',
@@ -131,6 +118,7 @@ export function RouteMap({
   const mapRef = useRef<L.Map | null>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const kmMarkerLayerRef = useRef<L.LayerGroup | null>(null);
   const lapMarkerLayerRef = useRef<L.LayerGroup | null>(null);
   const onHoverPointRef = useRef(onHoverPoint);
@@ -162,20 +150,39 @@ export function RouteMap({
     });
     mapRef.current = map;
 
-    const tile = darkMode ? TILES.dark : TILES.light;
-    L.tileLayer(tile.url, { attribution: tile.attribution }).addTo(map);
+    const tile = TILES[tileStyle] || TILES.streets;
+    tileLayerRef.current = L.tileLayer(tile.url, {
+      attribution: tile.attribution,
+      maxZoom: tile.maxZoom,
+    }).addTo(map);
 
     map.fitBounds(L.latLngBounds(positions), { padding: [30, 30] });
 
     return () => {
       hoverMarkerRef.current = null;
       routeLayerRef.current = null;
+      tileLayerRef.current = null;
       kmMarkerLayerRef.current = null;
       lapMarkerLayerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
-  }, [positions.length, darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [positions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tile layer swap (separate effect — no map reinit on style change)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+    const tile = TILES[tileStyle] || TILES.streets;
+    tileLayerRef.current = L.tileLayer(tile.url, {
+      attribution: tile.attribution,
+      maxZoom: tile.maxZoom,
+    }).addTo(map);
+  }, [tileStyle]);
 
   // Find nearest GPS point index to a map latlng
   const findNearestPointIndex = useCallback(

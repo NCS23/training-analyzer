@@ -20,7 +20,8 @@ import type {
   GPSTrack,
   KmSplit,
 } from '@/api/training';
-import { RouteMap, ElevationProfile, MapLegend } from '@/features/maps';
+import { RouteMap, ElevationProfile, MapLegend, MAP_TILE_LABELS } from '@/features/maps';
+import type { MapTileStyle } from '@/features/maps';
 import type { HeatMapMode } from '@/utils/colorScale';
 import { computeHRZoneBoundaries } from '@/utils/colorScale';
 import { buildPaceSegments, buildHRSegments } from '@/utils/segmentBuilder';
@@ -158,6 +159,14 @@ export function SessionDetailPage() {
   const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
   const [mapMode, setMapMode] = useState<HeatMapMode>('route');
+  const [tileStyle, setTileStyle] = useState<MapTileStyle>(() => {
+    try {
+      const stored = localStorage.getItem('mapTileStyle');
+      return (stored as MapTileStyle) || 'streets';
+    } catch {
+      return 'streets';
+    }
+  });
 
   // Km splits state
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
@@ -248,6 +257,15 @@ export function SessionDetailPage() {
       toast({ title: 'Training erfolgreich hochgeladen', variant: 'success' });
     }
   }, [location.state, toast]);
+
+  // Persist tile style preference
+  useEffect(() => {
+    try {
+      localStorage.setItem('mapTileStyle', tileStyle);
+    } catch {
+      // localStorage unavailable (e.g. test env)
+    }
+  }, [tileStyle]);
 
   // Auto-save notes with debounce
   const saveNotes = useCallback(
@@ -803,32 +821,46 @@ export function SessionDetailPage() {
       {gpsTrack && gpsTrack.points.length > 0 && (
         <section aria-label="GPS Route">
           <Card elevation="raised">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={mapMode}
-                onValueChange={(val) => {
-                  if (val) setMapMode(val as HeatMapMode);
-                }}
-                className="gap-0"
-              >
-                <ToggleGroupItem value="route" className="text-xs px-2.5 py-1">
-                  Route
-                </ToggleGroupItem>
-                <ToggleGroupItem value="pace" className="text-xs px-2.5 py-1">
-                  Pace
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="hr"
-                  className="text-xs px-2.5 py-1"
-                  disabled={!canShowHR}
-                  title={canShowHR ? undefined : 'HF-Daten (Ruhe-/Max-HF) fehlen'}
+              <div className="flex items-center gap-2">
+                <Select
+                  options={Object.entries(MAP_TILE_LABELS).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                  value={tileStyle}
+                  onChange={(val) => {
+                    if (val) setTileStyle(val as MapTileStyle);
+                  }}
+                  inputSize="sm"
+                  className="w-28"
+                />
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={mapMode}
+                  onValueChange={(val) => {
+                    if (val) setMapMode(val as HeatMapMode);
+                  }}
+                  className="gap-0"
                 >
-                  HF
-                </ToggleGroupItem>
-              </ToggleGroup>
+                  <ToggleGroupItem value="route" className="text-xs px-2.5 py-1">
+                    Route
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="pace" className="text-xs px-2.5 py-1">
+                    Pace
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="hr"
+                    className="text-xs px-2.5 py-1"
+                    disabled={!canShowHR}
+                    title={canShowHR ? undefined : 'HF-Daten (Ruhe-/Max-HF) fehlen'}
+                  >
+                    HF
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </CardHeader>
             {/* Overlay toggles */}
             {(kmMarkerData?.length || lapMarkerData?.length) && (
@@ -861,6 +893,7 @@ export function SessionDetailPage() {
               <RouteMap
                 points={gpsTrack.points}
                 height="350px"
+                tileStyle={tileStyle}
                 hoveredPointIndex={hoveredPointIndex}
                 onHoverPoint={setHoveredPointIndex}
                 mode={mapMode}
