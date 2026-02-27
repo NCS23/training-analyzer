@@ -10,10 +10,7 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lng2 - lng1)
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    )
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -57,13 +54,19 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
             boundary_seconds = prev["seconds"] + ratio * (curr["seconds"] - prev["seconds"])
 
             duration_sec = max(1, int(round(boundary_seconds - km_start_seconds)))
-            pace = duration_sec / 60.0
+            pace: Optional[float] = duration_sec / 60.0
             elev_gain, elev_loss = _calc_elevation(km_alt_values)
 
             splits.append(
                 _build_split(
-                    km_number, 1.0, duration_sec, pace,
-                    km_hr_values, elev_gain, elev_loss, is_partial=False,
+                    km_number,
+                    1.0,
+                    duration_sec,
+                    pace,
+                    km_hr_values,
+                    elev_gain,
+                    elev_loss,
+                    is_partial=False,
                 )
             )
 
@@ -98,8 +101,14 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
 
         splits.append(
             _build_split(
-                km_number, round(partial_km, 2), duration_sec, pace,
-                km_hr_values, elev_gain, elev_loss, is_partial=True,
+                km_number,
+                round(partial_km, 2),
+                duration_sec,
+                pace,
+                km_hr_values,
+                elev_gain,
+                elev_loss,
+                is_partial=True,
             )
         )
 

@@ -3,7 +3,6 @@
 import math
 from typing import Optional
 
-
 # FIT semicircles to degrees conversion factor
 SEMICIRCLES_TO_DEGREES = 180.0 / (2**31)
 
@@ -174,9 +173,7 @@ def _point_line_distance(point: dict, start: dict, end: dict) -> float:
     dy = end["lat"] - start["lat"]
 
     if dx == 0 and dy == 0:
-        return math.sqrt(
-            (point["lng"] - start["lng"]) ** 2 + (point["lat"] - start["lat"]) ** 2
-        )
+        return math.sqrt((point["lng"] - start["lng"]) ** 2 + (point["lat"] - start["lat"]) ** 2)
 
     t = ((point["lng"] - start["lng"]) * dx + (point["lat"] - start["lat"]) * dy) / (
         dx * dx + dy * dy

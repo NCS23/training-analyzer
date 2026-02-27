@@ -103,10 +103,10 @@ async def _parse_and_classify(
 @router.post("/parse", response_model=SessionParseResponse)
 async def parse_csv(
     csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
-    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),  # noqa: ARG001
     training_type: TrainingType = Form(..., description="Trainingstyp"),
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
-    notes: Optional[str] = Form(None, description="Notizen"),
+    notes: Optional[str] = Form(None, description="Notizen"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> SessionParseResponse:
     """Parse CSV und klassifiziere — ohne Session zu erstellen."""
@@ -130,8 +130,12 @@ async def parse_csv(
         },
         metadata={
             **parsed["metadata"],
-            "training_type_auto": parsed["classification"].training_type if parsed["classification"] else None,
-            "training_type_confidence": parsed["classification"].confidence if parsed["classification"] else None,
+            "training_type_auto": parsed["classification"].training_type
+            if parsed["classification"]
+            else None,
+            "training_type_confidence": parsed["classification"].confidence
+            if parsed["classification"]
+            else None,
         },
     )
 
@@ -139,10 +143,10 @@ async def parse_csv(
 @router.post("/parse/fit", response_model=SessionParseResponse)
 async def parse_fit(
     fit_file: UploadFile = File(..., description="Garmin/Wahoo FIT File"),
-    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
+    training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),  # noqa: ARG001
     training_type: TrainingType = Form(..., description="Trainingstyp"),
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
-    notes: Optional[str] = Form(None, description="Notizen"),
+    notes: Optional[str] = Form(None, description="Notizen"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> SessionParseResponse:
     """Parse FIT file und klassifiziere — ohne Session zu erstellen."""
@@ -153,7 +157,9 @@ async def parse_fit(
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="FIT-Datei ist leer.")
 
-    parsed = await _parse_and_classify(content, training_type, training_subtype, db, parser=fit_parser)
+    parsed = await _parse_and_classify(
+        content, training_type, training_subtype, db, parser=fit_parser
+    )
 
     if not parsed["success"]:
         return SessionParseResponse(success=False, errors=parsed["errors"])
@@ -166,8 +172,12 @@ async def parse_fit(
         },
         metadata={
             **parsed["metadata"],
-            "training_type_auto": parsed["classification"].training_type if parsed["classification"] else None,
-            "training_type_confidence": parsed["classification"].confidence if parsed["classification"] else None,
+            "training_type_auto": parsed["classification"].training_type
+            if parsed["classification"]
+            else None,
+            "training_type_confidence": parsed["classification"].confidence
+            if parsed["classification"]
+            else None,
         },
     )
 
@@ -213,7 +223,10 @@ async def upload_csv(
 
     # Apply training type override from review step
     effective_training_type_override = training_type_override
-    if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
+    if (
+        effective_training_type_override
+        and effective_training_type_override not in VALID_TRAINING_TYPES
+    ):
         effective_training_type_override = None
 
     # GPS Track
@@ -289,7 +302,9 @@ async def upload_fit(
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="FIT-Datei ist leer.")
 
-    parsed = await _parse_and_classify(content, training_type, training_subtype, db, parser=fit_parser)
+    parsed = await _parse_and_classify(
+        content, training_type, training_subtype, db, parser=fit_parser
+    )
 
     if not parsed["success"]:
         return SessionUploadResponse(success=False, errors=parsed["errors"])
@@ -311,7 +326,10 @@ async def upload_fit(
 
     # Apply training type override
     effective_training_type_override = training_type_override
-    if effective_training_type_override and effective_training_type_override not in VALID_TRAINING_TYPES:
+    if (
+        effective_training_type_override
+        and effective_training_type_override not in VALID_TRAINING_TYPES
+    ):
         effective_training_type_override = None
 
     gps_track = parsed.get("gps_track")
@@ -471,8 +489,8 @@ async def get_working_zones(
         return {"hr_zones_working": None}
 
     # Use session's stored athlete settings (historized), fallback to current
-    resting_hr = workout.athlete_resting_hr
-    max_hr = workout.athlete_max_hr
+    resting_hr: Optional[int] = workout.athlete_resting_hr  # type: ignore[assignment]
+    max_hr: Optional[int] = workout.athlete_max_hr  # type: ignore[assignment]
     if resting_hr is None or max_hr is None:
         resting_hr, max_hr = await _get_athlete_hr_settings(db)
 
@@ -515,13 +533,15 @@ async def update_lap_overrides(
     await db.refresh(workout)
 
     # Build response with working-laps aggregation (use session's stored settings)
-    resting_hr = workout.athlete_resting_hr
-    max_hr = workout.athlete_max_hr
+    resting_hr: Optional[int] = workout.athlete_resting_hr  # type: ignore[assignment]
+    max_hr: Optional[int] = workout.athlete_max_hr  # type: ignore[assignment]
     if resting_hr is None or max_hr is None:
         resting_hr, max_hr = await _get_athlete_hr_settings(db)
     gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
     laps = [LapResponse(**lap) for lap in laps_raw]
-    summary_working, hr_zones_working = _calculate_working_laps_metrics(laps_raw, resting_hr, max_hr, gps_track)
+    summary_working, hr_zones_working = _calculate_working_laps_metrics(
+        laps_raw, resting_hr, max_hr, gps_track
+    )
 
     return LapOverrideResponse(
         success=True,

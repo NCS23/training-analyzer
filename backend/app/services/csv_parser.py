@@ -189,7 +189,9 @@ class TrainingCSVParser:
             "avg_hr_bpm": round(hr_values.mean()) if len(hr_values) > 0 else None,
             "max_hr_bpm": int(hr_values.max()) if len(hr_values) > 0 else None,
             "min_hr_bpm": int(hr_values.min()) if len(hr_values) > 0 else None,
-            "avg_cadence_spm": round(cadence_values.mean() * 2) if len(cadence_values) > 0 else None,
+            "avg_cadence_spm": round(cadence_values.mean() * 2)
+            if len(cadence_values) > 0
+            else None,
         }
 
     def _calculate_running_summary(self, df: pd.DataFrame) -> dict:
@@ -211,7 +213,9 @@ class TrainingCSVParser:
             "avg_hr_bpm": round(hr_values.mean()) if len(hr_values) > 0 else None,
             "max_hr_bpm": int(hr_values.max()) if len(hr_values) > 0 else None,
             "min_hr_bpm": int(hr_values.min()) if len(hr_values) > 0 else None,
-            "avg_cadence_spm": round(cadence_values.mean() * 2) if len(cadence_values) > 0 else None,
+            "avg_cadence_spm": round(cadence_values.mean() * 2)
+            if len(cadence_values) > 0
+            else None,
         }
 
     def _analyze_strength(self, df: pd.DataFrame) -> dict:
@@ -266,13 +270,19 @@ class TrainingCSVParser:
         base_time = datetime(2000, 1, 1)
         records = []
         for _, row in df[has_coords].iterrows():
-            records.append({
-                "position_lat": row["latitude"],
-                "position_long": row["longitude"],
-                "enhanced_altitude": row.get("elevation (meter)") if pd.notna(row.get("elevation (meter)")) else None,
-                "heart_rate": int(row["hr (count/min)"]) if pd.notna(row.get("hr (count/min)")) else None,
-                "timestamp": base_time + timedelta(seconds=float(row.get("since_start", 0))),
-            })
+            records.append(
+                {
+                    "position_lat": row["latitude"],
+                    "position_long": row["longitude"],
+                    "enhanced_altitude": row.get("elevation (meter)")
+                    if pd.notna(row.get("elevation (meter)"))
+                    else None,
+                    "heart_rate": int(row["hr (count/min)"])
+                    if pd.notna(row.get("hr (count/min)"))
+                    else None,
+                    "timestamp": base_time + timedelta(seconds=float(row.get("since_start", 0))),
+                }
+            )
 
         return extract_gps_track(records)
 

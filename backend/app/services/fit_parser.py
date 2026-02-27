@@ -138,7 +138,7 @@ class TrainingFITParser(TrainingParser):
 
         # Compute min HR from records if not in session
         min_hr = None
-        hr_values = [r.get("heart_rate") for r in records if r.get("heart_rate")]
+        hr_values = [int(r["heart_rate"]) for r in records if r.get("heart_rate") is not None]
         if hr_values:
             min_hr = min(hr_values)
 
