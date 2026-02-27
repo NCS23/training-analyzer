@@ -776,6 +776,7 @@ export function SessionDetailPage() {
                 points={gpsTrack.points}
                 height="350px"
                 hoveredPointIndex={hoveredPointIndex}
+                onHoverPoint={setHoveredPointIndex}
                 mode={mapMode}
                 segments={mapSegments}
               />
