@@ -3,6 +3,11 @@
 import math
 from typing import Optional
 
+# Elevation pace correction: seconds per km per 100m of elevation gain
+# Literature: ~10-12 sec/km per 100m gain, ~5-7 sec/km per 100m loss benefit
+ELEV_CORRECTION_SEC_PER_100M_GAIN = 10.0
+ELEV_CORRECTION_SEC_PER_100M_LOSS = 5.0
+
 
 def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Distance in meters between two GPS points (haversine formula)."""
@@ -121,6 +126,50 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
     return splits
 
 
+def _format_pace(pace: float) -> str:
+    """Format pace (min/km) to M:SS string."""
+    mins = int(pace)
+    secs = int(round((pace - mins) * 60))
+    if secs == 60:
+        mins += 1
+        secs = 0
+    return f"{mins}:{secs:02d}"
+
+
+def _calc_corrected_pace(
+    pace: Optional[float],
+    distance_km: float,
+    elev_gain: Optional[float],
+    elev_loss: Optional[float],
+) -> Optional[float]:
+    """Calculate elevation-corrected pace (Grade Adjusted Pace).
+
+    Subtracts the estimated time penalty from uphill and adds back
+    the estimated time benefit from downhill, normalized per km.
+    """
+    if pace is None or distance_km <= 0:
+        return None
+
+    gain = elev_gain or 0.0
+    loss = elev_loss or 0.0
+    if gain == 0.0 and loss == 0.0:
+        return None  # Flat — no correction needed
+
+    # Correction in seconds for this split
+    gain_penalty_sec = (gain / 100.0) * ELEV_CORRECTION_SEC_PER_100M_GAIN
+    loss_benefit_sec = (loss / 100.0) * ELEV_CORRECTION_SEC_PER_100M_LOSS
+
+    # Normalize per km (for partial splits)
+    correction_sec_per_km = (gain_penalty_sec - loss_benefit_sec) / distance_km
+    correction_min_per_km = correction_sec_per_km / 60.0
+
+    corrected = pace - correction_min_per_km
+    # Sanity: corrected pace should be positive and reasonable
+    if corrected < 1.0 or corrected > 30.0:
+        return None
+    return corrected
+
+
 def _build_split(
     km_number: int,
     distance_km: float,
@@ -134,14 +183,10 @@ def _build_split(
     boundary_lng: Optional[float] = None,
 ) -> dict:
     """Build a single km split dict."""
-    pace_formatted = None
-    if pace is not None:
-        mins = int(pace)
-        secs = int(round((pace - mins) * 60))
-        if secs == 60:
-            mins += 1
-            secs = 0
-        pace_formatted = f"{mins}:{secs:02d}"
+    pace_formatted = _format_pace(pace) if pace is not None else None
+
+    corrected_pace = _calc_corrected_pace(pace, distance_km, elev_gain, elev_loss)
+    corrected_formatted = _format_pace(corrected_pace) if corrected_pace is not None else None
 
     dur_mins = duration_sec // 60
     dur_secs = duration_sec % 60
@@ -153,6 +198,8 @@ def _build_split(
         "duration_formatted": f"{dur_mins}:{dur_secs:02d}",
         "pace_min_per_km": round(pace, 2) if pace else None,
         "pace_formatted": pace_formatted,
+        "pace_corrected_min_per_km": round(corrected_pace, 2) if corrected_pace else None,
+        "pace_corrected_formatted": corrected_formatted,
         "avg_hr_bpm": round(sum(hr_values) / len(hr_values)) if hr_values else None,
         "elevation_gain_m": elev_gain,
         "elevation_loss_m": elev_loss,

@@ -18,6 +18,7 @@ describe('buildKmPopupHtml', () => {
     lat: 52.52,
     lng: 13.405,
     pace_formatted: '4:42',
+    pace_corrected_formatted: '4:35',
     avg_hr_bpm: 152,
     duration_formatted: '4:42',
     elevation_gain_m: 12,
@@ -38,6 +39,11 @@ describe('buildKmPopupHtml', () => {
     expect(html).toContain('Dauer: 4:42');
   });
 
+  it('includes corrected pace (GAP)', () => {
+    const html = buildKmPopupHtml(fullKm);
+    expect(html).toContain('GAP: 4:35 /km');
+  });
+
   it('includes elevation gain and loss', () => {
     const html = buildKmPopupHtml(fullKm);
     expect(html).toContain('↑12m');
@@ -55,6 +61,7 @@ describe('buildKmPopupHtml', () => {
     const minimal: KmMarkerData = {
       ...fullKm,
       pace_formatted: null,
+      pace_corrected_formatted: null,
       avg_hr_bpm: null,
       elevation_gain_m: null,
       elevation_loss_m: null,
@@ -64,6 +71,7 @@ describe('buildKmPopupHtml', () => {
     expect(html).toContain('Dauer:');
     expect(html).not.toContain('/km');
     expect(html).not.toContain('bpm');
+    expect(html).not.toContain('GAP');
   });
 });
 

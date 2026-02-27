@@ -439,6 +439,7 @@ export function SessionDetailPage() {
         lat: s.boundary_lat!,
         lng: s.boundary_lng!,
         pace_formatted: s.pace_formatted,
+        pace_corrected_formatted: s.pace_corrected_formatted,
         avg_hr_bpm: s.avg_hr_bpm,
         duration_formatted: s.duration_formatted,
         elevation_gain_m: s.elevation_gain_m,
@@ -1213,6 +1214,11 @@ export function SessionDetailPage() {
                       </TableHead>
                       <TableHead>Dauer</TableHead>
                       <TableHead>Pace</TableHead>
+                      <TableHead
+                        title="Hoehenkorrigierter Pace: Bergauf-Laeufe erhalten Zeitgutschrift, Bergab-Laeufe Zeitabzug"
+                      >
+                        GAP
+                      </TableHead>
                       <TableHead>Ø HF</TableHead>
                       <TableHead>Anstieg</TableHead>
                       <TableHead>Abstieg</TableHead>
@@ -1236,6 +1242,17 @@ export function SessionDetailPage() {
                         <TableCell>{split.duration_formatted}</TableCell>
                         <TableCell>
                           {split.pace_formatted ? `${split.pace_formatted} /km` : '-'}
+                        </TableCell>
+                        <TableCell
+                          title={split.pace_corrected_formatted ? 'Grade Adjusted Pace — korrigiert fuer Steigung/Gefaelle' : undefined}
+                        >
+                          {split.pace_corrected_formatted ? (
+                            <span className="text-[var(--color-text-info)]">
+                              {split.pace_corrected_formatted} /km
+                            </span>
+                          ) : (
+                            '-'
+                          )}
                         </TableCell>
                         <TableCell>{split.avg_hr_bpm ?? '-'}</TableCell>
                         <TableCell>

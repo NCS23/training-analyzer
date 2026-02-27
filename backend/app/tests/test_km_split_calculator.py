@@ -1,4 +1,4 @@
-"""Tests fuer km_split_calculator — boundary coordinates."""
+"""Tests fuer km_split_calculator — boundary coordinates + corrected pace."""
 
 from app.services.km_split_calculator import calculate_km_splits
 
@@ -25,6 +25,30 @@ def _make_straight_track(km: float, points_per_km: int = 100) -> dict:
                 "seconds": dist_m / speed_ms,
                 "hr": 150,
                 "alt": 50.0,
+            }
+        )
+    return {"points": points}
+
+
+def _make_uphill_track(km: float, total_gain_m: float, points_per_km: int = 100) -> dict:
+    """Generate an uphill GPS track with steady elevation gain."""
+    total_points = max(2, int(km * points_per_km))
+    lat_per_m = 1.0 / 111320.0
+    total_m = km * 1000
+    speed_ms = 3.0  # 3 m/s ≈ 5:33 /km
+
+    points = []
+    for i in range(total_points):
+        frac = i / (total_points - 1)
+        dist_m = frac * total_m
+        alt = 50.0 + frac * total_gain_m
+        points.append(
+            {
+                "lat": 52.52 + dist_m * lat_per_m,
+                "lng": 13.405,
+                "seconds": dist_m / speed_ms,
+                "hr": 150,
+                "alt": alt,
             }
         )
     return {"points": points}
@@ -97,3 +121,51 @@ class TestBoundaryCoordinates:
         splits = calculate_km_splits(track)
         assert len(splits) >= 1
         assert splits[0]["boundary_lat"] is not None
+
+
+class TestCorrectedPace:
+    """Elevation-corrected pace (GAP) tests."""
+
+    def test_flat_track_no_correction(self) -> None:
+        """Flat track should have no corrected pace (None)."""
+        track = _make_straight_track(3.0)
+        splits = calculate_km_splits(track)
+
+        for s in splits:
+            # Flat: no elevation gain/loss above threshold → no correction
+            assert s["pace_corrected_min_per_km"] is None
+            assert s["pace_corrected_formatted"] is None
+
+    def test_uphill_corrected_is_faster(self) -> None:
+        """Uphill splits: corrected pace should be faster than actual pace."""
+        track = _make_uphill_track(3.0, total_gain_m=150.0)
+        splits = calculate_km_splits(track)
+
+        # At least one split should have corrected pace
+        corrected_splits = [s for s in splits if s["pace_corrected_min_per_km"] is not None]
+        assert len(corrected_splits) > 0
+
+        for s in corrected_splits:
+            assert s["pace_corrected_min_per_km"] < s["pace_min_per_km"], (
+                f"Corrected pace {s['pace_corrected_min_per_km']} "
+                f"should be faster than actual {s['pace_min_per_km']}"
+            )
+
+    def test_corrected_pace_has_formatted(self) -> None:
+        """Corrected pace should have formatted string when present."""
+        track = _make_uphill_track(3.0, total_gain_m=150.0)
+        splits = calculate_km_splits(track)
+
+        for s in splits:
+            if s["pace_corrected_min_per_km"] is not None:
+                assert s["pace_corrected_formatted"] is not None
+                assert ":" in s["pace_corrected_formatted"]
+
+    def test_corrected_pace_reasonable(self) -> None:
+        """Corrected pace should stay within 1-30 min/km range."""
+        track = _make_uphill_track(3.0, total_gain_m=300.0)
+        splits = calculate_km_splits(track)
+
+        for s in splits:
+            if s["pace_corrected_min_per_km"] is not None:
+                assert 1.0 <= s["pace_corrected_min_per_km"] <= 30.0

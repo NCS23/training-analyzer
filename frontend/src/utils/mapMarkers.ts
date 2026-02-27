@@ -12,6 +12,7 @@ export interface KmMarkerData {
   lat: number;
   lng: number;
   pace_formatted: string | null;
+  pace_corrected_formatted: string | null;
   avg_hr_bpm: number | null;
   duration_formatted: string;
   elevation_gain_m: number | null;
@@ -25,6 +26,7 @@ export function buildKmPopupHtml(km: KmMarkerData): string {
   const lines = [`<b>${title}</b>`];
 
   if (km.pace_formatted) lines.push(`Pace: ${km.pace_formatted} /km`);
+  if (km.pace_corrected_formatted) lines.push(`GAP: ${km.pace_corrected_formatted} /km`);
   if (km.avg_hr_bpm != null) lines.push(`HF: ${km.avg_hr_bpm} bpm`);
   lines.push(`Dauer: ${km.duration_formatted}`);
 

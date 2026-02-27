@@ -317,6 +317,8 @@ export interface KmSplit {
   duration_formatted: string;
   pace_min_per_km: number | null;
   pace_formatted: string | null;
+  pace_corrected_min_per_km: number | null;
+  pace_corrected_formatted: string | null;
   avg_hr_bpm: number | null;
   elevation_gain_m: number | null;
   elevation_loss_m: number | null;
