@@ -45,7 +45,18 @@ def _ensure_columns_exist(conn):
         for col in table.columns:
             if col.name not in existing_cols:
                 col_type = col.type.compile(conn.engine.dialect)
+
+                # Include DEFAULT clause from server_default so NOT NULL
+                # columns can be added to tables that already have rows.
+                default_clause = ""
+                if col.server_default is not None and hasattr(col.server_default, "arg"):
+                    default_text = getattr(col.server_default.arg, "text", col.server_default.arg)  # type: ignore[union-attr]
+                    default_clause = f" DEFAULT {default_text}"
+
                 nullable = "NULL" if col.nullable else "NOT NULL"
-                sql = f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type} {nullable}'
+                sql = (
+                    f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" '
+                    f"{col_type}{default_clause} {nullable}"
+                )
                 logger.info(f"Adding missing column: {table_name}.{col.name}")
                 conn.execute(text(sql))
