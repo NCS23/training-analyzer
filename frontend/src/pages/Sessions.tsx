@@ -226,7 +226,7 @@ export function SessionsPage() {
               icon={<Upload className="w-4 h-4" />}
               onSelect={() => navigate('/sessions/new')}
             >
-              Training hochladen
+              Neues Training
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -373,12 +373,32 @@ export function SessionsPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                            {session.distance_km && <span>{session.distance_km} km</span>}
-                            {session.duration_sec && (
-                              <span>{formatDuration(session.duration_sec)}</span>
+                            {session.workout_type === 'strength' ? (
+                              <>
+                                {session.exercises_count != null && (
+                                  <span>{session.exercises_count} Uebungen</span>
+                                )}
+                                {session.total_tonnage_kg != null && (
+                                  <span>
+                                    {session.total_tonnage_kg >= 1000
+                                      ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
+                                      : `${session.total_tonnage_kg} kg`}
+                                  </span>
+                                )}
+                                {session.duration_sec && (
+                                  <span>{formatDuration(session.duration_sec)}</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {session.distance_km && <span>{session.distance_km} km</span>}
+                                {session.duration_sec && (
+                                  <span>{formatDuration(session.duration_sec)}</span>
+                                )}
+                                {session.pace && <span>{session.pace} /km</span>}
+                                {session.hr_avg && <span>{session.hr_avg} bpm</span>}
+                              </>
                             )}
-                            {session.pace && <span>{session.pace} /km</span>}
-                            {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                           </div>
                         </div>
                       </div>

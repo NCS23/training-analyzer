@@ -63,6 +63,8 @@ export interface SessionSummary {
   distance_km: number | null;
   pace: string | null;
   hr_avg: number | null;
+  exercises_count: number | null;
+  total_tonnage_kg: number | null;
 }
 
 interface SessionListApiResponse {
@@ -238,6 +240,11 @@ export interface SessionDetail {
   notes: string | null;
   laps: LapDetail[] | null;
   hr_zones: Record<string, HRZone> | null;
+  exercises: Array<{
+    name: string;
+    category: string;
+    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+  }> | null;
   has_gps: boolean;
   athlete_resting_hr: number | null;
   athlete_max_hr: number | null;

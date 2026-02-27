@@ -92,6 +92,7 @@ class SessionResponse(BaseModel):
     notes: Optional[str] = None
     laps: Optional[list[LapResponse]] = None
     hr_zones: Optional[dict] = None
+    exercises: Optional[list] = None
     has_gps: bool = False
     athlete_resting_hr: Optional[int] = None
     athlete_max_hr: Optional[int] = None
@@ -116,6 +117,10 @@ class SessionResponse(BaseModel):
         hr_zones = None
         if model.hr_zones_json:
             hr_zones = json.loads(str(model.hr_zones_json))
+
+        exercises = None
+        if model.exercises_json:
+            exercises = json.loads(str(model.exercises_json))
 
         model_date = model.date  # type: ignore[assignment]
         session_date: date = (
@@ -154,6 +159,7 @@ class SessionResponse(BaseModel):
             notes=str(model.notes) if model.notes else None,
             laps=laps,
             hr_zones=hr_zones,
+            exercises=exercises,
             has_gps=bool(model.has_gps),
             athlete_resting_hr=int(model.athlete_resting_hr) if model.athlete_resting_hr else None,  # type: ignore[arg-type]
             athlete_max_hr=int(model.athlete_max_hr) if model.athlete_max_hr else None,  # type: ignore[arg-type]
@@ -174,6 +180,8 @@ class SessionListItem(BaseModel):
     distance_km: Optional[float] = None
     pace: Optional[str] = None
     hr_avg: Optional[int] = None
+    exercises_count: Optional[int] = None
+    total_tonnage_kg: Optional[float] = None
 
     @classmethod
     def from_db(cls, model: WorkoutModel) -> SessionListItem:
@@ -198,6 +206,17 @@ class SessionListItem(BaseModel):
                 effective=override_type or auto_type,
             )
 
+        # Strength metrics
+        exercises_count = None
+        total_tonnage_kg = None
+        if model.exercises_json:
+            from app.services.tonnage_calculator import calculate_strength_metrics
+
+            exercises_raw = json.loads(str(model.exercises_json))
+            m = calculate_strength_metrics(exercises_raw)
+            exercises_count = m["total_exercises"]
+            total_tonnage_kg = m["total_tonnage_kg"]
+
         return cls(
             id=int(model.id),  # type: ignore[arg-type]
             date=session_date,
@@ -208,6 +227,8 @@ class SessionListItem(BaseModel):
             distance_km=float(model.distance_km) if model.distance_km else None,  # type: ignore[arg-type]
             pace=str(model.pace) if model.pace else None,
             hr_avg=int(model.hr_avg) if model.hr_avg else None,  # type: ignore[arg-type]
+            exercises_count=exercises_count,
+            total_tonnage_kg=total_tonnage_kg,
         )
 
 

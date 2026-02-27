@@ -22,6 +22,8 @@ import {
   EllipsisVertical,
   Target,
   Calendar,
+  Footprints,
+  Dumbbell,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
@@ -142,7 +144,7 @@ export function DashboardPage() {
               icon={<Upload className="w-4 h-4" />}
               onSelect={() => navigate('/sessions/new')}
             >
-              Training hochladen
+              Neues Training
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -441,11 +443,15 @@ export function DashboardPage() {
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && navigate(`/sessions/${session.id}`)}
             >
-              <Card elevation="raised" padding="compact">
+              <Card elevation="raised">
                 <CardBody>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-[var(--radius-lg)] bg-[var(--color-primary-1-50)]">
-                      <Activity className="w-4 h-4 text-[var(--color-primary-1-500)]" />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-[var(--radius-xl)] bg-[var(--color-primary-1-50)]">
+                      {session.workout_type === 'strength' ? (
+                        <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                      ) : (
+                        <Footprints className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -460,16 +466,36 @@ export function DashboardPage() {
                             }
                           })()}
                         </p>
-                        <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                        <Badge variant="info" size="xs">
                           {session.workout_type === 'running' ? 'Laufen' : 'Kraft'}
-                        </span>
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                        {session.distance_km && <span>{session.distance_km} km</span>}
-                        {session.duration_sec && (
-                          <span>{formatDuration(session.duration_sec)}</span>
+                      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] mt-1">
+                        {session.workout_type === 'strength' ? (
+                          <>
+                            {session.exercises_count != null && (
+                              <span>{session.exercises_count} Uebungen</span>
+                            )}
+                            {session.total_tonnage_kg != null && (
+                              <span>
+                                {session.total_tonnage_kg >= 1000
+                                  ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
+                                  : `${session.total_tonnage_kg} kg`}
+                              </span>
+                            )}
+                            {session.duration_sec && (
+                              <span>{formatDuration(session.duration_sec)}</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {session.distance_km && <span>{session.distance_km} km</span>}
+                            {session.duration_sec && (
+                              <span>{formatDuration(session.duration_sec)}</span>
+                            )}
+                            {session.hr_avg && <span>{session.hr_avg} bpm</span>}
+                          </>
                         )}
-                        {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                       </div>
                     </div>
                   </div>

@@ -33,7 +33,7 @@ describe('UploadPage', () => {
 
   it('renders the upload wizard', () => {
     render(<UploadPage />);
-    expect(screen.getByText('Training Upload')).toBeInTheDocument();
+    expect(screen.getByText('Neues Training')).toBeInTheDocument();
     expect(screen.getByText('Training importieren')).toBeInTheDocument();
     expect(screen.getByText('Weiter')).toBeInTheDocument();
   });

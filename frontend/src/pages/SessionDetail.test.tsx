@@ -93,6 +93,7 @@ const mockSession: SessionDetail = {
   has_gps: false,
   athlete_resting_hr: 65,
   athlete_max_hr: 185,
+  exercises: null,
   created_at: '2025-02-25T08:00:00',
   updated_at: '2025-02-25T08:15:00',
 };

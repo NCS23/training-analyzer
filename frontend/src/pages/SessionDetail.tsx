@@ -39,6 +39,7 @@ import {
   CardHeader,
   CardBody,
   Badge,
+  Checkbox,
   Select,
   Textarea,
   Spinner,
@@ -90,6 +91,9 @@ import {
   HeartPulse,
   Footprints,
   RefreshCw,
+  Dumbbell,
+  Layers,
+  Weight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -487,13 +491,15 @@ export function SessionDetailPage() {
     return (
       <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
         <nav>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/sessions')}
-            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
+            className="gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Sessions
-          </button>
+          </Button>
         </nav>
         <Card elevation="raised">
           <CardBody className="space-y-4">
@@ -526,13 +532,15 @@ export function SessionDetailPage() {
     return (
       <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
         <nav>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/sessions')}
-            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
+            className="gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Sessions
-          </button>
+          </Button>
         </nav>
         <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
@@ -590,6 +598,39 @@ export function SessionDetailPage() {
       unit: 'spm',
       icon: Footprints,
     });
+
+  // Strength-specific metrics
+  if (session.exercises && session.exercises.length > 0) {
+    metrics.push({
+      label: 'Uebungen',
+      value: String(session.exercises.length),
+      unit: '',
+      icon: Dumbbell,
+    });
+    const totalSets = session.exercises.reduce(
+      (sum: number, ex: { sets: unknown[] }) => sum + ex.sets.length,
+      0,
+    );
+    metrics.push({
+      label: 'Saetze',
+      value: String(totalSets),
+      unit: '',
+      icon: Layers,
+    });
+    let tonnage = 0;
+    for (const ex of session.exercises) {
+      for (const s of (ex as { sets: Array<{ reps: number; weight_kg: number; status: string }> }).sets) {
+        if (s.status !== 'skipped') tonnage += s.reps * s.weight_kg;
+      }
+    }
+    if (tonnage > 0)
+      metrics.push({
+        label: 'Tonnage',
+        value: tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}` : String(Math.round(tonnage)),
+        unit: tonnage >= 1000 ? 't' : 'kg',
+        icon: Weight,
+      });
+  }
 
   const canShowHR = hrZoneBoundaries != null;
 
@@ -818,6 +859,99 @@ export function SessionDetailPage() {
         </Card>
       </section>
 
+      {/* Exercises (Strength) */}
+      {session.exercises && session.exercises.length > 0 && (
+        <section aria-label="Uebungen">
+          <Card elevation="raised">
+            <CardHeader>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                Uebungen ({session.exercises.length})
+              </h2>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              {session.exercises.map(
+                (
+                  ex: {
+                    name: string;
+                    category: string;
+                    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+                  },
+                  exIdx: number,
+                ) => {
+                  const categoryLabels: Record<string, string> = {
+                    push: 'Push',
+                    pull: 'Pull',
+                    legs: 'Beine',
+                    core: 'Core',
+                    cardio: 'Cardio',
+                  };
+                  return (
+                    <div key={exIdx} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[var(--color-text-base)]">
+                          {ex.name}
+                        </span>
+                        <Badge variant="info" size="xs">
+                          {categoryLabels[ex.category] ?? ex.category}
+                        </Badge>
+                      </div>
+                      <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
+                              <TableHead>Wdh.</TableHead>
+                              <TableHead>Gewicht</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ex.sets.map((s, sIdx) => {
+                              const statusLabels: Record<string, string> = {
+                                completed: 'Fertig',
+                                reduced: 'Reduziert',
+                                skipped: 'Ausgelassen',
+                              };
+                              const statusVariant: Record<
+                                string,
+                                'success' | 'warning' | 'info'
+                              > = {
+                                completed: 'success',
+                                reduced: 'warning',
+                                skipped: 'info',
+                              };
+                              return (
+                                <TableRow key={sIdx}>
+                                  <TableCell className="text-[var(--color-text-muted)]">
+                                    {sIdx + 1}
+                                  </TableCell>
+                                  <TableCell>{s.reps}</TableCell>
+                                  <TableCell>
+                                    {s.weight_kg > 0 ? `${s.weight_kg} kg` : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant={statusVariant[s.status] ?? 'info'}
+                                      size="xs"
+                                    >
+                                      {statusLabels[s.status] ?? s.status}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  );
+                },
+              )}
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
       {/* GPS Route Map + Elevation Profile */}
       {gpsTrack && gpsTrack.points.length > 0 && (
         <section aria-label="GPS Route">
@@ -868,24 +1002,20 @@ export function SessionDetailPage() {
               <div className="flex items-center gap-4 px-[var(--spacing-card-padding-normal)] pb-1 text-xs text-[var(--color-text-muted)]">
                 {kmMarkerData && kmMarkerData.length > 0 && (
                   <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={showKmMarkers}
-                      onChange={(e) => setShowKmMarkers(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded accent-[var(--color-primary-1-500)]"
+                      onCheckedChange={(checked) => setShowKmMarkers(checked === true)}
                     />
-                    Km-Marker
+                    <span>Km-Marker</span>
                   </label>
                 )}
                 {lapMarkerData && lapMarkerData.length > 0 && (
                   <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={showLapMarkers}
-                      onChange={(e) => setShowLapMarkers(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded accent-[var(--color-primary-1-500)]"
+                      onCheckedChange={(checked) => setShowLapMarkers(checked === true)}
                     />
-                    Lap-Marker
+                    <span>Lap-Marker</span>
                   </label>
                 )}
               </div>
@@ -937,27 +1067,10 @@ export function SessionDetailPage() {
         const insights = generateInsights(session);
         if (insights.length === 0) return null;
 
-        const iconMap: Record<InsightType, string> = {
-          positive: '✓',
-          warning: '!',
-          neutral: '→',
-        };
-        const colorMap: Record<InsightType, { bg: string; text: string; border: string }> = {
-          positive: {
-            bg: 'bg-[var(--color-bg-success-subtle)]',
-            text: 'text-[var(--color-text-success)]',
-            border: 'border-[var(--color-border-success)]',
-          },
-          warning: {
-            bg: 'bg-[var(--color-bg-warning-subtle)]',
-            text: 'text-[var(--color-text-warning)]',
-            border: 'border-[var(--color-border-warning)]',
-          },
-          neutral: {
-            bg: 'bg-[var(--color-bg-surface)]',
-            text: 'text-[var(--color-text-muted)]',
-            border: 'border-[var(--color-border-default)]',
-          },
+        const variantMap: Record<InsightType, 'success' | 'warning' | 'info'> = {
+          positive: 'success',
+          warning: 'warning',
+          neutral: 'info',
         };
 
         return (
@@ -968,20 +1081,11 @@ export function SessionDetailPage() {
               </CardHeader>
               <CardBody>
                 <div className="space-y-2">
-                  {insights.map((insight, i) => {
-                    const colors = colorMap[insight.type];
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-start gap-2.5 rounded-[var(--radius-component-md)] border px-3 py-2.5 ${colors.bg} ${colors.border}`}
-                      >
-                        <span className={`text-xs font-bold shrink-0 mt-0.5 ${colors.text}`}>
-                          {iconMap[insight.type]}
-                        </span>
-                        <p className="text-sm text-[var(--color-text-base)]">{insight.message}</p>
-                      </div>
-                    );
-                  })}
+                  {insights.map((insight, i) => (
+                    <Alert key={i} variant={variantMap[insight.type]}>
+                      <AlertDescription>{insight.message}</AlertDescription>
+                    </Alert>
+                  ))}
                 </div>
               </CardBody>
             </Card>
@@ -1092,32 +1196,23 @@ export function SessionDetailPage() {
         <section aria-label="Laps">
           <Card elevation="raised">
             <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-1">
+              <ToggleGroup
+                type="single"
+                value={splitsTab}
+                onValueChange={(val) => { if (val) setSplitsTab(val as 'laps' | 'km'); }}
+                className="gap-1"
+              >
                 {localLaps.length > 0 && (
-                  <button
-                    onClick={() => setSplitsTab('laps')}
-                    className={`text-sm font-semibold px-3 py-1 rounded-[var(--radius-component-sm)] transition-colors ${
-                      splitsTab === 'laps'
-                        ? 'bg-[var(--color-bg-muted)] text-[var(--color-text-base)]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
-                    }`}
-                  >
+                  <ToggleGroupItem value="laps" className="text-xs px-2.5 py-1">
                     Geraete-Laps ({localLaps.length})
-                  </button>
+                  </ToggleGroupItem>
                 )}
                 {kmSplits && (
-                  <button
-                    onClick={() => setSplitsTab('km')}
-                    className={`text-sm font-semibold px-3 py-1 rounded-[var(--radius-component-sm)] transition-colors ${
-                      splitsTab === 'km'
-                        ? 'bg-[var(--color-bg-muted)] text-[var(--color-text-base)]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
-                    }`}
-                  >
+                  <ToggleGroupItem value="km" className="text-xs px-2.5 py-1">
                     Kilometer ({kmSplits.length})
-                  </button>
+                  </ToggleGroupItem>
                 )}
-              </div>
+              </ToggleGroup>
               {isEditing && savingLaps && splitsTab === 'laps' && <Spinner size="sm" />}
             </CardHeader>
 

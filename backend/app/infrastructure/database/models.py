@@ -31,6 +31,9 @@ class WorkoutModel(Base):
     hr_zones_json = Column(Text)
     notes = Column(Text)
 
+    # Strength training
+    exercises_json = Column(Text)
+
     # GPS
     gps_track_json = Column(Text)
     has_gps = Column(Boolean, default=False, nullable=False, server_default="false")

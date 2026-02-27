@@ -9,7 +9,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@nordlig/components';
-import { TrendingUp, Heart, MapPin, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { TrendingUp, Heart, MapPin } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -86,14 +86,14 @@ export function TrendsPage() {
     }));
   }, [data]);
 
-  const insightIcon = (type: string) => {
+  const insightVariant = (type: string): 'success' | 'warning' | 'info' => {
     switch (type) {
       case 'positive':
-        return <CheckCircle className="w-4 h-4 text-[var(--color-text-success)] shrink-0" />;
+        return 'success';
       case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-[var(--color-text-warning)] shrink-0" />;
+        return 'warning';
       default:
-        return <Info className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />;
+        return 'info';
     }
   };
 
@@ -151,19 +151,9 @@ export function TrendsPage() {
           {data.insights.length > 0 && (
             <div className="space-y-2">
               {data.insights.map((insight, i) => (
-                <div
-                  key={i}
-                  className={`flex items-start gap-3 p-3 rounded-[var(--radius-md)] border ${
-                    insight.type === 'positive'
-                      ? 'border-[var(--color-status-success)] bg-[var(--color-bg-success-subtle)]'
-                      : insight.type === 'warning'
-                        ? 'border-[var(--color-status-warning)] bg-[var(--color-bg-warning-subtle)]'
-                        : 'border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)]'
-                  }`}
-                >
-                  {insightIcon(insight.type)}
-                  <p className="text-sm text-[var(--color-text-base)]">{insight.message}</p>
-                </div>
+                <Alert key={i} variant={insightVariant(insight.type)}>
+                  <AlertDescription>{insight.message}</AlertDescription>
+                </Alert>
               ))}
             </div>
           )}

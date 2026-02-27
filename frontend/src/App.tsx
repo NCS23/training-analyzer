@@ -76,6 +76,9 @@ const UploadPage = lazy(() => import('./pages/Upload'));
 const SettingsPage = lazy(() =>
   import('./pages/Settings').then((m) => ({ default: m.SettingsPage })),
 );
+const StrengthSessionPage = lazy(() =>
+  import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
+);
 const TrendsPage = lazy(() =>
   import('./pages/Trends').then((m) => ({ default: m.TrendsPage })),
 );
@@ -104,6 +107,7 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/sessions" element={<SessionsPage />} />
                   <Route path="/sessions/new" element={<UploadPage />} />
+                  <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
                   <Route path="/trends" element={<TrendsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />

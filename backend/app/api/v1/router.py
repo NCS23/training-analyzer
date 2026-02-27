@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ai, athlete, goals, health, sessions, trends, workouts
+from app.api.v1 import ai, athlete, goals, health, sessions, strength, trends, workouts
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(workouts.router, tags=["workouts"])
+# strength MUST come before sessions — /sessions/strength must match before /{session_id}
+api_router.include_router(strength.router, tags=["strength"])
 api_router.include_router(sessions.router, tags=["sessions"])
 api_router.include_router(athlete.router, tags=["athlete"])
 api_router.include_router(goals.router, tags=["goals"])
