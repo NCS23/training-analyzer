@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../test/test-utils';
+import userEvent from '@testing-library/user-event';
 import { SessionDetailPage } from './SessionDetail';
 import type { SessionDetail } from '@/api/training';
 
-// Mock API
+// Mock API — all functions imported by the component
 vi.mock('@/api/training', () => ({
   getSession: vi.fn(),
   deleteSession: vi.fn(),
   updateSessionNotes: vi.fn(),
   updateTrainingType: vi.fn(),
   updateLapOverrides: vi.fn(),
+  getSessionTrack: vi.fn(),
+  getWorkingZones: vi.fn(),
+  getKmSplits: vi.fn(),
+  recalculateSessionZones: vi.fn(),
+  updateSessionDate: vi.fn(),
 }));
 
 // Mock useParams and useNavigate
@@ -104,6 +110,14 @@ async function getMocks() {
   };
 }
 
+/** Open the "Aktionen" dropdown and click a menu item by text. */
+async function clickDropdownItem(user: ReturnType<typeof userEvent.setup>, itemText: string) {
+  const trigger = screen.getByRole('button', { name: 'Aktionen' });
+  await user.click(trigger);
+  const item = await screen.findByText(itemText);
+  await user.click(item);
+}
+
 describe('SessionDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -156,6 +170,7 @@ describe('SessionDetailPage', () => {
   });
 
   it('shows edit fields only in edit mode', async () => {
+    const user = userEvent.setup();
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
@@ -169,8 +184,8 @@ describe('SessionDetailPage', () => {
     expect(screen.queryByText('Trainingstyp')).not.toBeInTheDocument();
     expect(screen.queryByText('Datum')).not.toBeInTheDocument();
 
-    // Enter edit mode
-    fireEvent.click(screen.getByLabelText('Bearbeiten'));
+    // Enter edit mode via dropdown
+    await clickDropdownItem(user, 'Bearbeiten');
 
     // Now edit fields should be visible
     expect(screen.getByText('Trainingstyp')).toBeInTheDocument();
@@ -195,7 +210,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Laps (2)')).toBeInTheDocument();
+      expect(screen.getByText('Geraete-Laps (2)')).toBeInTheDocument();
     });
     expect(screen.getByText('05:00')).toBeInTheDocument();
     expect(screen.getByText('10:00')).toBeInTheDocument();
@@ -228,6 +243,7 @@ describe('SessionDetailPage', () => {
   });
 
   it('shows textarea for notes in edit mode', async () => {
+    const user = userEvent.setup();
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
@@ -237,8 +253,8 @@ describe('SessionDetailPage', () => {
       expect(screen.getByText('Notizen')).toBeInTheDocument();
     });
 
-    // Enter edit mode
-    fireEvent.click(screen.getByLabelText('Bearbeiten'));
+    // Enter edit mode via dropdown
+    await clickDropdownItem(user, 'Bearbeiten');
 
     // Now textarea should be visible
     expect(screen.getByDisplayValue('Gutes Training')).toBeInTheDocument();
@@ -255,41 +271,45 @@ describe('SessionDetailPage', () => {
     });
   });
 
-  it('toggles edit mode with pencil button and Fertig banner', async () => {
+  it('toggles edit mode via dropdown and Fertig banner', async () => {
+    const user = userEvent.setup();
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Bearbeiten')).toBeInTheDocument();
+      expect(screen.getByText('Easy Run')).toBeInTheDocument();
     });
 
-    // Click pencil to enter edit mode
-    fireEvent.click(screen.getByLabelText('Bearbeiten'));
-    expect(screen.getByLabelText('Bearbeiten')).toBeDisabled();
+    // Enter edit mode via dropdown
+    await clickDropdownItem(user, 'Bearbeiten');
+    expect(screen.getByText('Bearbeitungsmodus')).toBeInTheDocument();
     expect(screen.getByText('Fertig')).toBeInTheDocument();
 
     // Click "Fertig" banner button to exit edit mode
     fireEvent.click(screen.getByText('Fertig'));
-    expect(screen.getByLabelText('Bearbeiten')).toBeEnabled();
+    expect(screen.queryByText('Bearbeitungsmodus')).not.toBeInTheDocument();
   });
 
   it('shows delete confirmation dialog', async () => {
+    const user = userEvent.setup();
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
 
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Session löschen')).toBeInTheDocument();
+      expect(screen.getByText('Easy Run')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Session löschen'));
+    // Open delete dialog via dropdown
+    await clickDropdownItem(user, 'Löschen');
     expect(screen.getByText('Session löschen?')).toBeInTheDocument();
   });
 
   it('deletes session and navigates away', async () => {
+    const user = userEvent.setup();
     const { getSession, deleteSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
     deleteSession.mockResolvedValue(undefined);
@@ -297,11 +317,16 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Session löschen')).toBeInTheDocument();
+      expect(screen.getByText('Easy Run')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Session löschen'));
-    fireEvent.click(screen.getByText('Löschen'));
+    // Open delete dialog via dropdown
+    await clickDropdownItem(user, 'Löschen');
+
+    // Click the confirmation button in the AlertDialog
+    const deleteButtons = screen.getAllByRole('button', { name: 'Löschen' });
+    // The AlertDialog action button is the last one
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(deleteSession).toHaveBeenCalledWith(1);
@@ -355,7 +380,7 @@ describe('SessionDetailPage', () => {
     });
 
     // Edit mode should NOT be auto-opened (classification review now happens on upload page)
-    expect(screen.getByLabelText('Bearbeiten')).toBeInTheDocument();
+    expect(screen.queryByText('Bearbeitungsmodus')).not.toBeInTheDocument();
     // No classification banner
     expect(screen.queryByText(/automatisch erkannt/)).not.toBeInTheDocument();
   });

@@ -34,7 +34,7 @@ describe('UploadPage', () => {
   it('renders the upload wizard', () => {
     render(<UploadPage />);
     expect(screen.getByText('Training Upload')).toBeInTheDocument();
-    expect(screen.getByText('CSV Datei hochladen')).toBeInTheDocument();
+    expect(screen.getByText('Training importieren')).toBeInTheDocument();
     expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 
@@ -136,7 +136,7 @@ describe('UploadPage', () => {
     // Click "Zurück"
     fireEvent.click(screen.getByText('Zurück'));
 
-    expect(screen.getByText('CSV Datei hochladen')).toBeInTheDocument();
+    expect(screen.getByText('Training importieren')).toBeInTheDocument();
     expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 

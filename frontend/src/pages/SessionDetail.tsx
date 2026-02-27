@@ -243,7 +243,7 @@ export function SessionDetailPage() {
         setSavingNotes(false);
       }
     },
-    [sessionId],
+    [sessionId, toast],
   );
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
