@@ -61,3 +61,17 @@ class AthleteModel(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class RaceGoalModel(Base):
+    __tablename__ = "race_goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    race_date = Column(DateTime, nullable=False, index=True)
+    distance_km = Column(Float, nullable=False)
+    target_time_seconds = Column(Integer, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, server_default="true")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
