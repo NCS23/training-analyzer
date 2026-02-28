@@ -22,8 +22,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://training_user:${POSTGRES_PASSWORD}@postgres:5432/training_analyzer
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=production
-    volumes:
-      - backend_static:/app/static
+      - ALLOWED_ORIGINS=["http://training.89.167.78.223.sslip.io","https://training.89.167.78.223.sslip.io"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,4 +45,3 @@ services:
 
 volumes:
   postgres_data:
-  backend_static:
