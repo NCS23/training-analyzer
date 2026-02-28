@@ -162,7 +162,7 @@ export function TrendsPage() {
           <Card elevation="raised" padding="spacious">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[var(--color-primary-1-500)]" />
+                <TrendingUp className="w-4 h-4 text-[var(--color-chart-1)]" />
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   Pace-Entwicklung
                 </h2>
@@ -196,9 +196,9 @@ export function TrendsPage() {
                     <Line
                       type="monotone"
                       dataKey="avg_pace_sec_per_km"
-                      stroke="var(--color-primary-1-500)"
+                      stroke="var(--color-chart-1)"
                       strokeWidth={2}
-                      dot={{ r: 4, fill: 'var(--color-primary-1-500)' }}
+                      dot={{ r: 4, fill: 'var(--color-chart-1)' }}
                       connectNulls
                     />
                   </LineChart>
@@ -211,7 +211,7 @@ export function TrendsPage() {
           <Card elevation="raised" padding="spacious">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-[var(--color-accent-3-500)]" />
+                <Heart className="w-4 h-4 text-[var(--color-chart-4)]" />
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   Herzfrequenz-Entwicklung
                 </h2>
@@ -243,9 +243,9 @@ export function TrendsPage() {
                     <Line
                       type="monotone"
                       dataKey="avg_hr_bpm"
-                      stroke="var(--color-accent-3-500)"
+                      stroke="var(--color-chart-4)"
                       strokeWidth={2}
-                      dot={{ r: 4, fill: 'var(--color-accent-3-500)' }}
+                      dot={{ r: 4, fill: 'var(--color-chart-4)' }}
                       connectNulls
                     />
                   </LineChart>
@@ -258,7 +258,7 @@ export function TrendsPage() {
           <Card elevation="raised" padding="spacious">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[var(--color-accent-1-500)]" />
+                <MapPin className="w-4 h-4 text-[var(--color-chart-2)]" />
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   Wochenvolumen
                 </h2>
@@ -290,7 +290,7 @@ export function TrendsPage() {
                     />
                     <Bar
                       dataKey="total_distance_km"
-                      fill="var(--color-accent-1-400)"
+                      fill="var(--color-chart-2)"
                       radius={[4, 4, 0, 0]}
                     />
                   </BarChart>

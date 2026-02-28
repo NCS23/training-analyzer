@@ -252,7 +252,7 @@ export function StrengthProgressionPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[var(--color-primary-1-500)]" />
+              <TrendingUp className="w-4 h-4 text-[var(--color-chart-1)]" />
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                 Gewichtsverlauf
               </h2>
@@ -332,19 +332,19 @@ export function StrengthProgressionPage() {
                     <Line
                       type="monotone"
                       dataKey="max_weight_kg"
-                      stroke="var(--color-primary-1-500)"
+                      stroke="var(--color-chart-1)"
                       strokeWidth={2}
-                      dot={{ r: 4, fill: 'var(--color-primary-1-500)' }}
+                      dot={{ r: 4, fill: 'var(--color-chart-1)' }}
                       connectNulls
                       name="max_weight_kg"
                     />
                     <Line
                       type="monotone"
                       dataKey="tonnage_kg"
-                      stroke="var(--color-accent-1-400)"
+                      stroke="var(--color-chart-2)"
                       strokeWidth={1.5}
                       strokeDasharray="5 3"
-                      dot={{ r: 3, fill: 'var(--color-accent-1-400)' }}
+                      dot={{ r: 3, fill: 'var(--color-chart-2)' }}
                       connectNulls
                       name="tonnage_kg"
                     />
@@ -365,7 +365,7 @@ export function StrengthProgressionPage() {
         <Card elevation="raised" padding="spacious">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Weight className="w-4 h-4 text-[var(--color-accent-1-500)]" />
+              <Weight className="w-4 h-4 text-[var(--color-chart-2)]" />
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                 Wochen-Tonnage
               </h2>
@@ -419,7 +419,7 @@ export function StrengthProgressionPage() {
                   />
                   <Bar
                     dataKey="total_tonnage_kg"
-                    fill="var(--color-accent-1-400)"
+                    fill="var(--color-chart-2)"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -461,7 +461,7 @@ export function StrengthProgressionPage() {
         <Card elevation="raised">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-[var(--color-accent-2-500)]" />
+              <Trophy className="w-4 h-4 text-[var(--color-chart-3)]" />
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                 Persönliche Bestleistungen
               </h2>

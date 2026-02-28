@@ -154,8 +154,8 @@ export function ElevationProfile({
           >
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-primary-1-500)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="var(--color-primary-1-500)" stopOpacity={0.05} />
+                <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <CartesianGrid
@@ -184,18 +184,18 @@ export function ElevationProfile({
             />
             <ChartTooltip
               content={<ElevationTooltipContent />}
-              cursor={{ stroke: 'var(--color-primary-1-400)', strokeWidth: 1 }}
+              cursor={{ stroke: 'var(--color-chart-1)', strokeWidth: 1 }}
             />
             <Area
               type="monotone"
               dataKey="altitudeM"
-              stroke="var(--color-primary-1-500)"
+              stroke="var(--color-chart-1)"
               strokeWidth={1.5}
               fill="url(#elevGradient)"
               dot={false}
               activeDot={
                 activeIndex != null
-                  ? { r: 4, fill: 'var(--color-primary-1-500)', stroke: '#fff', strokeWidth: 2 }
+                  ? { r: 4, fill: 'var(--color-chart-1)', stroke: '#fff', strokeWidth: 2 }
                   : undefined
               }
               isAnimationActive={false}
