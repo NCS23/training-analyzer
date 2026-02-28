@@ -68,8 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Infrastructure
 - Docker Compose setup
 - Nginx reverse proxy configuration
-- Gitea integration for CI/CD
-- Synology NAS deployment
+- CI/CD Pipeline (GitHub Actions)
+- Hetzner VPS Deployment via Coolify
 
 ---
 
@@ -149,30 +149,7 @@ BREAKING: Remove CSV v1 parser
 
 ---
 
-## Upcoming Changes (Roadmap)
+## Roadmap
 
-### v0.3.0 (Week 9-10)
-- Database persistence
-- Session list & detail views
-- Session CRUD API
-- Filters & search
-
-### v0.4.0 (Week 11-12)
-- AI analysis integration
-- Automatic session insights
-- Warning detection
-- Recommendations
-
-### v0.5.0 (Week 13-15)
-- Training plan management
-- Soll/Ist comparison
-- Plan editor UI
-
-### v0.6.0 (Week 15-16)
-- FIT file support
-- Running dynamics
-- Workout structure parsing
-
----
-
-**Update dieses Changelog mit jedem Release/Deployment!** 📝
+Die Roadmap wird ueber das [GitHub Project Board](https://github.com/orgs/NCS23/projects/1) verwaltet.
+Epics (#77–#90) definieren die groesseren Initiativen, Stories sind als Sub-Issues verlinkt.

@@ -15,6 +15,7 @@
 
 - Vor jeder Arbeit MUSS ein Issue existieren oder erstellt werden
 - Das Issue MUSS Akzeptanzkriterien und Taskbreakdown enthalten
+- Stories MUESSEN als Sub-Issue eines Epics angelegt werden
 - Der Branch-Name referenziert das Issue (z.B. `feature/E01-S01-csv-upload`)
 - Commits referenzieren das Issue im Body
 - Erst wenn das Issue geschlossen ist, ist die Arbeit abgeschlossen
@@ -38,8 +39,10 @@ Vor der ersten Zeile Code:
 ### Phase 1: Issue & Branch
 
 1. **GitHub Issue pruefen** — Akzeptanzkriterien und Taskbreakdown lesen
-2. **Branch erstellen** — `feature/E01-S01-csv-upload` oder `fix/hr-zone-calc`
-3. **Scope klaeren** — Nur das umsetzen was im Issue steht, nicht mehr
+2. **Issue im Project Board** — Issue muss im "Development Backlog" Project sein
+3. **Sub-Issue Hierarchie** — Neue Stories als Sub-Issue des passenden Epics anlegen
+4. **Branch erstellen** — `feature/E01-S01-csv-upload` oder `fix/hr-zone-calc`
+5. **Scope klaeren** — Nur das umsetzen was im Issue steht, nicht mehr
 
 ### Phase 2: Implementation
 
@@ -120,6 +123,19 @@ pytest app/tests/ -x
 - **Repo:** `NCS23/training-analyzer` (privat)
 - **Issues:** `gh issue list -R NCS23/training-analyzer`
 - **Milestones:** MVP (P0), Release 1.1 (P1), Release 1.2 (P2), Post-Launch (P3-P4)
+- **Project Board:** `gh project view 1 --owner NCS23` (repo-uebergreifend mit NDS)
+
+### Project Board Workflow
+
+Alle Issues werden im **"Development Backlog"** Project verwaltet. Custom Fields:
+- **Priority:** P0-MVP, P1-High, P2-Medium, P3-Low, P4-Future
+- **Type:** Epic, Story, Bug, Tech, Docs, Figma
+- **Size:** S, M, L, XL
+- **Product:** Training Analyzer, Nordlig DS
+
+### Epics & Sub-Issues
+
+Epics sind uebergeordnete Tracking-Issues (#77-#90). Stories werden als **Sub-Issues** angelegt — das gibt automatischen Fortschritts-Tracking im Epic.
 
 ```bash
 # Issues auflisten
@@ -127,6 +143,17 @@ gh issue list -R NCS23/training-analyzer --state open
 
 # Issue erstellen
 gh issue create -R NCS23/training-analyzer --title "..." --body "..."
+
+# Issue zum Project hinzufuegen
+gh project item-add 1 --owner NCS23 --url <issue-url>
+
+# Story als Sub-Issue eines Epics verlinken
+STORY_ID=$(gh api repos/NCS23/training-analyzer/issues/<story-nr> --jq .id)
+gh api repos/NCS23/training-analyzer/issues/<epic-nr>/sub_issues -X POST -F sub_issue_id=$STORY_ID
+
+# Neues Epic erstellen (wenn neues Thema)
+gh api repos/NCS23/training-analyzer/issues -X POST \
+  -f title="Epic: <Thema>" -f 'labels[]=epic' -f body="## Stories\n- [ ] #XX"
 ```
 
 ---

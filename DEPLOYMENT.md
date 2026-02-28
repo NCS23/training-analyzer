@@ -1,51 +1,40 @@
 # Deployment Workflow
 
-## Automatisches Deployment via GitHub Actions
+## Infrastruktur
 
-Bei jedem `git push` auf `main`:
-1. CI Pipeline laeuft (Lint, Tests, Build)
-2. Nach Erfolg: Deploy-Job synct Code nach `/volume1/docker/training-analyzer/`
-3. `docker-compose up -d --build backend frontend` startet die Container neu
+| Service | Hosting | URL |
+|---------|---------|-----|
+| Training Analyzer | Hetzner VPS via Coolify | http://training.89.167.78.223.sslip.io |
+| Backend API | Hetzner VPS via Coolify | http://training.89.167.78.223.sslip.io/api |
+| API Docs | Hetzner VPS via Coolify | http://training.89.167.78.223.sslip.io/docs |
+
+## Automatisches Deployment
+
+Coolify ueberwacht den `main` Branch auf GitHub und deployed automatisch bei jedem Push:
+
+1. Push auf `main`
+2. GitHub Actions CI laeuft (Lint, Tests, Build)
+3. Coolify erkennt neuen Commit und baut Docker-Container neu
+4. Zero-Downtime Deployment
 
 ## Manuelles Deployment
 
+Falls noetig, kann ein Deployment manuell ueber die Coolify API getriggert werden:
+
 ```bash
-ssh -p 47 admin@192.168.68.52
-cd /volume1/docker/training-analyzer
-git pull origin main
-docker-compose up -d --build backend frontend
+curl -s -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+  "http://89.167.78.223:8000/api/v1/deploy?uuid=cc4w4kos8wkwg4c0cgkoow0c&force=false"
 ```
 
-## Runner-Konfiguration (Voraussetzung)
+## CI/CD
 
-> **Hinweis:** Die CI/CD wurde von Gitea Actions nach GitHub Actions migriert.
-> Die folgende Runner-Konfiguration bezieht sich auf das fruehere Self-Hosted-Setup auf dem NAS.
+- **CI Pipeline:** GitHub Actions (`.github/workflows/ci.yml`)
+- **Jobs:** frontend-lint, frontend-test, frontend-build, backend-lint, backend-test
+- **Runner:** GitHub Hosted (ubuntu-latest)
 
-Der act_runner auf dem NAS braucht Docker Socket + Projektverzeichnis-Zugriff.
-In der Runner-Config (`config.yaml`) muessen diese Volumes gemountet sein:
+## Docker
 
-```yaml
-container:
-  options: >-
-    -v /var/run/docker.sock:/var/run/docker.sock
-    -v /volume1/docker/training-analyzer:/volume1/docker/training-analyzer
-  valid_volumes:
-    - /var/run/docker.sock
-    - /volume1/docker
-```
-
-Nach Aenderung: Runner neu starten.
-
-## Ports
-
-| Service    | Port |
-|------------|------|
-| Frontend   | 3002 |
-| Backend    | 8001 |
-| PostgreSQL | 5433 |
-
-## URLs
-
-- **Frontend:** http://192.168.68.52:3002
-- **Backend API:** http://192.168.68.52:8001
-- **API Docs:** http://192.168.68.52:8001/docs
+Die App laeuft als Docker Compose Stack mit:
+- **Frontend:** React + Nginx
+- **Backend:** FastAPI + Uvicorn
+- **Database:** PostgreSQL 15
