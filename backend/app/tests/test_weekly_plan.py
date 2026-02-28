@@ -204,3 +204,134 @@ async def test_partial_week_save(client: AsyncClient) -> None:
     assert body["entries"][1]["training_type"] is None  # empty day
     assert body["entries"][3]["training_type"] == "running"
     assert body["entries"][6]["is_rest_day"] is True
+
+
+@pytest.mark.anyio
+async def test_save_with_run_details(client: AsyncClient) -> None:
+    """Save a running day with detailed run planning info."""
+    data = {
+        "week_start": "2026-04-06",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "run_details": {
+                    "run_type": "easy",
+                    "target_duration_minutes": 45,
+                    "target_pace_min": "5:30",
+                    "target_pace_max": "6:00",
+                },
+            },
+        ],
+    }
+
+    response = await client.put("/api/v1/weekly-plan", json=data)
+    assert response.status_code == 200
+    body = response.json()
+    entry = body["entries"][0]
+    assert entry["training_type"] == "running"
+    assert entry["run_details"] is not None
+    assert entry["run_details"]["run_type"] == "easy"
+    assert entry["run_details"]["target_duration_minutes"] == 45
+    assert entry["run_details"]["target_pace_min"] == "5:30"
+    assert entry["run_details"]["target_pace_max"] == "6:00"
+
+
+@pytest.mark.anyio
+async def test_save_with_intervals(client: AsyncClient) -> None:
+    """Save an interval session with structured workout."""
+    data = {
+        "week_start": "2026-04-06",
+        "entries": [
+            {
+                "day_of_week": 2,
+                "training_type": "running",
+                "is_rest_day": False,
+                "run_details": {
+                    "run_type": "intervals",
+                    "target_duration_minutes": 60,
+                    "intervals": [
+                        {
+                            "type": "warmup",
+                            "duration_minutes": 10,
+                            "target_pace_min": "6:00",
+                            "target_pace_max": "6:30",
+                            "repeats": 1,
+                        },
+                        {
+                            "type": "work",
+                            "duration_minutes": 3,
+                            "target_pace_min": "4:30",
+                            "target_pace_max": "4:50",
+                            "repeats": 5,
+                        },
+                        {
+                            "type": "rest",
+                            "duration_minutes": 2,
+                            "target_pace_min": "6:00",
+                            "target_pace_max": "7:00",
+                            "repeats": 5,
+                        },
+                        {
+                            "type": "cooldown",
+                            "duration_minutes": 10,
+                            "target_pace_min": "6:00",
+                            "target_pace_max": "6:30",
+                            "repeats": 1,
+                        },
+                    ],
+                },
+            },
+        ],
+    }
+
+    response = await client.put("/api/v1/weekly-plan", json=data)
+    assert response.status_code == 200
+    body = response.json()
+    entry = body["entries"][2]
+    assert entry["run_details"]["run_type"] == "intervals"
+    assert len(entry["run_details"]["intervals"]) == 4
+    work = entry["run_details"]["intervals"][1]
+    assert work["type"] == "work"
+    assert work["duration_minutes"] == 3
+    assert work["repeats"] == 5
+
+
+@pytest.mark.anyio
+async def test_run_details_with_hr_targets(client: AsyncClient) -> None:
+    """Save a running day with heart rate targets."""
+    data = {
+        "week_start": "2026-04-13",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "run_details": {
+                    "run_type": "tempo",
+                    "target_duration_minutes": 40,
+                    "target_hr_min": 155,
+                    "target_hr_max": 170,
+                },
+            },
+        ],
+    }
+
+    response = await client.put("/api/v1/weekly-plan", json=data)
+    assert response.status_code == 200
+    entry = response.json()["entries"][0]
+    assert entry["run_details"]["run_type"] == "tempo"
+    assert entry["run_details"]["target_hr_min"] == 155
+    assert entry["run_details"]["target_hr_max"] == 170
+
+
+@pytest.mark.anyio
+async def test_empty_entries_have_no_run_details(client: AsyncClient) -> None:
+    """Empty and non-running entries should not have run_details."""
+    response = await client.get(
+        "/api/v1/weekly-plan", params={"week_start": "2026-05-01"}
+    )
+    assert response.status_code == 200
+    for entry in response.json()["entries"]:
+        assert entry["run_details"] is None

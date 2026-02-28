@@ -22,7 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { getWeeklyPlan, saveWeeklyPlan } from '@/api/weekly-plan';
-import type { WeeklyPlanEntry } from '@/api/weekly-plan';
+import type { RunDetails, WeeklyPlanEntry } from '@/api/weekly-plan';
 import { listTrainingPlans } from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
@@ -114,6 +114,22 @@ function getProximityWarning(
   }
   return null;
 }
+
+const RUN_TYPE_OPTIONS = [
+  { value: 'recovery', label: 'Regeneration' },
+  { value: 'easy', label: 'Lockerer Lauf' },
+  { value: 'long_run', label: 'Langer Lauf' },
+  { value: 'tempo', label: 'Tempolauf' },
+  { value: 'intervals', label: 'Intervalle' },
+];
+
+const RUN_TYPE_LABELS: Record<string, string> = {
+  recovery: 'Regeneration',
+  easy: 'Lockerer Lauf',
+  long_run: 'Langer Lauf',
+  tempo: 'Tempolauf',
+  intervals: 'Intervalle',
+};
 
 // --- Component ---
 
@@ -256,6 +272,7 @@ export function WeeklyPlanPage() {
           plan_id: e.plan_id,
           is_rest_day: e.is_rest_day,
           notes: e.notes,
+          run_details: e.run_details,
         })),
       });
       setEntries(result.entries);
@@ -441,8 +458,24 @@ export function WeeklyPlanPage() {
                           <div className="flex items-center gap-2">
                             <Footprints className="w-4 h-4 text-[var(--color-text-success)]" />
                             <span className="text-sm text-[var(--color-text-base)]">
-                              Laufen
+                              {entry.run_details?.run_type
+                                ? RUN_TYPE_LABELS[entry.run_details.run_type]
+                                : 'Laufen'}
                             </span>
+                            {entry.run_details?.target_duration_minutes && (
+                              <Badge variant="neutral" size="xs">
+                                {entry.run_details.target_duration_minutes} min
+                              </Badge>
+                            )}
+                            {entry.run_details?.target_pace_min && (
+                              <Badge variant="neutral" size="xs">
+                                {entry.run_details.target_pace_min}
+                                {entry.run_details.target_pace_max
+                                  ? `–${entry.run_details.target_pace_max}`
+                                  : ''}{' '}
+                                /km
+                              </Badge>
+                            )}
                           </div>
                         )}
 
@@ -524,6 +557,130 @@ export function WeeklyPlanPage() {
                               />
                             </div>
                           )}
+
+                        {/* Run details editor */}
+                        {entry.training_type === 'running' && (
+                          <div className="space-y-3 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-subtle)] p-3">
+                            <div>
+                              <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
+                                Lauftyp
+                              </label>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {RUN_TYPE_OPTIONS.map((rt) => (
+                                  <button
+                                    key={rt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      const current = entry.run_details;
+                                      updateEntry(entry.day_of_week, {
+                                        run_details: {
+                                          run_type: rt.value as RunDetails['run_type'],
+                                          target_duration_minutes:
+                                            current?.target_duration_minutes ?? null,
+                                          target_pace_min:
+                                            current?.target_pace_min ?? null,
+                                          target_pace_max:
+                                            current?.target_pace_max ?? null,
+                                          target_hr_min:
+                                            current?.target_hr_min ?? null,
+                                          target_hr_max:
+                                            current?.target_hr_max ?? null,
+                                          intervals:
+                                            current?.intervals ?? null,
+                                        },
+                                      });
+                                    }}
+                                    className={`px-2.5 py-1 text-xs rounded-[var(--radius-component-sm)] transition-colors duration-150 motion-reduce:transition-none ${
+                                      entry.run_details?.run_type === rt.value
+                                        ? 'bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] font-medium'
+                                        : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
+                                    }`}
+                                  >
+                                    {rt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {entry.run_details?.run_type && (
+                              <>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
+                                      Dauer (min)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      value={
+                                        entry.run_details
+                                          .target_duration_minutes ?? ''
+                                      }
+                                      onChange={(e) => {
+                                        const val = e.target.value
+                                          ? Number(e.target.value)
+                                          : null;
+                                        updateEntry(entry.day_of_week, {
+                                          run_details: {
+                                            ...entry.run_details!,
+                                            target_duration_minutes: val,
+                                          },
+                                        });
+                                      }}
+                                      min={5}
+                                      max={360}
+                                      placeholder="45"
+                                      className="w-full rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 py-1.5 text-xs text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
+                                      Pace von
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={
+                                        entry.run_details.target_pace_min ?? ''
+                                      }
+                                      onChange={(e) =>
+                                        updateEntry(entry.day_of_week, {
+                                          run_details: {
+                                            ...entry.run_details!,
+                                            target_pace_min:
+                                              e.target.value || null,
+                                          },
+                                        })
+                                      }
+                                      placeholder="5:30"
+                                      className="w-full rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 py-1.5 text-xs text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
+                                      Pace bis
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={
+                                        entry.run_details.target_pace_max ?? ''
+                                      }
+                                      onChange={(e) =>
+                                        updateEntry(entry.day_of_week, {
+                                          run_details: {
+                                            ...entry.run_details!,
+                                            target_pace_max:
+                                              e.target.value || null,
+                                          },
+                                        })
+                                      }
+                                      placeholder="6:00"
+                                      className="w-full rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 py-1.5 text-xs text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]"
+                                    />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                         <div>
                           <label className="text-xs text-[var(--color-text-muted)] mb-1 block">

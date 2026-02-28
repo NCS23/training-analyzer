@@ -1,5 +1,6 @@
-"""API routes for Weekly Plan (Issue #26)."""
+"""API routes for Weekly Plan (Issue #26, #27)."""
 
+import json
 from datetime import date, timedelta
 from typing import Optional
 
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models import TrainingPlanModel, WeeklyPlanEntryModel
 from app.infrastructure.database.session import get_db
 from app.models.weekly_plan import (
+    RunDetails,
     WeeklyPlanEntry,
     WeeklyPlanResponse,
     WeeklyPlanSaveRequest,
@@ -37,6 +39,17 @@ async def _get_plan_names(
         )
     )
     return {row.id: str(row.name) for row in result.all()}  # type: ignore[union-attr]
+
+
+def _parse_run_details(raw: Optional[str]) -> Optional[RunDetails]:
+    """Parse run_details_json string to RunDetails model."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return RunDetails(**data)
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 
 @router.get("", response_model=WeeklyPlanResponse)
@@ -73,6 +86,9 @@ async def get_weekly_plan(
     for day in range(7):
         if day in existing:
             e = existing[day]
+            run_details = _parse_run_details(
+                str(e.run_details_json) if e.run_details_json else None
+            )
             entries.append(
                 WeeklyPlanEntry(
                     day_of_week=day,
@@ -81,6 +97,7 @@ async def get_weekly_plan(
                     plan_name=plan_names.get(int(e.plan_id)) if e.plan_id else None,  # type: ignore[arg-type]
                     is_rest_day=bool(e.is_rest_day),
                     notes=str(e.notes) if e.notes else None,
+                    run_details=run_details,
                 )
             )
         else:
@@ -90,6 +107,7 @@ async def get_weekly_plan(
                     training_type=None,
                     is_rest_day=False,
                     notes=None,
+                    run_details=None,
                 )
             )
 
@@ -126,6 +144,10 @@ async def save_weekly_plan(
 
     # Insert new entries
     for entry in data.entries:
+        run_details_str: Optional[str] = None
+        if entry.run_details is not None:
+            run_details_str = json.dumps(entry.run_details.model_dump())
+
         db_entry = WeeklyPlanEntryModel(
             week_start=week_start,
             day_of_week=entry.day_of_week,
@@ -133,6 +155,7 @@ async def save_weekly_plan(
             plan_id=entry.plan_id,
             is_rest_day=entry.is_rest_day,
             notes=entry.notes,
+            run_details_json=run_details_str,
         )
         db.add(db_entry)
 

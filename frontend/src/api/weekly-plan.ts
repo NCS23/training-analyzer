@@ -2,6 +2,26 @@ import { apiClient } from './client';
 
 // --- Types ---
 
+export interface RunInterval {
+  type: 'work' | 'rest' | 'warmup' | 'cooldown';
+  duration_minutes: number;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  repeats: number;
+}
+
+export interface RunDetails {
+  run_type: 'recovery' | 'easy' | 'long_run' | 'tempo' | 'intervals';
+  target_duration_minutes: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+  intervals: RunInterval[] | null;
+}
+
 export interface WeeklyPlanEntry {
   day_of_week: number; // 0=Mon, 6=Sun
   training_type: string | null; // 'strength' | 'running' | null
@@ -9,6 +29,7 @@ export interface WeeklyPlanEntry {
   plan_name: string | null;
   is_rest_day: boolean;
   notes: string | null;
+  run_details: RunDetails | null;
 }
 
 export interface WeeklyPlanResponse {
@@ -22,6 +43,7 @@ export interface WeeklyPlanSaveEntry {
   plan_id?: number | null;
   is_rest_day: boolean;
   notes?: string | null;
+  run_details?: RunDetails | null;
 }
 
 export interface WeeklyPlanSaveRequest {
