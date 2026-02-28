@@ -10,6 +10,7 @@ from app.api.v1 import (
     strength,
     training_plans,
     trends,
+    weekly_plan,
     workouts,
 )
 
@@ -25,3 +26,4 @@ api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(trends.router, tags=["trends"])
 api_router.include_router(exercise_library.router, tags=["exercises"])
 api_router.include_router(training_plans.router, tags=["training-plans"])
+api_router.include_router(weekly_plan.router, tags=["weekly-plan"])

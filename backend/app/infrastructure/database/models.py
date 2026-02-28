@@ -1,6 +1,16 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -120,6 +130,22 @@ class RaceGoalModel(Base):
     distance_km = Column(Float, nullable=False)
     target_time_seconds = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False, server_default="true")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class WeeklyPlanEntryModel(Base):
+    __tablename__ = "weekly_plan_entries"
+    __table_args__ = (UniqueConstraint("week_start", "day_of_week", name="uq_week_day"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    week_start = Column(Date, nullable=False, index=True)
+    day_of_week = Column(Integer, nullable=False)  # 0=Mon, 6=Sun
+    training_type = Column(String(30), nullable=True)  # 'strength', 'running', or None
+    plan_id = Column(Integer, nullable=True)  # optional FK to training_plans
+    is_rest_day = Column(Boolean, default=False, nullable=False, server_default="false")
+    notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
