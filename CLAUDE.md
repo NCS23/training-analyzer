@@ -11,7 +11,7 @@
 
 ## Grundregel: Kein Code ohne Issue
 
-**Es wird NICHTS ohne Gitea Issue gemacht.** Kein Feature, kein Bugfix, kein Refactoring, keine Config-Aenderung.
+**Es wird NICHTS ohne GitHub Issue gemacht.** Kein Feature, kein Bugfix, kein Refactoring, keine Config-Aenderung.
 
 - Vor jeder Arbeit MUSS ein Issue existieren oder erstellt werden
 - Das Issue MUSS Akzeptanzkriterien und Taskbreakdown enthalten
@@ -37,7 +37,7 @@ Vor der ersten Zeile Code:
 
 ### Phase 1: Issue & Branch
 
-1. **Gitea Issue pruefen** — Akzeptanzkriterien und Taskbreakdown lesen
+1. **GitHub Issue pruefen** — Akzeptanzkriterien und Taskbreakdown lesen
 2. **Branch erstellen** — `feature/E01-S01-csv-upload` oder `fix/hr-zone-calc`
 3. **Scope klaeren** — Nur das umsetzen was im Issue steht, nicht mehr
 
@@ -91,8 +91,8 @@ pytest app/tests/ -x
 1. Commit + Push
 2. CI-Workflow abwarten — MUSS gruen sein
 3. Bei CI-Fehler: lokal fixen, neu pushen
-4. Gitea Issue kommentieren (was wurde gemacht, Review-Ergebnisse)
-5. Gitea Issue schliessen
+4. GitHub Issue kommentieren (was wurde gemacht, Review-Ergebnisse)
+5. GitHub Issue schliessen
 
 ---
 
@@ -110,23 +110,24 @@ pytest app/tests/ -x
 | **AI** | Claude API, Ollama (Fallback) |
 | **Tests FE** | Vitest, Testing Library, Playwright |
 | **Tests BE** | Pytest, pytest-asyncio |
-| **CI** | Gitea Actions |
-| **Deployment** | Docker Compose auf NAS |
+| **CI** | GitHub Actions |
+| **Deployment** | Docker Compose via Coolify (Hetzner) |
 
 ---
 
-## Gitea API
+## GitHub
+
+- **Repo:** `NCS23/training-analyzer` (privat)
+- **Issues:** `gh issue list -R NCS23/training-analyzer`
+- **Milestones:** MVP (P0), Release 1.1 (P1), Release 1.2 (P2), Post-Launch (P3-P4)
 
 ```bash
-# Token abrufen
-TOKEN=$(cd /Users/Nils/Projects/training-analyzer && git config --local gitea.token)
+# Issues auflisten
+gh issue list -R NCS23/training-analyzer --state open
 
-# API Beispiel
-curl -s -H "Authorization: token $TOKEN" \
-  "http://192.168.68.52:3001/api/v1/repos/NCSNASadmin/training-analyzer/issues"
+# Issue erstellen
+gh issue create -R NCS23/training-analyzer --title "..." --body "..."
 ```
-
-**NIEMALS** URLs oder Owner aus Session-Summaries uebernehmen — IMMER `git remote -v` ausfuehren.
 
 ---
 
@@ -164,4 +165,4 @@ Ein Feature ist DONE wenn:
 - [ ] Touch-Targets >= 44×44px
 - [ ] Nordlig DS Komponenten verwendet (keine eigenen Primitives)
 - [ ] CI-Pipeline gruen
-- [ ] Gitea Issue kommentiert und geschlossen
+- [ ] GitHub Issue kommentiert und geschlossen
