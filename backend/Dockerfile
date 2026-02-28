@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy full source so setuptools can find the app package
 COPY pyproject.toml ./
+COPY app/__init__.py app/__init__.py
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir "."
 
@@ -25,8 +27,6 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
-
-RUN mkdir -p /app/data
 
 EXPOSE 8000
 
