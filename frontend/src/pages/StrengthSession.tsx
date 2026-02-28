@@ -15,6 +15,7 @@ import {
 } from '@nordlig/components';
 import { DatePicker } from '@nordlig/components';
 import {
+  ClipboardList,
   Dumbbell,
   Plus,
   Trash2,
@@ -29,6 +30,8 @@ import type { ExerciseCategory, SetStatus } from '@/api/strength';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { getLastExerciseSets } from '@/api/strength';
+import { listTrainingPlans, getTrainingPlan } from '@/api/training-plans';
+import type { TrainingPlanSummary } from '@/api/training-plans';
 
 // --- Types ---
 
@@ -109,6 +112,10 @@ export function StrengthSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Training plans
+  const [availablePlans, setAvailablePlans] = useState<TrainingPlanSummary[]>([]);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+
   // Exercise library for suggestions
   const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<string | null>(null);
@@ -117,6 +124,9 @@ export function StrengthSessionPage() {
   useEffect(() => {
     listExercises()
       .then((res) => setLibraryExercises(res.exercises))
+      .catch(() => {});
+    listTrainingPlans('strength')
+      .then((res) => setAvailablePlans(res.plans))
       .catch(() => {});
   }, []);
 
@@ -211,6 +221,37 @@ export function StrengthSessionPage() {
       }
     },
     [updateExercise],
+  );
+
+  // --- Load from plan ---
+
+  const loadFromPlan = useCallback(
+    async (planId: number) => {
+      setLoadingPlan(true);
+      try {
+        const plan = await getTrainingPlan(planId);
+        const loadedExercises: ExerciseForm[] = plan.exercises.map((ex) => ({
+          id: genId(),
+          name: ex.name,
+          category: ex.category as ExerciseCategory,
+          sets: Array.from({ length: ex.sets }, () => ({
+            id: genId(),
+            reps: ex.reps,
+            weight_kg: ex.weight_kg ?? 0,
+            status: 'completed' as SetStatus,
+          })),
+          collapsed: false,
+        }));
+        if (loadedExercises.length > 0) {
+          setExercises(loadedExercises);
+        }
+      } catch {
+        setError('Plan konnte nicht geladen werden.');
+      } finally {
+        setLoadingPlan(false);
+      }
+    },
+    [],
   );
 
   // --- Exercise name suggestions ---
@@ -356,6 +397,34 @@ export function StrengthSessionPage() {
           </div>
         </CardBody>
       </Card>
+
+      {/* Load from plan */}
+      {availablePlans.length > 0 && (
+        <Card elevation="raised" padding="spacious">
+          <CardBody>
+            <div className="flex items-center gap-3">
+              <ClipboardList className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+              <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                Aus Plan laden:
+              </span>
+              <div className="flex items-center gap-2 flex-wrap flex-1">
+                {availablePlans.map((plan) => (
+                  <Button
+                    key={plan.id}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => loadFromPlan(plan.id)}
+                    disabled={loadingPlan}
+                  >
+                    {plan.name}
+                  </Button>
+                ))}
+              </div>
+              {loadingPlan && <Spinner size="sm" />}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Exercises */}
       <div className="space-y-4">

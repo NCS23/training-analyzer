@@ -42,10 +42,11 @@ describe('StrengthSessionPage', () => {
     const mocks = await getMocks();
     mocks.listExercises.mockResolvedValue({
       exercises: [
-        { id: 1, name: 'Bankdrücken', category: 'push', session_count: 5 },
-        { id: 2, name: 'Kniebeugen', category: 'legs', session_count: 8 },
-        { id: 3, name: 'Klimmzüge', category: 'pull', session_count: 3 },
+        { id: 1, name: 'Bankdrücken', category: 'push', is_favorite: false, is_custom: false, usage_count: 5, last_used_at: null, instructions: null, primary_muscles: null, secondary_muscles: null, image_urls: null, equipment: null, level: null, force: null, mechanic: null, exercise_db_id: null },
+        { id: 2, name: 'Kniebeugen', category: 'legs', is_favorite: false, is_custom: false, usage_count: 8, last_used_at: null, instructions: null, primary_muscles: null, secondary_muscles: null, image_urls: null, equipment: null, level: null, force: null, mechanic: null, exercise_db_id: null },
+        { id: 3, name: 'Klimmzüge', category: 'pull', is_favorite: false, is_custom: false, usage_count: 3, last_used_at: null, instructions: null, primary_muscles: null, secondary_muscles: null, image_urls: null, equipment: null, level: null, force: null, mechanic: null, exercise_db_id: null },
       ],
+      total: 3,
     });
     return mocks;
   }

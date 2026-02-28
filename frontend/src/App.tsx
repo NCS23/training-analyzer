@@ -91,6 +91,12 @@ const ExerciseLibraryPage = lazy(() =>
 const ExerciseDetailPage = lazy(() =>
   import('./pages/ExerciseDetail').then((m) => ({ default: m.ExerciseDetailPage })),
 );
+const TrainingPlansPage = lazy(() =>
+  import('./pages/TrainingPlans').then((m) => ({ default: m.TrainingPlansPage })),
+);
+const TrainingPlanEditorPage = lazy(() =>
+  import('./pages/TrainingPlanEditor').then((m) => ({ default: m.TrainingPlanEditorPage })),
+);
 const GoalsPage = lazy(() => import('./pages/Goals').then((m) => ({ default: m.GoalsPage })));
 const AthleteProfilePage = lazy(() =>
   import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
@@ -127,6 +133,9 @@ function App() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
                   <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />
+                  <Route path="/settings/plans" element={<TrainingPlansPage />} />
+                  <Route path="/settings/plans/new" element={<TrainingPlanEditorPage />} />
+                  <Route path="/settings/plans/:planId" element={<TrainingPlanEditorPage />} />
                   <Route path="/settings/goals" element={<GoalsPage />} />
                   <Route path="/settings/athlete" element={<AthleteProfilePage />} />
                   <Route path="*" element={<NotFoundPage />} />

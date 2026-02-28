@@ -97,6 +97,20 @@ class ExerciseModel(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class TrainingPlanModel(Base):
+    __tablename__ = "training_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    session_type = Column(String(30), nullable=False, server_default="strength")
+    exercises_json = Column(Text)  # JSON array of planned exercises
+    is_template = Column(Boolean, default=True, nullable=False, server_default="true")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class RaceGoalModel(Base):
     __tablename__ = "race_goals"
 

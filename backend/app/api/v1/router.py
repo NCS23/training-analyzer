@@ -8,6 +8,7 @@ from app.api.v1 import (
     health,
     sessions,
     strength,
+    training_plans,
     trends,
     workouts,
 )
@@ -23,3 +24,4 @@ api_router.include_router(goals.router, tags=["goals"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(trends.router, tags=["trends"])
 api_router.include_router(exercise_library.router, tags=["exercises"])
+api_router.include_router(training_plans.router, tags=["training-plans"])
