@@ -174,7 +174,7 @@ def _compute_insights(weekly_data: list[WeeklyDataPoint]) -> list[TrendInsight]:
             insights.append(
                 TrendInsight(
                     type="positive",
-                    message=f"Durchschnittliche HF um {abs(hr_diff)} bpm gesunken — gutes Zeichen fuer Fitness.",
+                    message=f"Durchschnittliche HF um {abs(hr_diff)} bpm gesunken — gutes Zeichen für Fitness.",
                 )
             )
 

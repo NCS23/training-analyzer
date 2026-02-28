@@ -30,6 +30,7 @@ class WorkoutModel(Base):
     laps_json = Column(Text)
     hr_zones_json = Column(Text)
     notes = Column(Text)
+    rpe = Column(Integer)  # 1-10 Rate of Perceived Exertion
 
     # Strength training
     exercises_json = Column(Text)
@@ -61,6 +62,36 @@ class AthleteModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     resting_hr = Column(Integer)
     max_hr = Column(Integer)
+
+    # Elevation correction factors (sec/km per 100m)
+    elevation_gain_factor = Column(Float, server_default="10.0")
+    elevation_loss_factor = Column(Float, server_default="5.0")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ExerciseModel(Base):
+    __tablename__ = "exercises"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    category = Column(String(20), nullable=False)
+    is_favorite = Column(Boolean, default=False, nullable=False, server_default="false")
+    is_custom = Column(Boolean, default=True, nullable=False, server_default="true")
+    usage_count = Column(Integer, default=0, nullable=False, server_default="0")
+    last_used_at = Column(DateTime, nullable=True)
+
+    # Enrichment data (from free-exercise-db or Claude API)
+    instructions_json = Column(Text)
+    primary_muscles_json = Column(Text)
+    secondary_muscles_json = Column(Text)
+    image_urls_json = Column(Text)
+    equipment = Column(String(50))
+    level = Column(String(20))
+    force = Column(String(20))
+    mechanic = Column(String(20))
+    exercise_db_id = Column(String(100))
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

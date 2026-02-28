@@ -17,6 +17,7 @@ from app.models.session import (
     LapResponse,
     NotesUpdateRequest,
     RecalculateZonesRequest,
+    RpeUpdateRequest,
     SessionListResponse,
     SessionParseResponse,
     SessionResponse,
@@ -28,7 +29,7 @@ from app.models.training import TrainingSubType, TrainingType
 from app.services.csv_parser import TrainingCSVParser
 from app.services.fit_parser import TrainingFITParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
-from app.services.km_split_calculator import calculate_km_splits
+from app.services.km_split_calculator import calculate_km_splits, calculate_session_gap
 from app.services.training_type_classifier import classify_training_type
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -189,6 +190,7 @@ async def upload_csv(
     training_type: TrainingType = Form(..., description="Trainingstyp"),
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
     notes: Optional[str] = Form(None, description="Notizen"),
+    rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
     db: AsyncSession = Depends(get_db),
@@ -255,6 +257,7 @@ async def upload_csv(
         athlete_resting_hr=parsed["resting_hr"],
         athlete_max_hr=parsed["max_hr"],
         notes=notes,
+        rpe=rpe,
     )
 
     db.add(workout)
@@ -290,6 +293,7 @@ async def upload_fit(
     training_type: TrainingType = Form(..., description="Trainingstyp"),
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
     notes: Optional[str] = Form(None, description="Notizen"),
+    rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
     db: AsyncSession = Depends(get_db),
@@ -356,6 +360,7 @@ async def upload_fit(
         athlete_resting_hr=parsed["resting_hr"],
         athlete_max_hr=parsed["max_hr"],
         notes=notes,
+        rpe=rpe,
     )
 
     db.add(workout)
@@ -478,6 +483,27 @@ async def get_session_track(
     return {"has_gps": True, "track": track}
 
 
+async def _get_athlete_elevation_factors(
+    db: AsyncSession,
+) -> tuple[Optional[float], Optional[float]]:
+    """Holt Elevation-Korrekturfaktoren des Athleten (wenn konfiguriert)."""
+    result = await db.execute(select(AthleteModel).limit(1))
+    athlete = result.scalar_one_or_none()
+    if athlete:
+        gain = (
+            float(athlete.elevation_gain_factor)
+            if athlete.elevation_gain_factor is not None
+            else None
+        )  # type: ignore[arg-type]
+        loss = (
+            float(athlete.elevation_loss_factor)
+            if athlete.elevation_loss_factor is not None
+            else None
+        )  # type: ignore[arg-type]
+        return gain, loss
+    return None, None
+
+
 @router.get("/{session_id}/km-splits")
 async def get_km_splits(
     session_id: int,
@@ -492,11 +518,23 @@ async def get_km_splits(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     if not workout.gps_track_json:
-        return {"has_splits": False, "splits": None}
+        return {"has_splits": False, "splits": None, "session_gap": None}
 
+    gain_factor, loss_factor = await _get_athlete_elevation_factors(db)
     track = json.loads(str(workout.gps_track_json))
-    splits = calculate_km_splits(track)
-    return {"has_splits": bool(splits), "splits": splits}
+    splits = calculate_km_splits(track, gain_factor=gain_factor, loss_factor=loss_factor)
+    session_gap = calculate_session_gap(splits)
+
+    return {
+        "has_splits": bool(splits),
+        "splits": splits,
+        "session_gap_min_per_km": session_gap,
+        "session_gap_formatted": _format_pace(session_gap) if session_gap else None,
+        "elevation_factors": {
+            "gain_sec_per_100m": gain_factor or 10.0,
+            "loss_sec_per_100m": loss_factor or 5.0,
+        },
+    }
 
 
 @router.get("/{session_id}/working-zones")
@@ -596,7 +634,7 @@ async def update_training_type(
     if body.training_type not in VALID_TRAINING_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Ungueltiger Training Type. Erlaubt: {', '.join(sorted(VALID_TRAINING_TYPES))}",
+            detail=f"Ungültiger Training Type. Erlaubt: {', '.join(sorted(VALID_TRAINING_TYPES))}",
         )
 
     query = select(WorkoutModel).where(WorkoutModel.id == session_id)
@@ -628,6 +666,27 @@ async def update_notes(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     workout.notes = body.notes  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionResponse.from_db(workout)
+
+
+@router.patch("/{session_id}/rpe", response_model=SessionResponse)
+async def update_rpe(
+    session_id: int,
+    body: RpeUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Aktualisiert die RPE einer Session."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    workout.rpe = body.rpe  # type: ignore[assignment]
     await db.commit()
     await db.refresh(workout)
 
@@ -699,7 +758,7 @@ async def recalculate_session_zones(
 
     hr_values = _extract_hr_from_stored_data(workout)
     if not hr_values:
-        raise HTTPException(status_code=400, detail="Keine HR-Daten vorhanden fuer Neuberechnung.")
+        raise HTTPException(status_code=400, detail="Keine HR-Daten vorhanden für Neuberechnung.")
 
     new_zones = calculate_zone_distribution(hr_values, resting_hr, max_hr)
     if not new_zones:
@@ -778,7 +837,7 @@ EXCLUDED_TYPES = {"warmup", "cooldown", "pause"}
 
 
 def _get_effective_type(lap: dict) -> str:
-    """Gibt den effektiven Lap-Typ zurueck (Override > Suggested)."""
+    """Gibt den effektiven Lap-Typ zurück (Override > Suggested)."""
     return lap.get("user_override") or lap.get("suggested_type") or "unclassified"
 
 

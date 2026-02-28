@@ -51,6 +51,10 @@ async def update_settings(
         athlete.resting_hr = body.resting_hr  # type: ignore[assignment]
     if body.max_hr is not None:
         athlete.max_hr = body.max_hr  # type: ignore[assignment]
+    if body.elevation_gain_factor is not None:
+        athlete.elevation_gain_factor = body.elevation_gain_factor  # type: ignore[assignment]
+    if body.elevation_loss_factor is not None:
+        athlete.elevation_loss_factor = body.elevation_loss_factor  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(athlete)

@@ -11,6 +11,7 @@ import {
   updateSessionDate,
   updateTrainingType,
   updateLapOverrides,
+  updateSessionRpe,
 } from '@/api/training';
 import type {
   SessionDetail,
@@ -73,15 +74,15 @@ import {
   DatePicker,
   Input,
   Label,
-  ToggleGroup,
-  ToggleGroupItem,
+  Slider,
+  SegmentedControl,
   useToast,
+  ActionBar,
 } from '@nordlig/components';
 import {
   ArrowLeft,
   Calendar,
   Trash2,
-  Check,
   Pencil,
   EllipsisVertical,
   Clock,
@@ -94,6 +95,8 @@ import {
   Dumbbell,
   Layers,
   Weight,
+  TrendingUp,
+  Gauge,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -174,6 +177,7 @@ export function SessionDetailPage() {
 
   // Km splits state
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
+  const [sessionGap, setSessionGap] = useState<string | null>(null);
   const [splitsTab, setSplitsTab] = useState<'laps' | 'km'>('laps');
 
   // Map overlay markers
@@ -188,6 +192,9 @@ export function SessionDetailPage() {
   const [workingHrZones, setWorkingHrZones] = useState<Record<string, HRZone> | null>(null);
   const [savingLaps, setSavingLaps] = useState(false);
 
+  // RPE editing
+  const [localRpe, setLocalRpe] = useState<number | null>(null);
+
   // Recalculate zones dialog
   const [showRecalcDialog, setShowRecalcDialog] = useState(false);
   const [recalcRestingHr, setRecalcRestingHr] = useState('');
@@ -196,7 +203,7 @@ export function SessionDetailPage() {
 
   const loadSession = useCallback(async () => {
     if (!sessionId || isNaN(sessionId)) {
-      setError('Ungueltige Session-ID.');
+      setError('Ungültige Session-ID.');
       setLoading(false);
       return;
     }
@@ -224,6 +231,7 @@ export function SessionDetailPage() {
           const splitsData = await getKmSplits(sessionId);
           if (splitsData.has_splits && splitsData.splits) {
             setKmSplits(splitsData.splits);
+            setSessionGap(splitsData.session_gap_formatted ?? null);
           }
         } catch {
           // Silently fail — km splits are optional
@@ -296,6 +304,22 @@ export function SessionDetailPage() {
     notesTimer.current = setTimeout(() => saveNotes(value), 1000);
   };
 
+  // Auto-save RPE
+  const handleRpeChange = useCallback(
+    async (value: number) => {
+      if (!sessionId) return;
+      setLocalRpe(value);
+      try {
+        await updateSessionRpe(sessionId, value);
+        setSession((prev) => (prev ? { ...prev, rpe: value } : prev));
+        toast({ title: 'RPE gespeichert', variant: 'success' });
+      } catch {
+        setError('RPE konnte nicht gespeichert werden.');
+      }
+    },
+    [sessionId, toast],
+  );
+
   // Delete
   const handleDelete = async () => {
     if (!sessionId) return;
@@ -305,7 +329,7 @@ export function SessionDetailPage() {
       toast({ title: 'Session gelöscht', variant: 'success' });
       navigate('/sessions', { replace: true });
     } catch {
-      setError('Session konnte nicht geloescht werden.');
+      setError('Session konnte nicht gelöscht werden.');
       setDeleting(false);
     }
   };
@@ -570,6 +594,8 @@ export function SessionDetailPage() {
       icon: MapPin,
     });
   if (session.pace) metrics.push({ label: 'Pace', value: session.pace, unit: '/km', icon: Timer });
+  if (sessionGap)
+    metrics.push({ label: 'GAP', value: sessionGap, unit: '/km', icon: TrendingUp });
   if (session.hr_avg != null)
     metrics.push({
       label: 'Ø Herzfrequenz',
@@ -602,7 +628,7 @@ export function SessionDetailPage() {
   // Strength-specific metrics
   if (session.exercises && session.exercises.length > 0) {
     metrics.push({
-      label: 'Uebungen',
+      label: 'Übungen',
       value: String(session.exercises.length),
       unit: '',
       icon: Dumbbell,
@@ -612,7 +638,7 @@ export function SessionDetailPage() {
       0,
     );
     metrics.push({
-      label: 'Saetze',
+      label: 'Sätze',
       value: String(totalSets),
       unit: '',
       icon: Layers,
@@ -632,6 +658,16 @@ export function SessionDetailPage() {
       });
   }
 
+  // RPE metric (all workout types)
+  const effectiveRpe = localRpe ?? session.rpe;
+  if (effectiveRpe != null)
+    metrics.push({
+      label: 'RPE',
+      value: String(effectiveRpe),
+      unit: '/10',
+      icon: Gauge,
+    });
+
   const canShowHR = hrZoneBoundaries != null;
 
   return (
@@ -648,7 +684,7 @@ export function SessionDetailPage() {
       </nav>
 
       {/* Page header */}
-      <header className="flex items-start justify-between gap-2">
+      <header className="flex items-start justify-between gap-2 pb-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
@@ -720,7 +756,7 @@ export function SessionDetailPage() {
           <DialogHeader>
             <DialogTitle>HF-Zonen neu berechnen</DialogTitle>
             <DialogDescription>
-              Gib die Herzfrequenz-Werte ein, die fuer diese Session gelten sollen.
+              Gib die Herzfrequenz-Werte ein, die für diese Session gelten sollen.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
@@ -762,25 +798,6 @@ export function SessionDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit mode banner */}
-      {isEditing && (
-        <div className="flex items-center justify-between gap-2 rounded-[var(--radius-component-md)] bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)] px-4 py-2">
-          <span className="text-sm text-[var(--color-text-info)] flex items-center gap-1.5">
-            <Pencil className="w-3.5 h-3.5 shrink-0" />
-            Bearbeitungsmodus
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="shrink-0 !border-[var(--color-border-info)] !text-[var(--color-text-info)]"
-            onClick={() => setIsEditing(false)}
-          >
-            <Check className="w-3.5 h-3.5" />
-            Fertig
-          </Button>
-        </div>
-      )}
-
       {/* Error banner */}
       {error && (
         <Alert variant="error" closeable onClose={() => setError(null)}>
@@ -792,7 +809,7 @@ export function SessionDetailPage() {
       {isEditing && (
         <Card elevation="raised">
           <CardBody>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 gap-4 ${session.workout_type === 'running' ? (hrZones ? 'sm:grid-cols-3' : 'sm:grid-cols-2') : ''}`}>
               <div className="space-y-1.5">
                 <Label>Datum</Label>
                 {savingDate ? (
@@ -821,6 +838,32 @@ export function SessionDetailPage() {
                   )}
                 </div>
               )}
+              {hrZones && (
+                <div className="space-y-1.5">
+                  <Label>HF-Zonen</Label>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={openRecalcDialog}
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Zonen neu berechnen
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 space-y-1.5">
+              <Label>RPE (Anstrengung): {effectiveRpe ?? '–'}</Label>
+              <Slider
+                value={[effectiveRpe ?? 5]}
+                onValueChange={([val]) => handleRpeChange(val)}
+                min={1}
+                max={10}
+                step={1}
+                showValue
+                aria-label="Rate of Perceived Exertion"
+              />
             </div>
           </CardBody>
         </Card>
@@ -859,13 +902,44 @@ export function SessionDetailPage() {
         </Card>
       </section>
 
+      {/* Insights */}
+      {(() => {
+        const insights = generateInsights(session);
+        if (insights.length === 0) return null;
+
+        const variantMap: Record<InsightType, 'success' | 'warning' | 'info'> = {
+          positive: 'success',
+          warning: 'warning',
+          neutral: 'info',
+        };
+
+        return (
+          <section aria-label="Insights">
+            <Card elevation="raised">
+              <CardHeader>
+                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Insights</h2>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-2">
+                  {insights.map((insight, i) => (
+                    <Alert key={i} variant={variantMap[insight.type]}>
+                      <AlertDescription>{insight.message}</AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          </section>
+        );
+      })()}
+
       {/* Exercises (Strength) */}
       {session.exercises && session.exercises.length > 0 && (
-        <section aria-label="Uebungen">
+        <section aria-label="Übungen">
           <Card elevation="raised">
             <CardHeader>
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Uebungen ({session.exercises.length})
+                Übungen ({session.exercises.length})
               </h2>
             </CardHeader>
             <CardBody className="space-y-4">
@@ -969,57 +1043,21 @@ export function SessionDetailPage() {
                     if (val) setTileStyle(val as MapTileStyle);
                   }}
                   inputSize="sm"
-                  className="w-28"
+                  className="w-32"
                 />
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
+                <SegmentedControl
+                  size="sm"
                   value={mapMode}
-                  onValueChange={(val) => {
-                    if (val) setMapMode(val as HeatMapMode);
-                  }}
-                  className="gap-0"
-                >
-                  <ToggleGroupItem value="route" className="text-xs px-2.5 py-1">
-                    Route
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="pace" className="text-xs px-2.5 py-1">
-                    Pace
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="hr"
-                    className="text-xs px-2.5 py-1"
-                    disabled={!canShowHR}
-                    title={canShowHR ? undefined : 'HF-Daten (Ruhe-/Max-HF) fehlen'}
-                  >
-                    HF
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                  onChange={(val) => setMapMode(val as HeatMapMode)}
+                  items={[
+                    { value: 'route', label: 'Route' },
+                    { value: 'pace', label: 'Pace' },
+                    { value: 'hr', label: 'HF', disabled: !canShowHR },
+                  ]}
+                />
               </div>
             </CardHeader>
-            {/* Overlay toggles */}
-            {(kmMarkerData?.length || lapMarkerData?.length) && (
-              <div className="flex items-center gap-4 px-[var(--spacing-card-padding-normal)] pb-1 text-xs text-[var(--color-text-muted)]">
-                {kmMarkerData && kmMarkerData.length > 0 && (
-                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
-                    <Checkbox
-                      checked={showKmMarkers}
-                      onCheckedChange={(checked) => setShowKmMarkers(checked === true)}
-                    />
-                    <span>Km-Marker</span>
-                  </label>
-                )}
-                {lapMarkerData && lapMarkerData.length > 0 && (
-                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
-                    <Checkbox
-                      checked={showLapMarkers}
-                      onCheckedChange={(checked) => setShowLapMarkers(checked === true)}
-                    />
-                    <span>Lap-Marker</span>
-                  </label>
-                )}
-              </div>
-            )}
+            {/* Marker toggles moved below map */}
             <CardBody className="space-y-4">
               <RouteMap
                 points={gpsTrack.points}
@@ -1044,12 +1082,33 @@ export function SessionDetailPage() {
                 highlightedKm={highlightedKm}
                 highlightedLap={highlightedLap}
               />
-              {mapMode === 'pace' && paceRange && (
-                <MapLegend mode="pace" minPace={paceRange.min} maxPace={paceRange.max} />
-              )}
-              {mapMode === 'hr' && hrZoneBoundaries && (
-                <MapLegend mode="hr" zones={hrZoneBoundaries} />
-              )}
+              {/* Legend + Marker toggles */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+                {mapMode === 'pace' && paceRange && (
+                  <MapLegend mode="pace" minPace={paceRange.min} maxPace={paceRange.max} />
+                )}
+                {mapMode === 'hr' && hrZoneBoundaries && (
+                  <MapLegend mode="hr" zones={hrZoneBoundaries} />
+                )}
+                {kmMarkerData && kmMarkerData.length > 0 && (
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
+                    <Checkbox
+                      checked={showKmMarkers}
+                      onCheckedChange={(checked) => setShowKmMarkers(checked === true)}
+                    />
+                    <span>Km-Marker</span>
+                  </label>
+                )}
+                {lapMarkerData && lapMarkerData.length > 0 && (
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer py-1">
+                    <Checkbox
+                      checked={showLapMarkers}
+                      onCheckedChange={(checked) => setShowLapMarkers(checked === true)}
+                    />
+                    <span>Lap-Marker</span>
+                  </label>
+                )}
+              </div>
               <ElevationProfile
                 points={gpsTrack.points}
                 totalAscentM={gpsTrack.total_ascent_m}
@@ -1061,37 +1120,6 @@ export function SessionDetailPage() {
           </Card>
         </section>
       )}
-
-      {/* Insights */}
-      {(() => {
-        const insights = generateInsights(session);
-        if (insights.length === 0) return null;
-
-        const variantMap: Record<InsightType, 'success' | 'warning' | 'info'> = {
-          positive: 'success',
-          warning: 'warning',
-          neutral: 'info',
-        };
-
-        return (
-          <section aria-label="Insights">
-            <Card elevation="raised">
-              <CardHeader>
-                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Insights</h2>
-              </CardHeader>
-              <CardBody>
-                <div className="space-y-2">
-                  {insights.map((insight, i) => (
-                    <Alert key={i} variant={variantMap[insight.type]}>
-                      <AlertDescription>{insight.message}</AlertDescription>
-                    </Alert>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          </section>
-        );
-      })()}
 
       {/* HR Zones — side by side */}
       {hrZones && Object.keys(hrZones).length > 0 && (
@@ -1105,15 +1133,6 @@ export function SessionDetailPage() {
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   HF-Zonen Gesamt
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={openRecalcDialog}
-                  aria-label="Zonen neu berechnen"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span className="text-xs">Aktualisieren</span>
-                </Button>
               </CardHeader>
               <CardBody>
                 <div className="space-y-3">
@@ -1196,23 +1215,15 @@ export function SessionDetailPage() {
         <section aria-label="Laps">
           <Card elevation="raised">
             <CardHeader className="flex flex-row items-center justify-between">
-              <ToggleGroup
-                type="single"
+              <SegmentedControl
+                size="sm"
                 value={splitsTab}
-                onValueChange={(val) => { if (val) setSplitsTab(val as 'laps' | 'km'); }}
-                className="gap-1"
-              >
-                {localLaps.length > 0 && (
-                  <ToggleGroupItem value="laps" className="text-xs px-2.5 py-1">
-                    Geraete-Laps ({localLaps.length})
-                  </ToggleGroupItem>
-                )}
-                {kmSplits && (
-                  <ToggleGroupItem value="km" className="text-xs px-2.5 py-1">
-                    Kilometer ({kmSplits.length})
-                  </ToggleGroupItem>
-                )}
-              </ToggleGroup>
+                onChange={(val) => setSplitsTab(val as 'laps' | 'km')}
+                items={[
+                  ...(localLaps.length > 0 ? [{ value: 'laps', label: `Geräte-Laps (${localLaps.length})` }] : []),
+                  ...(kmSplits ? [{ value: 'km', label: `Kilometer (${kmSplits.length})` }] : []),
+                ]}
+              />
               {isEditing && savingLaps && splitsTab === 'laps' && <Spinner size="sm" />}
             </CardHeader>
 
@@ -1310,7 +1321,7 @@ export function SessionDetailPage() {
                       <TableHead>Dauer</TableHead>
                       <TableHead>Pace</TableHead>
                       <TableHead
-                        title="Hoehenkorrigierter Pace: Bergauf-Laeufe erhalten Zeitgutschrift, Bergab-Laeufe Zeitabzug"
+                        title="Höhenkorrigierter Pace: Bergauf-Läufe erhalten Zeitgutschrift, Bergab-Läufe Zeitabzug"
                       >
                         GAP
                       </TableHead>
@@ -1339,7 +1350,7 @@ export function SessionDetailPage() {
                           {split.pace_formatted ? `${split.pace_formatted} /km` : '-'}
                         </TableCell>
                         <TableCell
-                          title={split.pace_corrected_formatted ? 'Grade Adjusted Pace — korrigiert fuer Steigung/Gefaelle' : undefined}
+                          title={split.pace_corrected_formatted ? 'Grade Adjusted Pace — korrigiert für Steigung/Gefälle' : undefined}
                         >
                           {split.pace_corrected_formatted ? (
                             <span className="text-[var(--color-text-info)]">
@@ -1379,7 +1390,7 @@ export function SessionDetailPage() {
                 value={notes}
                 onChange={handleNotesChange}
                 rows={3}
-                placeholder="Wie hast du dich gefuehlt? Notizen zum Training..."
+                placeholder="Wie hast du dich gefühlt? Notizen zum Training..."
               />
             ) : (
               <p className="text-sm text-[var(--color-text-base)]">
@@ -1403,6 +1414,23 @@ export function SessionDetailPage() {
         </div>
         <span>Session #{session.id}</span>
       </footer>
+
+      {/* Sticky edit mode bar */}
+      {isEditing && (
+        <ActionBar className="-mx-4 md:-mx-6 md:px-6">
+          <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
+            Ungespeicherte Änderungen
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => setIsEditing(false)}>
+              Fertig
+            </Button>
+          </div>
+        </ActionBar>
+      )}
     </div>
   );
 }

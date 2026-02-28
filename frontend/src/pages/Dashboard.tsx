@@ -97,7 +97,7 @@ export function DashboardPage() {
   if (totalSessions === 0) {
     return (
       <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-        <header>
+        <header className="pb-2">
           <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
             Dashboard
           </h1>
@@ -330,7 +330,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-[var(--color-text-muted)]">
-                        Geschaetzte Finish-Zeit
+                        Geschätzte Finish-Zeit
                       </p>
                       <p className="text-sm font-medium text-[var(--color-text-base)]">
                         {goalProgress.estimated_finish_formatted}
@@ -474,7 +474,7 @@ export function DashboardPage() {
                         {session.workout_type === 'strength' ? (
                           <>
                             {session.exercises_count != null && (
-                              <span>{session.exercises_count} Uebungen</span>
+                              <span>{session.exercises_count} Übungen</span>
                             )}
                             {session.total_tonnage_kg != null && (
                               <span>

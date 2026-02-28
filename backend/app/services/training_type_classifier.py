@@ -85,7 +85,7 @@ def classify_training_type(
     """Klassifiziert den Trainingstyp basierend auf Session-Metriken.
 
     Returns:
-        ClassificationResult mit training_type, confidence (0-100), und Begruendungen.
+        ClassificationResult mit training_type, confidence (0-100), und Begründungen.
     """
     t = thresholds or DEFAULT_THRESHOLDS
     laps = laps or []

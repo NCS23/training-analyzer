@@ -141,7 +141,7 @@ export function ElevationProfile({
       <div
         className="h-[150px] md:h-[200px]"
         aria-label={
-          `Hoehenprofil: ${totalAscentM ?? '?'} m Anstieg, ${totalDescentM ?? '?'} m Abstieg` +
+          `Höhenprofil: ${totalAscentM ?? '?'} m Anstieg, ${totalDescentM ?? '?'} m Abstieg` +
           (summary ? `, ${summary.minAltitudeM}–${summary.maxAltitudeM} m` : '')
         }
       >

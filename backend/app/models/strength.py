@@ -1,4 +1,4 @@
-"""Pydantic Schemas fuer Krafttraining API."""
+"""Pydantic Schemas für Krafttraining API."""
 
 from datetime import date
 from enum import Enum
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class ExerciseCategory(str, Enum):
-    """Uebungskategorie."""
+    """Übungskategorie."""
 
     PUSH = "push"
     PULL = "pull"
@@ -29,7 +29,7 @@ class SetStatus(str, Enum):
 
 
 class SetInput(BaseModel):
-    """Einzelner Satz einer Uebung."""
+    """Einzelner Satz einer Übung."""
 
     reps: int = Field(..., ge=0, le=999, description="Anzahl Wiederholungen")
     weight_kg: float = Field(..., ge=0, le=999, description="Gewicht in kg")
@@ -37,9 +37,9 @@ class SetInput(BaseModel):
 
 
 class ExerciseInput(BaseModel):
-    """Einzelne Uebung mit Saetzen."""
+    """Einzelne Übung mit Sätzen."""
 
-    name: str = Field(..., min_length=1, max_length=100, description="Name der Uebung")
+    name: str = Field(..., min_length=1, max_length=100, description="Name der Übung")
     category: ExerciseCategory = Field(..., description="Kategorie")
     sets: list[SetInput] = Field(..., min_length=1, description="Mindestens ein Satz")
 
@@ -49,7 +49,7 @@ class StrengthSessionCreate(BaseModel):
 
     date: date
     duration_minutes: int = Field(..., ge=1, le=600, description="Dauer in Minuten")
-    exercises: list[ExerciseInput] = Field(..., min_length=1, description="Mindestens eine Uebung")
+    exercises: list[ExerciseInput] = Field(..., min_length=1, description="Mindestens eine Übung")
     notes: Optional[str] = Field(None, max_length=2000, description="Notizen")
     rpe: Optional[int] = Field(None, ge=1, le=10, description="RPE (Rate of Perceived Exertion)")
 
@@ -66,7 +66,7 @@ class SetResponse(BaseModel):
 
 
 class ExerciseResponse(BaseModel):
-    """Uebung in der API-Antwort."""
+    """Übung in der API-Antwort."""
 
     name: str
     category: str
@@ -74,7 +74,7 @@ class ExerciseResponse(BaseModel):
 
 
 class StrengthMetrics(BaseModel):
-    """Auto-berechnete Metriken fuer Krafttraining."""
+    """Auto-berechnete Metriken für Krafttraining."""
 
     total_exercises: int
     total_sets: int
@@ -84,7 +84,7 @@ class StrengthMetrics(BaseModel):
 
 
 class LastExerciseSets(BaseModel):
-    """Letzte Saetze einer Uebung (Quick-Add)."""
+    """Letzte Sätze einer Übung (Quick-Add)."""
 
     exercise_name: str
     category: str

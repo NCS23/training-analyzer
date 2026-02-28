@@ -3,10 +3,10 @@
 import math
 from typing import Optional
 
-# Elevation pace correction: seconds per km per 100m of elevation gain
+# Default elevation pace correction: seconds per km per 100m of elevation change
 # Literature: ~10-12 sec/km per 100m gain, ~5-7 sec/km per 100m loss benefit
-ELEV_CORRECTION_SEC_PER_100M_GAIN = 10.0
-ELEV_CORRECTION_SEC_PER_100M_LOSS = 5.0
+DEFAULT_ELEV_GAIN_SEC_PER_100M = 10.0
+DEFAULT_ELEV_LOSS_SEC_PER_100M = 5.0
 
 
 def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -19,12 +19,23 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def calculate_km_splits(gps_track: dict) -> list[dict]:
+def calculate_km_splits(
+    gps_track: dict,
+    gain_factor: Optional[float] = None,
+    loss_factor: Optional[float] = None,
+) -> list[dict]:
     """Calculate per-kilometer splits from GPS track points.
 
     Each GPS point must have: lat, lng, seconds (elapsed).
     Optional fields: hr (heart rate), alt (altitude).
+
+    Args:
+        gps_track: GPS track dict with "points" list.
+        gain_factor: Sec/km per 100m gain (default: 10.0).
+        loss_factor: Sec/km per 100m loss benefit (default: 5.0).
     """
+    effective_gain = gain_factor if gain_factor is not None else DEFAULT_ELEV_GAIN_SEC_PER_100M
+    effective_loss = loss_factor if loss_factor is not None else DEFAULT_ELEV_LOSS_SEC_PER_100M
     points = gps_track.get("points", [])
     if len(points) < 2:
         return []
@@ -76,6 +87,8 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
                     is_partial=False,
                     boundary_lat=round(boundary_lat, 6),
                     boundary_lng=round(boundary_lng, 6),
+                    gain_factor=effective_gain,
+                    loss_factor=effective_loss,
                 )
             )
 
@@ -120,6 +133,8 @@ def calculate_km_splits(gps_track: dict) -> list[dict]:
                 is_partial=True,
                 boundary_lat=round(float(last_point["lat"]), 6),
                 boundary_lng=round(float(last_point["lng"]), 6),
+                gain_factor=effective_gain,
+                loss_factor=effective_loss,
             )
         )
 
@@ -141,6 +156,8 @@ def _calc_corrected_pace(
     distance_km: float,
     elev_gain: Optional[float],
     elev_loss: Optional[float],
+    gain_factor: float = DEFAULT_ELEV_GAIN_SEC_PER_100M,
+    loss_factor: float = DEFAULT_ELEV_LOSS_SEC_PER_100M,
 ) -> Optional[float]:
     """Calculate elevation-corrected pace (Grade Adjusted Pace).
 
@@ -156,8 +173,8 @@ def _calc_corrected_pace(
         return None  # Flat — no correction needed
 
     # Correction in seconds for this split
-    gain_penalty_sec = (gain / 100.0) * ELEV_CORRECTION_SEC_PER_100M_GAIN
-    loss_benefit_sec = (loss / 100.0) * ELEV_CORRECTION_SEC_PER_100M_LOSS
+    gain_penalty_sec = (gain / 100.0) * gain_factor
+    loss_benefit_sec = (loss / 100.0) * loss_factor
 
     # Normalize per km (for partial splits)
     correction_sec_per_km = (gain_penalty_sec - loss_benefit_sec) / distance_km
@@ -181,11 +198,15 @@ def _build_split(
     is_partial: bool,
     boundary_lat: Optional[float] = None,
     boundary_lng: Optional[float] = None,
+    gain_factor: float = DEFAULT_ELEV_GAIN_SEC_PER_100M,
+    loss_factor: float = DEFAULT_ELEV_LOSS_SEC_PER_100M,
 ) -> dict:
     """Build a single km split dict."""
     pace_formatted = _format_pace(pace) if pace is not None else None
 
-    corrected_pace = _calc_corrected_pace(pace, distance_km, elev_gain, elev_loss)
+    corrected_pace = _calc_corrected_pace(
+        pace, distance_km, elev_gain, elev_loss, gain_factor, loss_factor
+    )
     corrected_formatted = _format_pace(corrected_pace) if corrected_pace is not None else None
 
     dur_mins = duration_sec // 60
@@ -235,3 +256,31 @@ def _calc_elevation(alt_values: list[float]) -> tuple[Optional[float], Optional[
             ref_alt = alt
 
     return round(gain, 1), round(loss, 1)
+
+
+def calculate_session_gap(
+    splits: list[dict],
+) -> Optional[float]:
+    """Calculate session-level Grade Adjusted Pace (weighted avg of corrected paces).
+
+    Returns GAP in min/km or None if no corrected paces available.
+    Only full km splits are used (partial splits excluded for accuracy).
+    """
+    total_seconds = 0.0
+    total_distance_km = 0.0
+
+    for s in splits:
+        corrected = s.get("pace_corrected_min_per_km")
+        dist = s.get("distance_km", 0)
+        if corrected is not None and dist > 0:
+            # Convert corrected pace back to seconds for this split
+            total_seconds += corrected * 60.0 * dist
+            total_distance_km += dist
+
+    if total_distance_km <= 0:
+        return None
+
+    gap_min_per_km = (total_seconds / 60.0) / total_distance_km
+    if gap_min_per_km < 1.0 or gap_min_per_km > 30.0:
+        return None
+    return round(gap_min_per_km, 2)

@@ -6,6 +6,7 @@ export interface TrainingUploadParams {
   trainingType: 'running' | 'strength';
   trainingSubtype?: string;
   notes?: string;
+  rpe?: number;
   lapOverrides?: Record<number, string>;
   trainingTypeOverride?: string;
 }
@@ -153,6 +154,9 @@ export async function uploadTraining(
   if (params.notes) {
     formData.append('notes', params.notes);
   }
+  if (params.rpe != null) {
+    formData.append('rpe', String(params.rpe));
+  }
   if (params.lapOverrides && Object.keys(params.lapOverrides).length > 0) {
     formData.append('lap_overrides_json', JSON.stringify(params.lapOverrides));
   }
@@ -238,6 +242,7 @@ export interface SessionDetail {
   hr_min: number | null;
   cadence_avg: number | null;
   notes: string | null;
+  rpe: number | null;
   laps: LapDetail[] | null;
   hr_zones: Record<string, HRZone> | null;
   exercises: Array<{
@@ -285,6 +290,16 @@ export async function updateSessionNotes(
 export async function updateSessionDate(sessionId: number, date: string): Promise<SessionDetail> {
   const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/date`, {
     date,
+  });
+  return response.data;
+}
+
+export async function updateSessionRpe(
+  sessionId: number,
+  rpe: number | null,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/rpe`, {
+    rpe,
   });
   return response.data;
 }
@@ -337,6 +352,12 @@ export interface KmSplit {
 export interface KmSplitsResponse {
   has_splits: boolean;
   splits: KmSplit[] | null;
+  session_gap_min_per_km: number | null;
+  session_gap_formatted: string | null;
+  elevation_factors: {
+    gain_sec_per_100m: number;
+    loss_sec_per_100m: number;
+  } | null;
 }
 
 export async function getKmSplits(sessionId: number): Promise<KmSplitsResponse> {

@@ -82,23 +82,25 @@ class TestTonnageCalculator:
 
 # --- Integration Tests: API ---
 
-EXERCISES_JSON = json.dumps([
-    {
-        "name": "Kniebeugen",
-        "category": "legs",
-        "sets": [
-            {"reps": 8, "weight_kg": 100, "status": "completed"},
-            {"reps": 8, "weight_kg": 100, "status": "completed"},
-        ],
-    },
-    {
-        "name": "Bankdruecken",
-        "category": "push",
-        "sets": [
-            {"reps": 10, "weight_kg": 60, "status": "completed"},
-        ],
-    },
-])
+EXERCISES_JSON = json.dumps(
+    [
+        {
+            "name": "Kniebeugen",
+            "category": "legs",
+            "sets": [
+                {"reps": 8, "weight_kg": 100, "status": "completed"},
+                {"reps": 8, "weight_kg": 100, "status": "completed"},
+            ],
+        },
+        {
+            "name": "Bankdruecken",
+            "category": "push",
+            "sets": [
+                {"reps": 10, "weight_kg": 60, "status": "completed"},
+            ],
+        },
+    ]
+)
 
 VALID_FORM_DATA = {
     "exercises_json": EXERCISES_JSON,
@@ -204,9 +206,7 @@ async def test_create_validation_no_sets(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/sessions/strength",
         data={
-            "exercises_json": json.dumps([
-                {"name": "Kniebeugen", "category": "legs", "sets": []}
-            ]),
+            "exercises_json": json.dumps([{"name": "Kniebeugen", "category": "legs", "sets": []}]),
             "training_date": "2026-02-27",
             "duration_minutes": "60",
         },

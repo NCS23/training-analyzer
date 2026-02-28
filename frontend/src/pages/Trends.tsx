@@ -99,13 +99,13 @@ export function TrendsPage() {
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-2">
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
             Trends
           </h1>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Entwicklung deiner Trainingsdaten ueber die Zeit.
+            Entwicklung deiner Trainingsdaten über die Zeit.
           </p>
         </div>
         <ToggleGroup
@@ -139,7 +139,7 @@ export function TrendsPage() {
         <Card elevation="raised">
           <CardBody className="py-12 text-center">
             <p className="text-sm text-[var(--color-text-muted)]">
-              Keine Trainingsdaten im gewaehlten Zeitraum vorhanden.
+              Keine Trainingsdaten im gewählten Zeitraum vorhanden.
             </p>
           </CardBody>
         </Card>

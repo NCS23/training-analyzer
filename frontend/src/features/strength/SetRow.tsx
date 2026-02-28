@@ -31,7 +31,7 @@ export function SetRow({ index, set, onChange, onRemove, canRemove }: SetRowProp
           step={1}
           inputSize="sm"
           aria-label={`Satz ${index + 1} Wiederholungen`}
-          incrementLabel="Wiederholung hinzufuegen"
+          incrementLabel="Wiederholung hinzufügen"
           decrementLabel="Wiederholung entfernen"
         />
       </div>
@@ -44,7 +44,7 @@ export function SetRow({ index, set, onChange, onRemove, canRemove }: SetRowProp
           step={2.5}
           inputSize="sm"
           aria-label={`Satz ${index + 1} Gewicht kg`}
-          incrementLabel="Gewicht erhoehen"
+          incrementLabel="Gewicht erhöhen"
           decrementLabel="Gewicht verringern"
         />
       </div>

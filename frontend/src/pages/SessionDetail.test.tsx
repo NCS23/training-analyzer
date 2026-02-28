@@ -49,6 +49,7 @@ const mockSession: SessionDetail = {
   hr_min: 110,
   cadence_avg: 172,
   notes: 'Gutes Training',
+  rpe: null,
   laps: [
     {
       lap_number: 1,
@@ -215,7 +216,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Geraete-Laps (2)')).toBeInTheDocument();
+      expect(screen.getByText('Geräte-Laps (2)')).toBeInTheDocument();
     });
     expect(screen.getByText('05:00')).toBeInTheDocument();
     expect(screen.getByText('10:00')).toBeInTheDocument();
@@ -276,7 +277,7 @@ describe('SessionDetailPage', () => {
     });
   });
 
-  it('toggles edit mode via dropdown and Fertig banner', async () => {
+  it('toggles edit mode via dropdown and ActionBar', async () => {
     const user = userEvent.setup();
     const { getSession } = await getMocks();
     getSession.mockResolvedValue(mockSession);
@@ -289,12 +290,12 @@ describe('SessionDetailPage', () => {
 
     // Enter edit mode via dropdown
     await clickDropdownItem(user, 'Bearbeiten');
-    expect(screen.getByText('Bearbeitungsmodus')).toBeInTheDocument();
-    expect(screen.getByText('Fertig')).toBeInTheDocument();
+    expect(screen.getByText('Ungespeicherte Änderungen')).toBeInTheDocument();
+    expect(screen.getByText('Abbrechen')).toBeInTheDocument();
 
-    // Click "Fertig" banner button to exit edit mode
-    fireEvent.click(screen.getByText('Fertig'));
-    expect(screen.queryByText('Bearbeitungsmodus')).not.toBeInTheDocument();
+    // Click "Abbrechen" to exit edit mode
+    fireEvent.click(screen.getByText('Abbrechen'));
+    expect(screen.queryByText('Ungespeicherte Änderungen')).not.toBeInTheDocument();
   });
 
   it('shows delete confirmation dialog', async () => {

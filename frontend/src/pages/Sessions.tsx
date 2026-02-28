@@ -376,7 +376,7 @@ export function SessionsPage() {
                             {session.workout_type === 'strength' ? (
                               <>
                                 {session.exercises_count != null && (
-                                  <span>{session.exercises_count} Uebungen</span>
+                                  <span>{session.exercises_count} Übungen</span>
                                 )}
                                 {session.total_tonnage_kg != null && (
                                   <span>

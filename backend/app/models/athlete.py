@@ -15,6 +15,12 @@ class AthleteSettingsRequest(BaseModel):
 
     resting_hr: Optional[int] = Field(None, ge=30, le=120, description="Ruheherzfrequenz")
     max_hr: Optional[int] = Field(None, ge=120, le=230, description="Maximale Herzfrequenz")
+    elevation_gain_factor: Optional[float] = Field(
+        None, ge=0, le=30, description="Höhenkorrektur-Faktor Anstieg (sec/km pro 100m)"
+    )
+    elevation_loss_factor: Optional[float] = Field(
+        None, ge=0, le=20, description="Höhenkorrektur-Faktor Abstieg (sec/km pro 100m)"
+    )
 
 
 class AthleteSettingsResponse(BaseModel):
@@ -23,6 +29,8 @@ class AthleteSettingsResponse(BaseModel):
     id: int
     resting_hr: Optional[int] = None
     max_hr: Optional[int] = None
+    elevation_gain_factor: float = 10.0
+    elevation_loss_factor: float = 5.0
     karvonen_zones: Optional[list[dict]] = None
 
     @classmethod
@@ -33,5 +41,11 @@ class AthleteSettingsResponse(BaseModel):
             id=int(model.id),  # type: ignore[arg-type]
             resting_hr=int(model.resting_hr) if model.resting_hr else None,  # type: ignore[arg-type]
             max_hr=int(model.max_hr) if model.max_hr else None,  # type: ignore[arg-type]
+            elevation_gain_factor=float(model.elevation_gain_factor)
+            if model.elevation_gain_factor
+            else 10.0,  # type: ignore[arg-type]
+            elevation_loss_factor=float(model.elevation_loss_factor)
+            if model.elevation_loss_factor
+            else 5.0,  # type: ignore[arg-type]
             karvonen_zones=zones,
         )

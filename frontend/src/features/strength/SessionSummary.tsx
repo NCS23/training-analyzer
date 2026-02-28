@@ -32,8 +32,8 @@ export function SessionSummary({ exercises, durationMinutes }: SessionSummaryPro
   }, [exercises, durationMinutes]);
 
   const tiles: { label: string; value: string; unit: string; icon: LucideIcon }[] = [
-    { label: 'Uebungen', value: String(metrics.exercises), unit: '', icon: Dumbbell },
-    { label: 'Saetze', value: String(metrics.sets), unit: '', icon: Layers },
+    { label: 'Übungen', value: String(metrics.exercises), unit: '', icon: Dumbbell },
+    { label: 'Sätze', value: String(metrics.sets), unit: '', icon: Layers },
     {
       label: 'Tonnage',
       value:

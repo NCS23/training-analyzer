@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, TrendingUp, Upload, Settings } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, TrendingUp, Weight, Settings } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
   { to: '/trends', label: 'Trends', icon: TrendingUp },
-  { to: '/sessions/new', label: 'Upload', icon: Upload },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/strength/progression', label: 'Kraft', icon: Weight },
+  { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 
 export function BottomNav() {

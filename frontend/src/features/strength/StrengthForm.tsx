@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -19,6 +19,8 @@ import {
 import { Plus } from 'lucide-react';
 import type { ExerciseInput } from '@/api/strength';
 import { createStrengthSession } from '@/api/strength';
+import type { Exercise } from '@/api/exercises';
+import { listExercises } from '@/api/exercises';
 import { ExerciseCard } from './ExerciseCard';
 
 const defaultExercise: ExerciseInput = {
@@ -37,9 +39,18 @@ export function StrengthForm() {
   const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
 
   const [trainingFile, setTrainingFile] = useState<File | null>(null);
+  const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listExercises()
+      .then((res) => setExerciseLibrary(res.exercises))
+      .catch(() => {
+        /* Autocomplete is optional — fail silently */
+      });
+  }, []);
 
   const handleExerciseChange = useCallback((idx: number, updated: ExerciseInput) => {
     setExercises((prev) => {
@@ -112,7 +123,7 @@ export function StrengthForm() {
             instructionText={
               trainingFile ? trainingFile.name : 'Optional: Datei von Sportuhr hochladen'
             }
-            subText="CSV, FIT — Herzfrequenz und Dauer werden automatisch uebernommen"
+            subText="CSV, FIT — Herzfrequenz und Dauer werden automatisch übernommen"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -123,7 +134,7 @@ export function StrengthForm() {
                   if (d) setDate(d);
                 }}
                 maxDate={new Date()}
-                placeholder="Datum waehlen"
+                placeholder="Datum wählen"
               />
             </div>
             <div className="space-y-2">
@@ -159,7 +170,7 @@ export function StrengthForm() {
       <Card elevation="raised">
         <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-            Uebungen ({exercises.length})
+            Übungen ({exercises.length})
           </h2>
         </CardHeader>
         <CardBody className="space-y-4">
@@ -171,12 +182,13 @@ export function StrengthForm() {
               onChange={handleExerciseChange}
               onRemove={handleExerciseRemove}
               canRemove={exercises.length > 1}
+              exerciseLibrary={exerciseLibrary}
             />
           ))}
 
           <Button variant="ghost" size="sm" onClick={handleAddExercise} className="w-full">
             <Plus className="w-3.5 h-3.5 mr-1" />
-            Uebung hinzufuegen
+            Übung hinzufügen
           </Button>
         </CardBody>
       </Card>

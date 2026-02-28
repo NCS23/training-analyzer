@@ -1,6 +1,6 @@
 """Tests fuer km_split_calculator — boundary coordinates + corrected pace."""
 
-from app.services.km_split_calculator import calculate_km_splits
+from app.services.km_split_calculator import calculate_km_splits, calculate_session_gap
 
 
 def _make_straight_track(km: float, points_per_km: int = 100) -> dict:
@@ -42,6 +42,30 @@ def _make_uphill_track(km: float, total_gain_m: float, points_per_km: int = 100)
         frac = i / (total_points - 1)
         dist_m = frac * total_m
         alt = 50.0 + frac * total_gain_m
+        points.append(
+            {
+                "lat": 52.52 + dist_m * lat_per_m,
+                "lng": 13.405,
+                "seconds": dist_m / speed_ms,
+                "hr": 150,
+                "alt": alt,
+            }
+        )
+    return {"points": points}
+
+
+def _make_downhill_track(km: float, total_loss_m: float, points_per_km: int = 100) -> dict:
+    """Generate a downhill GPS track with steady elevation loss."""
+    total_points = max(2, int(km * points_per_km))
+    lat_per_m = 1.0 / 111320.0
+    total_m = km * 1000
+    speed_ms = 3.0
+
+    points = []
+    for i in range(total_points):
+        frac = i / (total_points - 1)
+        dist_m = frac * total_m
+        alt = 200.0 - frac * total_loss_m
         points.append(
             {
                 "lat": 52.52 + dist_m * lat_per_m,
@@ -169,3 +193,121 @@ class TestCorrectedPace:
         for s in splits:
             if s["pace_corrected_min_per_km"] is not None:
                 assert 1.0 <= s["pace_corrected_min_per_km"] <= 30.0
+
+
+class TestConfigurableFactors:
+    """Elevation correction factors can be customized."""
+
+    def test_higher_gain_factor_faster_correction(self) -> None:
+        """Higher gain factor → bigger correction → faster corrected pace."""
+        track = _make_uphill_track(3.0, total_gain_m=150.0)
+        splits_default = calculate_km_splits(track)
+        splits_high = calculate_km_splits(track, gain_factor=20.0)
+
+        default_corrected = [
+            s["pace_corrected_min_per_km"]
+            for s in splits_default
+            if s["pace_corrected_min_per_km"] is not None
+        ]
+        high_corrected = [
+            s["pace_corrected_min_per_km"]
+            for s in splits_high
+            if s["pace_corrected_min_per_km"] is not None
+        ]
+
+        assert len(default_corrected) > 0
+        assert len(high_corrected) > 0
+        # Higher gain factor means more time subtracted → faster corrected pace
+        for d, h in zip(default_corrected, high_corrected):
+            assert h < d, f"High factor {h} should be faster than default {d}"
+
+    def test_zero_gain_factor_no_gain_correction(self) -> None:
+        """With gain_factor=0, uphill has no correction effect."""
+        track = _make_uphill_track(3.0, total_gain_m=150.0)
+        splits = calculate_km_splits(track, gain_factor=0.0, loss_factor=0.0)
+
+        # With both factors at 0, correction is 0, but gain/loss is still non-zero
+        # so corrected pace equals actual pace
+        for s in splits:
+            if s["pace_corrected_min_per_km"] is not None:
+                assert abs(s["pace_corrected_min_per_km"] - s["pace_min_per_km"]) < 0.01
+
+    def test_custom_loss_factor(self) -> None:
+        """Custom loss_factor parameter is respected on a downhill track."""
+        track = _make_downhill_track(3.0, total_loss_m=150.0)
+        splits_low = calculate_km_splits(track, loss_factor=0.0)
+        splits_high = calculate_km_splits(track, loss_factor=15.0)
+
+        low_corrected = [
+            s["pace_corrected_min_per_km"]
+            for s in splits_low
+            if s["pace_corrected_min_per_km"] is not None
+        ]
+        high_corrected = [
+            s["pace_corrected_min_per_km"]
+            for s in splits_high
+            if s["pace_corrected_min_per_km"] is not None
+        ]
+
+        # Downhill: higher loss factor means more time added back → slower GAP
+        assert len(high_corrected) > 0
+        for low, high in zip(low_corrected, high_corrected):
+            assert high > low, f"High loss factor {high} should be slower than low {low}"
+
+    def test_default_factors_match_original_behavior(self) -> None:
+        """Passing None factors produces same results as no factors."""
+        track = _make_uphill_track(3.0, total_gain_m=150.0)
+        splits_none = calculate_km_splits(track)
+        splits_explicit = calculate_km_splits(track, gain_factor=10.0, loss_factor=5.0)
+
+        for a, b in zip(splits_none, splits_explicit):
+            assert a["pace_corrected_min_per_km"] == b["pace_corrected_min_per_km"]
+
+
+class TestSessionGAP:
+    """Session-level Grade Adjusted Pace calculation."""
+
+    def test_session_gap_flat_track(self) -> None:
+        """Flat track has no session GAP (all corrected paces are None)."""
+        track = _make_straight_track(3.0)
+        splits = calculate_km_splits(track)
+        gap = calculate_session_gap(splits)
+        assert gap is None
+
+    def test_session_gap_uphill(self) -> None:
+        """Uphill track has session GAP faster than actual pace."""
+        track = _make_uphill_track(5.0, total_gain_m=250.0)
+        splits = calculate_km_splits(track)
+        gap = calculate_session_gap(splits)
+
+        assert gap is not None
+        # GAP should be faster than the actual pace of ~5:33
+        assert gap < 5.6
+
+    def test_session_gap_reasonable(self) -> None:
+        """Session GAP stays within 1-30 min/km."""
+        track = _make_uphill_track(5.0, total_gain_m=250.0)
+        splits = calculate_km_splits(track)
+        gap = calculate_session_gap(splits)
+
+        assert gap is not None
+        assert 1.0 <= gap <= 30.0
+
+    def test_session_gap_empty_splits(self) -> None:
+        """Empty splits list returns None."""
+        gap = calculate_session_gap([])
+        assert gap is None
+
+    def test_session_gap_with_custom_factors(self) -> None:
+        """Session GAP changes with different elevation factors."""
+        track = _make_uphill_track(5.0, total_gain_m=250.0)
+
+        splits_default = calculate_km_splits(track)
+        splits_high = calculate_km_splits(track, gain_factor=20.0)
+
+        gap_default = calculate_session_gap(splits_default)
+        gap_high = calculate_session_gap(splits_high)
+
+        assert gap_default is not None
+        assert gap_high is not None
+        assert gap_high < gap_default  # Higher factor → more correction → faster GAP

@@ -90,6 +90,7 @@ class SessionResponse(BaseModel):
     hr_min: Optional[int] = None
     cadence_avg: Optional[int] = None
     notes: Optional[str] = None
+    rpe: Optional[int] = None
     laps: Optional[list[LapResponse]] = None
     hr_zones: Optional[dict] = None
     exercises: Optional[list] = None
@@ -157,6 +158,7 @@ class SessionResponse(BaseModel):
             hr_min=int(model.hr_min) if model.hr_min else None,  # type: ignore[arg-type]
             cadence_avg=int(model.cadence_avg) if model.cadence_avg else None,  # type: ignore[arg-type]
             notes=str(model.notes) if model.notes else None,
+            rpe=int(model.rpe) if model.rpe else None,  # type: ignore[arg-type]
             laps=laps,
             hr_zones=hr_zones,
             exercises=exercises,
@@ -301,6 +303,12 @@ class DateUpdateRequest(BaseModel):
     """Request fuer Datums-Update."""
 
     date: date
+
+
+class RpeUpdateRequest(BaseModel):
+    """Request fuer RPE-Update."""
+
+    rpe: Optional[int] = Field(None, ge=1, le=10)
 
 
 class RecalculateZonesRequest(BaseModel):

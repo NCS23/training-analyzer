@@ -54,13 +54,13 @@ describe('ElevationProfile', () => {
 
   it('renders chart container with aria-label', () => {
     render(<ElevationProfile points={mockPoints} totalAscentM={150} totalDescentM={80} />);
-    const chart = screen.getByLabelText(/Hoehenprofil/);
+    const chart = screen.getByLabelText(/Höhenprofil/);
     expect(chart).toBeInTheDocument();
   });
 
   it('renders with responsive height classes', () => {
     render(<ElevationProfile points={mockPoints} totalAscentM={null} totalDescentM={null} />);
-    const chart = screen.getByLabelText(/Hoehenprofil/);
+    const chart = screen.getByLabelText(/Höhenprofil/);
     expect(chart.className).toContain('h-[150px]');
     expect(chart.className).toContain('md:h-[200px]');
   });

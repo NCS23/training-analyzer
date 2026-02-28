@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ai, athlete, goals, health, sessions, strength, trends, workouts
+from app.api.v1 import (
+    ai,
+    athlete,
+    exercise_library,
+    goals,
+    health,
+    sessions,
+    strength,
+    trends,
+    workouts,
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -12,3 +22,4 @@ api_router.include_router(athlete.router, tags=["athlete"])
 api_router.include_router(goals.router, tags=["goals"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(trends.router, tags=["trends"])
+api_router.include_router(exercise_library.router, tags=["exercises"])

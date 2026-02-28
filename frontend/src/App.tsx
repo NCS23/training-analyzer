@@ -82,6 +82,21 @@ const StrengthSessionPage = lazy(() =>
 const TrendsPage = lazy(() =>
   import('./pages/Trends').then((m) => ({ default: m.TrendsPage })),
 );
+const StrengthProgressionPage = lazy(() =>
+  import('./pages/StrengthProgression').then((m) => ({ default: m.StrengthProgressionPage })),
+);
+const ExerciseLibraryPage = lazy(() =>
+  import('./pages/ExerciseLibrary').then((m) => ({ default: m.ExerciseLibraryPage })),
+);
+const ExerciseDetailPage = lazy(() =>
+  import('./pages/ExerciseDetail').then((m) => ({ default: m.ExerciseDetailPage })),
+);
+const GoalsPage = lazy(() =>
+  import('./pages/Goals').then((m) => ({ default: m.GoalsPage })),
+);
+const AthleteProfilePage = lazy(() =>
+  import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
+);
 const NotFoundPage = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -110,7 +125,12 @@ function App() {
                   <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
                   <Route path="/trends" element={<TrendsPage />} />
+                  <Route path="/strength/progression" element={<StrengthProgressionPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
+                  <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />
+                  <Route path="/settings/goals" element={<GoalsPage />} />
+                  <Route path="/settings/athlete" element={<AthleteProfilePage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Routes>

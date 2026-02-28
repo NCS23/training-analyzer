@@ -14,6 +14,8 @@ export interface AthleteSettings {
   id: number;
   resting_hr: number | null;
   max_hr: number | null;
+  elevation_gain_factor: number;
+  elevation_loss_factor: number;
   karvonen_zones: KarvonenZone[] | null;
 }
 
@@ -25,6 +27,8 @@ export async function getAthleteSettings(): Promise<AthleteSettings> {
 export async function updateAthleteSettings(params: {
   resting_hr?: number;
   max_hr?: number;
+  elevation_gain_factor?: number;
+  elevation_loss_factor?: number;
 }): Promise<AthleteSettings> {
   const response = await apiClient.put<AthleteSettings>('/api/v1/athlete/settings', params);
   return response.data;

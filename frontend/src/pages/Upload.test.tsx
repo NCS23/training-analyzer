@@ -33,15 +33,16 @@ describe('UploadPage', () => {
 
   it('renders the upload wizard', () => {
     render(<UploadPage />);
-    expect(screen.getByText('Neues Training')).toBeInTheDocument();
-    expect(screen.getByText('Training importieren')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Neues Training' })).toBeInTheDocument();
+    expect(screen.getByText('Training')).toBeInTheDocument();
     expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 
-  it('renders training type toggle', () => {
+  it('renders training type selector', () => {
     render(<UploadPage />);
+    expect(screen.getByText('Trainingstyp')).toBeInTheDocument();
+    // Default selection is "Laufen"
     expect(screen.getByText('Laufen')).toBeInTheDocument();
-    expect(screen.getByText('Kraft')).toBeInTheDocument();
   });
 
   it('Weiter button is disabled without file', () => {
@@ -136,7 +137,7 @@ describe('UploadPage', () => {
     // Click "Zurück"
     fireEvent.click(screen.getByText('Zurück'));
 
-    expect(screen.getByText('Training importieren')).toBeInTheDocument();
+    expect(screen.getByText('Training')).toBeInTheDocument();
     expect(screen.getByText('Weiter')).toBeInTheDocument();
   });
 
