@@ -1,5 +1,8 @@
 # Changelog
 
+> **Hinweis:** Das Repository wurde im Februar 2026 von Gitea (Self-Hosted) nach GitHub migriert.
+> Aeltere Eintraege referenzieren Gitea Webhooks und Gitea CI — diese wurden durch GitHub Actions ersetzt.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

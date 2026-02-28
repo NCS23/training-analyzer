@@ -12,7 +12,7 @@ Current Phase: Phase 1 - Web App Development (Week 7/2026)
 **What:** Training Analyzer for half-marathon preparation  
 **Who:** Nils-Christian (Runner, Sub-2h goal end of March 2026)  
 **Stack:** FastAPI (Backend) + React/TypeScript (Frontend) + PostgreSQL  
-**Deployed:** Synology NAS (Docker Compose, Gitea Webhooks)
+**Deployed:** Synology NAS (Docker Compose, GitHub Actions)
 
 **Current Status:**
 - ✅ CSV Upload & Parsing (Running + Strength)
@@ -45,8 +45,8 @@ Current Phase: Phase 1 - Web App Development (Week 7/2026)
 ### Infrastructure
 - Container: Docker Compose
 - Reverse Proxy: Nginx (on NAS)
-- CI/CD: Gitea Webhooks → Auto-Deploy
-- VCS: Gitea (local on NAS)
+- CI/CD: GitHub Actions → Auto-Deploy
+- VCS: GitHub
 
 ---
 

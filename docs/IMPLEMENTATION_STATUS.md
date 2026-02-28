@@ -31,7 +31,7 @@
 
 - **Deployment**
   - Docker Compose Setup
-  - Gitea Webhook → Auto-Deploy
+  - GitHub Actions → Auto-Deploy
   - NAS (192.168.68.52) läuft stabil
   - Frontend: React + Vite + TypeScript
   - Backend: Python FastAPI
@@ -332,7 +332,7 @@ const [parsedData, setParsedData] = useState<ParsedData | null>(null);
 ## 🔗 Wichtige Links
 
 - **Deployed App:** http://192.168.68.52 (NAS)
-- **Gitea Repo:** (Link einfügen)
+- **GitHub Repo:** https://github.com/NCS23/training-analyzer
 - **Domain Model:** `docs/DOMAIN_MODEL.md`
 - **Transcripts:** `/mnt/transcripts/` (auf NAS)
 

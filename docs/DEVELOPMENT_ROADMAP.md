@@ -14,7 +14,7 @@
 ```
 ✅ Backend: FastAPI auf NAS (Docker)
 ✅ Frontend: React/TypeScript
-✅ Deployment: Gitea Webhooks + Docker Compose
+✅ Deployment: GitHub Actions + Docker Compose
 ✅ CSV Import & Parsing
 ⏳ FIT Import (in Arbeit)
 ⏳ Lap Classification (in Arbeit)

@@ -17,7 +17,7 @@
 │   ├─ Docker: FastAPI Backend       │
 │   ├─ Docker: React Frontend         │
 │   ├─ PostgreSQL Database            │
-│   └─ Gitea (Git Repo)               │
+│   └─ GitHub (Git Repo)               │
 └─────────────────────────────────────┘
          ↓ HTTP
     [Browser auf Laptop/Tablet]

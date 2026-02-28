@@ -1,6 +1,6 @@
 # Deployment Workflow
 
-## Automatisches Deployment via Gitea Actions
+## Automatisches Deployment via GitHub Actions
 
 Bei jedem `git push` auf `main`:
 1. CI Pipeline laeuft (Lint, Tests, Build)
@@ -17,6 +17,9 @@ docker-compose up -d --build backend frontend
 ```
 
 ## Runner-Konfiguration (Voraussetzung)
+
+> **Hinweis:** Die CI/CD wurde von Gitea Actions nach GitHub Actions migriert.
+> Die folgende Runner-Konfiguration bezieht sich auf das fruehere Self-Hosted-Setup auf dem NAS.
 
 Der act_runner auf dem NAS braucht Docker Socket + Projektverzeichnis-Zugriff.
 In der Runner-Config (`config.yaml`) muessen diese Volumes gemountet sein:

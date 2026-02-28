@@ -45,7 +45,7 @@
 ### Technologie
 - **Backend:** Python FastAPI, CSV Parser, Lap Classification
 - **Frontend:** React + Vite + TypeScript, Tailwind CSS
-- **Deployment:** Docker Compose, Gitea Webhook
+- **Deployment:** Docker Compose, GitHub Actions
 - **Datenbank:** Noch nicht implementiert (Phase 1)
 
 ### Wichtige Entscheidungen
@@ -191,7 +191,7 @@ docker compose up -d
 git add docs/
 git commit -m "docs: update after session YYYY-MM-DD"
 git push
-# → Webhook deployed automatisch
+# → GitHub Actions deployed automatisch
 ```
 
 ---
