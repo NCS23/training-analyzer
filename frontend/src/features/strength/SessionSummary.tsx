@@ -37,9 +37,7 @@ export function SessionSummary({ exercises, durationMinutes }: SessionSummaryPro
     {
       label: 'Tonnage',
       value:
-        metrics.tonnage >= 1000
-          ? (metrics.tonnage / 1000).toFixed(1)
-          : String(metrics.tonnage),
+        metrics.tonnage >= 1000 ? (metrics.tonnage / 1000).toFixed(1) : String(metrics.tonnage),
       unit: metrics.tonnage >= 1000 ? 't' : 'kg',
       icon: Weight,
     },

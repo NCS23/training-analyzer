@@ -217,7 +217,10 @@ export function GoalsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 icon={<Plus className="w-4 h-4" />}
-                onSelect={() => { resetForm(); setShowDialog(true); }}
+                onSelect={() => {
+                  resetForm();
+                  setShowDialog(true);
+                }}
               >
                 Neues Ziel
               </DropdownMenuItem>
@@ -227,7 +230,13 @@ export function GoalsPage() {
       </div>
 
       {/* Create / Edit Dialog */}
-      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) resetForm(); setShowDialog(open); }}>
+      <Dialog
+        open={showDialog}
+        onOpenChange={(open) => {
+          if (!open) resetForm();
+          setShowDialog(open);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingGoal ? 'Ziel bearbeiten' : 'Neues Wettkampf-Ziel'}</DialogTitle>
@@ -247,11 +256,7 @@ export function GoalsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Wettkampf-Datum</Label>
-                <DatePicker
-                  value={date}
-                  onChange={setDate}
-                  inputSize="sm"
-                />
+                <DatePicker value={date} onChange={setDate} inputSize="sm" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="goal-distance">Distanz (km)</Label>
@@ -313,7 +318,13 @@ export function GoalsPage() {
               Abbrechen
             </Button>
             <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size="sm" aria-hidden="true" /> : editingGoal ? 'Speichern' : 'Erstellen'}
+              {saving ? (
+                <Spinner size="sm" aria-hidden="true" />
+              ) : editingGoal ? (
+                'Speichern'
+              ) : (
+                'Erstellen'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -322,7 +333,9 @@ export function GoalsPage() {
       {/* Delete confirmation */}
       <AlertDialog
         open={!!deletingGoal}
-        onOpenChange={(open) => { if (!open) setDeletingGoal(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeletingGoal(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -370,18 +383,34 @@ export function GoalsPage() {
                       <span className="text-sm font-semibold text-[var(--color-text-base)] truncate">
                         {goal.title}
                       </span>
-                      {goal.is_active && <Badge variant="info" size="xs">Aktiv</Badge>}
+                      {goal.is_active && (
+                        <Badge variant="info" size="xs">
+                          Aktiv
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      {new Date(goal.race_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      {' · '}{goal.distance_km} km{' · '}{goal.target_time_formatted}{' · '}{goal.target_pace_formatted} /km
+                      {new Date(goal.race_date).toLocaleDateString('de-DE', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                      {' · '}
+                      {goal.distance_km} km{' · '}
+                      {goal.target_time_formatted}
+                      {' · '}
+                      {goal.target_pace_formatted} /km
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
                     {goal.days_until > 0 ? (
-                      <span className="text-sm font-semibold text-[var(--color-text-base)]">{goal.days_until} Tage</span>
+                      <span className="text-sm font-semibold text-[var(--color-text-base)]">
+                        {goal.days_until} Tage
+                      </span>
                     ) : goal.days_until === 0 ? (
-                      <Badge variant="warning" size="xs">Heute</Badge>
+                      <Badge variant="warning" size="xs">
+                        Heute
+                      </Badge>
                     ) : (
                       <span className="text-xs text-[var(--color-text-muted)]">Vergangen</span>
                     )}
@@ -393,16 +422,10 @@ export function GoalsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        icon={<Pencil />}
-                        onSelect={() => openEditDialog(goal)}
-                      >
+                      <DropdownMenuItem icon={<Pencil />} onSelect={() => openEditDialog(goal)}>
                         Bearbeiten
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        icon={<Power />}
-                        onSelect={() => handleToggleActive(goal)}
-                      >
+                      <DropdownMenuItem icon={<Power />} onSelect={() => handleToggleActive(goal)}>
                         {goal.is_active ? 'Deaktivieren' : 'Aktivieren'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />

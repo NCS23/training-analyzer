@@ -55,11 +55,15 @@ class TestExerciseEnrichmentUnit:
         assert result["exercise_db_id"] == "Barbell_Squat"
 
         # Verify JSON fields are valid JSON strings
-        instructions = json.loads(result["instructions_json"])
+        instructions_raw = result["instructions_json"]
+        assert instructions_raw is not None
+        instructions = json.loads(instructions_raw)
         assert isinstance(instructions, list)
         assert len(instructions) > 0
 
-        primary = json.loads(result["primary_muscles_json"])
+        primary_raw = result["primary_muscles_json"]
+        assert primary_raw is not None
+        primary = json.loads(primary_raw)
         assert isinstance(primary, list)
         assert "quadriceps" in primary
 

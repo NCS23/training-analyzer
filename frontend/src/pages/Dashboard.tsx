@@ -242,9 +242,13 @@ export function DashboardPage() {
                     {goalProgress.goal.days_until} Tage
                   </Badge>
                 ) : goalProgress.goal.days_until === 0 ? (
-                  <Badge variant="warning" size="sm">Heute</Badge>
+                  <Badge variant="warning" size="sm">
+                    Heute
+                  </Badge>
                 ) : (
-                  <Badge variant="neutral" size="sm">Vergangen</Badge>
+                  <Badge variant="neutral" size="sm">
+                    Vergangen
+                  </Badge>
                 )}
               </div>
             </div>
@@ -275,9 +279,7 @@ export function DashboardPage() {
                 ) : (
                   <div>
                     <p className="text-xs text-[var(--color-text-muted)] mb-1">Aktueller Pace</p>
-                    <p className="text-sm text-[var(--color-text-muted)] italic">
-                      Keine Daten
-                    </p>
+                    <p className="text-sm text-[var(--color-text-muted)] italic">Keine Daten</p>
                   </div>
                 )}
                 {goalProgress.pace_gap_label && (
@@ -363,9 +365,7 @@ export function DashboardPage() {
                   {goalProgress.weekly_pace_trend_label && (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          Trend (8 Wochen)
-                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)]">Trend (8 Wochen)</p>
                         <p
                           className={`text-sm font-medium ${
                             goalProgress.weekly_pace_trend_sec !== null &&
@@ -401,7 +401,9 @@ export function DashboardPage() {
                       )}
                       {goalProgress.weeks_to_goal === 0 && (
                         <div className="text-right">
-                          <Badge variant="success" size="sm">Ziel-Pace erreicht</Badge>
+                          <Badge variant="success" size="sm">
+                            Ziel-Pace erreicht
+                          </Badge>
                         </div>
                       )}
                     </div>
@@ -418,8 +420,8 @@ export function DashboardPage() {
 
               {goalProgress.sessions_used === 0 && (
                 <p className="text-xs text-[var(--color-text-muted)] italic">
-                  Noch keine Tempo-/Intervall-Sessions in den letzten 4 Wochen.
-                  Lade Trainings hoch, um deinen Fortschritt zu sehen.
+                  Noch keine Tempo-/Intervall-Sessions in den letzten 4 Wochen. Lade Trainings hoch,
+                  um deinen Fortschritt zu sehen.
                 </p>
               )}
             </div>

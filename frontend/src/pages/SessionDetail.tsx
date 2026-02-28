@@ -594,8 +594,7 @@ export function SessionDetailPage() {
       icon: MapPin,
     });
   if (session.pace) metrics.push({ label: 'Pace', value: session.pace, unit: '/km', icon: Timer });
-  if (sessionGap)
-    metrics.push({ label: 'GAP', value: sessionGap, unit: '/km', icon: TrendingUp });
+  if (sessionGap) metrics.push({ label: 'GAP', value: sessionGap, unit: '/km', icon: TrendingUp });
   if (session.hr_avg != null)
     metrics.push({
       label: 'Ø Herzfrequenz',
@@ -645,7 +644,8 @@ export function SessionDetailPage() {
     });
     let tonnage = 0;
     for (const ex of session.exercises) {
-      for (const s of (ex as { sets: Array<{ reps: number; weight_kg: number; status: string }> }).sets) {
+      for (const s of (ex as { sets: Array<{ reps: number; weight_kg: number; status: string }> })
+        .sets) {
         if (s.status !== 'skipped') tonnage += s.reps * s.weight_kg;
       }
     }
@@ -809,7 +809,9 @@ export function SessionDetailPage() {
       {isEditing && (
         <Card elevation="raised">
           <CardBody>
-            <div className={`grid grid-cols-1 gap-4 ${session.workout_type === 'running' ? (hrZones ? 'sm:grid-cols-3' : 'sm:grid-cols-2') : ''}`}>
+            <div
+              className={`grid grid-cols-1 gap-4 ${session.workout_type === 'running' ? (hrZones ? 'sm:grid-cols-3' : 'sm:grid-cols-2') : ''}`}
+            >
               <div className="space-y-1.5">
                 <Label>Datum</Label>
                 {savingDate ? (
@@ -973,7 +975,9 @@ export function SessionDetailPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-10 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">#</TableHead>
+                              <TableHead className="w-10 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
+                                #
+                              </TableHead>
                               <TableHead>Wdh.</TableHead>
                               <TableHead>Gewicht</TableHead>
                               <TableHead>Status</TableHead>
@@ -986,14 +990,12 @@ export function SessionDetailPage() {
                                 reduced: 'Reduziert',
                                 skipped: 'Ausgelassen',
                               };
-                              const statusVariant: Record<
-                                string,
-                                'success' | 'warning' | 'info'
-                              > = {
-                                completed: 'success',
-                                reduced: 'warning',
-                                skipped: 'info',
-                              };
+                              const statusVariant: Record<string, 'success' | 'warning' | 'info'> =
+                                {
+                                  completed: 'success',
+                                  reduced: 'warning',
+                                  skipped: 'info',
+                                };
                               return (
                                 <TableRow key={sIdx}>
                                   <TableCell className="text-[var(--color-text-muted)]">
@@ -1004,10 +1006,7 @@ export function SessionDetailPage() {
                                     {s.weight_kg > 0 ? `${s.weight_kg} kg` : '-'}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge
-                                      variant={statusVariant[s.status] ?? 'info'}
-                                      size="xs"
-                                    >
+                                    <Badge variant={statusVariant[s.status] ?? 'info'} size="xs">
                                       {statusLabels[s.status] ?? s.status}
                                     </Badge>
                                   </TableCell>
@@ -1220,7 +1219,9 @@ export function SessionDetailPage() {
                 value={splitsTab}
                 onChange={(val) => setSplitsTab(val as 'laps' | 'km')}
                 items={[
-                  ...(localLaps.length > 0 ? [{ value: 'laps', label: `Geräte-Laps (${localLaps.length})` }] : []),
+                  ...(localLaps.length > 0
+                    ? [{ value: 'laps', label: `Geräte-Laps (${localLaps.length})` }]
+                    : []),
                   ...(kmSplits ? [{ value: 'km', label: `Kilometer (${kmSplits.length})` }] : []),
                 ]}
               />
@@ -1320,9 +1321,7 @@ export function SessionDetailPage() {
                       </TableHead>
                       <TableHead>Dauer</TableHead>
                       <TableHead>Pace</TableHead>
-                      <TableHead
-                        title="Höhenkorrigierter Pace: Bergauf-Läufe erhalten Zeitgutschrift, Bergab-Läufe Zeitabzug"
-                      >
+                      <TableHead title="Höhenkorrigierter Pace: Bergauf-Läufe erhalten Zeitgutschrift, Bergab-Läufe Zeitabzug">
                         GAP
                       </TableHead>
                       <TableHead>Ø HF</TableHead>
@@ -1350,7 +1349,11 @@ export function SessionDetailPage() {
                           {split.pace_formatted ? `${split.pace_formatted} /km` : '-'}
                         </TableCell>
                         <TableCell
-                          title={split.pace_corrected_formatted ? 'Grade Adjusted Pace — korrigiert für Steigung/Gefälle' : undefined}
+                          title={
+                            split.pace_corrected_formatted
+                              ? 'Grade Adjusted Pace — korrigiert für Steigung/Gefälle'
+                              : undefined
+                          }
                         >
                           {split.pace_corrected_formatted ? (
                             <span className="text-[var(--color-text-info)]">

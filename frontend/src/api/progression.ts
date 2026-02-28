@@ -67,9 +67,7 @@ export interface ExerciseListResponse {
 // --- API Functions ---
 
 export async function getExerciseList(): Promise<ExerciseListResponse> {
-  const response = await apiClient.get<ExerciseListResponse>(
-    '/api/v1/sessions/strength/exercises',
-  );
+  const response = await apiClient.get<ExerciseListResponse>('/api/v1/sessions/strength/exercises');
   return response.data;
 }
 
@@ -83,19 +81,14 @@ export async function getExerciseProgression(
   return response.data;
 }
 
-export async function getPersonalRecords(
-  sessionId?: number,
-): Promise<PersonalRecordsResponse> {
-  const response = await apiClient.get<PersonalRecordsResponse>(
-    '/api/v1/sessions/strength/prs',
-    { params: sessionId != null ? { session_id: sessionId } : {} },
-  );
+export async function getPersonalRecords(sessionId?: number): Promise<PersonalRecordsResponse> {
+  const response = await apiClient.get<PersonalRecordsResponse>('/api/v1/sessions/strength/prs', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  });
   return response.data;
 }
 
-export async function getTonnageTrend(
-  days: number = 90,
-): Promise<TonnageTrendResponse> {
+export async function getTonnageTrend(days: number = 90): Promise<TonnageTrendResponse> {
   const response = await apiClient.get<TonnageTrendResponse>(
     '/api/v1/sessions/strength/tonnage-trend',
     { params: { days } },

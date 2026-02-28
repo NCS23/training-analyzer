@@ -39,12 +39,7 @@ import {
   Sparkles,
   ChevronRight,
 } from 'lucide-react';
-import {
-  getExercise,
-  toggleFavorite,
-  updateExercise,
-  deleteExercise,
-} from '@/api/exercises';
+import { getExercise, toggleFavorite, updateExercise, deleteExercise } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { MuscleMap } from '@/features/exercises/MuscleMap';
 import { ExerciseDbPicker } from '@/features/exercises/ExerciseDbPicker';
@@ -207,7 +202,15 @@ export function ExerciseDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [exercise, editName, editCategory, editInstructions, editPrimaryMuscles, editSecondaryMuscles, toast]);
+  }, [
+    exercise,
+    editName,
+    editCategory,
+    editInstructions,
+    editPrimaryMuscles,
+    editSecondaryMuscles,
+    toast,
+  ]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!exercise) return;
@@ -271,10 +274,7 @@ export function ExerciseDetailPage() {
               <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)] truncate">
                 {exercise.name}
               </h1>
-              <Badge
-                variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
-                size="xs"
-              >
+              <Badge variant={categoryBadgeVariant[exercise.category] ?? 'neutral'} size="xs">
                 {categoryLabels[exercise.category] ?? exercise.category}
               </Badge>
             </div>
@@ -373,7 +373,9 @@ export function ExerciseDetailPage() {
             {exercise.exercise_db_id && (
               <div className="flex items-center justify-between pt-3 mt-3 border-t border-[var(--color-border-default)]">
                 <div className="min-w-0">
-                  <span className="text-xs text-[var(--color-text-muted)]">Datenbank-Zuordnung</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    Datenbank-Zuordnung
+                  </span>
                   <p className="text-sm text-[var(--color-text-base)] truncate">
                     {exercise.exercise_db_id.replace(/_/g, ' ')}
                   </p>
@@ -530,9 +532,7 @@ export function ExerciseDetailPage() {
         hasMuscles && (
           <Card elevation="raised" padding="spacious">
             <CardHeader>
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Muskelgruppen
-              </h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Muskelgruppen</h2>
             </CardHeader>
             <CardBody className="space-y-4">
               <MuscleMap
@@ -542,7 +542,9 @@ export function ExerciseDetailPage() {
               <div className="border-t border-[var(--color-border-default)] pt-3 space-y-2">
                 {exercise.primary_muscles && exercise.primary_muscles.length > 0 && (
                   <div className="border-l-2 border-[var(--color-status-error)] pl-3">
-                    <span className="text-xs font-medium text-[var(--color-text-muted)] block">Primär</span>
+                    <span className="text-xs font-medium text-[var(--color-text-muted)] block">
+                      Primär
+                    </span>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                       {exercise.primary_muscles.map((m) => (
                         <span key={m} className="text-sm text-[var(--color-text-base)]">
@@ -554,7 +556,9 @@ export function ExerciseDetailPage() {
                 )}
                 {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
                   <div className="border-l-2 border-[var(--color-status-warning)] pl-3">
-                    <span className="text-xs font-medium text-[var(--color-text-muted)] block">Sekundär</span>
+                    <span className="text-xs font-medium text-[var(--color-text-muted)] block">
+                      Sekundär
+                    </span>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                       {exercise.secondary_muscles.map((m) => (
                         <span key={m} className="text-sm text-[var(--color-text-base)]">
@@ -630,19 +634,11 @@ export function ExerciseDetailPage() {
                   Keine Details verfügbar für diese Übung.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowDbPicker(true)}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => setShowDbPicker(true)}>
                     <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                     Daten anreichern
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => enterEditMode(exercise)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => enterEditMode(exercise)}>
                     <Pencil className="w-3.5 h-3.5 mr-1.5" />
                     Manuell bearbeiten
                   </Button>

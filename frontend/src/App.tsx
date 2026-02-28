@@ -27,7 +27,9 @@ class ErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div className="p-6 max-w-2xl mx-auto mt-12 space-y-4">
-          <h1 className="text-xl font-semibold text-[var(--color-text-error)]">Etwas ist schiefgelaufen</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-error)]">
+            Etwas ist schiefgelaufen
+          </h1>
           <pre className="text-sm bg-[var(--color-bg-subtle)] rounded-[var(--radius-component-sm)] p-4 overflow-auto whitespace-pre-wrap text-[var(--color-text-base)]">
             {this.state.error?.message}
             {'\n\n'}
@@ -79,9 +81,7 @@ const SettingsPage = lazy(() =>
 const StrengthSessionPage = lazy(() =>
   import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
 );
-const TrendsPage = lazy(() =>
-  import('./pages/Trends').then((m) => ({ default: m.TrendsPage })),
-);
+const TrendsPage = lazy(() => import('./pages/Trends').then((m) => ({ default: m.TrendsPage })));
 const StrengthProgressionPage = lazy(() =>
   import('./pages/StrengthProgression').then((m) => ({ default: m.StrengthProgressionPage })),
 );
@@ -91,9 +91,7 @@ const ExerciseLibraryPage = lazy(() =>
 const ExerciseDetailPage = lazy(() =>
   import('./pages/ExerciseDetail').then((m) => ({ default: m.ExerciseDetailPage })),
 );
-const GoalsPage = lazy(() =>
-  import('./pages/Goals').then((m) => ({ default: m.GoalsPage })),
-);
+const GoalsPage = lazy(() => import('./pages/Goals').then((m) => ({ default: m.GoalsPage })));
 const AthleteProfilePage = lazy(() =>
   import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
 );

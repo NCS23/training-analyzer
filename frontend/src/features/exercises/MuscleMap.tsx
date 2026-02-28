@@ -1,11 +1,6 @@
 import { useState } from 'react';
 
-import {
-  OUTLINE_FRONT,
-  OUTLINE_BACK,
-  FRONT_PATHS,
-  BACK_PATHS,
-} from './muscleMapPaths';
+import { OUTLINE_FRONT, OUTLINE_BACK, FRONT_PATHS, BACK_PATHS } from './muscleMapPaths';
 
 /**
  * Anatomical muscle map using professional SVG paths from
@@ -200,7 +195,6 @@ export function MuscleMap({ primaryMuscles, secondaryMuscles, className }: Muscl
           </span>
         )}
       </div>
-
     </div>
   );
 }

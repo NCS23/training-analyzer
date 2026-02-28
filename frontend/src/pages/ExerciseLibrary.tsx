@@ -236,9 +236,7 @@ export function ExerciseLibraryPage() {
                 aria-label="Kategorie"
               />
             </div>
-            {createError && (
-              <p className="text-sm text-[var(--color-text-error)]">{createError}</p>
-            )}
+            {createError && <p className="text-sm text-[var(--color-text-error)]">{createError}</p>}
           </div>
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={() => setShowCreateDialog(false)}>
@@ -310,10 +308,7 @@ export function ExerciseLibraryPage() {
                     )}
                   </button>
 
-                  <Badge
-                    variant={categoryBadgeVariant[ex.category] ?? 'neutral'}
-                    size="sm"
-                  >
+                  <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="sm">
                     {categoryLabels[ex.category] ?? ex.category}
                   </Badge>
 

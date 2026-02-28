@@ -15,10 +15,7 @@ import {
   useToast,
 } from '@nordlig/components';
 import { Check, Search } from 'lucide-react';
-import {
-  searchExerciseDb,
-  enrichExercise,
-} from '@/api/exercises';
+import { searchExerciseDb, enrichExercise } from '@/api/exercises';
 import type { Exercise, ExerciseDbEntry } from '@/api/exercises';
 
 interface ExerciseDbPickerProps {
@@ -88,21 +85,24 @@ export function ExerciseDbPicker({
   }, [search]);
 
   // Fetch results
-  const fetchResults = useCallback(async (query: string) => {
-    setLoading(true);
-    try {
-      const res = await searchExerciseDb({
-        q: query || undefined,
-        limit: 50,
-      });
-      setResults(res.exercises);
-      setTotal(res.total);
-    } catch {
-      toast({ title: 'Suche fehlgeschlagen', variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const fetchResults = useCallback(
+    async (query: string) => {
+      setLoading(true);
+      try {
+        const res = await searchExerciseDb({
+          q: query || undefined,
+          limit: 50,
+        });
+        setResults(res.exercises);
+        setTotal(res.total);
+      } catch {
+        toast({ title: 'Suche fehlgeschlagen', variant: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -137,9 +137,7 @@ export function ExerciseDbPicker({
       <ModalContent size="lg">
         <ModalHeader>
           <ModalTitle>Zuordnung wählen</ModalTitle>
-          <ModalDescription>
-            {total} Übungen in der Datenbank
-          </ModalDescription>
+          <ModalDescription>{total} Übungen in der Datenbank</ModalDescription>
           <div className="relative mt-2">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
             <Input
@@ -194,7 +192,9 @@ export function ExerciseDbPicker({
                           {ex.name_de ?? ex.name}
                         </span>
                         {isCurrent && (
-                          <Badge variant="success" size="xs">aktuell</Badge>
+                          <Badge variant="success" size="xs">
+                            aktuell
+                          </Badge>
                         )}
                       </div>
                       {ex.name_de && (
@@ -214,7 +214,9 @@ export function ExerciseDbPicker({
                           </Badge>
                         ))}
                         {ex.level && (
-                          <Badge variant="neutral" size="xs">{ex.level}</Badge>
+                          <Badge variant="neutral" size="xs">
+                            {ex.level}
+                          </Badge>
                         )}
                       </div>
                     </div>
@@ -229,50 +231,52 @@ export function ExerciseDbPicker({
           )}
         </ModalBody>
 
-        {selectedId && selectedId !== currentDbId && (() => {
-          const selected = results.find((r) => r.id === selectedId);
-          if (!selected) return null;
-          const ghBase = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
-          const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-            const img = e.currentTarget;
-            // Try GitHub fallback once, then hide
-            if (!img.dataset.fallback) {
-              img.dataset.fallback = 'true';
-              const fileName = img.src.split('/').pop();
-              img.src = `${ghBase}/${selected.id}/${fileName}`;
-            } else {
-              img.style.display = 'none';
-            }
-          };
-          return (
-            <div key={selected.id} className="border-t border-[var(--color-border-default)] px-6 py-4">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
-                Vorschau: {selected.name_de ?? selected.name}
-              </p>
-              <div className="flex gap-3">
-                <img
-                  src={`/static/exercises/${selected.id}/0.jpg`}
-                  alt={`${selected.name} – Startposition`}
-                  className="w-1/2 max-h-48 object-contain rounded-[var(--radius-component-md)] bg-[var(--color-bg-subtle)]"
-                  onError={handleImgError}
-                />
-                <img
-                  src={`/static/exercises/${selected.id}/1.jpg`}
-                  alt={`${selected.name} – Endposition`}
-                  className="w-1/2 max-h-48 object-contain rounded-[var(--radius-component-md)] bg-[var(--color-bg-subtle)]"
-                  onError={handleImgError}
-                />
+        {selectedId &&
+          selectedId !== currentDbId &&
+          (() => {
+            const selected = results.find((r) => r.id === selectedId);
+            if (!selected) return null;
+            const ghBase =
+              'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
+            const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+              const img = e.currentTarget;
+              // Try GitHub fallback once, then hide
+              if (!img.dataset.fallback) {
+                img.dataset.fallback = 'true';
+                const fileName = img.src.split('/').pop();
+                img.src = `${ghBase}/${selected.id}/${fileName}`;
+              } else {
+                img.style.display = 'none';
+              }
+            };
+            return (
+              <div
+                key={selected.id}
+                className="border-t border-[var(--color-border-default)] px-6 py-4"
+              >
+                <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
+                  Vorschau: {selected.name_de ?? selected.name}
+                </p>
+                <div className="flex gap-3">
+                  <img
+                    src={`/static/exercises/${selected.id}/0.jpg`}
+                    alt={`${selected.name} – Startposition`}
+                    className="w-1/2 max-h-48 object-contain rounded-[var(--radius-component-md)] bg-[var(--color-bg-subtle)]"
+                    onError={handleImgError}
+                  />
+                  <img
+                    src={`/static/exercises/${selected.id}/1.jpg`}
+                    alt={`${selected.name} – Endposition`}
+                    className="w-1/2 max-h-48 object-contain rounded-[var(--radius-component-md)] bg-[var(--color-bg-subtle)]"
+                    onError={handleImgError}
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         <ModalFooter>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
           <Button

@@ -126,7 +126,13 @@ function SessionsLoadingSkeleton() {
 const EMPTY_FILTERS: SessionFilters = {};
 
 function hasActiveFilters(filters: SessionFilters): boolean {
-  return !!(filters.workoutType || filters.trainingType || filters.dateFrom || filters.dateTo || filters.search);
+  return !!(
+    filters.workoutType ||
+    filters.trainingType ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.search
+  );
 }
 
 /* ─── Main Component ─── */
@@ -143,22 +149,19 @@ export function SessionsPage() {
   const [searchInput, setSearchInput] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const loadSessions = useCallback(
-    async (page: number, currentFilters: SessionFilters) => {
-      setLoading(true);
-      try {
-        const result = await listSessions(page, PAGE_SIZE, currentFilters);
-        setSessions(result.sessions);
-        setTotal(result.total);
-        setCurrentPage(result.page);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const loadSessions = useCallback(async (page: number, currentFilters: SessionFilters) => {
+    setLoading(true);
+    try {
+      const result = await listSessions(page, PAGE_SIZE, currentFilters);
+      setSessions(result.sessions);
+      setTotal(result.total);
+      setCurrentPage(result.page);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadSessions(1, filters);

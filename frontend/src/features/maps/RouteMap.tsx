@@ -5,7 +5,12 @@ import type { GPSPoint } from '@/api/training';
 import type { RouteSegment } from '@/utils/segmentBuilder';
 import type { HeatMapMode } from '@/utils/colorScale';
 import type { KmMarkerData, LapMarkerData } from '@/utils/mapMarkers';
-import { buildKmPopupHtml, buildLapPopupHtml, LAP_TYPE_COLORS, LAP_TYPE_DASHED } from '@/utils/mapMarkers';
+import {
+  buildKmPopupHtml,
+  buildLapPopupHtml,
+  LAP_TYPE_COLORS,
+  LAP_TYPE_DASHED,
+} from '@/utils/mapMarkers';
 import type { MapTileStyle } from './tileStyles';
 import { TILES } from './tileStyles';
 
@@ -68,7 +73,9 @@ function getPointPace(points: GPSPoint[], idx: number): number | null {
   const dLng = ((p.lng - prev.lng) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((prev.lat * Math.PI) / 180) * Math.cos((p.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    Math.cos((prev.lat * Math.PI) / 180) *
+      Math.cos((p.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
   const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   if (dist < 0.1 || dist > 500) return null;
   const pace = 1000 / (dist / dt) / 60;
@@ -76,7 +83,12 @@ function getPointPace(points: GPSPoint[], idx: number): number | null {
 }
 
 /** Build tooltip HTML for a GPS point, adapted to the current map mode. */
-function buildPointTooltip(points: GPSPoint[], idx: number, distKm: number, mode: HeatMapMode): string {
+function buildPointTooltip(
+  points: GPSPoint[],
+  idx: number,
+  distKm: number,
+  mode: HeatMapMode,
+): string {
   const p = points[idx];
   const dist = `${distKm.toFixed(2)} km`;
   const pace = getPointPace(points, idx);

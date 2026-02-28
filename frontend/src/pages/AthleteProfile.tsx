@@ -180,7 +180,11 @@ export function AthleteProfilePage() {
           )}
         </CardBody>
         <CardFooter className="justify-end pt-4">
-          <Button variant="primary" onClick={handleSaveHR} disabled={saving || !restingHr || !maxHr}>
+          <Button
+            variant="primary"
+            onClick={handleSaveHR}
+            disabled={saving || !restingHr || !maxHr}
+          >
             {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
           </Button>
         </CardFooter>
@@ -195,8 +199,8 @@ export function AthleteProfilePage() {
         </CardHeader>
         <CardBody>
           <p className="text-xs text-[var(--color-text-muted)] mb-4">
-            Korrekturfaktoren für die höhenbereinigte Pace (Grade Adjusted Pace).
-            Höhere Werte bedeuten stärkere Korrektur.
+            Korrekturfaktoren für die höhenbereinigte Pace (Grade Adjusted Pace). Höhere Werte
+            bedeuten stärkere Korrektur.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">

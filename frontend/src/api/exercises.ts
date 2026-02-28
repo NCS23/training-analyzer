@@ -80,15 +80,9 @@ export async function deleteExercise(exerciseId: number): Promise<void> {
   await apiClient.delete(`/api/v1/exercises/${exerciseId}`);
 }
 
-export async function enrichExercise(
-  exerciseId: number,
-  exerciseDbId?: string,
-): Promise<Exercise> {
+export async function enrichExercise(exerciseId: number, exerciseDbId?: string): Promise<Exercise> {
   const body = exerciseDbId ? { exercise_db_id: exerciseDbId } : undefined;
-  const response = await apiClient.post<Exercise>(
-    `/api/v1/exercises/${exerciseId}/enrich`,
-    body,
-  );
+  const response = await apiClient.post<Exercise>(`/api/v1/exercises/${exerciseId}/enrich`, body);
   return response.data;
 }
 

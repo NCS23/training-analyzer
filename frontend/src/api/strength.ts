@@ -81,9 +81,7 @@ export async function createStrengthSession(
   return response.data;
 }
 
-export async function getLastExerciseSets(
-  exerciseName: string,
-): Promise<LastExerciseResponse> {
+export async function getLastExerciseSets(exerciseName: string): Promise<LastExerciseResponse> {
   const response = await apiClient.get<LastExerciseResponse>(
     '/api/v1/sessions/strength/last-exercises',
     { params: { exercise_name: exerciseName } },

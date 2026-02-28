@@ -54,12 +54,13 @@ export function ExerciseCard({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredSuggestions = exerciseLibrary?.filter(
-    (ex) =>
-      exercise.name.length >= 1 &&
-      ex.name.toLowerCase().includes(exercise.name.toLowerCase()) &&
-      ex.name.toLowerCase() !== exercise.name.toLowerCase(),
-  ) ?? [];
+  const filteredSuggestions =
+    exerciseLibrary?.filter(
+      (ex) =>
+        exercise.name.length >= 1 &&
+        ex.name.toLowerCase().includes(exercise.name.toLowerCase()) &&
+        ex.name.toLowerCase() !== exercise.name.toLowerCase(),
+    ) ?? [];
 
   const handleSelectSuggestion = useCallback(
     (suggestion: Exercise) => {
@@ -159,7 +160,10 @@ export function ExerciseCard({
                     <span className="truncate">{suggestion.name}</span>
                     <span className="flex items-center gap-1 shrink-0">
                       {suggestion.is_favorite && (
-                        <Star className="w-3 h-3 text-[var(--color-status-warning)]" fill="currentColor" />
+                        <Star
+                          className="w-3 h-3 text-[var(--color-status-warning)]"
+                          fill="currentColor"
+                        />
                       )}
                       <span className="text-xs text-[var(--color-text-muted)]">
                         {suggestion.category}
@@ -216,9 +220,7 @@ export function ExerciseCard({
       {lastSetsHint && (
         <Alert variant="info">
           <AlertDescription className="flex items-center justify-between gap-2">
-            <span className="text-sm">
-              Letzte Session: {lastSetsHint.length} Sätze gefunden
-            </span>
+            <span className="text-sm">Letzte Session: {lastSetsHint.length} Sätze gefunden</span>
             <Button variant="ghost" size="sm" onClick={handleApplyLastSets}>
               <Copy className="w-3.5 h-3.5 mr-1" />
               Übernehmen

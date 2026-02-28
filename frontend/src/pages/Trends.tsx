@@ -283,8 +283,7 @@ export function TrendsPage() {
                       }}
                       formatter={(value: number, name: string) => {
                         if (name === 'total_distance_km') return [`${value} km`, 'Distanz'];
-                        if (name === 'total_duration_sec')
-                          return [formatDuration(value), 'Dauer'];
+                        if (name === 'total_duration_sec') return [formatDuration(value), 'Dauer'];
                         return [value, name];
                       }}
                       labelFormatter={(label: string) => `KW ${label}`}

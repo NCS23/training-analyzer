@@ -285,11 +285,13 @@ export function StrengthProgressionPage() {
                     </Badge>
                   ) : history.weight_progression < 0 ? (
                     <Badge variant="warning" size="xs">
-                      <ArrowDown className="w-3 h-3 mr-0.5" />{history.weight_progression} kg
+                      <ArrowDown className="w-3 h-3 mr-0.5" />
+                      {history.weight_progression} kg
                     </Badge>
                   ) : (
                     <Badge variant="info" size="xs">
-                      <Minus className="w-3 h-3 mr-0.5" />Gleich
+                      <Minus className="w-3 h-3 mr-0.5" />
+                      Gleich
                     </Badge>
                   )}
                   <span className="text-xs text-[var(--color-text-muted)]">
@@ -395,10 +397,7 @@ export function StrengthProgressionPage() {
                   margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
-                  />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
                   <YAxis
                     tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
                     tickFormatter={(v: number) =>
@@ -413,9 +412,7 @@ export function StrengthProgressionPage() {
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => [
-                      value >= 1000
-                        ? `${(value / 1000).toFixed(1)} t`
-                        : `${Math.round(value)} kg`,
+                      value >= 1000 ? `${(value / 1000).toFixed(1)} t` : `${Math.round(value)} kg`,
                       'Tonnage',
                     ]}
                     labelFormatter={(label: string) => `KW ${label}`}

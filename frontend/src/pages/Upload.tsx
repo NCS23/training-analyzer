@@ -62,7 +62,7 @@ export default function UploadPage() {
 
   // Shared state
   const [trainingType, setTrainingType] = useState<TrainingType>(
-    preselect === 'strength' ? 'strength' : 'running'
+    preselect === 'strength' ? 'strength' : 'running',
   );
   const [trainingDate, setTrainingDate] = useState<Date>(new Date());
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -86,7 +86,9 @@ export default function UploadPage() {
     if (trainingType === 'strength') {
       listExercises()
         .then((res) => setExerciseLibrary(res.exercises))
-        .catch(() => { /* Autocomplete optional */ });
+        .catch(() => {
+          /* Autocomplete optional */
+        });
     }
   }, [trainingType]);
 
@@ -196,7 +198,8 @@ export default function UploadPage() {
   }, []);
 
   // Strength: submit
-  const canSubmitStrength = exercises.length > 0 && exercises.every((ex) => ex.name.trim().length > 0);
+  const canSubmitStrength =
+    exercises.length > 0 && exercises.every((ex) => ex.name.trim().length > 0);
 
   const handleCreateStrength = useCallback(async () => {
     if (!canSubmitStrength) return;
@@ -268,7 +271,9 @@ export default function UploadPage() {
                   { value: 'strength', label: 'Kraft' },
                 ]}
                 value={trainingType}
-                onChange={(val) => { if (val) setTrainingType(val as TrainingType); }}
+                onChange={(val) => {
+                  if (val) setTrainingType(val as TrainingType);
+                }}
                 placeholder="Typ wählen"
               />
             </div>
@@ -289,18 +294,14 @@ export default function UploadPage() {
           {/* Card 1: Import + Datum */}
           <Card elevation="raised">
             <CardHeader>
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Training
-              </h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Training</h2>
             </CardHeader>
             <CardBody className="space-y-4">
               <FileUpload
                 accept=".csv,.fit"
                 onUpload={handleFileUpload}
                 onRemove={handleFileRemove}
-                instructionText={
-                  csvFile ? csvFile.name : 'Datei hier ablegen oder klicken'
-                }
+                instructionText={csvFile ? csvFile.name : 'Datei hier ablegen oder klicken'}
                 subText="Unterstützt: CSV, Garmin/Wahoo FIT"
               />
 
@@ -309,7 +310,9 @@ export default function UploadPage() {
                   <Label>Datum</Label>
                   <DatePicker
                     value={trainingDate}
-                    onChange={(date) => { if (date) setTrainingDate(date); }}
+                    onChange={(date) => {
+                      if (date) setTrainingDate(date);
+                    }}
                     maxDate={new Date()}
                     placeholder="Datum wählen"
                   />
@@ -392,11 +395,7 @@ export default function UploadPage() {
           {/* Submit */}
           <div className="flex justify-end">
             {isRunning && (
-              <Button
-                variant="primary"
-                onClick={handleNext}
-                disabled={!csvFile || loading}
-              >
+              <Button variant="primary" onClick={handleNext} disabled={!csvFile || loading}>
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <Spinner size="sm" aria-hidden="true" />
@@ -430,99 +429,99 @@ export default function UploadPage() {
       {/* ============== Running: Step 1 — Review ============== */}
       {isRunning && step === 1 && parseResult && (
         <>
-        <Card elevation="raised">
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-              Klassifikation prüfen
-            </h2>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Automatisch erkannte Zuordnungen. Bei Bedarf anpassen.
-            </p>
-          </CardHeader>
-          <CardBody className="space-y-6">
-            <div className="space-y-1.5">
-              <Label>Trainingstyp</Label>
-              <Select
-                options={trainingTypeOptions}
-                value={effectiveType ?? undefined}
-                onChange={(val) => setTrainingTypeOverride(val ?? null)}
-                placeholder="Typ wählen"
-              />
-            </div>
-
-            {laps && laps.length > 0 && (
+          <Card elevation="raised">
+            <CardHeader>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                Klassifikation prüfen
+              </h2>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Automatisch erkannte Zuordnungen. Bei Bedarf anpassen.
+              </p>
+            </CardHeader>
+            <CardBody className="space-y-6">
               <div className="space-y-1.5">
-                <Label>Laps ({laps.length})</Label>
-                <div className="overflow-x-auto rounded-[var(--radius-component-md)] border border-[var(--color-border-default)]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-8">#</TableHead>
-                        <TableHead>Typ</TableHead>
-                        <TableHead>Dauer</TableHead>
-                        <TableHead>Pace</TableHead>
-                        <TableHead>Ø HF</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {laps.map((lap: ParsedLap) => {
-                        const effectiveLapType =
-                          lapOverrides[lap.lap_number] || lap.suggested_type || 'unclassified';
-                        return (
-                          <TableRow key={lap.lap_number}>
-                            <TableCell className="font-medium text-[var(--color-text-muted)]">
-                              {lap.lap_number}
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                options={lapTypeOptions}
-                                value={effectiveLapType}
-                                onChange={(val) => {
-                                  if (val) {
-                                    setLapOverrides((prev) => ({
-                                      ...prev,
-                                      [lap.lap_number]: val,
-                                    }));
-                                  }
-                                }}
-                                inputSize="sm"
-                                className="w-32 min-w-0"
-                              />
-                            </TableCell>
-                            <TableCell>{lap.duration_formatted}</TableCell>
-                            <TableCell>
-                              {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
-                            </TableCell>
-                            <TableCell>
-                              {lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                <Label>Trainingstyp</Label>
+                <Select
+                  options={trainingTypeOptions}
+                  value={effectiveType ?? undefined}
+                  onChange={(val) => setTrainingTypeOverride(val ?? null)}
+                  placeholder="Typ wählen"
+                />
               </div>
-            )}
-          </CardBody>
-        </Card>
 
-        {/* Submit */}
-        <div className="flex justify-between">
-          <Button variant="secondary" onClick={handleBack} disabled={creating}>
-            Zurück
-          </Button>
-          <Button variant="primary" onClick={handleCreateRunning} disabled={creating}>
-            {creating ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" aria-hidden="true" />
-                Erstelle Session...
-              </span>
-            ) : (
-              'Session anlegen'
-            )}
-          </Button>
-        </div>
+              {laps && laps.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Laps ({laps.length})</Label>
+                  <div className="overflow-x-auto rounded-[var(--radius-component-md)] border border-[var(--color-border-default)]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-8">#</TableHead>
+                          <TableHead>Typ</TableHead>
+                          <TableHead>Dauer</TableHead>
+                          <TableHead>Pace</TableHead>
+                          <TableHead>Ø HF</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {laps.map((lap: ParsedLap) => {
+                          const effectiveLapType =
+                            lapOverrides[lap.lap_number] || lap.suggested_type || 'unclassified';
+                          return (
+                            <TableRow key={lap.lap_number}>
+                              <TableCell className="font-medium text-[var(--color-text-muted)]">
+                                {lap.lap_number}
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  options={lapTypeOptions}
+                                  value={effectiveLapType}
+                                  onChange={(val) => {
+                                    if (val) {
+                                      setLapOverrides((prev) => ({
+                                        ...prev,
+                                        [lap.lap_number]: val,
+                                      }));
+                                    }
+                                  }}
+                                  inputSize="sm"
+                                  className="w-32 min-w-0"
+                                />
+                              </TableCell>
+                              <TableCell>{lap.duration_formatted}</TableCell>
+                              <TableCell>
+                                {lap.pace_formatted ? `${lap.pace_formatted} /km` : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {lap.avg_hr_bpm != null ? `${lap.avg_hr_bpm}` : '-'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Submit */}
+          <div className="flex justify-between">
+            <Button variant="secondary" onClick={handleBack} disabled={creating}>
+              Zurück
+            </Button>
+            <Button variant="primary" onClick={handleCreateRunning} disabled={creating}>
+              {creating ? (
+                <span className="flex items-center gap-2">
+                  <Spinner size="sm" aria-hidden="true" />
+                  Erstelle Session...
+                </span>
+              ) : (
+                'Session anlegen'
+              )}
+            </Button>
+          </div>
         </>
       )}
     </div>

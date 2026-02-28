@@ -69,7 +69,10 @@ export function MapLegend({ mode, minPace, maxPace, zones }: MapLegendProps) {
     >
       {zones.map((z) => (
         <span key={z.zone} className="inline-flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-[var(--radius-sm)] shrink-0" style={{ backgroundColor: z.color }} />
+          <span
+            className="w-2.5 h-2.5 rounded-[var(--radius-sm)] shrink-0"
+            style={{ backgroundColor: z.color }}
+          />
           <span className="tabular-nums">
             Z{z.zone} {z.lowerBpm}–{z.upperBpm}
           </span>
