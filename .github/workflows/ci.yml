@@ -40,6 +40,8 @@ jobs:
   frontend-test:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +58,28 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: frontend
-        run: npx vitest --run --coverage --passWithNoTests
+        run: npx vitest --run --coverage --reporter=default --reporter=json-summary --passWithNoTests
+        env:
+          VITEST_COVERAGE_REPORTER: json-summary
+
+      - name: Coverage Summary
+        if: always()
+        working-directory: frontend
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "## Frontend Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            node -e "
+              const c = require('./coverage/coverage-summary.json').total;
+              const fmt = (v) => v.pct >= 80 ? '✅' : v.pct >= 60 ? '⚠️' : '❌';
+              console.log('| Metric | Coverage | Status |');
+              console.log('|--------|----------|--------|');
+              console.log('| Statements | ' + c.statements.pct + '% | ' + fmt(c.statements) + ' |');
+              console.log('| Branches | ' + c.branches.pct + '% | ' + fmt(c.branches) + ' |');
+              console.log('| Functions | ' + c.functions.pct + '% | ' + fmt(c.functions) + ' |');
+              console.log('| Lines | ' + c.lines.pct + '% | ' + fmt(c.lines) + ' |');
+            " >> $GITHUB_STEP_SUMMARY
+          fi
 
   frontend-build:
     name: Frontend Build
@@ -91,6 +114,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/pyproject.toml
 
       - name: Install dependencies
         working-directory: backend
@@ -118,6 +143,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/pyproject.toml
 
       - name: Install dependencies
         working-directory: backend
@@ -127,7 +154,31 @@ jobs:
         working-directory: backend
         run: |
           if [ -d "app/tests" ]; then
-            pytest app/tests/ -x --cov=app --cov-report=term-missing
+            pytest app/tests/ -x --cov=app --cov-report=term-missing --cov-report=json:coverage.json
           else
             echo "No test directory found - skipping tests"
+          fi
+
+      - name: Coverage Summary
+        if: always()
+        working-directory: backend
+        run: |
+          if [ -f coverage.json ]; then
+            echo "## Backend Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          with open('coverage.json') as f:
+              data = json.load(f)
+          totals = data['totals']
+          pct = totals['percent_covered_display']
+          stmts = totals['num_statements']
+          miss = totals['missing_lines']
+          icon = '✅' if float(pct) >= 80 else '⚠️' if float(pct) >= 60 else '❌'
+          print(f'| Metric | Value | Status |')
+          print(f'|--------|-------|--------|')
+          print(f'| Coverage | {pct}% | {icon} |')
+          print(f'| Statements | {stmts} | |')
+          print(f'| Missed Lines | {miss} | |')
+            " >> $GITHUB_STEP_SUMMARY
           fi

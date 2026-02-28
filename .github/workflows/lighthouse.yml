@@ -1,0 +1,42 @@
+name: Lighthouse Audit
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Montags 07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    name: Performance & Accessibility Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        id: lighthouse
+        with:
+          urls: |
+            http://training.89.167.78.223.sslip.io
+          runs: 3
+          budgetPath: .github/lighthouse-budget.json
+
+      - name: Format Results
+        if: always()
+        run: |
+          echo "## Lighthouse Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Score |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ steps.lighthouse.outputs.performance }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ${{ steps.lighthouse.outputs.accessibility }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices | ${{ steps.lighthouse.outputs.best-practices }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO | ${{ steps.lighthouse.outputs.seo }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Lighthouse Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 30
