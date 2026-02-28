@@ -12,6 +12,7 @@ import {
   Select,
 } from '@nordlig/components';
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   Dumbbell,
@@ -90,6 +91,29 @@ const typeOptions = [
   { value: 'running', label: 'Laufen' },
   { value: 'rest', label: 'Ruhetag' },
 ];
+
+/** Warn if strength is planned adjacent to running (both directions). */
+function getProximityWarning(
+  entries: WeeklyPlanEntry[],
+  dayOfWeek: number,
+): string | null {
+  const current = entries.find((e) => e.day_of_week === dayOfWeek);
+  if (!current || current.training_type !== 'strength') return null;
+
+  const prev = entries.find((e) => e.day_of_week === dayOfWeek - 1);
+  const next = entries.find((e) => e.day_of_week === dayOfWeek + 1);
+
+  if (prev?.training_type === 'running' && next?.training_type === 'running') {
+    return 'Kraft zwischen zwei Laufeinheiten';
+  }
+  if (prev?.training_type === 'running') {
+    return 'Kraft direkt nach Laufeinheit';
+  }
+  if (next?.training_type === 'running') {
+    return 'Kraft direkt vor Laufeinheit';
+  }
+  return null;
+}
 
 // --- Component ---
 
@@ -361,6 +385,10 @@ export function WeeklyPlanPage() {
               isCurrentWeek &&
               new Date().getDay() ===
                 (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
+            const proximityWarning = getProximityWarning(
+              entries,
+              entry.day_of_week,
+            );
 
             return (
               <Card
@@ -440,6 +468,14 @@ export function WeeklyPlanPage() {
                         </span>
                       )}
                     </button>
+
+                    {/* Proximity warning */}
+                    {proximityWarning && (
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-xs text-[var(--color-text-warning)]">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{proximityWarning}</span>
+                      </div>
+                    )}
 
                     {/* Expanded editor */}
                     {isSelected && (
