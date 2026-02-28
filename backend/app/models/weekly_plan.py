@@ -59,3 +59,38 @@ class WeeklyPlanSaveRequest(BaseModel):
 
     week_start: date
     entries: list[WeeklyPlanEntry] = Field(..., min_length=1, max_length=7)
+
+
+class ActualSession(BaseModel):
+    """Matched actual session for compliance tracking."""
+
+    session_id: int
+    workout_type: str
+    training_type_effective: Optional[str] = None
+    duration_sec: Optional[int] = None
+    distance_km: Optional[float] = None
+    pace: Optional[str] = None
+
+
+class ComplianceDayEntry(BaseModel):
+    """Compliance status for a single day."""
+
+    day_of_week: int = Field(..., ge=0, le=6)
+    date: date
+    planned_type: Optional[str] = None  # 'strength', 'running', or None
+    planned_run_type: Optional[str] = None  # run_details.run_type
+    is_rest_day: bool = False
+    status: str = Field(
+        ...,
+        pattern="^(completed|off_target|missed|rest_ok|unplanned|empty)$",
+    )
+    actual_sessions: list[ActualSession] = Field(default_factory=list)
+
+
+class ComplianceResponse(BaseModel):
+    """Weekly compliance tracking response."""
+
+    week_start: date
+    entries: list[ComplianceDayEntry]
+    completed_count: int
+    planned_count: int

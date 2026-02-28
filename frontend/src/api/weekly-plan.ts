@@ -51,6 +51,34 @@ export interface WeeklyPlanSaveRequest {
   entries: WeeklyPlanSaveEntry[];
 }
 
+// --- Compliance Types ---
+
+export interface ActualSession {
+  session_id: number;
+  workout_type: string;
+  training_type_effective: string | null;
+  duration_sec: number | null;
+  distance_km: number | null;
+  pace: string | null;
+}
+
+export interface ComplianceDayEntry {
+  day_of_week: number;
+  date: string;
+  planned_type: string | null;
+  planned_run_type: string | null;
+  is_rest_day: boolean;
+  status: 'completed' | 'off_target' | 'missed' | 'rest_ok' | 'unplanned' | 'empty';
+  actual_sessions: ActualSession[];
+}
+
+export interface ComplianceResponse {
+  week_start: string;
+  entries: ComplianceDayEntry[];
+  completed_count: number;
+  planned_count: number;
+}
+
 // --- API Functions ---
 
 export async function getWeeklyPlan(
@@ -88,5 +116,19 @@ export async function clearWeeklyPlan(
     : '/api/v1/weekly-plan';
 
   const response = await apiClient.delete<{ success: boolean }>(url);
+  return response.data;
+}
+
+export async function getCompliance(
+  weekStart?: string,
+): Promise<ComplianceResponse> {
+  const params = new URLSearchParams();
+  if (weekStart) params.set('week_start', weekStart);
+
+  const url = params.toString()
+    ? `/api/v1/weekly-plan/compliance?${params.toString()}`
+    : '/api/v1/weekly-plan/compliance';
+
+  const response = await apiClient.get<ComplianceResponse>(url);
   return response.data;
 }

@@ -13,16 +13,25 @@ import {
 } from '@nordlig/components';
 import {
   AlertTriangle,
+  Check,
   ChevronLeft,
   ChevronRight,
+  CircleSlash,
   Dumbbell,
   Footprints,
   Moon,
   Save,
   Trash2,
+  X,
+  Zap,
 } from 'lucide-react';
-import { getWeeklyPlan, saveWeeklyPlan } from '@/api/weekly-plan';
-import type { RunDetails, WeeklyPlanEntry } from '@/api/weekly-plan';
+import { getWeeklyPlan, saveWeeklyPlan, getCompliance } from '@/api/weekly-plan';
+import type {
+  RunDetails,
+  WeeklyPlanEntry,
+  ComplianceDayEntry,
+  ComplianceResponse,
+} from '@/api/weekly-plan';
 import { listTrainingPlans } from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
@@ -131,6 +140,25 @@ const RUN_TYPE_LABELS: Record<string, string> = {
   intervals: 'Intervalle',
 };
 
+const COMPLIANCE_CONFIG: Record<
+  ComplianceDayEntry['status'],
+  { label: string; variant: 'success' | 'warning' | 'error' | 'neutral' | 'info'; icon: typeof Check }
+> = {
+  completed: { label: 'Erledigt', variant: 'success', icon: Check },
+  rest_ok: { label: 'Ruhetag', variant: 'neutral', icon: Moon },
+  off_target: { label: 'Abweichung', variant: 'warning', icon: AlertTriangle },
+  missed: { label: 'Verpasst', variant: 'error', icon: X },
+  unplanned: { label: 'Ungeplant', variant: 'info', icon: Zap },
+  empty: { label: '', variant: 'neutral', icon: CircleSlash },
+};
+
+function formatDurationShort(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 // --- Component ---
 
 export function WeeklyPlanPage() {
@@ -143,6 +171,9 @@ export function WeeklyPlanPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+
+  // Compliance tracking
+  const [compliance, setCompliance] = useState<ComplianceResponse | null>(null);
 
   // Training plans for linking
   const [plans, setPlans] = useState<TrainingPlanSummary[]>([]);
@@ -157,14 +188,18 @@ export function WeeklyPlanPage() {
       .catch(() => {});
   }, []);
 
-  // Load week data
+  // Load week data + compliance
   const loadWeek = useCallback(
     async (ws: string) => {
       setLoading(true);
       setError(null);
       try {
-        const result = await getWeeklyPlan(ws);
-        setEntries(result.entries);
+        const [planResult, complianceResult] = await Promise.all([
+          getWeeklyPlan(ws),
+          getCompliance(ws).catch(() => null),
+        ]);
+        setEntries(planResult.entries);
+        setCompliance(complianceResult);
         setDirty(false);
       } catch {
         toast({ title: 'Laden fehlgeschlagen', variant: 'error' });
@@ -385,6 +420,28 @@ export function WeeklyPlanPage() {
               )}
             </div>
           )}
+
+          {/* Compliance summary */}
+          {compliance && compliance.planned_count > 0 && (
+            <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Umsetzung
+                </p>
+                <p className="text-xs font-medium text-[var(--color-text-base)]">
+                  {compliance.completed_count}/{compliance.planned_count}
+                </p>
+              </div>
+              <div className="mt-1.5 h-1.5 rounded-full bg-[var(--color-bg-subtle)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--color-bg-success)] transition-all duration-500 motion-reduce:transition-none"
+                  style={{
+                    width: `${Math.round((compliance.completed_count / compliance.planned_count) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
 
@@ -406,6 +463,13 @@ export function WeeklyPlanPage() {
               entries,
               entry.day_of_week,
             );
+            const dayCompliance = compliance?.entries.find(
+              (c) => c.day_of_week === entry.day_of_week,
+            );
+            const complianceStatus = dayCompliance?.status;
+            const complianceCfg = complianceStatus
+              ? COMPLIANCE_CONFIG[complianceStatus]
+              : null;
 
             return (
               <Card
@@ -495,11 +559,23 @@ export function WeeklyPlanPage() {
                         )}
                       </div>
 
-                      {entry.notes && !isSelected && (
-                        <span className="text-xs text-[var(--color-text-muted)] truncate max-w-[120px]">
-                          {entry.notes}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {entry.notes && !isSelected && (
+                          <span className="text-xs text-[var(--color-text-muted)] truncate max-w-[100px]">
+                            {entry.notes}
+                          </span>
+                        )}
+                        {complianceCfg &&
+                          complianceStatus !== 'empty' && (
+                            <Badge
+                              variant={complianceCfg.variant}
+                              size="xs"
+                            >
+                              <complianceCfg.icon className="w-3 h-3 mr-0.5" />
+                              {complianceCfg.label}
+                            </Badge>
+                          )}
+                      </div>
                     </button>
 
                     {/* Proximity warning */}
@@ -509,6 +585,50 @@ export function WeeklyPlanPage() {
                         <span>{proximityWarning}</span>
                       </div>
                     )}
+
+                    {/* Actual session info (compliance) */}
+                    {dayCompliance &&
+                      dayCompliance.actual_sessions.length > 0 &&
+                      !isSelected && (
+                        <div className="flex flex-wrap items-center gap-2 px-1 text-xs text-[var(--color-text-muted)]">
+                          {dayCompliance.actual_sessions.map((s) => (
+                            <span
+                              key={s.session_id}
+                              className="inline-flex items-center gap-1 cursor-pointer hover:text-[var(--color-text-base)]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/sessions/${s.session_id}`);
+                              }}
+                              role="link"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.stopPropagation();
+                                  navigate(`/sessions/${s.session_id}`);
+                                }
+                              }}
+                            >
+                              {s.workout_type === 'running' ? (
+                                <Footprints className="w-3 h-3" />
+                              ) : (
+                                <Dumbbell className="w-3 h-3" />
+                              )}
+                              {s.training_type_effective && (
+                                <span className="capitalize">
+                                  {s.training_type_effective}
+                                </span>
+                              )}
+                              {s.distance_km && (
+                                <span>{s.distance_km.toFixed(1)} km</span>
+                              )}
+                              {s.duration_sec && (
+                                <span>{formatDurationShort(s.duration_sec)}</span>
+                              )}
+                              {s.pace && <span>{s.pace} /km</span>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                     {/* Expanded editor */}
                     {isSelected && (

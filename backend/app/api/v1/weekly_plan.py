@@ -1,16 +1,23 @@
-"""API routes for Weekly Plan (Issue #26, #27)."""
+"""API routes for Weekly Plan (Issue #26, #27, #28)."""
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import TrainingPlanModel, WeeklyPlanEntryModel
+from app.infrastructure.database.models import (
+    TrainingPlanModel,
+    WeeklyPlanEntryModel,
+    WorkoutModel,
+)
 from app.infrastructure.database.session import get_db
 from app.models.weekly_plan import (
+    ActualSession,
+    ComplianceDayEntry,
+    ComplianceResponse,
     RunDetails,
     WeeklyPlanEntry,
     WeeklyPlanResponse,
@@ -186,3 +193,156 @@ async def clear_weekly_plan(
 
     await db.commit()
     return {"success": True}
+
+
+def _effective_training_type(w: WorkoutModel) -> Optional[str]:
+    """Get effective training type (override > auto)."""
+    if w.training_type_override:
+        return str(w.training_type_override)
+    if w.training_type_auto:
+        return str(w.training_type_auto)
+    return None
+
+
+def _determine_status(
+    plan_entry: Optional[WeeklyPlanEntryModel],
+    sessions: list[WorkoutModel],
+) -> str:
+    """Determine compliance status for a day."""
+    has_plan = plan_entry is not None and (
+        plan_entry.training_type is not None or plan_entry.is_rest_day
+    )
+    has_sessions = len(sessions) > 0
+
+    if not has_plan and not has_sessions:
+        return "empty"
+
+    if not has_plan and has_sessions:
+        return "unplanned"
+
+    if has_plan and plan_entry is not None and plan_entry.is_rest_day:
+        return "rest_ok" if not has_sessions else "off_target"
+
+    if has_plan and not has_sessions:
+        return "missed"
+
+    # Both plan and sessions exist — check type match
+    if plan_entry is not None and plan_entry.training_type:
+        planned_type = str(plan_entry.training_type)
+        # Map plan training_type to workout_type
+        type_map = {"strength": "strength", "running": "running"}
+        expected_workout_type = type_map.get(planned_type, planned_type)
+        matched = any(
+            str(s.workout_type) == expected_workout_type for s in sessions
+        )
+        return "completed" if matched else "off_target"
+
+    return "completed"
+
+
+@router.get("/compliance", response_model=ComplianceResponse)
+async def get_compliance(
+    week_start: Optional[date] = None,
+    db: AsyncSession = Depends(get_db),
+) -> ComplianceResponse:
+    """Get compliance tracking for a given week (plan vs. actual sessions)."""
+    if week_start is None:
+        week_start = _monday_of_week(date.today())
+    else:
+        week_start = _monday_of_week(week_start)
+
+    week_end = week_start + timedelta(days=6)
+
+    # Fetch plan entries
+    plan_result = await db.execute(
+        select(WeeklyPlanEntryModel)
+        .where(WeeklyPlanEntryModel.week_start == week_start)
+        .order_by(WeeklyPlanEntryModel.day_of_week)
+    )
+    plan_entries = {
+        int(e.day_of_week): e  # type: ignore[arg-type]
+        for e in plan_result.scalars().all()
+    }
+
+    # Fetch all sessions for this week
+    session_result = await db.execute(
+        select(WorkoutModel)
+        .where(
+            WorkoutModel.date >= datetime.combine(week_start, datetime.min.time()),
+            WorkoutModel.date <= datetime.combine(week_end, datetime.max.time()),
+        )
+        .order_by(WorkoutModel.date)
+    )
+    all_sessions = session_result.scalars().all()
+
+    # Group sessions by day_of_week
+    sessions_by_day: dict[int, list[WorkoutModel]] = {d: [] for d in range(7)}
+    for s in all_sessions:
+        session_date = s.date
+        if isinstance(session_date, datetime):
+            session_date = session_date.date()
+        day_idx = (session_date - week_start).days  # type: ignore[operator]
+        if 0 <= day_idx <= 6:
+            sessions_by_day[day_idx].append(s)
+
+    # Build compliance entries
+    entries: list[ComplianceDayEntry] = []
+    completed_count = 0
+    planned_count = 0
+
+    for day in range(7):
+        day_date = week_start + timedelta(days=day)
+        plan_entry = plan_entries.get(day)
+        day_sessions = sessions_by_day[day]
+
+        # Determine planned details
+        planned_type: Optional[str] = None
+        planned_run_type: Optional[str] = None
+        is_rest = False
+        if plan_entry:
+            if plan_entry.training_type:
+                planned_type = str(plan_entry.training_type)
+            is_rest = bool(plan_entry.is_rest_day)
+            if plan_entry.run_details_json:
+                run_details = _parse_run_details(str(plan_entry.run_details_json))
+                if run_details:
+                    planned_run_type = run_details.run_type
+
+        has_plan = planned_type is not None or is_rest
+        if has_plan:
+            planned_count += 1
+
+        status = _determine_status(plan_entry, day_sessions)
+        if status == "completed" or status == "rest_ok":
+            completed_count += 1
+
+        actual = [
+            ActualSession(
+                session_id=int(s.id),  # type: ignore[arg-type]
+                workout_type=str(s.workout_type),
+                training_type_effective=_effective_training_type(s),
+                duration_sec=int(s.duration_sec) if s.duration_sec else None,
+                distance_km=float(s.distance_km) if s.distance_km else None,
+                pace=str(s.pace) if s.pace else None,
+            )
+            for s in day_sessions
+        ]
+
+        entries.append(
+            ComplianceDayEntry(
+                day_of_week=day,
+                date=day_date,
+                planned_type=planned_type,
+                planned_run_type=planned_run_type,
+                is_rest_day=is_rest,
+                status=status,
+                actual_sessions=actual,
+            )
+        )
+
+    return ComplianceResponse(
+        week_start=week_start,
+        entries=entries,
+        completed_count=completed_count,
+        planned_count=planned_count,
+    )

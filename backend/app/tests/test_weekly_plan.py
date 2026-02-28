@@ -1,7 +1,12 @@
-"""Tests for Weekly Plan (Issue #26)."""
+"""Tests for Weekly Plan (Issue #26, #28)."""
+
+from datetime import datetime
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.infrastructure.database.models import WorkoutModel
 
 PLAN_DATA = {
     "name": "Test Plan",
@@ -335,3 +340,194 @@ async def test_empty_entries_have_no_run_details(client: AsyncClient) -> None:
     assert response.status_code == 200
     for entry in response.json()["entries"]:
         assert entry["run_details"] is None
+
+
+# --- Compliance Tracking Tests (Issue #28) ---
+
+
+async def _create_workout(
+    db: AsyncSession,
+    date_str: str,
+    workout_type: str = "running",
+    training_type_auto: str = "easy",
+) -> int:
+    """Helper to create a workout directly in DB."""
+    workout = WorkoutModel(
+        date=datetime.fromisoformat(date_str),
+        workout_type=workout_type,
+        training_type_auto=training_type_auto,
+        duration_sec=2700,
+        distance_km=5.0 if workout_type == "running" else None,
+        pace="5:30" if workout_type == "running" else None,
+    )
+    db.add(workout)
+    await db.commit()
+    await db.refresh(workout)
+    return int(workout.id)  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+async def test_compliance_empty_week(client: AsyncClient) -> None:
+    """Empty week with no plan and no sessions → all 'empty'."""
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-06-01"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["week_start"] == "2026-06-01"
+    assert len(body["entries"]) == 7
+    assert body["completed_count"] == 0
+    assert body["planned_count"] == 0
+    for entry in body["entries"]:
+        assert entry["status"] == "empty"
+        assert entry["actual_sessions"] == []
+
+
+@pytest.mark.anyio
+async def test_compliance_completed(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Plan running on Monday, actual running on Monday → 'completed'."""
+    # Week of 2026-06-08 (Monday)
+    plan_data = {
+        "week_start": "2026-06-08",
+        "entries": [
+            {"day_of_week": 0, "training_type": "running", "is_rest_day": False},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    # Create actual running session on Monday
+    await _create_workout(db_session, "2026-06-08T08:00:00", "running", "easy")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-06-08"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    monday = body["entries"][0]
+    assert monday["status"] == "completed"
+    assert monday["planned_type"] == "running"
+    assert len(monday["actual_sessions"]) == 1
+    assert monday["actual_sessions"][0]["workout_type"] == "running"
+    assert body["completed_count"] == 1
+    assert body["planned_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_compliance_missed(client: AsyncClient) -> None:
+    """Plan running on Tuesday, no session → 'missed'."""
+    plan_data = {
+        "week_start": "2026-06-15",
+        "entries": [
+            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-06-15"}
+    )
+    body = response.json()
+    tuesday = body["entries"][1]
+    assert tuesday["status"] == "missed"
+    assert tuesday["planned_type"] == "running"
+    assert body["completed_count"] == 0
+    assert body["planned_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_compliance_off_target(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Plan strength on Wednesday, actual running → 'off_target'."""
+    plan_data = {
+        "week_start": "2026-06-22",
+        "entries": [
+            {"day_of_week": 2, "training_type": "strength", "is_rest_day": False},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    # Create running session on Wednesday (instead of strength)
+    await _create_workout(db_session, "2026-06-24T09:00:00", "running", "easy")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-06-22"}
+    )
+    body = response.json()
+    wednesday = body["entries"][2]
+    assert wednesday["status"] == "off_target"
+    assert wednesday["planned_type"] == "strength"
+    assert len(wednesday["actual_sessions"]) == 1
+    assert wednesday["actual_sessions"][0]["workout_type"] == "running"
+
+
+@pytest.mark.anyio
+async def test_compliance_rest_ok(client: AsyncClient) -> None:
+    """Rest day planned, no session → 'rest_ok'."""
+    plan_data = {
+        "week_start": "2026-06-29",
+        "entries": [
+            {"day_of_week": 4, "is_rest_day": True},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-06-29"}
+    )
+    body = response.json()
+    friday = body["entries"][4]
+    assert friday["status"] == "rest_ok"
+    assert friday["is_rest_day"] is True
+    assert body["completed_count"] == 1
+    assert body["planned_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_compliance_unplanned(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """No plan, but session exists → 'unplanned'."""
+    # Create a session on Thursday 2026-07-09 (week of 2026-07-06)
+    await _create_workout(db_session, "2026-07-09T07:00:00", "strength")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-07-06"}
+    )
+    body = response.json()
+    thursday = body["entries"][3]
+    assert thursday["status"] == "unplanned"
+    assert len(thursday["actual_sessions"]) == 1
+    assert body["planned_count"] == 0
+
+
+@pytest.mark.anyio
+async def test_compliance_run_type_in_response(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Run details should expose planned_run_type in compliance response."""
+    plan_data = {
+        "week_start": "2026-07-13",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "run_details": {"run_type": "tempo", "target_duration_minutes": 40},
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    await _create_workout(db_session, "2026-07-13T08:00:00", "running", "tempo")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-07-13"}
+    )
+    body = response.json()
+    monday = body["entries"][0]
+    assert monday["status"] == "completed"
+    assert monday["planned_run_type"] == "tempo"
+    assert monday["actual_sessions"][0]["training_type_effective"] == "tempo"
