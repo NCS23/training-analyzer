@@ -229,7 +229,13 @@ export function SessionsPage() {
               icon={<Upload className="w-4 h-4" />}
               onSelect={() => navigate('/sessions/new')}
             >
-              Neues Training
+              Laufen hochladen
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              icon={<Dumbbell className="w-4 h-4" />}
+              onSelect={() => navigate('/sessions/new/strength')}
+            >
+              Krafttraining erfassen
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -299,8 +305,8 @@ export function SessionsPage() {
       ) : sessions.length === 0 ? (
         <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-primary-1-50)] mb-4">
-              <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
+            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-bg-info-subtle)] mb-4">
+              <Activity className="w-8 h-8 text-[var(--color-text-primary)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
               {active ? 'Keine Treffer' : 'Keine Sessions vorhanden'}
@@ -340,11 +346,11 @@ export function SessionsPage() {
                   <Card elevation="raised">
                     <CardBody>
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-[var(--radius-xl)] bg-[var(--color-primary-1-50)]">
+                        <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-[var(--radius-xl)] bg-[var(--color-bg-info-subtle)]">
                           {session.workout_type === 'strength' ? (
-                            <Dumbbell className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                            <Dumbbell className="w-5 h-5 text-[var(--color-text-primary)]" />
                           ) : (
-                            <Footprints className="w-5 h-5 text-[var(--color-primary-1-500)]" />
+                            <Footprints className="w-5 h-5 text-[var(--color-text-primary)]" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0 space-y-2.5">

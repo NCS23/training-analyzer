@@ -145,7 +145,13 @@ export function DashboardPage() {
               icon={<Upload className="w-4 h-4" />}
               onSelect={() => navigate('/sessions/new')}
             >
-              Neues Training
+              Laufen hochladen
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              icon={<Dumbbell className="w-4 h-4" />}
+              onSelect={() => navigate('/sessions/new/strength')}
+            >
+              Krafttraining erfassen
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
