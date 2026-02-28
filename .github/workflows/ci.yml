@@ -56,9 +56,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: frontend
-        run: npx vitest --run --coverage --reporter=default --reporter=json-summary --passWithNoTests
-        env:
-          VITEST_COVERAGE_REPORTER: json-summary
+        run: npx vitest --run --coverage --coverage.reporter=json-summary --coverage.reporter=text --passWithNoTests
 
       - name: Coverage Summary
         if: always()
