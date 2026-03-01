@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+import yaml
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -264,6 +265,76 @@ async def create_plan(
     await db.commit()
     await db.refresh(plan)
     return await _plan_to_response(db, plan)
+
+
+def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
+    """Map YAML fields to TrainingPlanCreate schema fields."""
+    result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
+
+    if "phases" in data and data["phases"]:
+        result["phases"] = []
+        for phase in data["phases"]:
+            mapped = dict(phase)
+            if "type" in mapped and "phase_type" not in mapped:
+                mapped["phase_type"] = mapped.pop("type")
+            result["phases"].append(mapped)
+
+    return result
+
+
+@router.post("/import", response_model=TrainingPlanResponse, status_code=201)
+async def import_plan_from_yaml(
+    yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
+    db: AsyncSession = Depends(get_db),
+) -> TrainingPlanResponse:
+    """Import a training plan from a YAML file."""
+    if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
+        raise HTTPException(
+            status_code=400,
+            detail="Nur YAML-Dateien (.yaml, .yml) werden akzeptiert.",
+        )
+
+    content = await yaml_file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="YAML-Datei ist leer.")
+
+    try:
+        raw = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"YAML-Parsing fehlgeschlagen: {exc}",
+        ) from None
+
+    if not isinstance(raw, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="YAML muss ein Objekt (Mapping) auf oberster Ebene enthalten.",
+        )
+
+    # Resolve goal_title -> goal_id
+    goal_title = raw.get("goal_title")
+    if goal_title and not raw.get("goal_id"):
+        result = await db.execute(
+            select(RaceGoalModel.id).where(
+                func.lower(RaceGoalModel.title) == goal_title.lower()
+            )
+        )
+        goal_id = result.scalar_one_or_none()
+        if goal_id:
+            raw["goal_id"] = int(goal_id)
+
+    mapped = _yaml_to_plan_create(raw)
+
+    try:
+        plan_data = TrainingPlanCreate(**mapped)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Validierungsfehler: {exc}",
+        ) from None
+
+    return await create_plan(data=plan_data, db=db)
 
 
 @router.get("/{plan_id}", response_model=TrainingPlanResponse)

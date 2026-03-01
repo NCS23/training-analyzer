@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Card,
@@ -16,8 +16,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@nordlig/components';
-import { Plus, ChevronRight, EllipsisVertical, Trash2, CalendarRange } from 'lucide-react';
-import { listTrainingPlans, deleteTrainingPlan } from '@/api/training-plans';
+import { Plus, ChevronRight, EllipsisVertical, Trash2, CalendarRange, Upload } from 'lucide-react';
+import { listTrainingPlans, deleteTrainingPlan, importTrainingPlanYaml } from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,6 +40,8 @@ export function TrainingPlansPage() {
 
   const [plans, setPlans] = useState<TrainingPlanSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -67,6 +69,26 @@ export function TrainingPlansPage() {
     }
   };
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setImporting(true);
+    try {
+      const plan = await importTrainingPlanYaml(file);
+      toast({ title: `„${plan.name}" importiert`, variant: 'success' });
+      navigate(`/settings/plans/${plan.id}`);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Import fehlgeschlagen';
+      toast({ title: message, variant: 'error' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -90,14 +112,39 @@ export function TrainingPlansPage() {
               Periodisierte Trainingspläne erstellen und verwalten.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/settings/plans/new')}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Neuer Plan
-          </Button>
+          <div className="flex gap-2 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".yaml,.yml"
+              onChange={handleImportFile}
+              className="hidden"
+              aria-hidden="true"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+            >
+              {importing ? (
+                <Spinner size="sm" aria-hidden="true" />
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-1" />
+                  Importieren
+                </>
+              )}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/settings/plans/new')}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Neuer Plan
+            </Button>
+          </div>
         </header>
       </div>
 

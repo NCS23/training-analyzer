@@ -364,3 +364,155 @@ async def test_plan_summary_in_list(client: AsyncClient) -> None:
     body = response.json()
     assert body["plans"][0]["phase_count"] == 1
     assert body["plans"][0]["status"] == "draft"
+
+
+# --- YAML Import ---
+
+VALID_YAML = b"""
+name: HM Sub-2h Vorbereitung
+description: 16-Wochen Plan
+start_date: 2026-04-06
+end_date: 2026-07-26
+target_event_date: 2026-07-26
+status: draft
+
+phases:
+  - name: Grundlagenaufbau
+    type: base
+    start_week: 1
+    end_week: 6
+    notes: Langsamer Aufbau
+  - name: Aufbau
+    type: build
+    start_week: 7
+    end_week: 12
+"""
+
+
+@pytest.mark.anyio
+async def test_import_yaml_plan(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", VALID_YAML, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "HM Sub-2h Vorbereitung"
+    assert body["status"] == "draft"
+    assert body["start_date"] == "2026-04-06"
+    assert len(body["phases"]) == 2
+    assert body["phases"][0]["phase_type"] == "base"
+    assert body["phases"][1]["phase_type"] == "build"
+
+
+@pytest.mark.anyio
+async def test_import_yaml_with_goal_title(
+    client: AsyncClient, db_session: AsyncSession,
+) -> None:
+    goal = RaceGoalModel(
+        title="Hamburg Halbmarathon",
+        race_date=datetime(2026, 7, 26),
+        distance_km=21.1,
+        target_time_seconds=7200,
+    )
+    db_session.add(goal)
+    await db_session.commit()
+    await db_session.refresh(goal)
+
+    yaml_with_goal = b"""
+name: HM Plan mit Ziel
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+goal_title: Hamburg Halbmarathon
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_with_goal, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] == goal.id
+    assert body["goal_summary"]["title"] == "Hamburg Halbmarathon"
+
+
+@pytest.mark.anyio
+async def test_import_yaml_goal_title_not_found(client: AsyncClient) -> None:
+    yaml_content = b"""
+name: Plan ohne passendes Ziel
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+goal_title: Nicht existierendes Ziel
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_content, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] is None
+
+
+@pytest.mark.anyio
+async def test_import_yaml_invalid_file_extension(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.txt", b"name: test", "text/plain")},
+    )
+    assert response.status_code == 400
+    assert "YAML" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_import_yaml_empty_file(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", b"", "application/x-yaml")},
+    )
+    assert response.status_code == 400
+    assert "leer" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_import_yaml_malformed(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", b"{{invalid yaml", "application/x-yaml")},
+    )
+    assert response.status_code == 400
+    assert "Parsing" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_import_yaml_validation_error(client: AsyncClient) -> None:
+    yaml_missing = b"""
+description: Plan ohne Name und Datum
+status: draft
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_missing, "application/x-yaml")},
+    )
+    assert response.status_code == 422
+    assert "Validierung" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_import_yaml_invalid_phase_type(client: AsyncClient) -> None:
+    yaml_bad = b"""
+name: Plan mit falschem Phasentyp
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+phases:
+  - name: Bad Phase
+    type: invalid_type
+    start_week: 1
+    end_week: 4
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_bad, "application/x-yaml")},
+    )
+    assert response.status_code == 422

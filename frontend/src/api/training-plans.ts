@@ -157,6 +157,17 @@ export async function deleteTrainingPlan(planId: number): Promise<void> {
   await apiClient.delete(`/api/v1/training-plans/${planId}`);
 }
 
+export async function importTrainingPlanYaml(file: File): Promise<TrainingPlan> {
+  const formData = new FormData();
+  formData.append('yaml_file', file);
+  const response = await apiClient.post<TrainingPlan>(
+    '/api/v1/training-plans/import',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+}
+
 // --- Phase API Functions ---
 
 export async function listPhases(planId: number): Promise<TrainingPhase[]> {
