@@ -217,7 +217,7 @@ describe('SessionDetailPage', () => {
     render(<SessionDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Geräte-Laps (2)')).toBeInTheDocument();
+      expect(screen.getByText('Laps (2)')).toBeInTheDocument();
     });
     expect(screen.getByText('05:00')).toBeInTheDocument();
     expect(screen.getByText('10:00')).toBeInTheDocument();

@@ -40,7 +40,7 @@ describe('TrendsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Trends')).toBeInTheDocument();
     });
-    expect(screen.getByText('4 Wochen')).toBeInTheDocument();
+    expect(screen.getByText('4W')).toBeInTheDocument();
   });
 
   it('shows insights after loading', async () => {
