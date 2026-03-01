@@ -8,7 +8,6 @@ import {
   Badge,
   Spinner,
   Progress,
-  StatCard,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -26,16 +25,11 @@ import {
   Calendar,
   Footprints,
   Dumbbell,
-  Flame,
-  AlertTriangle,
-  Trophy,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { listGoals, getGoalProgress } from '@/api/goals';
 import type { GoalProgress } from '@/api/goals';
-import { getStreak } from '@/api/streak';
-import type { StreakResponse } from '@/api/streak';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -51,12 +45,10 @@ export function DashboardPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [goalProgress, setGoalProgress] = useState<GoalProgress | null>(null);
-  const [streak, setStreak] = useState<StreakResponse | null>(null);
 
   useEffect(() => {
     loadSessions();
     loadGoalProgress();
-    getStreak().then(setStreak).catch(() => {});
   }, []);
 
   const loadSessions = async () => {
@@ -223,152 +215,164 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Streak Widget */}
-      {streak && streak.current_streak > 0 && (
-        <div className="grid grid-cols-2 gap-4">
-          <Card elevation="raised" padding="compact">
-            <CardBody>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Flame className="w-5 h-5 text-[var(--color-text-warning)]" />
-                <p className="text-xs font-medium text-[var(--color-text-warning)] uppercase tracking-wider">
-                  Streak
-                </p>
-              </div>
-              <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                {streak.current_streak}{' '}
-                <span className="text-sm font-normal text-[var(--color-text-muted)]">
-                  {streak.current_streak === 1 ? 'Tag' : 'Tage'}
-                </span>
-              </p>
-              {streak.streak_at_risk && (
-                <p className="flex items-center gap-1 text-xs text-[var(--color-text-warning)] mt-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Trainiere heute, um den Streak zu halten!
-                </p>
-              )}
-            </CardBody>
-          </Card>
-          <Card elevation="raised" padding="compact">
-            <CardBody>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Trophy className="w-5 h-5 text-[var(--color-chart-1)]" />
-                <p className="text-xs font-medium text-[var(--color-chart-1)] uppercase tracking-wider">
-                  Rekord
-                </p>
-              </div>
-              <p className="text-2xl font-bold text-[var(--color-text-base)]">
-                {streak.longest_streak}{' '}
-                <span className="text-sm font-normal text-[var(--color-text-muted)]">
-                  {streak.longest_streak === 1 ? 'Tag' : 'Tage'}
-                </span>
-              </p>
-            </CardBody>
-          </Card>
-        </div>
-      )}
-
       {/* Goal Progress Card */}
-      {goalProgress && (
-        <Card
-          elevation="raised"
-          padding="spacious"
-          hoverable
-          className="cursor-pointer"
-          onClick={() => navigate('/settings/goals')}
-          role="link"
-        >
-          <CardHeader>
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-[var(--color-text-primary)]" />
-                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                  {goalProgress.goal.title}
-                </h2>
-              </div>
-              {goalProgress.goal.days_until > 0 ? (
-                <Badge variant="info" size="xs">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  {goalProgress.goal.days_until} Tage
-                </Badge>
-              ) : goalProgress.goal.days_until === 0 ? (
-                <Badge variant="warning" size="xs">
-                  Heute
-                </Badge>
-              ) : (
-                <Badge variant="neutral" size="xs">
-                  Vergangen
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {goalProgress.goal.distance_km} km · Zielzeit{' '}
-              {goalProgress.goal.target_time_formatted}
-            </p>
-          </CardHeader>
-          <CardBody>
-            <div className="space-y-4">
-              {/* Pace comparison — 2 StatCards */}
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard
-                  title="Ziel-Pace"
-                  value={goalProgress.target_pace_formatted}
-                  unit="min/km"
-                  icon={<Target className="w-3.5 h-3.5" />}
-                  variant="default"
-                />
-                <StatCard
-                  title="Aktuell"
-                  value={goalProgress.current_pace_formatted ?? '—'}
-                  unit={goalProgress.current_pace_formatted ? 'min/km' : undefined}
-                  icon={<Activity className="w-3.5 h-3.5" />}
-                  variant={
-                    goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec <= 0
-                      ? 'success'
-                      : goalProgress.pace_gap_sec !== null
-                        ? 'warning'
-                        : 'default'
-                  }
-                />
-              </div>
-
-              {/* Progress Bar */}
-              {goalProgress.progress_percent !== null && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-[var(--color-text-muted)]">Fortschritt</p>
-                    <p className="text-xs font-medium text-[var(--color-text-base)]">
-                      {Math.round(goalProgress.progress_percent)}%
-                    </p>
+      {goalProgress &&
+        (() => {
+          const isAhead =
+            goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec <= 0;
+          const isBehind =
+            goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec > 0;
+          return (
+            <Card
+              elevation="raised"
+              padding="spacious"
+              hoverable
+              className="cursor-pointer"
+              onClick={() => navigate('/settings/goals')}
+              role="link"
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-[var(--color-text-primary)]" />
+                    <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                      {goalProgress.goal.title}
+                    </h2>
                   </div>
-                  <Progress
-                    value={Math.min(100, goalProgress.progress_percent)}
-                    color={
-                      goalProgress.progress_percent >= 100
-                        ? 'success'
-                        : goalProgress.progress_percent >= 70
-                          ? 'default'
-                          : 'warning'
-                    }
-                  />
+                  {goalProgress.goal.days_until > 0 ? (
+                    <Badge variant="info" size="xs">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {goalProgress.goal.days_until} Tage
+                    </Badge>
+                  ) : goalProgress.goal.days_until === 0 ? (
+                    <Badge variant="warning" size="xs">
+                      Heute
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutral" size="xs">
+                      Vergangen
+                    </Badge>
+                  )}
                 </div>
-              )}
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  {goalProgress.goal.distance_km} km · Zielzeit{' '}
+                  {goalProgress.goal.target_time_formatted}
+                </p>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-6">
+                  {/* Pace Metrics — flat surface boxes, NO card-on-card */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Target className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                        <p className="text-xs text-[var(--color-text-muted)]">Ziel</p>
+                      </div>
+                      <p className="text-xl font-bold text-[var(--color-text-base)] tabular-nums">
+                        {goalProgress.target_pace_formatted}
+                        <span className="text-xs font-normal text-[var(--color-text-muted)] ml-1">
+                          /km
+                        </span>
+                      </p>
+                    </div>
+                    <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Activity className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                        <p className="text-xs text-[var(--color-text-muted)]">Aktuell</p>
+                      </div>
+                      <p className="text-xl font-bold text-[var(--color-text-base)] tabular-nums">
+                        {goalProgress.current_pace_formatted ?? '—'}
+                        {goalProgress.current_pace_formatted && (
+                          <span className="text-xs font-normal text-[var(--color-text-muted)] ml-1">
+                            /km
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1 rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <TrendingUp className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                        <p className="text-xs text-[var(--color-text-muted)]">Differenz</p>
+                      </div>
+                      <p
+                        className={`text-xl font-bold tabular-nums ${
+                          isAhead
+                            ? 'text-[var(--color-text-success)]'
+                            : isBehind
+                              ? 'text-[var(--color-text-warning)]'
+                              : 'text-[var(--color-text-base)]'
+                        }`}
+                      >
+                        {goalProgress.pace_gap_sec !== null
+                          ? `${isAhead ? '−' : '+'}${goalProgress.pace_gap_formatted}`
+                          : '—'}
+                        {goalProgress.pace_gap_sec !== null && (
+                          <span className="text-xs font-normal text-[var(--color-text-muted)] ml-1">
+                            /km
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Compact trend line */}
-              {goalProgress.weekly_pace_trend_label && goalProgress.sessions_used > 0 ? (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  <TrendingUp className="w-3 h-3 inline mr-1" />
-                  {goalProgress.weekly_pace_trend_label} · {goalProgress.sessions_used} Session
-                  {goalProgress.sessions_used > 1 ? 's' : ''}
-                </p>
-              ) : (
-                <p className="text-xs text-[var(--color-text-muted)] italic">
-                  Noch keine relevanten Sessions in den letzten 4 Wochen.
-                </p>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-      )}
+                  {/* Progress Bar */}
+                  {goalProgress.progress_percent !== null && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          Fortschritt zum Ziel-Pace
+                        </p>
+                        <p className="text-xs font-medium text-[var(--color-text-base)]">
+                          {Math.round(goalProgress.progress_percent)}%
+                        </p>
+                      </div>
+                      <Progress
+                        value={Math.min(100, goalProgress.progress_percent)}
+                        color={
+                          goalProgress.progress_percent >= 100
+                            ? 'success'
+                            : goalProgress.progress_percent >= 70
+                              ? 'default'
+                              : 'warning'
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Trend + Sessions */}
+                  <div className="flex items-center justify-between">
+                    {goalProgress.weekly_pace_trend_label && goalProgress.sessions_used > 0 ? (
+                      <p
+                        className={`text-xs font-medium ${
+                          goalProgress.weekly_pace_trend_sec !== null &&
+                          goalProgress.weekly_pace_trend_sec > 0
+                            ? 'text-[var(--color-text-success)]'
+                            : goalProgress.weekly_pace_trend_sec !== null &&
+                                goalProgress.weekly_pace_trend_sec < 0
+                              ? 'text-[var(--color-text-warning)]'
+                              : 'text-[var(--color-text-muted)]'
+                        }`}
+                      >
+                        <TrendingUp className="w-3 h-3 inline mr-1" />
+                        {goalProgress.weekly_pace_trend_label}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[var(--color-text-muted)] italic">
+                        Noch keine Trend-Daten
+                      </p>
+                    )}
+                    {goalProgress.sessions_used > 0 && (
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {goalProgress.sessions_used} Session
+                        {goalProgress.sessions_used > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })()}
 
       {/* Recent Sessions */}
       <div>
