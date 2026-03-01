@@ -107,8 +107,8 @@ class ExerciseModel(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
-class TrainingPlanModel(Base):
-    __tablename__ = "training_plans"
+class SessionTemplateModel(Base):
+    __tablename__ = "session_templates"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
@@ -144,7 +144,7 @@ class WeeklyPlanEntryModel(Base):
     week_start = Column(Date, nullable=False, index=True)
     day_of_week = Column(Integer, nullable=False)  # 0=Mon, 6=Sun
     training_type = Column(String(30), nullable=True)  # 'strength', 'running', or None
-    plan_id = Column(Integer, nullable=True)  # optional FK to training_plans
+    template_id = Column(Integer, nullable=True)  # optional FK to session_templates
     is_rest_day = Column(Boolean, default=False, nullable=False, server_default="false")
     notes = Column(Text, nullable=True)
     run_details_json = Column(Text, nullable=True)  # JSON for run planning details

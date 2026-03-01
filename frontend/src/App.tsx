@@ -91,11 +91,11 @@ const ExerciseLibraryPage = lazy(() =>
 const ExerciseDetailPage = lazy(() =>
   import('./pages/ExerciseDetail').then((m) => ({ default: m.ExerciseDetailPage })),
 );
-const TrainingPlansPage = lazy(() =>
-  import('./pages/TrainingPlans').then((m) => ({ default: m.TrainingPlansPage })),
+const SessionTemplatesPage = lazy(() =>
+  import('./pages/SessionTemplates').then((m) => ({ default: m.SessionTemplatesPage })),
 );
-const TrainingPlanEditorPage = lazy(() =>
-  import('./pages/TrainingPlanEditor').then((m) => ({ default: m.TrainingPlanEditorPage })),
+const SessionTemplateEditorPage = lazy(() =>
+  import('./pages/SessionTemplateEditor').then((m) => ({ default: m.SessionTemplateEditorPage })),
 );
 const WeeklyPlanPage = lazy(() =>
   import('./pages/WeeklyPlan').then((m) => ({ default: m.WeeklyPlanPage })),
@@ -141,9 +141,9 @@ function App() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
                   <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />
-                  <Route path="/settings/plans" element={<TrainingPlansPage />} />
-                  <Route path="/settings/plans/new" element={<TrainingPlanEditorPage />} />
-                  <Route path="/settings/plans/:planId" element={<TrainingPlanEditorPage />} />
+                  <Route path="/settings/templates" element={<SessionTemplatesPage />} />
+                  <Route path="/settings/templates/new" element={<SessionTemplateEditorPage />} />
+                  <Route path="/settings/templates/:templateId" element={<SessionTemplateEditorPage />} />
                   <Route path="/settings/goals" element={<GoalsPage />} />
                   <Route path="/settings/athlete" element={<AthleteProfilePage />} />
                   <Route path="*" element={<NotFoundPage />} />

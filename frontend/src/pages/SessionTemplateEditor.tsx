@@ -27,15 +27,15 @@ import {
   GripVertical,
 } from 'lucide-react';
 import {
-  createTrainingPlan,
-  getTrainingPlan,
-  updateTrainingPlan,
-} from '@/api/training-plans';
+  createSessionTemplate,
+  getSessionTemplate,
+  updateSessionTemplate,
+} from '@/api/session-templates';
 import type {
   ExerciseCategory,
   ExerciseType,
-  PlanExercise,
-} from '@/api/training-plans';
+  TemplateExercise,
+} from '@/api/session-templates';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
@@ -94,7 +94,7 @@ function createDefaultExercise(): ExerciseForm {
   };
 }
 
-function exerciseFormToApi(ex: ExerciseForm): PlanExercise {
+function exerciseFormToApi(ex: ExerciseForm): TemplateExercise {
   return {
     name: ex.name.trim(),
     category: ex.category,
@@ -106,7 +106,7 @@ function exerciseFormToApi(ex: ExerciseForm): PlanExercise {
   };
 }
 
-function apiExerciseToForm(ex: PlanExercise): ExerciseForm {
+function apiExerciseToForm(ex: TemplateExercise): ExerciseForm {
   return {
     id: genId(),
     name: ex.name,
@@ -122,14 +122,14 @@ function apiExerciseToForm(ex: PlanExercise): ExerciseForm {
 
 // --- Component ---
 
-export function TrainingPlanEditorPage() {
+export function SessionTemplateEditorPage() {
   const navigate = useNavigate();
-  const { planId } = useParams<{ planId: string }>();
+  const { templateId } = useParams<{ templateId: string }>();
   const { toast } = useToast();
-  const isEdit = planId != null && planId !== 'new';
+  const isEdit = templateId != null && templateId !== 'new';
 
   // Form state
-  const [planName, setPlanName] = useState('');
+  const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
   const [exercises, setExercises] = useState<ExerciseForm[]>([
     createDefaultExercise(),
@@ -150,25 +150,25 @@ export function TrainingPlanEditorPage() {
       .catch(() => {});
   }, []);
 
-  // Load existing plan for edit mode
+  // Load existing template for edit mode
   useEffect(() => {
     if (!isEdit) return;
     (async () => {
       try {
-        const plan = await getTrainingPlan(Number(planId));
-        setPlanName(plan.name);
-        setDescription(plan.description ?? '');
-        if (plan.exercises.length > 0) {
-          setExercises(plan.exercises.map(apiExerciseToForm));
+        const tmpl = await getSessionTemplate(Number(templateId));
+        setTemplateName(tmpl.name);
+        setDescription(tmpl.description ?? '');
+        if (tmpl.exercises.length > 0) {
+          setExercises(tmpl.exercises.map(apiExerciseToForm));
         }
       } catch {
-        toast({ title: 'Plan nicht gefunden', variant: 'error' });
-        navigate('/settings/plans');
+        toast({ title: 'Template nicht gefunden', variant: 'error' });
+        navigate('/settings/templates');
       } finally {
         setLoading(false);
       }
     })();
-  }, [isEdit, planId, navigate, toast]);
+  }, [isEdit, templateId, navigate, toast]);
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -250,8 +250,8 @@ export function TrainingPlanEditorPage() {
   // --- Submit ---
 
   const handleSubmit = useCallback(async () => {
-    if (!planName.trim()) {
-      setError('Plan-Name darf nicht leer sein.');
+    if (!templateName.trim()) {
+      setError('Template-Name darf nicht leer sein.');
       return;
     }
 
@@ -266,33 +266,33 @@ export function TrainingPlanEditorPage() {
 
     try {
       if (isEdit) {
-        await updateTrainingPlan(Number(planId), {
-          name: planName.trim(),
+        await updateSessionTemplate(Number(templateId), {
+          name: templateName.trim(),
           description: description.trim() || undefined,
           exercises: validExercises.map(exerciseFormToApi),
         });
-        toast({ title: 'Plan aktualisiert', variant: 'success' });
+        toast({ title: 'Template aktualisiert', variant: 'success' });
       } else {
-        await createTrainingPlan({
-          name: planName.trim(),
+        await createSessionTemplate({
+          name: templateName.trim(),
           description: description.trim() || undefined,
           session_type: 'strength',
           exercises: validExercises.map(exerciseFormToApi),
         });
-        toast({ title: 'Plan erstellt', variant: 'success' });
+        toast({ title: 'Template erstellt', variant: 'success' });
       }
-      navigate('/settings/plans');
+      navigate('/settings/templates');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
     } finally {
       setSubmitting(false);
     }
   }, [
-    planName,
+    templateName,
     description,
     exercises,
     isEdit,
-    planId,
+    templateId,
     navigate,
     toast,
   ]);
@@ -317,28 +317,28 @@ export function TrainingPlanEditorPage() {
           </BreadcrumbItem>
           <BreadcrumbItem>
             <Link
-              to="/settings/plans"
+              to="/settings/templates"
               className="hover:underline underline-offset-2"
             >
-              Trainingspläne
+              Session-Templates
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>
-            {isEdit ? 'Bearbeiten' : 'Neuer Plan'}
+            {isEdit ? 'Bearbeiten' : 'Neues Template'}
           </BreadcrumbItem>
         </Breadcrumbs>
         <header className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/settings/plans')}
+            onClick={() => navigate('/settings/templates')}
             aria-label="Zurück"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              {isEdit ? 'Plan bearbeiten' : 'Neuer Trainingsplan'}
+              {isEdit ? 'Template bearbeiten' : 'Neues Session-Template'}
             </h1>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               Übungen, Sätze und Gewichte als Vorlage definieren.
@@ -353,34 +353,34 @@ export function TrainingPlanEditorPage() {
         </Alert>
       )}
 
-      {/* Plan Meta */}
+      {/* Template Meta */}
       <Card elevation="raised" padding="spacious">
         <CardBody>
           <div className="space-y-4">
             <div>
               <Label
-                htmlFor="plan-name"
+                htmlFor="template-name"
                 className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
               >
-                Plan-Name
+                Template-Name
               </Label>
               <Input
-                id="plan-name"
-                value={planName}
-                onChange={(e) => setPlanName(e.target.value)}
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
                 placeholder="z.B. Studio Tag 1 — Kniedominant"
                 inputSize="md"
               />
             </div>
             <div>
               <Label
-                htmlFor="plan-description"
+                htmlFor="template-description"
                 className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
               >
                 Beschreibung (optional)
               </Label>
               <textarea
-                id="plan-description"
+                id="template-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Fokus, Ziele, Hinweise…"
@@ -659,7 +659,7 @@ export function TrainingPlanEditorPage() {
         <Button
           variant="primary"
           onClick={handleSubmit}
-          disabled={submitting || !planName.trim()}
+          disabled={submitting || !templateName.trim()}
           className="w-full"
           size="lg"
         >
@@ -671,8 +671,8 @@ export function TrainingPlanEditorPage() {
           {submitting
             ? 'Speichern...'
             : isEdit
-              ? 'Plan aktualisieren'
-              : 'Plan erstellen'}
+              ? 'Template aktualisieren'
+              : 'Template erstellen'}
         </Button>
       </div>
     </div>

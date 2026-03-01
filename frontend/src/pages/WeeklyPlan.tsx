@@ -32,8 +32,8 @@ import type {
   ComplianceDayEntry,
   ComplianceResponse,
 } from '@/api/weekly-plan';
-import { listTrainingPlans, getTrainingPlan } from '@/api/training-plans';
-import type { TrainingPlanSummary } from '@/api/training-plans';
+import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
+import type { SessionTemplateSummary } from '@/api/session-templates';
 
 // --- Helpers ---
 
@@ -175,20 +175,20 @@ export function WeeklyPlanPage() {
   // Compliance tracking
   const [compliance, setCompliance] = useState<ComplianceResponse | null>(null);
 
-  // Training plans for linking
-  const [plans, setPlans] = useState<TrainingPlanSummary[]>([]);
-  const [runningPlans, setRunningPlans] = useState<TrainingPlanSummary[]>([]);
+  // Session templates for linking
+  const [templates, setTemplates] = useState<SessionTemplateSummary[]>([]);
+  const [runningTemplates, setRunningTemplates] = useState<SessionTemplateSummary[]>([]);
 
   // Selected day for editing
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  // Load plans
+  // Load templates
   useEffect(() => {
-    listTrainingPlans('strength')
-      .then((res) => setPlans(res.plans))
+    listSessionTemplates('strength')
+      .then((res) => setTemplates(res.templates))
       .catch(() => {});
-    listTrainingPlans('running')
-      .then((res) => setRunningPlans(res.plans))
+    listSessionTemplates('running')
+      .then((res) => setRunningTemplates(res.templates))
       .catch(() => {});
   }, []);
 
@@ -249,8 +249,8 @@ export function WeeklyPlanPage() {
         updateEntry(dayOfWeek, {
           training_type: null,
           is_rest_day: true,
-          plan_id: null,
-          plan_name: null,
+          template_id: null,
+          template_name: null,
         });
       } else if (type === 'strength') {
         updateEntry(dayOfWeek, {
@@ -261,15 +261,15 @@ export function WeeklyPlanPage() {
         updateEntry(dayOfWeek, {
           training_type: 'running',
           is_rest_day: false,
-          plan_id: null,
-          plan_name: null,
+          template_id: null,
+          template_name: null,
         });
       } else {
         updateEntry(dayOfWeek, {
           training_type: null,
           is_rest_day: false,
-          plan_id: null,
-          plan_name: null,
+          template_id: null,
+          template_name: null,
           notes: null,
         });
       }
@@ -277,15 +277,15 @@ export function WeeklyPlanPage() {
     [updateEntry],
   );
 
-  const setPlanForDay = useCallback(
-    (dayOfWeek: number, planId: number | null) => {
-      const plan = plans.find((p) => p.id === planId);
+  const setTemplateForDay = useCallback(
+    (dayOfWeek: number, templateId: number | null) => {
+      const tmpl = templates.find((t) => t.id === templateId);
       updateEntry(dayOfWeek, {
-        plan_id: planId,
-        plan_name: plan?.name ?? null,
+        template_id: templateId,
+        template_name: tmpl?.name ?? null,
       });
     },
-    [plans, updateEntry],
+    [templates, updateEntry],
   );
 
   // --- Save ---
@@ -308,7 +308,7 @@ export function WeeklyPlanPage() {
         entries: nonEmptyEntries.map((e) => ({
           day_of_week: e.day_of_week,
           training_type: e.training_type,
-          plan_id: e.plan_id,
+          template_id: e.template_id,
           is_rest_day: e.is_rest_day,
           notes: e.notes,
           run_details: e.run_details,
@@ -324,35 +324,35 @@ export function WeeklyPlanPage() {
     }
   }, [entries, weekStart, toast]);
 
-  // Plan options for select
-  const planOptions = useMemo(
-    () => [
-      { value: '', label: 'Kein Plan' },
-      ...plans.map((p) => ({ value: String(p.id), label: p.name })),
-    ],
-    [plans],
-  );
-
-  const runningPlanOptions = useMemo(
+  // Template options for select
+  const templateOptions = useMemo(
     () => [
       { value: '', label: 'Kein Template' },
-      ...runningPlans.map((p) => ({
-        value: String(p.id),
-        label: `${p.name}${p.run_type ? ` (${p.run_type})` : ''}`,
+      ...templates.map((t) => ({ value: String(t.id), label: t.name })),
+    ],
+    [templates],
+  );
+
+  const runningTemplateOptions = useMemo(
+    () => [
+      { value: '', label: 'Kein Template' },
+      ...runningTemplates.map((t) => ({
+        value: String(t.id),
+        label: `${t.name}${t.run_type ? ` (${t.run_type})` : ''}`,
       })),
     ],
-    [runningPlans],
+    [runningTemplates],
   );
 
   const applyRunningTemplate = useCallback(
-    async (dayOfWeek: number, planId: number) => {
+    async (dayOfWeek: number, templateId: number) => {
       try {
-        const plan = await getTrainingPlan(planId);
-        if (plan.run_details) {
+        const tmpl = await getSessionTemplate(templateId);
+        if (tmpl.run_details) {
           updateEntry(dayOfWeek, {
-            run_details: plan.run_details,
-            plan_id: planId,
-            plan_name: plan.name,
+            run_details: tmpl.run_details,
+            template_id: templateId,
+            template_name: tmpl.name,
           });
         }
       } catch {
@@ -543,9 +543,9 @@ export function WeeklyPlanPage() {
                             <span className="text-sm text-[var(--color-text-base)]">
                               Kraft
                             </span>
-                            {entry.plan_name && (
+                            {entry.template_name && (
                               <Badge variant="info" size="xs">
-                                {entry.plan_name}
+                                {entry.template_name}
                               </Badge>
                             )}
                           </div>
@@ -689,39 +689,39 @@ export function WeeklyPlanPage() {
                         </div>
 
                         {entry.training_type === 'strength' &&
-                          plans.length > 0 && (
+                          templates.length > 0 && (
                             <div>
                               <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
-                                Trainingsplan (optional)
+                                Session-Template (optional)
                               </label>
                               <Select
-                                options={planOptions}
+                                options={templateOptions}
                                 value={
-                                  entry.plan_id ? String(entry.plan_id) : ''
+                                  entry.template_id ? String(entry.template_id) : ''
                                 }
                                 onChange={(val) =>
-                                  setPlanForDay(
+                                  setTemplateForDay(
                                     entry.day_of_week,
                                     val ? Number(val) : null,
                                   )
                                 }
                                 inputSize="sm"
-                                aria-label="Trainingsplan"
+                                aria-label="Session-Template"
                               />
                             </div>
                           )}
 
                         {/* Running template selector */}
                         {entry.training_type === 'running' &&
-                          runningPlans.length > 0 && (
+                          runningTemplates.length > 0 && (
                             <div>
                               <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
                                 Lauf-Template (Quick-Add)
                               </label>
                               <Select
-                                options={runningPlanOptions}
+                                options={runningTemplateOptions}
                                 value={
-                                  entry.plan_id ? String(entry.plan_id) : ''
+                                  entry.template_id ? String(entry.template_id) : ''
                                 }
                                 onChange={(val) => {
                                   if (val) {
@@ -731,8 +731,8 @@ export function WeeklyPlanPage() {
                                     );
                                   } else {
                                     updateEntry(entry.day_of_week, {
-                                      plan_id: null,
-                                      plan_name: null,
+                                      template_id: null,
+                                      template_name: null,
                                     });
                                   }
                                 }}

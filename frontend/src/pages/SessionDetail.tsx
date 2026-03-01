@@ -102,7 +102,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { createTemplateFromSession } from '@/api/training-plans';
+import { createTemplateFromSession } from '@/api/session-templates';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
 

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
-    TrainingPlanModel,
+    SessionTemplateModel,
     WeeklyPlanEntryModel,
     WorkoutModel,
 )
@@ -34,15 +34,15 @@ def _monday_of_week(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
-async def _get_plan_names(
-    db: AsyncSession, plan_ids: list[int],
+async def _get_template_names(
+    db: AsyncSession, template_ids: list[int],
 ) -> dict[int, str]:
-    """Fetch plan names for a list of plan IDs."""
-    if not plan_ids:
+    """Fetch template names for a list of template IDs."""
+    if not template_ids:
         return {}
     result = await db.execute(
-        select(TrainingPlanModel.id, TrainingPlanModel.name).where(
-            TrainingPlanModel.id.in_(plan_ids)
+        select(SessionTemplateModel.id, SessionTemplateModel.name).where(
+            SessionTemplateModel.id.in_(template_ids)
         )
     )
     return {row.id: str(row.name) for row in result.all()}  # type: ignore[union-attr]
@@ -80,13 +80,13 @@ async def get_weekly_plan(
         int(e.day_of_week): e for e in result.scalars().all()  # type: ignore[arg-type]
     }
 
-    # Collect plan IDs for name lookup
-    plan_ids = [
-        int(e.plan_id)  # type: ignore[arg-type]
+    # Collect template IDs for name lookup
+    template_ids = [
+        int(e.template_id)  # type: ignore[arg-type]
         for e in existing.values()
-        if e.plan_id is not None
+        if e.template_id is not None
     ]
-    plan_names = await _get_plan_names(db, plan_ids)
+    template_names = await _get_template_names(db, template_ids)
 
     # Build full 7-day response (fill gaps with empty entries)
     entries: list[WeeklyPlanEntry] = []
@@ -100,8 +100,8 @@ async def get_weekly_plan(
                 WeeklyPlanEntry(
                     day_of_week=day,
                     training_type=str(e.training_type) if e.training_type else None,
-                    plan_id=int(e.plan_id) if e.plan_id else None,  # type: ignore[arg-type]
-                    plan_name=plan_names.get(int(e.plan_id)) if e.plan_id else None,  # type: ignore[arg-type]
+                    template_id=int(e.template_id) if e.template_id else None,  # type: ignore[arg-type]
+                    template_name=template_names.get(int(e.template_id)) if e.template_id else None,  # type: ignore[arg-type]
                     is_rest_day=bool(e.is_rest_day),
                     notes=str(e.notes) if e.notes else None,
                     run_details=run_details,
@@ -159,7 +159,7 @@ async def save_weekly_plan(
             week_start=week_start,
             day_of_week=entry.day_of_week,
             training_type=entry.training_type,
-            plan_id=entry.plan_id,
+            template_id=entry.template_id,
             is_rest_day=entry.is_rest_day,
             notes=entry.notes,
             run_details_json=run_details_str,

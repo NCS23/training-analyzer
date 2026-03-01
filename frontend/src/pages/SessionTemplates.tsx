@@ -26,24 +26,24 @@ import {
   Footprints,
 } from 'lucide-react';
 import {
-  listTrainingPlans,
-  deleteTrainingPlan,
-  duplicateTrainingPlan,
-} from '@/api/training-plans';
-import type { TrainingPlanSummary } from '@/api/training-plans';
+  listSessionTemplates,
+  deleteSessionTemplate,
+  duplicateSessionTemplate,
+} from '@/api/session-templates';
+import type { SessionTemplateSummary } from '@/api/session-templates';
 
-export function TrainingPlansPage() {
+export function SessionTemplatesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [plans, setPlans] = useState<TrainingPlanSummary[]>([]);
+  const [templates, setTemplates] = useState<SessionTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadPlans = useCallback(async () => {
+  const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await listTrainingPlans();
-      setPlans(result.plans);
+      const result = await listSessionTemplates();
+      setTemplates(result.templates);
     } catch {
       toast({ title: 'Laden fehlgeschlagen', variant: 'error' });
     } finally {
@@ -52,24 +52,24 @@ export function TrainingPlansPage() {
   }, [toast]);
 
   useEffect(() => {
-    loadPlans();
-  }, [loadPlans]);
+    loadTemplates();
+  }, [loadTemplates]);
 
-  const handleDelete = async (planId: number, name: string) => {
+  const handleDelete = async (templateId: number, name: string) => {
     try {
-      await deleteTrainingPlan(planId);
+      await deleteSessionTemplate(templateId);
       toast({ title: `"${name}" gelöscht`, variant: 'success' });
-      await loadPlans();
+      await loadTemplates();
     } catch {
       toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
     }
   };
 
-  const handleDuplicate = async (planId: number) => {
+  const handleDuplicate = async (templateId: number) => {
     try {
-      await duplicateTrainingPlan(planId);
-      toast({ title: 'Plan dupliziert', variant: 'success' });
-      await loadPlans();
+      await duplicateSessionTemplate(templateId);
+      toast({ title: 'Template dupliziert', variant: 'success' });
+      await loadTemplates();
     } catch {
       toast({ title: 'Duplizieren fehlgeschlagen', variant: 'error' });
     }
@@ -85,33 +85,33 @@ export function TrainingPlansPage() {
               Einstellungen
             </Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Trainingspläne</BreadcrumbItem>
+          <BreadcrumbItem isCurrent>Session-Templates</BreadcrumbItem>
         </Breadcrumbs>
         <header className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              Trainingspläne
+              Session-Templates
             </h1>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Templates für Kraft- und Lauftraining erstellen und verwalten.
+              Vorlagen für Kraft- und Lauftraining erstellen und verwalten.
             </p>
           </div>
           <Button
             variant="primary"
             size="sm"
-            onClick={() => navigate('/settings/plans/new')}
+            onClick={() => navigate('/settings/templates/new')}
           >
             <Plus className="w-4 h-4 mr-1" />
-            Neuer Plan
+            Neues Template
           </Button>
         </header>
       </div>
 
-      {/* Plan List */}
+      {/* Template List */}
       <Card elevation="raised" padding="spacious">
         <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-            Pläne ({plans.length})
+            Templates ({templates.length})
           </h2>
         </CardHeader>
         <CardBody>
@@ -119,29 +119,29 @@ export function TrainingPlansPage() {
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
             </div>
-          ) : plans.length === 0 ? (
+          ) : templates.length === 0 ? (
             <EmptyState
-              title="Noch keine Trainingspläne"
-              description="Erstelle deinen ersten Plan mit Übungen, Sätzen und Gewichten."
+              title="Noch keine Session-Templates"
+              description="Erstelle dein erstes Template mit Übungen, Sätzen und Gewichten."
               action={
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => navigate('/settings/plans/new')}
+                  onClick={() => navigate('/settings/templates/new')}
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Plan erstellen
+                  Template erstellen
                 </Button>
               }
             />
           ) : (
             <div className="space-y-1">
-              {plans.map((plan) => (
+              {templates.map((tmpl) => (
                 <div
-                  key={plan.id}
+                  key={tmpl.id}
                   className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
                 >
-                  {plan.session_type === 'running' ? (
+                  {tmpl.session_type === 'running' ? (
                     <Footprints className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                   ) : (
                     <ClipboardList className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
@@ -149,22 +149,22 @@ export function TrainingPlansPage() {
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/settings/plans/${plan.id}`)}
+                    onClick={() => navigate(`/settings/templates/${tmpl.id}`)}
                     className="flex-1 min-w-0 text-left"
-                    aria-label={`${plan.name} bearbeiten`}
+                    aria-label={`${tmpl.name} bearbeiten`}
                   >
                     <span className="text-sm font-medium text-[var(--color-text-base)] truncate block">
-                      {plan.name}
+                      {tmpl.name}
                     </span>
                     <span className="text-xs text-[var(--color-text-muted)]">
-                      {plan.session_type === 'running'
-                        ? plan.run_type ?? 'Lauf-Template'
-                        : `${plan.exercise_count} Übungen · ${plan.total_sets} Sätze`}
+                      {tmpl.session_type === 'running'
+                        ? tmpl.run_type ?? 'Lauf-Template'
+                        : `${tmpl.exercise_count} Übungen · ${tmpl.total_sets} Sätze`}
                     </span>
                   </button>
 
                   <Badge variant="neutral" size="sm">
-                    {plan.session_type === 'strength' ? 'Kraft' : 'Laufen'}
+                    {tmpl.session_type === 'strength' ? 'Kraft' : 'Laufen'}
                   </Badge>
 
                   <DropdownMenu>
@@ -180,13 +180,13 @@ export function TrainingPlansPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         icon={<Copy />}
-                        onSelect={() => handleDuplicate(plan.id)}
+                        onSelect={() => handleDuplicate(tmpl.id)}
                       >
                         Duplizieren
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         icon={<Trash2 />}
-                        onSelect={() => handleDelete(plan.id, plan.name)}
+                        onSelect={() => handleDelete(tmpl.id, tmpl.name)}
                         className="text-[var(--color-text-error)]"
                       >
                         Löschen

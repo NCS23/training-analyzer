@@ -1,4 +1,4 @@
-"""Pydantic schemas for Training Plans (Issue #14, #29)."""
+"""Pydantic schemas for Session Templates (renamed from Training Plans)."""
 
 from datetime import datetime
 from typing import Optional
@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from app.models.weekly_plan import RunDetails
 
 
-class PlanExercise(BaseModel):
-    """A planned exercise within a training plan."""
+class TemplateExercise(BaseModel):
+    """A planned exercise within a session template."""
 
     name: str = Field(..., min_length=1, max_length=100)
     category: str = Field(..., pattern="^(push|pull|legs|core|cardio)$")
@@ -22,40 +22,40 @@ class PlanExercise(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
 
 
-class TrainingPlanCreate(BaseModel):
-    """Create a new training plan."""
+class SessionTemplateCreate(BaseModel):
+    """Create a new session template."""
 
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=1000)
     session_type: str = Field("strength", pattern="^(strength|running)$")
-    exercises: Optional[list[PlanExercise]] = None
+    exercises: Optional[list[TemplateExercise]] = None
     run_details: Optional[RunDetails] = None
 
 
-class TrainingPlanUpdate(BaseModel):
-    """Update an existing training plan."""
+class SessionTemplateUpdate(BaseModel):
+    """Update an existing session template."""
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=1000)
-    exercises: Optional[list[PlanExercise]] = Field(None, min_length=1)
+    exercises: Optional[list[TemplateExercise]] = Field(None, min_length=1)
     run_details: Optional[RunDetails] = None
 
 
-class TrainingPlanResponse(BaseModel):
-    """Response for a single training plan."""
+class SessionTemplateResponse(BaseModel):
+    """Response for a single session template."""
 
     id: int
     name: str
     description: Optional[str]
     session_type: str
-    exercises: list[PlanExercise]
+    exercises: list[TemplateExercise]
     run_details: Optional[RunDetails] = None
     is_template: bool
     created_at: datetime
     updated_at: datetime
 
 
-class TrainingPlanSummary(BaseModel):
+class SessionTemplateSummary(BaseModel):
     """Lightweight summary for list view."""
 
     id: int
@@ -68,8 +68,8 @@ class TrainingPlanSummary(BaseModel):
     updated_at: datetime
 
 
-class TrainingPlanListResponse(BaseModel):
-    """Response for listing training plans."""
+class SessionTemplateListResponse(BaseModel):
+    """Response for listing session templates."""
 
-    plans: list[TrainingPlanSummary]
+    templates: list[SessionTemplateSummary]
     total: int

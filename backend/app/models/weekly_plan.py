@@ -40,8 +40,8 @@ class WeeklyPlanEntry(BaseModel):
     training_type: Optional[str] = Field(
         None, pattern="^(strength|running)$"
     )
-    plan_id: Optional[int] = None
-    plan_name: Optional[str] = None  # returned in response only
+    template_id: Optional[int] = None
+    template_name: Optional[str] = None  # returned in response only
     is_rest_day: bool = False
     notes: Optional[str] = Field(None, max_length=500)
     run_details: Optional[RunDetails] = None

@@ -30,8 +30,8 @@ import type { ExerciseCategory, SetStatus } from '@/api/strength';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { getLastExerciseSets } from '@/api/strength';
-import { listTrainingPlans, getTrainingPlan } from '@/api/training-plans';
-import type { TrainingPlanSummary } from '@/api/training-plans';
+import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
+import type { SessionTemplateSummary } from '@/api/session-templates';
 
 // --- Types ---
 
@@ -112,8 +112,8 @@ export function StrengthSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Training plans
-  const [availablePlans, setAvailablePlans] = useState<TrainingPlanSummary[]>([]);
+  // Session templates
+  const [availableTemplates, setAvailableTemplates] = useState<SessionTemplateSummary[]>([]);
   const [loadingPlan, setLoadingPlan] = useState(false);
 
   // Exercise library for suggestions
@@ -125,8 +125,8 @@ export function StrengthSessionPage() {
     listExercises()
       .then((res) => setLibraryExercises(res.exercises))
       .catch(() => {});
-    listTrainingPlans('strength')
-      .then((res) => setAvailablePlans(res.plans))
+    listSessionTemplates('strength')
+      .then((res) => setAvailableTemplates(res.templates))
       .catch(() => {});
   }, []);
 
@@ -229,7 +229,7 @@ export function StrengthSessionPage() {
     async (planId: number) => {
       setLoadingPlan(true);
       try {
-        const plan = await getTrainingPlan(planId);
+        const plan = await getSessionTemplate(planId);
         const loadedExercises: ExerciseForm[] = plan.exercises.map((ex) => ({
           id: genId(),
           name: ex.name,
@@ -399,7 +399,7 @@ export function StrengthSessionPage() {
       </Card>
 
       {/* Load from plan */}
-      {availablePlans.length > 0 && (
+      {availableTemplates.length > 0 && (
         <Card elevation="raised" padding="spacious">
           <CardBody>
             <div className="flex items-center gap-3">
@@ -408,7 +408,7 @@ export function StrengthSessionPage() {
                 Aus Plan laden:
               </span>
               <div className="flex items-center gap-2 flex-wrap flex-1">
-                {availablePlans.map((plan) => (
+                {availableTemplates.map((plan) => (
                   <Button
                     key={plan.id}
                     variant="secondary"

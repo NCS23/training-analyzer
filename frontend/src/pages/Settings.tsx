@@ -4,10 +4,10 @@ import { ChevronRight, ClipboardList, Dumbbell, Target, HeartPulse } from 'lucid
 
 const tiles = [
   {
-    title: 'Trainingspläne',
+    title: 'Session-Templates',
     description: 'Übungsvorlagen für Krafttraining erstellen und verwalten',
     icon: ClipboardList,
-    route: '/settings/plans',
+    route: '/settings/templates',
   },
   {
     title: 'Übungsbibliothek',

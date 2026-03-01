@@ -25,8 +25,8 @@ export interface RunDetails {
 export interface WeeklyPlanEntry {
   day_of_week: number; // 0=Mon, 6=Sun
   training_type: string | null; // 'strength' | 'running' | null
-  plan_id: number | null;
-  plan_name: string | null;
+  template_id: number | null;
+  template_name: string | null;
   is_rest_day: boolean;
   notes: string | null;
   run_details: RunDetails | null;
@@ -40,7 +40,7 @@ export interface WeeklyPlanResponse {
 export interface WeeklyPlanSaveEntry {
   day_of_week: number;
   training_type?: string | null;
-  plan_id?: number | null;
+  template_id?: number | null;
   is_rest_day: boolean;
   notes?: string | null;
   run_details?: RunDetails | null;

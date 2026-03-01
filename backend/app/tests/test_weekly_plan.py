@@ -89,12 +89,12 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_save_weekly_plan_with_plan_id(client: AsyncClient) -> None:
-    """Save a plan entry referencing a training plan."""
-    # Create a training plan first
-    plan_response = await client.post("/api/v1/plans", json=PLAN_DATA)
-    assert plan_response.status_code == 201
-    plan_id = plan_response.json()["id"]
+async def test_save_weekly_plan_with_template_id(client: AsyncClient) -> None:
+    """Save a plan entry referencing a session template."""
+    # Create a session template first
+    template_response = await client.post("/api/v1/session-templates", json=PLAN_DATA)
+    assert template_response.status_code == 201
+    template_id = template_response.json()["id"]
 
     data = {
         "week_start": "2026-03-09",
@@ -102,7 +102,7 @@ async def test_save_weekly_plan_with_plan_id(client: AsyncClient) -> None:
             {
                 "day_of_week": 0,
                 "training_type": "strength",
-                "plan_id": plan_id,
+                "template_id": template_id,
                 "is_rest_day": False,
             },
         ],
@@ -111,9 +111,9 @@ async def test_save_weekly_plan_with_plan_id(client: AsyncClient) -> None:
     response = await client.put("/api/v1/weekly-plan", json=data)
     assert response.status_code == 200
     body = response.json()
-    # Monday should have the plan
-    assert body["entries"][0]["plan_id"] == plan_id
-    assert body["entries"][0]["plan_name"] == "Test Plan"
+    # Monday should have the template
+    assert body["entries"][0]["template_id"] == template_id
+    assert body["entries"][0]["template_name"] == "Test Plan"
 
 
 @pytest.mark.anyio

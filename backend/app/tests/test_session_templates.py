@@ -1,4 +1,4 @@
-"""Tests for Training Plans (Issue #14, #29)."""
+"""Tests for Session Templates (Issue #14, #29)."""
 
 import json
 from datetime import datetime
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import WorkoutModel
 
-PLAN_DATA = {
+TEMPLATE_DATA = {
     "name": "Studio Tag 1 - Kniedominant",
     "description": "Fokus auf Kniebeugen und Beinpresse",
     "session_type": "strength",
@@ -42,7 +42,7 @@ PLAN_DATA = {
     ],
 }
 
-RUNNING_PLAN_DATA = {
+RUNNING_TEMPLATE_DATA = {
     "name": "Easy Run Template",
     "session_type": "running",
     "run_details": {
@@ -55,8 +55,8 @@ RUNNING_PLAN_DATA = {
 
 
 @pytest.mark.anyio
-async def test_create_plan(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/plans", json=PLAN_DATA)
+async def test_create_template(client: AsyncClient) -> None:
+    response = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Studio Tag 1 - Kniedominant"
@@ -71,80 +71,80 @@ async def test_create_plan(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_create_plan_validation_empty_exercises(client: AsyncClient) -> None:
-    data = {**PLAN_DATA, "exercises": []}
-    response = await client.post("/api/v1/plans", json=data)
+async def test_create_template_validation_empty_exercises(client: AsyncClient) -> None:
+    data = {**TEMPLATE_DATA, "exercises": []}
+    response = await client.post("/api/v1/session-templates", json=data)
     assert response.status_code == 422
 
 
 @pytest.mark.anyio
-async def test_create_plan_validation_no_name(client: AsyncClient) -> None:
-    data = {**PLAN_DATA, "name": ""}
-    response = await client.post("/api/v1/plans", json=data)
+async def test_create_template_validation_no_name(client: AsyncClient) -> None:
+    data = {**TEMPLATE_DATA, "name": ""}
+    response = await client.post("/api/v1/session-templates", json=data)
     assert response.status_code == 422
 
 
 @pytest.mark.anyio
-async def test_list_plans(client: AsyncClient) -> None:
-    # Create two plans
-    await client.post("/api/v1/plans", json=PLAN_DATA)
+async def test_list_templates(client: AsyncClient) -> None:
+    # Create two templates
+    await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
     await client.post(
-        "/api/v1/plans",
+        "/api/v1/session-templates",
         json={
-            **PLAN_DATA,
+            **TEMPLATE_DATA,
             "name": "Studio Tag 2 - Hueftdominant",
         },
     )
 
-    response = await client.get("/api/v1/plans")
+    response = await client.get("/api/v1/session-templates")
     assert response.status_code == 200
     body = response.json()
     assert body["total"] == 2
-    assert len(body["plans"]) == 2
+    assert len(body["templates"]) == 2
     # Should have exercise_count and total_sets
-    assert body["plans"][0]["exercise_count"] == 3
-    assert body["plans"][0]["total_sets"] == 9  # 4+3+2
+    assert body["templates"][0]["exercise_count"] == 3
+    assert body["templates"][0]["total_sets"] == 9  # 4+3+2
 
 
 @pytest.mark.anyio
-async def test_list_plans_filter_by_type(client: AsyncClient) -> None:
-    await client.post("/api/v1/plans", json=PLAN_DATA)
+async def test_list_templates_filter_by_type(client: AsyncClient) -> None:
+    await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
 
-    response = await client.get("/api/v1/plans", params={"session_type": "running"})
+    response = await client.get("/api/v1/session-templates", params={"session_type": "running"})
     assert response.status_code == 200
     assert response.json()["total"] == 0
 
-    response = await client.get("/api/v1/plans", params={"session_type": "strength"})
+    response = await client.get("/api/v1/session-templates", params={"session_type": "strength"})
     assert response.status_code == 200
     assert response.json()["total"] == 1
 
 
 @pytest.mark.anyio
-async def test_get_plan(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+async def test_get_template(client: AsyncClient) -> None:
+    create_resp = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
-    response = await client.get(f"/api/v1/plans/{plan_id}")
+    response = await client.get(f"/api/v1/session-templates/{template_id}")
     assert response.status_code == 200
     body = response.json()
-    assert body["id"] == plan_id
+    assert body["id"] == template_id
     assert body["name"] == "Studio Tag 1 - Kniedominant"
     assert len(body["exercises"]) == 3
 
 
 @pytest.mark.anyio
-async def test_get_plan_not_found(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/plans/9999")
+async def test_get_template_not_found(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/session-templates/9999")
     assert response.status_code == 404
 
 
 @pytest.mark.anyio
-async def test_update_plan(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+async def test_update_template(client: AsyncClient) -> None:
+    create_resp = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
     response = await client.patch(
-        f"/api/v1/plans/{plan_id}",
+        f"/api/v1/session-templates/{template_id}",
         json={"name": "Studio Tag 1 - Updated"},
     )
     assert response.status_code == 200
@@ -154,9 +154,9 @@ async def test_update_plan(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_plan_exercises(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+async def test_update_template_exercises(client: AsyncClient) -> None:
+    create_resp = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
     new_exercises = [
         {
@@ -169,7 +169,7 @@ async def test_update_plan_exercises(client: AsyncClient) -> None:
         },
     ]
     response = await client.patch(
-        f"/api/v1/plans/{plan_id}",
+        f"/api/v1/session-templates/{template_id}",
         json={"exercises": new_exercises},
     )
     assert response.status_code == 200
@@ -178,49 +178,49 @@ async def test_update_plan_exercises(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_plan_not_found(client: AsyncClient) -> None:
+async def test_update_template_not_found(client: AsyncClient) -> None:
     response = await client.patch(
-        "/api/v1/plans/9999",
+        "/api/v1/session-templates/9999",
         json={"name": "Nope"},
     )
     assert response.status_code == 404
 
 
 @pytest.mark.anyio
-async def test_delete_plan(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+async def test_delete_template(client: AsyncClient) -> None:
+    create_resp = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
-    response = await client.delete(f"/api/v1/plans/{plan_id}")
+    response = await client.delete(f"/api/v1/session-templates/{template_id}")
     assert response.status_code == 204
 
     # Verify deleted
-    response = await client.get(f"/api/v1/plans/{plan_id}")
+    response = await client.get(f"/api/v1/session-templates/{template_id}")
     assert response.status_code == 404
 
 
 @pytest.mark.anyio
-async def test_delete_plan_not_found(client: AsyncClient) -> None:
-    response = await client.delete("/api/v1/plans/9999")
+async def test_delete_template_not_found(client: AsyncClient) -> None:
+    response = await client.delete("/api/v1/session-templates/9999")
     assert response.status_code == 404
 
 
 @pytest.mark.anyio
-async def test_duplicate_plan(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+async def test_duplicate_template(client: AsyncClient) -> None:
+    create_resp = await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
-    response = await client.post(f"/api/v1/plans/{plan_id}/duplicate")
+    response = await client.post(f"/api/v1/session-templates/{template_id}/duplicate")
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Studio Tag 1 - Kniedominant (Kopie)"
     assert len(body["exercises"]) == 3
-    assert body["id"] != plan_id
+    assert body["id"] != template_id
 
 
 @pytest.mark.anyio
-async def test_duplicate_plan_not_found(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/plans/9999/duplicate")
+async def test_duplicate_template_not_found(client: AsyncClient) -> None:
+    response = await client.post("/api/v1/session-templates/9999/duplicate")
     assert response.status_code == 404
 
 
@@ -229,7 +229,7 @@ async def test_duplicate_plan_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_create_running_template(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/plans", json=RUNNING_PLAN_DATA)
+    response = await client.post("/api/v1/session-templates", json=RUNNING_TEMPLATE_DATA)
     assert response.status_code == 201
     body = response.json()
     assert body["session_type"] == "running"
@@ -242,42 +242,42 @@ async def test_create_running_template(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_create_running_template_no_details_fails(client: AsyncClient) -> None:
-    data = {"name": "Bad Running Plan", "session_type": "running"}
-    response = await client.post("/api/v1/plans", json=data)
+    data = {"name": "Bad Running Template", "session_type": "running"}
+    response = await client.post("/api/v1/session-templates", json=data)
     assert response.status_code == 422
 
 
 @pytest.mark.anyio
 async def test_create_strength_template_no_exercises_fails(client: AsyncClient) -> None:
-    data = {"name": "Bad Strength Plan", "session_type": "strength"}
-    response = await client.post("/api/v1/plans", json=data)
+    data = {"name": "Bad Strength Template", "session_type": "strength"}
+    response = await client.post("/api/v1/session-templates", json=data)
     assert response.status_code == 422
 
 
 @pytest.mark.anyio
 async def test_list_running_templates(client: AsyncClient) -> None:
-    await client.post("/api/v1/plans", json=PLAN_DATA)
-    await client.post("/api/v1/plans", json=RUNNING_PLAN_DATA)
+    await client.post("/api/v1/session-templates", json=TEMPLATE_DATA)
+    await client.post("/api/v1/session-templates", json=RUNNING_TEMPLATE_DATA)
 
-    response = await client.get("/api/v1/plans", params={"session_type": "running"})
+    response = await client.get("/api/v1/session-templates", params={"session_type": "running"})
     body = response.json()
     assert body["total"] == 1
-    assert body["plans"][0]["run_type"] == "easy"
+    assert body["templates"][0]["run_type"] == "easy"
 
-    response = await client.get("/api/v1/plans", params={"session_type": "strength"})
+    response = await client.get("/api/v1/session-templates", params={"session_type": "strength"})
     assert response.json()["total"] == 1
 
 
 @pytest.mark.anyio
 async def test_duplicate_running_template(client: AsyncClient) -> None:
-    create_resp = await client.post("/api/v1/plans", json=RUNNING_PLAN_DATA)
-    plan_id = create_resp.json()["id"]
+    create_resp = await client.post("/api/v1/session-templates", json=RUNNING_TEMPLATE_DATA)
+    template_id = create_resp.json()["id"]
 
-    response = await client.post(f"/api/v1/plans/{plan_id}/duplicate")
+    response = await client.post(f"/api/v1/session-templates/{template_id}/duplicate")
     assert response.status_code == 201
     body = response.json()
     assert body["run_details"]["run_type"] == "easy"
-    assert body["id"] != plan_id
+    assert body["id"] != template_id
 
 
 # --- From-Session Tests ---
@@ -309,7 +309,7 @@ async def test_from_session_strength(
     await db_session.commit()
     await db_session.refresh(workout)
 
-    response = await client.post(f"/api/v1/plans/from-session/{workout.id}")
+    response = await client.post(f"/api/v1/session-templates/from-session/{workout.id}")
     assert response.status_code == 201
     body = response.json()
     assert body["session_type"] == "strength"
@@ -336,7 +336,7 @@ async def test_from_session_running(
     await db_session.commit()
     await db_session.refresh(workout)
 
-    response = await client.post(f"/api/v1/plans/from-session/{workout.id}")
+    response = await client.post(f"/api/v1/session-templates/from-session/{workout.id}")
     assert response.status_code == 201
     body = response.json()
     assert body["session_type"] == "running"
@@ -360,7 +360,7 @@ async def test_from_session_long_run(
     await db_session.commit()
     await db_session.refresh(workout)
 
-    response = await client.post(f"/api/v1/plans/from-session/{workout.id}")
+    response = await client.post(f"/api/v1/session-templates/from-session/{workout.id}")
     assert response.status_code == 201
     body = response.json()
     assert body["run_details"]["run_type"] == "long_run"
@@ -368,5 +368,5 @@ async def test_from_session_long_run(
 
 @pytest.mark.anyio
 async def test_from_session_not_found(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/plans/from-session/9999")
+    response = await client.post("/api/v1/session-templates/from-session/9999")
     assert response.status_code == 404

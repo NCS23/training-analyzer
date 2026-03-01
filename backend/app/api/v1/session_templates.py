@@ -1,4 +1,4 @@
-"""API routes for Training Plans (Issue #14, #29)."""
+"""API routes for Session Templates (renamed from Training Plans)."""
 
 import json
 from typing import Optional
@@ -7,19 +7,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import TrainingPlanModel, WorkoutModel
+from app.infrastructure.database.models import SessionTemplateModel, WorkoutModel
 from app.infrastructure.database.session import get_db
-from app.models.training_plan import (
-    PlanExercise,
-    TrainingPlanCreate,
-    TrainingPlanListResponse,
-    TrainingPlanResponse,
-    TrainingPlanSummary,
-    TrainingPlanUpdate,
+from app.models.session_template import (
+    SessionTemplateCreate,
+    SessionTemplateListResponse,
+    SessionTemplateResponse,
+    SessionTemplateSummary,
+    SessionTemplateUpdate,
+    TemplateExercise,
 )
 from app.models.weekly_plan import RunDetails
 
-router = APIRouter(prefix="/plans")
+router = APIRouter(prefix="/session-templates")
 
 
 def _parse_run_details(raw: Optional[str]) -> Optional[RunDetails]:
@@ -33,98 +33,97 @@ def _parse_run_details(raw: Optional[str]) -> Optional[RunDetails]:
         return None
 
 
-def _model_to_response(plan: TrainingPlanModel) -> TrainingPlanResponse:
-    exercises: list[PlanExercise] = []
-    if plan.exercises_json:
-        raw = json.loads(str(plan.exercises_json))
-        exercises = [PlanExercise(**ex) for ex in raw]
+def _model_to_response(tmpl: SessionTemplateModel) -> SessionTemplateResponse:
+    exercises: list[TemplateExercise] = []
+    if tmpl.exercises_json:
+        raw = json.loads(str(tmpl.exercises_json))
+        exercises = [TemplateExercise(**ex) for ex in raw]
 
     run_details = _parse_run_details(
-        str(plan.run_details_json) if plan.run_details_json else None
+        str(tmpl.run_details_json) if tmpl.run_details_json else None
     )
 
-    return TrainingPlanResponse(
-        id=int(plan.id),  # type: ignore[arg-type]
-        name=str(plan.name),
-        description=str(plan.description) if plan.description else None,
-        session_type=str(plan.session_type),
+    return SessionTemplateResponse(
+        id=int(tmpl.id),  # type: ignore[arg-type]
+        name=str(tmpl.name),
+        description=str(tmpl.description) if tmpl.description else None,
+        session_type=str(tmpl.session_type),
         exercises=exercises,
         run_details=run_details,
-        is_template=bool(plan.is_template),
-        created_at=plan.created_at,  # type: ignore[arg-type]
-        updated_at=plan.updated_at,  # type: ignore[arg-type]
+        is_template=bool(tmpl.is_template),
+        created_at=tmpl.created_at,  # type: ignore[arg-type]
+        updated_at=tmpl.updated_at,  # type: ignore[arg-type]
     )
 
 
-def _model_to_summary(plan: TrainingPlanModel) -> TrainingPlanSummary:
+def _model_to_summary(tmpl: SessionTemplateModel) -> SessionTemplateSummary:
     exercises = []
-    if plan.exercises_json:
-        exercises = json.loads(str(plan.exercises_json))
+    if tmpl.exercises_json:
+        exercises = json.loads(str(tmpl.exercises_json))
 
     run_type: Optional[str] = None
-    if plan.run_details_json:
-        run_details = _parse_run_details(str(plan.run_details_json))
+    if tmpl.run_details_json:
+        run_details = _parse_run_details(str(tmpl.run_details_json))
         if run_details:
             run_type = run_details.run_type
 
-    return TrainingPlanSummary(
-        id=int(plan.id),  # type: ignore[arg-type]
-        name=str(plan.name),
-        session_type=str(plan.session_type),
+    return SessionTemplateSummary(
+        id=int(tmpl.id),  # type: ignore[arg-type]
+        name=str(tmpl.name),
+        session_type=str(tmpl.session_type),
         exercise_count=len(exercises),
         total_sets=sum(ex.get("sets", 0) for ex in exercises),
         run_type=run_type,
-        created_at=plan.created_at,  # type: ignore[arg-type]
-        updated_at=plan.updated_at,  # type: ignore[arg-type]
+        created_at=tmpl.created_at,  # type: ignore[arg-type]
+        updated_at=tmpl.updated_at,  # type: ignore[arg-type]
     )
 
 
-@router.get("", response_model=TrainingPlanListResponse)
-async def list_plans(
+@router.get("", response_model=SessionTemplateListResponse)
+async def list_templates(
     session_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanListResponse:
-    """List all training plans."""
-    query = select(TrainingPlanModel).order_by(TrainingPlanModel.updated_at.desc())
+) -> SessionTemplateListResponse:
+    """List all session templates."""
+    query = select(SessionTemplateModel).order_by(SessionTemplateModel.updated_at.desc())
     if session_type:
-        query = query.where(TrainingPlanModel.session_type == session_type)
+        query = query.where(SessionTemplateModel.session_type == session_type)
 
     result = await db.execute(query)
-    plans = list(result.scalars().all())
+    templates = list(result.scalars().all())
 
-    count_query = select(func.count(TrainingPlanModel.id))
+    count_query = select(func.count(SessionTemplateModel.id))
     if session_type:
-        count_query = count_query.where(TrainingPlanModel.session_type == session_type)
+        count_query = count_query.where(SessionTemplateModel.session_type == session_type)
     total = (await db.execute(count_query)).scalar() or 0
 
-    return TrainingPlanListResponse(
-        plans=[_model_to_summary(p) for p in plans],
+    return SessionTemplateListResponse(
+        templates=[_model_to_summary(t) for t in templates],
         total=total,
     )
 
 
-@router.get("/{plan_id}", response_model=TrainingPlanResponse)
-async def get_plan(
-    plan_id: int,
+@router.get("/{template_id}", response_model=SessionTemplateResponse)
+async def get_template(
+    template_id: int,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanResponse:
-    """Get a training plan with exercises."""
+) -> SessionTemplateResponse:
+    """Get a session template with exercises."""
     result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
     )
-    plan = result.scalar_one_or_none()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan nicht gefunden")
-    return _model_to_response(plan)
+    tmpl = result.scalar_one_or_none()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template nicht gefunden")
+    return _model_to_response(tmpl)
 
 
-@router.post("", response_model=TrainingPlanResponse, status_code=201)
-async def create_plan(
-    data: TrainingPlanCreate,
+@router.post("", response_model=SessionTemplateResponse, status_code=201)
+async def create_template(
+    data: SessionTemplateCreate,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanResponse:
-    """Create a new training plan."""
-    # Validate: strength needs exercises, running needs run_details
+) -> SessionTemplateResponse:
+    """Create a new session template."""
     if data.session_type == "strength" and not data.exercises:
         raise HTTPException(
             status_code=422,
@@ -144,7 +143,7 @@ async def create_plan(
     if data.run_details:
         run_details_data = json.dumps(data.run_details.model_dump())
 
-    plan = TrainingPlanModel(
+    tmpl = SessionTemplateModel(
         name=data.name,
         description=data.description,
         session_type=data.session_type,
@@ -152,82 +151,82 @@ async def create_plan(
         run_details_json=run_details_data,
         is_template=True,
     )
-    db.add(plan)
+    db.add(tmpl)
     await db.commit()
-    await db.refresh(plan)
-    return _model_to_response(plan)
+    await db.refresh(tmpl)
+    return _model_to_response(tmpl)
 
 
-@router.patch("/{plan_id}", response_model=TrainingPlanResponse)
-async def update_plan(
-    plan_id: int,
-    data: TrainingPlanUpdate,
+@router.patch("/{template_id}", response_model=SessionTemplateResponse)
+async def update_template(
+    template_id: int,
+    data: SessionTemplateUpdate,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanResponse:
-    """Update a training plan."""
+) -> SessionTemplateResponse:
+    """Update a session template."""
     result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
     )
-    plan = result.scalar_one_or_none()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan nicht gefunden")
+    tmpl = result.scalar_one_or_none()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template nicht gefunden")
 
     if data.name is not None:
-        plan.name = data.name  # type: ignore[assignment]
+        tmpl.name = data.name  # type: ignore[assignment]
     if data.description is not None:
-        plan.description = data.description  # type: ignore[assignment]
+        tmpl.description = data.description  # type: ignore[assignment]
     if data.exercises is not None:
-        plan.exercises_json = json.dumps([ex.model_dump() for ex in data.exercises])  # type: ignore[assignment]
+        tmpl.exercises_json = json.dumps([ex.model_dump() for ex in data.exercises])  # type: ignore[assignment]
     if data.run_details is not None:
-        plan.run_details_json = json.dumps(data.run_details.model_dump())  # type: ignore[assignment]
+        tmpl.run_details_json = json.dumps(data.run_details.model_dump())  # type: ignore[assignment]
 
     await db.commit()
-    await db.refresh(plan)
-    return _model_to_response(plan)
+    await db.refresh(tmpl)
+    return _model_to_response(tmpl)
 
 
-@router.delete("/{plan_id}", status_code=204)
-async def delete_plan(
-    plan_id: int,
+@router.delete("/{template_id}", status_code=204)
+async def delete_template(
+    template_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a training plan."""
+    """Delete a session template."""
     result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
     )
-    plan = result.scalar_one_or_none()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan nicht gefunden")
+    tmpl = result.scalar_one_or_none()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template nicht gefunden")
 
-    await db.delete(plan)
+    await db.delete(tmpl)
     await db.commit()
 
 
-@router.post("/{plan_id}/duplicate", response_model=TrainingPlanResponse, status_code=201)
-async def duplicate_plan(
-    plan_id: int,
+@router.post("/{template_id}/duplicate", response_model=SessionTemplateResponse, status_code=201)
+async def duplicate_template(
+    template_id: int,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanResponse:
-    """Duplicate a training plan."""
+) -> SessionTemplateResponse:
+    """Duplicate a session template."""
     result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
     )
-    plan = result.scalar_one_or_none()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan nicht gefunden")
+    tmpl = result.scalar_one_or_none()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template nicht gefunden")
 
-    new_plan = TrainingPlanModel(
-        name=f"{plan.name} (Kopie)",
-        description=plan.description,
-        session_type=plan.session_type,
-        exercises_json=plan.exercises_json,
-        run_details_json=plan.run_details_json,
+    new_tmpl = SessionTemplateModel(
+        name=f"{tmpl.name} (Kopie)",
+        description=tmpl.description,
+        session_type=tmpl.session_type,
+        exercises_json=tmpl.exercises_json,
+        run_details_json=tmpl.run_details_json,
         is_template=True,
     )
-    db.add(new_plan)
+    db.add(new_tmpl)
     await db.commit()
-    await db.refresh(new_plan)
-    return _model_to_response(new_plan)
+    await db.refresh(new_tmpl)
+    return _model_to_response(new_tmpl)
 
 
 def _classify_run_type(
@@ -247,7 +246,6 @@ def _classify_run_type(
         if training_type in type_map:
             return type_map[training_type]
 
-    # Fallback: classify by distance
     if distance_km and distance_km >= 15:
         return "long_run"
     return "easy"
@@ -255,13 +253,13 @@ def _classify_run_type(
 
 @router.post(
     "/from-session/{session_id}",
-    response_model=TrainingPlanResponse,
+    response_model=SessionTemplateResponse,
     status_code=201,
 )
 async def create_from_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-) -> TrainingPlanResponse:
+) -> SessionTemplateResponse:
     """Create a template from an existing session."""
     result = await db.execute(
         select(WorkoutModel).where(WorkoutModel.id == session_id)
@@ -275,13 +273,11 @@ async def create_from_session(
     if workout_type == "strength":
         exercises_data: Optional[str] = None
         if session.exercises_json:
-            # Parse and re-serialize to ensure valid format
             raw_exercises = json.loads(str(session.exercises_json))
-            # Convert session exercise format to plan exercise format
-            plan_exercises = []
+            template_exercises = []
             for ex in raw_exercises:
                 sets = ex.get("sets", [])
-                plan_exercises.append({
+                template_exercises.append({
                     "name": ex.get("name", "Unbekannt"),
                     "category": ex.get("category", "legs"),
                     "sets": len(sets) if isinstance(sets, list) else int(ex.get("sets_count", 1)),
@@ -290,16 +286,15 @@ async def create_from_session(
                     "exercise_type": ex.get("exercise_type", "kraft"),
                     "notes": ex.get("notes"),
                 })
-            exercises_data = json.dumps(plan_exercises)
+            exercises_data = json.dumps(template_exercises)
 
-        plan = TrainingPlanModel(
+        tmpl = SessionTemplateModel(
             name=f"Template aus Session #{session_id}",
             session_type="strength",
             exercises_json=exercises_data,
             is_template=True,
         )
     else:
-        # Running session — create running template
         training_type = str(session.training_type_override or session.training_type_auto or "")
         run_type = _classify_run_type(
             float(session.distance_km) if session.distance_km else None,
@@ -319,14 +314,14 @@ async def create_from_session(
             "intervals": None,
         }
 
-        plan = TrainingPlanModel(
+        tmpl = SessionTemplateModel(
             name=f"Template aus Session #{session_id}",
             session_type="running",
             run_details_json=json.dumps(run_details),
             is_template=True,
         )
 
-    db.add(plan)
+    db.add(tmpl)
     await db.commit()
-    await db.refresh(plan)
-    return _model_to_response(plan)
+    await db.refresh(tmpl)
+    return _model_to_response(tmpl)
