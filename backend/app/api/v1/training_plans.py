@@ -219,12 +219,40 @@ async def create_plan(
     data: TrainingPlanCreate,
     db: AsyncSession = Depends(get_db),
 ) -> TrainingPlanResponse:
-    """Create a new training plan with optional phases."""
+    """Create a new training plan with optional phases and auto-create goal."""
     if data.end_date <= data.start_date:
         raise HTTPException(
             status_code=422,
             detail="Enddatum muss nach Startdatum liegen.",
         )
+
+    # Auto-create or resolve goal
+    goal_id = data.goal_id
+    if data.goal and not goal_id:
+        # Check if a goal with this title already exists
+        existing_result = await db.execute(
+            select(RaceGoalModel).where(
+                func.lower(RaceGoalModel.title) == data.goal.title.lower()
+            )
+        )
+        existing_goal = existing_result.scalar_one_or_none()
+        if existing_goal:
+            goal_id = int(existing_goal.id)  # type: ignore[arg-type]
+        else:
+            # Create new goal — race_date defaults to target_event_date or end_date
+            race_date = data.goal.race_date or data.target_event_date or data.end_date
+            new_goal = RaceGoalModel(
+                title=data.goal.title,
+                race_date=race_date,
+                distance_km=data.goal.distance_km,
+                target_time_seconds=data.goal.target_time_seconds,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(new_goal)
+            await db.flush()
+            goal_id = int(new_goal.id)  # type: ignore[arg-type]
 
     weekly_structure_json: Optional[str] = None
     if data.weekly_structure:
@@ -233,7 +261,7 @@ async def create_plan(
     plan = TrainingPlanModel(
         name=data.name,
         description=data.description,
-        goal_id=data.goal_id,
+        goal_id=goal_id,
         start_date=data.start_date,
         end_date=data.end_date,
         target_event_date=data.target_event_date,
@@ -254,22 +282,41 @@ async def create_plan(
             db.add(phase)
 
     # S09: Set bidirectional link on goal
-    if data.goal_id:
+    if goal_id:
         goal_result = await db.execute(
-            select(RaceGoalModel).where(RaceGoalModel.id == data.goal_id)
+            select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
         )
-        goal = goal_result.scalar_one_or_none()
-        if goal:
-            goal.training_plan_id = plan.id  # type: ignore[assignment]
+        goal_obj = goal_result.scalar_one_or_none()
+        if goal_obj:
+            goal_obj.training_plan_id = plan.id  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(plan)
     return await _plan_to_response(db, plan)
 
 
+def _parse_time_to_seconds(time_str: str) -> int:
+    """Parse 'H:MM:SS' or 'MM:SS' to total seconds."""
+    parts = str(time_str).split(":")
+    if len(parts) == 3:
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    if len(parts) == 2:
+        return int(parts[0]) * 60 + int(parts[1])
+    return int(time_str)
+
+
 def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
+
+    # Handle goal block — convert target_time string to target_time_seconds
+    if "goal" in result and isinstance(result["goal"], dict):
+        goal = dict(result["goal"])
+        if "target_time" in goal and "target_time_seconds" not in goal:
+            goal["target_time_seconds"] = _parse_time_to_seconds(goal.pop("target_time"))
+        elif "target_time" in goal:
+            goal.pop("target_time")  # target_time_seconds takes precedence
+        result["goal"] = goal
 
     if "phases" in data and data["phases"]:
         result["phases"] = []
@@ -312,17 +359,17 @@ async def import_plan_from_yaml(
             detail="YAML muss ein Objekt (Mapping) auf oberster Ebene enthalten.",
         )
 
-    # Resolve goal_title -> goal_id
+    # Resolve goal_title -> goal_id (backward compat, lookup only)
     goal_title = raw.get("goal_title")
-    if goal_title and not raw.get("goal_id"):
+    if goal_title and not raw.get("goal_id") and not raw.get("goal"):
         result = await db.execute(
             select(RaceGoalModel.id).where(
                 func.lower(RaceGoalModel.title) == goal_title.lower()
             )
         )
-        goal_id = result.scalar_one_or_none()
-        if goal_id:
-            raw["goal_id"] = int(goal_id)
+        found_goal_id = result.scalar_one_or_none()
+        if found_goal_id:
+            raw["goal_id"] = int(found_goal_id)
 
     mapped = _yaml_to_plan_create(raw)
 

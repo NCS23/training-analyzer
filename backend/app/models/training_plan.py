@@ -62,6 +62,15 @@ class TrainingPhaseResponse(BaseModel):
     created_at: str
 
 
+class GoalCreate(BaseModel):
+    """Embedded goal for auto-creation with a training plan."""
+
+    title: str = Field(..., min_length=1, max_length=200)
+    race_date: Optional[date] = None  # defaults to plan's target_event_date or end_date
+    distance_km: float = Field(..., gt=0)
+    target_time_seconds: int = Field(..., gt=0)
+
+
 class GoalSummary(BaseModel):
     """Embedded goal summary in plan response."""
 
@@ -87,6 +96,7 @@ class TrainingPlanCreate(BaseModel):
     weekly_structure: Optional[WeeklyStructure] = None
     status: Optional[str] = Field("draft", pattern="^(draft|active|completed|paused)$")
     phases: Optional[list[TrainingPhaseCreate]] = None
+    goal: Optional[GoalCreate] = None
 
 
 class TrainingPlanUpdate(BaseModel):

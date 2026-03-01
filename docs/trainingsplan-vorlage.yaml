@@ -1,0 +1,92 @@
+# ============================================================
+# Trainingsplan — YAML-Vorlage
+# ============================================================
+# Diese Datei zeigt alle unterstuetzten Felder fuer den Import.
+# Importiere sie unter: Einstellungen → Trainingsplaene → Importieren
+#
+# Pflichtfelder sind mit (PFLICHT) markiert.
+# Alles andere ist optional.
+# ============================================================
+
+# --- Plan-Grunddaten ---
+
+name: "HM Sub-2h Vorbereitung"         # (PFLICHT) Name des Trainingsplans
+description: "16-Wochen Plan fuer den Hamburg Halbmarathon. Periodisierung nach Daniels."
+start_date: 2026-04-06                  # (PFLICHT) Startdatum (YYYY-MM-DD)
+end_date: 2026-07-26                    # (PFLICHT) Enddatum (YYYY-MM-DD)
+target_event_date: 2026-07-26           # Wettkampf-/Zieldatum
+status: draft                           # draft | active | completed | paused (Standard: draft)
+
+# --- Ziel (automatisch erstellt falls nicht vorhanden) ---
+# Wenn ein Ziel mit demselben Titel existiert, wird es verknuepft.
+# Andernfalls wird ein neues Ziel angelegt.
+
+goal:
+  title: "Hamburg Halbmarathon"          # (PFLICHT) Titel des Ziels
+  distance_km: 21.1                      # (PFLICHT) Distanz in km
+  target_time: "1:59:00"                 # (PFLICHT) Zielzeit als H:MM:SS oder MM:SS
+                                         #   Alternativ: target_time_seconds: 7140
+  race_date: 2026-07-26                  # Wettkampfdatum (Standard: target_event_date oder end_date)
+
+# Alternativ: Bestehendes Ziel per ID oder Titel referenzieren
+# goal_id: 5                            # Direkte ID-Referenz
+# goal_title: "Hamburg Halbmarathon"     # Titel-Lookup (nur Verknuepfung, kein Auto-Create)
+
+# --- Wochenstruktur ---
+
+weekly_structure:
+  rest_days: [0, 6]                      # Ruhetage: 0=Montag, 6=Sonntag
+
+# --- Phasen ---
+# Jede Phase hat einen Typ: base | build | peak | taper | transition
+
+phases:
+  - name: "Grundlagenaufbau"
+    type: base                           # Phasentyp (alternativ: phase_type)
+    start_week: 1
+    end_week: 6
+    focus:
+      primary: ["endurance", "base_mileage"]
+      secondary: ["strength"]
+    target_metrics:
+      weekly_volume_min: 30              # km pro Woche (Minimum)
+      weekly_volume_max: 45              # km pro Woche (Maximum)
+      quality_sessions_per_week: 1
+    notes: "Langsamer Umfangaufbau, max. 10% Steigerung pro Woche."
+
+  - name: "Spezifischer Aufbau"
+    type: build
+    start_week: 7
+    end_week: 11
+    focus:
+      primary: ["tempo", "threshold"]
+      secondary: ["endurance"]
+    target_metrics:
+      weekly_volume_min: 40
+      weekly_volume_max: 55
+      quality_sessions_per_week: 2
+    notes: "Tempolaeufe und Schwellentraining einfuehren."
+
+  - name: "Wettkampfvorbereitung"
+    type: peak
+    start_week: 12
+    end_week: 14
+    focus:
+      primary: ["race_pace", "vo2max"]
+    target_metrics:
+      weekly_volume_min: 45
+      weekly_volume_max: 55
+      quality_sessions_per_week: 2
+    notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
+
+  - name: "Tapering"
+    type: taper
+    start_week: 15
+    end_week: 16
+    focus:
+      primary: ["recovery", "sharpening"]
+    target_metrics:
+      weekly_volume_min: 20
+      weekly_volume_max: 35
+      quality_sessions_per_week: 1
+    notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."

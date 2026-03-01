@@ -71,10 +71,18 @@ export interface TrainingPlanListResponse {
   total: number;
 }
 
+export interface GoalCreateParams {
+  title: string;
+  race_date?: string;
+  distance_km: number;
+  target_time_seconds: number;
+}
+
 export interface TrainingPlanCreateParams {
   name: string;
   description?: string;
   goal_id?: number;
+  goal?: GoalCreateParams;
   start_date: string;
   end_date: string;
   target_event_date?: string;

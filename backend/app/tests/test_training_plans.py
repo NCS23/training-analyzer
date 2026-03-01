@@ -498,6 +498,213 @@ status: draft
     assert "Validierung" in response.json()["detail"]
 
 
+# --- Goal Auto-Create (API) ---
+
+
+@pytest.mark.anyio
+async def test_create_plan_auto_creates_goal(client: AsyncClient) -> None:
+    """Goal block in create → auto-creates a new goal."""
+    data = {
+        **PLAN_DATA,
+        "goal": {
+            "title": "Hamburg Halbmarathon",
+            "distance_km": 21.1,
+            "target_time_seconds": 7140,
+        },
+    }
+    response = await client.post("/api/v1/training-plans", json=data)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] is not None
+    assert body["goal_summary"]["title"] == "Hamburg Halbmarathon"
+
+    # Verify the goal was actually created
+    goal_resp = await client.get(f"/api/v1/goals/{body['goal_id']}")
+    assert goal_resp.status_code == 200
+    goal = goal_resp.json()
+    assert goal["distance_km"] == 21.1
+    assert goal["target_time_seconds"] == 7140
+    # race_date defaults to target_event_date
+    assert goal["race_date"].startswith("2026-07-05")
+
+
+@pytest.mark.anyio
+async def test_create_plan_auto_create_uses_existing_goal(
+    client: AsyncClient, db_session: AsyncSession,
+) -> None:
+    """Goal block with matching title → reuses existing goal."""
+    goal = RaceGoalModel(
+        title="Hamburg Halbmarathon",
+        race_date=datetime(2026, 7, 5),
+        distance_km=21.1,
+        target_time_seconds=7200,
+    )
+    db_session.add(goal)
+    await db_session.commit()
+    await db_session.refresh(goal)
+
+    data = {
+        **PLAN_DATA,
+        "goal": {
+            "title": "hamburg halbmarathon",  # case-insensitive match
+            "distance_km": 21.1,
+            "target_time_seconds": 7140,
+        },
+    }
+    response = await client.post("/api/v1/training-plans", json=data)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] == goal.id  # reuses existing goal
+
+
+@pytest.mark.anyio
+async def test_create_plan_auto_create_race_date_fallback(
+    client: AsyncClient,
+) -> None:
+    """Goal without race_date falls back to end_date when no target_event_date."""
+    data = {
+        "name": "Plan ohne Event-Datum",
+        "start_date": "2026-04-01",
+        "end_date": "2026-06-30",
+        "status": "draft",
+        "goal": {
+            "title": "Fallback Goal",
+            "distance_km": 10.0,
+            "target_time_seconds": 3000,
+        },
+    }
+    response = await client.post("/api/v1/training-plans", json=data)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] is not None
+
+    goal_resp = await client.get(f"/api/v1/goals/{body['goal_id']}")
+    assert goal_resp.json()["race_date"].startswith("2026-06-30")
+
+
+@pytest.mark.anyio
+async def test_create_plan_goal_id_takes_precedence(
+    client: AsyncClient, db_session: AsyncSession,
+) -> None:
+    """Explicit goal_id takes precedence over goal block."""
+    goal = RaceGoalModel(
+        title="Existing Goal",
+        race_date=datetime(2026, 7, 5),
+        distance_km=21.1,
+        target_time_seconds=7200,
+    )
+    db_session.add(goal)
+    await db_session.commit()
+    await db_session.refresh(goal)
+
+    data = {
+        **PLAN_DATA,
+        "goal_id": goal.id,
+        "goal": {
+            "title": "Should Be Ignored",
+            "distance_km": 5.0,
+            "target_time_seconds": 1500,
+        },
+    }
+    response = await client.post("/api/v1/training-plans", json=data)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] == goal.id
+    assert body["goal_summary"]["title"] == "Existing Goal"
+
+
+# --- Goal Auto-Create (YAML Import) ---
+
+
+@pytest.mark.anyio
+async def test_import_yaml_auto_creates_goal(client: AsyncClient) -> None:
+    """YAML with goal: block auto-creates a new goal."""
+    yaml_content = b"""
+name: Plan mit neuem Ziel
+start_date: 2026-04-06
+end_date: 2026-07-26
+target_event_date: 2026-07-26
+status: draft
+goal:
+  title: Hamburg Halbmarathon 2026
+  distance_km: 21.1
+  target_time: "1:59:00"
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_content, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] is not None
+    assert body["goal_summary"]["title"] == "Hamburg Halbmarathon 2026"
+
+    # Verify goal details
+    goal_resp = await client.get(f"/api/v1/goals/{body['goal_id']}")
+    goal = goal_resp.json()
+    assert goal["distance_km"] == 21.1
+    assert goal["target_time_seconds"] == 7140  # 1:59:00 = 7140s
+
+
+@pytest.mark.anyio
+async def test_import_yaml_goal_uses_existing(
+    client: AsyncClient, db_session: AsyncSession,
+) -> None:
+    """YAML with goal: block reuses existing goal if title matches."""
+    goal = RaceGoalModel(
+        title="Hamburg Halbmarathon 2026",
+        race_date=datetime(2026, 7, 26),
+        distance_km=21.1,
+        target_time_seconds=7200,
+    )
+    db_session.add(goal)
+    await db_session.commit()
+    await db_session.refresh(goal)
+
+    yaml_content = b"""
+name: Plan mit bestehendem Ziel
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+goal:
+  title: hamburg halbmarathon 2026
+  distance_km: 21.1
+  target_time: "1:59:00"
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_content, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] == goal.id
+
+
+@pytest.mark.anyio
+async def test_import_yaml_goal_target_time_seconds(client: AsyncClient) -> None:
+    """YAML goal with target_time_seconds instead of target_time."""
+    yaml_content = b"""
+name: Plan mit Sekunden-Zielzeit
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+goal:
+  title: 10k Rekord
+  distance_km: 10.0
+  target_time_seconds: 2700
+"""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", yaml_content, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["goal_id"] is not None
+
+    goal_resp = await client.get(f"/api/v1/goals/{body['goal_id']}")
+    assert goal_resp.json()["target_time_seconds"] == 2700
+
+
 @pytest.mark.anyio
 async def test_import_yaml_invalid_phase_type(client: AsyncClient) -> None:
     yaml_bad = b"""
