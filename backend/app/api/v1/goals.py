@@ -26,15 +26,17 @@ router = APIRouter(prefix="/goals", tags=["goals"])
 
 
 async def _get_plan_summary(
-    db: AsyncSession, plan_id: Optional[int],
+    db: AsyncSession,
+    plan_id: Optional[int],
 ) -> Optional[TrainingPlanSummaryForGoal]:
     """Look up a training plan summary by ID."""
     if plan_id is None:
         return None
     plan_id_int = int(plan_id)
     result = await db.execute(
-        select(TrainingPlanModel.id, TrainingPlanModel.name, TrainingPlanModel.status)
-        .where(TrainingPlanModel.id == plan_id_int)
+        select(TrainingPlanModel.id, TrainingPlanModel.name, TrainingPlanModel.status).where(
+            TrainingPlanModel.id == plan_id_int
+        )
     )
     row = result.one_or_none()
     if not row:
@@ -47,7 +49,8 @@ async def _get_plan_summary(
 
 
 async def _goal_to_response(
-    db: AsyncSession, goal: RaceGoalModel,
+    db: AsyncSession,
+    goal: RaceGoalModel,
 ) -> RaceGoalResponse:
     """Build RaceGoalResponse with optional plan summary."""
     tp_id = int(goal.training_plan_id) if goal.training_plan_id else None  # type: ignore[arg-type]

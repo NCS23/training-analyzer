@@ -102,18 +102,14 @@ export async function deleteSessionTemplate(templateId: number): Promise<void> {
   await apiClient.delete(`/api/v1/session-templates/${templateId}`);
 }
 
-export async function duplicateSessionTemplate(
-  templateId: number,
-): Promise<SessionTemplate> {
+export async function duplicateSessionTemplate(templateId: number): Promise<SessionTemplate> {
   const response = await apiClient.post<SessionTemplate>(
     `/api/v1/session-templates/${templateId}/duplicate`,
   );
   return response.data;
 }
 
-export async function createTemplateFromSession(
-  sessionId: number,
-): Promise<SessionTemplate> {
+export async function createTemplateFromSession(sessionId: number): Promise<SessionTemplate> {
   const response = await apiClient.post<SessionTemplate>(
     `/api/v1/session-templates/from-session/${sessionId}`,
   );

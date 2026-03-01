@@ -35,9 +35,7 @@ async def test_streak_empty(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_streak_consecutive_days(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_streak_consecutive_days(client: AsyncClient, db_session: AsyncSession) -> None:
     """Training 3 days in a row including today → streak 3."""
     await _add_session(db_session, 0)  # today
     await _add_session(db_session, 1)  # yesterday
@@ -50,9 +48,7 @@ async def test_streak_consecutive_days(
 
 
 @pytest.mark.anyio
-async def test_streak_gap_breaks_current(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_streak_gap_breaks_current(client: AsyncClient, db_session: AsyncSession) -> None:
     """Gap in training breaks current streak."""
     await _add_session(db_session, 0)  # today
     await _add_session(db_session, 1)  # yesterday
@@ -67,9 +63,7 @@ async def test_streak_gap_breaks_current(
 
 
 @pytest.mark.anyio
-async def test_streak_at_risk(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_streak_at_risk(client: AsyncClient, db_session: AsyncSession) -> None:
     """Trained yesterday but not today → streak at risk."""
     await _add_session(db_session, 1)  # yesterday
     await _add_session(db_session, 2)  # day before
@@ -81,9 +75,7 @@ async def test_streak_at_risk(
 
 
 @pytest.mark.anyio
-async def test_longest_streak_historical(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_longest_streak_historical(client: AsyncClient, db_session: AsyncSession) -> None:
     """Longest streak can be in the past."""
     # Past streak: 5 days (80-76 days ago)
     for i in range(76, 81):
@@ -100,9 +92,7 @@ async def test_longest_streak_historical(
 
 
 @pytest.mark.anyio
-async def test_calendar_heatmap(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_calendar_heatmap(client: AsyncClient, db_session: AsyncSession) -> None:
     """Calendar returns session counts for last 90 days."""
     await _add_session(db_session, 0)  # today
     await _add_session(db_session, 0)  # second session today

@@ -16,8 +16,21 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@nordlig/components';
-import { Plus, ChevronRight, EllipsisVertical, Trash2, CalendarRange, Upload, CalendarPlus } from 'lucide-react';
-import { listTrainingPlans, deleteTrainingPlan, importTrainingPlanYaml, generateWeeklyPlans } from '@/api/training-plans';
+import {
+  Plus,
+  ChevronRight,
+  EllipsisVertical,
+  Trash2,
+  CalendarRange,
+  Upload,
+  CalendarPlus,
+} from 'lucide-react';
+import {
+  listTrainingPlans,
+  deleteTrainingPlan,
+  importTrainingPlanYaml,
+  generateWeeklyPlans,
+} from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -149,11 +162,7 @@ export function TrainingPlansPage() {
                 </>
               )}
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/settings/plans/new')}
-            >
+            <Button variant="primary" size="sm" onClick={() => navigate('/settings/plans/new')}>
               <Plus className="w-4 h-4 mr-1" />
               Neuer Plan
             </Button>
@@ -177,11 +186,7 @@ export function TrainingPlansPage() {
               title="Noch keine Trainingspläne"
               description="Erstelle deinen ersten periodisierten Trainingsplan."
               action={
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate('/settings/plans/new')}
-                >
+                <Button variant="primary" size="sm" onClick={() => navigate('/settings/plans/new')}>
                   <Plus className="w-4 h-4 mr-1" />
                   Plan erstellen
                 </Button>

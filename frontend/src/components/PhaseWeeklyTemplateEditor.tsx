@@ -49,10 +49,24 @@ function getDayType(day: PhaseWeeklyTemplateDayEntry): DayType {
 
 function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDayEntry {
   if (type === 'rest') {
-    return { day_of_week: dayOfWeek, training_type: null, is_rest_day: true, run_type: null, template_id: null, notes: null };
+    return {
+      day_of_week: dayOfWeek,
+      training_type: null,
+      is_rest_day: true,
+      run_type: null,
+      template_id: null,
+      notes: null,
+    };
   }
   if (type === 'strength') {
-    return { day_of_week: dayOfWeek, training_type: 'strength', is_rest_day: false, run_type: null, template_id: null, notes: null };
+    return {
+      day_of_week: dayOfWeek,
+      training_type: 'strength',
+      is_rest_day: false,
+      run_type: null,
+      template_id: null,
+      notes: null,
+    };
   }
   return {
     day_of_week: dayOfWeek,
@@ -128,7 +142,9 @@ export function PhaseWeeklyTemplateEditor({ template, phaseType, onChange }: Pro
                 ${DAY_TYPE_COLORS[getDayType(currentTemplate.days[i])]}
                 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
               `}
-              title={DAY_TYPE_OPTIONS.find((o) => o.value === getDayType(currentTemplate.days[i]))?.label}
+              title={
+                DAY_TYPE_OPTIONS.find((o) => o.value === getDayType(currentTemplate.days[i]))?.label
+              }
             >
               {DAY_TYPE_OPTIONS.find((o) => o.value === getDayType(currentTemplate.days[i]))?.short}
             </button>

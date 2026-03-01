@@ -147,7 +147,8 @@ export function TrainingPlanEditorPage() {
           weekly_volume_min: p.target_metrics?.weekly_volume_min?.toString() ?? '',
           weekly_volume_max: p.target_metrics?.weekly_volume_max?.toString() ?? '',
           quality_sessions_per_week: p.target_metrics?.quality_sessions_per_week?.toString() ?? '',
-          strength_sessions_per_week: p.target_metrics?.strength_sessions_per_week?.toString() ?? '',
+          strength_sessions_per_week:
+            p.target_metrics?.strength_sessions_per_week?.toString() ?? '',
           weekly_template: p.weekly_template ?? null,
         })),
       );
@@ -276,9 +277,17 @@ export function TrainingPlanEditorPage() {
   const phaseFormToParams = (phase: PhaseForm): TrainingPhaseCreateParams => {
     const volMin = phase.weekly_volume_min ? parseFloat(phase.weekly_volume_min) : undefined;
     const volMax = phase.weekly_volume_max ? parseFloat(phase.weekly_volume_max) : undefined;
-    const quality = phase.quality_sessions_per_week ? parseInt(phase.quality_sessions_per_week, 10) : undefined;
-    const strength = phase.strength_sessions_per_week ? parseInt(phase.strength_sessions_per_week, 10) : undefined;
-    const hasMetrics = volMin !== undefined || volMax !== undefined || quality !== undefined || strength !== undefined;
+    const quality = phase.quality_sessions_per_week
+      ? parseInt(phase.quality_sessions_per_week, 10)
+      : undefined;
+    const strength = phase.strength_sessions_per_week
+      ? parseInt(phase.strength_sessions_per_week, 10)
+      : undefined;
+    const hasMetrics =
+      volMin !== undefined ||
+      volMax !== undefined ||
+      quality !== undefined ||
+      strength !== undefined;
 
     return {
       name: phase.name,
@@ -286,12 +295,14 @@ export function TrainingPlanEditorPage() {
       start_week: phase.start_week,
       end_week: phase.end_week,
       notes: phase.notes || undefined,
-      target_metrics: hasMetrics ? {
-        weekly_volume_min: volMin,
-        weekly_volume_max: volMax,
-        quality_sessions_per_week: quality,
-        strength_sessions_per_week: strength,
-      } : undefined,
+      target_metrics: hasMetrics
+        ? {
+            weekly_volume_min: volMin,
+            weekly_volume_max: volMax,
+            quality_sessions_per_week: quality,
+            strength_sessions_per_week: strength,
+          }
+        : undefined,
       weekly_template: phase.weekly_template ?? undefined,
     };
   };
@@ -386,10 +397,7 @@ export function TrainingPlanEditorPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -455,11 +463,7 @@ export function TrainingPlanEditorPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Wettkampf-Datum</Label>
-                <DatePicker
-                  value={targetEventDate}
-                  onChange={setTargetEventDate}
-                  inputSize="sm"
-                />
+                <DatePicker value={targetEventDate} onChange={setTargetEventDate} inputSize="sm" />
               </div>
             </div>
 
@@ -469,7 +473,9 @@ export function TrainingPlanEditorPage() {
                 <Select
                   options={STATUS_OPTIONS}
                   value={status}
-                  onChange={(v) => { if (v) setStatus(v as PlanStatus); }}
+                  onChange={(v) => {
+                    if (v) setStatus(v as PlanStatus);
+                  }}
                   inputSize="sm"
                 />
               </div>
@@ -545,7 +551,9 @@ export function TrainingPlanEditorPage() {
                       <Select
                         options={PHASE_TYPES}
                         value={phase.phase_type}
-                        onChange={(v) => { if (v) updatePhaseForm(idx, { phase_type: v as PhaseType }); }}
+                        onChange={(v) => {
+                          if (v) updatePhaseForm(idx, { phase_type: v as PhaseType });
+                        }}
                         inputSize="sm"
                       />
                     </div>
@@ -599,7 +607,9 @@ export function TrainingPlanEditorPage() {
                         min={0}
                         step={5}
                         value={phase.weekly_volume_min}
-                        onChange={(e) => updatePhaseForm(idx, { weekly_volume_min: e.target.value })}
+                        onChange={(e) =>
+                          updatePhaseForm(idx, { weekly_volume_min: e.target.value })
+                        }
                         inputSize="sm"
                         placeholder="z.B. 30"
                       />
@@ -611,7 +621,9 @@ export function TrainingPlanEditorPage() {
                         min={0}
                         step={5}
                         value={phase.weekly_volume_max}
-                        onChange={(e) => updatePhaseForm(idx, { weekly_volume_max: e.target.value })}
+                        onChange={(e) =>
+                          updatePhaseForm(idx, { weekly_volume_max: e.target.value })
+                        }
                         inputSize="sm"
                         placeholder="z.B. 45"
                       />
@@ -623,7 +635,9 @@ export function TrainingPlanEditorPage() {
                         min={0}
                         max={5}
                         value={phase.quality_sessions_per_week}
-                        onChange={(e) => updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })}
+                        onChange={(e) =>
+                          updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })
+                        }
                         inputSize="sm"
                         placeholder="z.B. 2"
                       />
@@ -635,7 +649,9 @@ export function TrainingPlanEditorPage() {
                         min={0}
                         max={5}
                         value={phase.strength_sessions_per_week}
-                        onChange={(e) => updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })}
+                        onChange={(e) =>
+                          updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })
+                        }
                         inputSize="sm"
                         placeholder="z.B. 2"
                       />

@@ -65,7 +65,8 @@ const trainingTypeOptions = [
 ];
 
 /* Colored border-style tags using design tokens */
-const tagBase = 'inline-flex items-center rounded-full border-[1.5px] px-[var(--spacing-xs)] py-[3px] text-[11.5px] font-medium';
+const tagBase =
+  'inline-flex items-center rounded-full border-[1.5px] px-[var(--spacing-xs)] py-[3px] text-[11.5px] font-medium';
 const workoutTagStyle = `${tagBase} bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] border-[var(--color-border-info-subtle)]`;
 const strengthTagStyle = `${tagBase} bg-[var(--color-bg-accent-subtle)] text-[var(--color-text-accent)] border-[var(--color-border-accent-subtle)]`;
 const trainingTagStyle = `${tagBase} bg-[var(--color-bg-success-subtle)] text-[var(--color-text-success)] border-[var(--color-border-success-subtle)]`;
@@ -212,16 +213,16 @@ export function SessionsPage() {
               <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
                 <EllipsisVertical className="w-4 h-4" />
               </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              icon={<Upload className="w-4 h-4" />}
-              onSelect={() => navigate('/sessions/new')}
-            >
-              Training hochladen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                icon={<Upload className="w-4 h-4" />}
+                onSelect={() => navigate('/sessions/new')}
+              >
+                Training hochladen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {!loading && (
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
@@ -353,7 +354,11 @@ export function SessionsPage() {
                     </p>
                     {/* Colored border tags */}
                     <div className="flex items-center gap-1.5 flex-wrap mb-[6px]">
-                      <span className={session.workout_type === 'strength' ? strengthTagStyle : workoutTagStyle}>
+                      <span
+                        className={
+                          session.workout_type === 'strength' ? strengthTagStyle : workoutTagStyle
+                        }
+                      >
                         {workoutTypeLabels[session.workout_type] || session.workout_type}
                       </span>
                       {effectiveType && (
@@ -364,27 +369,25 @@ export function SessionsPage() {
                     </div>
                     {/* Meta */}
                     <div className="text-[12px] text-[var(--color-text-muted)]">
-                      {session.workout_type === 'strength' ? (
-                        [
-                          session.exercises_count != null && `${session.exercises_count} Übungen`,
-                          session.total_tonnage_kg != null &&
-                            (session.total_tonnage_kg >= 1000
-                              ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
-                              : `${session.total_tonnage_kg} kg`),
-                          session.duration_sec && formatDuration(session.duration_sec),
-                        ]
-                          .filter(Boolean)
-                          .join(' \u00b7 ')
-                      ) : (
-                        [
-                          session.distance_km && `${session.distance_km} km`,
-                          session.duration_sec && formatDuration(session.duration_sec),
-                          session.pace && `${session.pace} /km`,
-                          session.hr_avg && `${session.hr_avg} bpm`,
-                        ]
-                          .filter(Boolean)
-                          .join(' \u00b7 ')
-                      )}
+                      {session.workout_type === 'strength'
+                        ? [
+                            session.exercises_count != null && `${session.exercises_count} Übungen`,
+                            session.total_tonnage_kg != null &&
+                              (session.total_tonnage_kg >= 1000
+                                ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
+                                : `${session.total_tonnage_kg} kg`),
+                            session.duration_sec && formatDuration(session.duration_sec),
+                          ]
+                            .filter(Boolean)
+                            .join(' \u00b7 ')
+                        : [
+                            session.distance_km && `${session.distance_km} km`,
+                            session.duration_sec && formatDuration(session.duration_sec),
+                            session.pace && `${session.pace} /km`,
+                            session.hr_avg && `${session.hr_avg} bpm`,
+                          ]
+                            .filter(Boolean)
+                            .join(' \u00b7 ')}
                     </div>
                   </div>
                   {/* Chevron */}

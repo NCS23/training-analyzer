@@ -28,9 +28,7 @@ PLAN_DATA = {
 @pytest.mark.anyio
 async def test_get_empty_week(client: AsyncClient) -> None:
     """An empty week should return 7 entries, all with no training."""
-    response = await client.get(
-        "/api/v1/weekly-plan", params={"week_start": "2026-03-02"}
-    )
+    response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-03-02"})
     assert response.status_code == 200
     body = response.json()
     assert body["week_start"] == "2026-03-02"
@@ -46,7 +44,8 @@ async def test_get_empty_week(client: AsyncClient) -> None:
 async def test_get_empty_week_normalizes_to_monday(client: AsyncClient) -> None:
     """Passing a Wednesday should still return the Monday."""
     response = await client.get(
-        "/api/v1/weekly-plan", params={"week_start": "2026-03-04"}  # Wednesday
+        "/api/v1/weekly-plan",
+        params={"week_start": "2026-03-04"},  # Wednesday
     )
     assert response.status_code == 200
     assert response.json()["week_start"] == "2026-03-02"  # Monday
@@ -61,10 +60,20 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
             {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
             {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
             {"day_of_week": 2, "is_rest_day": True},
-            {"day_of_week": 3, "training_type": "strength", "is_rest_day": False, "notes": "Beintraining"},
+            {
+                "day_of_week": 3,
+                "training_type": "strength",
+                "is_rest_day": False,
+                "notes": "Beintraining",
+            },
             {"day_of_week": 4, "training_type": "running", "is_rest_day": False},
             {"day_of_week": 5, "is_rest_day": True},
-            {"day_of_week": 6, "training_type": "running", "is_rest_day": False, "notes": "Langer Lauf"},
+            {
+                "day_of_week": 6,
+                "training_type": "running",
+                "is_rest_day": False,
+                "notes": "Langer Lauf",
+            },
         ],
     }
 
@@ -80,9 +89,7 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
     assert body["entries"][6]["notes"] == "Langer Lauf"
 
     # Verify with GET
-    get_response = await client.get(
-        "/api/v1/weekly-plan", params={"week_start": "2026-03-02"}
-    )
+    get_response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-03-02"})
     assert get_response.status_code == 200
     get_body = get_response.json()
     assert get_body["entries"][0]["training_type"] == "strength"
@@ -174,16 +181,12 @@ async def test_clear_weekly_plan(client: AsyncClient) -> None:
     await client.put("/api/v1/weekly-plan", json=data)
 
     # Clear
-    response = await client.delete(
-        "/api/v1/weekly-plan", params={"week_start": "2026-03-23"}
-    )
+    response = await client.delete("/api/v1/weekly-plan", params={"week_start": "2026-03-23"})
     assert response.status_code == 200
     assert response.json()["success"] is True
 
     # Verify empty
-    get_response = await client.get(
-        "/api/v1/weekly-plan", params={"week_start": "2026-03-23"}
-    )
+    get_response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-03-23"})
     assert get_response.status_code == 200
     for entry in get_response.json()["entries"]:
         assert entry["training_type"] is None
@@ -334,9 +337,7 @@ async def test_run_details_with_hr_targets(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_empty_entries_have_no_run_details(client: AsyncClient) -> None:
     """Empty and non-running entries should not have run_details."""
-    response = await client.get(
-        "/api/v1/weekly-plan", params={"week_start": "2026-05-01"}
-    )
+    response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-05-01"})
     assert response.status_code == 200
     for entry in response.json()["entries"]:
         assert entry["run_details"] is None
@@ -384,9 +385,7 @@ async def test_compliance_empty_week(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_compliance_completed(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_compliance_completed(client: AsyncClient, db_session: AsyncSession) -> None:
     """Plan running on Monday, actual running on Monday → 'completed'."""
     # Week of 2026-06-08 (Monday)
     plan_data = {
@@ -437,9 +436,7 @@ async def test_compliance_missed(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_compliance_off_target(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_compliance_off_target(client: AsyncClient, db_session: AsyncSession) -> None:
     """Plan strength on Wednesday, actual running → 'off_target'."""
     plan_data = {
         "week_start": "2026-06-22",
@@ -486,9 +483,7 @@ async def test_compliance_rest_ok(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_compliance_unplanned(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_compliance_unplanned(client: AsyncClient, db_session: AsyncSession) -> None:
     """No plan, but session exists → 'unplanned'."""
     # Create a session on Thursday 2026-07-09 (week of 2026-07-06)
     await _create_workout(db_session, "2026-07-09T07:00:00", "strength")

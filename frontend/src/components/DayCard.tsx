@@ -1,14 +1,5 @@
-import {
-  Select,
-  Input,
-} from '@nordlig/components';
-import {
-  Check,
-  ChevronDown,
-  Dumbbell,
-  Footprints,
-  Moon,
-} from 'lucide-react';
+import { Select, Input } from '@nordlig/components';
+import { Check, ChevronDown, Dumbbell, Footprints, Moon } from 'lucide-react';
 import type { RunDetails, WeeklyPlanEntry, ComplianceDayEntry } from '@/api/weekly-plan';
 
 // --- Constants ---
@@ -112,13 +103,26 @@ export function DayCard({
 
   const handleTypeChange = (val: string) => {
     if (val === 'rest') {
-      onUpdate({ training_type: null, is_rest_day: true, template_id: null, template_name: null, run_details: null });
+      onUpdate({
+        training_type: null,
+        is_rest_day: true,
+        template_id: null,
+        template_name: null,
+        run_details: null,
+      });
     } else if (val === 'strength') {
       onUpdate({ training_type: 'strength', is_rest_day: false, run_details: null });
     } else if (val === 'running') {
       onUpdate({ training_type: 'running', is_rest_day: false });
     } else {
-      onUpdate({ training_type: null, is_rest_day: false, template_id: null, template_name: null, notes: null, run_details: null });
+      onUpdate({
+        training_type: null,
+        is_rest_day: false,
+        template_id: null,
+        template_name: null,
+        notes: null,
+        run_details: null,
+      });
     }
   };
 
@@ -189,7 +193,7 @@ export function DayCard({
                 <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
                 <span className="text-xs font-medium text-[var(--color-text-base)]">
                   {entry.run_details?.run_type
-                    ? RUN_TYPE_SHORT[entry.run_details.run_type] ?? entry.run_details.run_type
+                    ? (RUN_TYPE_SHORT[entry.run_details.run_type] ?? entry.run_details.run_type)
                     : 'Laufen'}
                 </span>
               </div>
@@ -257,7 +261,7 @@ export function DayCard({
         <div className="px-[var(--spacing-sm)] pb-[var(--spacing-sm)] pt-[var(--spacing-sm)] border-t border-[var(--color-border-muted)] space-y-3">
           <Select
             options={TYPE_OPTIONS}
-            value={entry.is_rest_day ? 'rest' : entry.training_type ?? ''}
+            value={entry.is_rest_day ? 'rest' : (entry.training_type ?? '')}
             onChange={(val) => handleTypeChange(val ?? '')}
             inputSize="sm"
             aria-label="Trainingstyp"

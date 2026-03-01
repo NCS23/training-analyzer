@@ -285,7 +285,8 @@ async def test_duplicate_running_template(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_from_session_strength(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     exercises = [
         {
@@ -322,7 +323,8 @@ async def test_from_session_strength(
 
 @pytest.mark.anyio
 async def test_from_session_running(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     workout = WorkoutModel(
         date=datetime(2026, 3, 1),
@@ -347,7 +349,8 @@ async def test_from_session_running(
 
 @pytest.mark.anyio
 async def test_from_session_long_run(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     workout = WorkoutModel(
         date=datetime(2026, 3, 1),

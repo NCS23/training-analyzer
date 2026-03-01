@@ -406,10 +406,7 @@ export function ExerciseDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -39,9 +39,7 @@ def _model_to_response(tmpl: SessionTemplateModel) -> SessionTemplateResponse:
         raw = json.loads(str(tmpl.exercises_json))
         exercises = [TemplateExercise(**ex) for ex in raw]
 
-    run_details = _parse_run_details(
-        str(tmpl.run_details_json) if tmpl.run_details_json else None
-    )
+    run_details = _parse_run_details(str(tmpl.run_details_json) if tmpl.run_details_json else None)
 
     return SessionTemplateResponse(
         id=int(tmpl.id),  # type: ignore[arg-type]
@@ -261,9 +259,7 @@ async def create_from_session(
     db: AsyncSession = Depends(get_db),
 ) -> SessionTemplateResponse:
     """Create a template from an existing session."""
-    result = await db.execute(
-        select(WorkoutModel).where(WorkoutModel.id == session_id)
-    )
+    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
@@ -277,15 +273,23 @@ async def create_from_session(
             template_exercises = []
             for ex in raw_exercises:
                 sets = ex.get("sets", [])
-                template_exercises.append({
-                    "name": ex.get("name", "Unbekannt"),
-                    "category": ex.get("category", "legs"),
-                    "sets": len(sets) if isinstance(sets, list) else int(ex.get("sets_count", 1)),
-                    "reps": int(sets[0].get("reps", 10)) if isinstance(sets, list) and sets else 10,
-                    "weight_kg": float(sets[0].get("weight_kg", 0)) if isinstance(sets, list) and sets else None,
-                    "exercise_type": ex.get("exercise_type", "kraft"),
-                    "notes": ex.get("notes"),
-                })
+                template_exercises.append(
+                    {
+                        "name": ex.get("name", "Unbekannt"),
+                        "category": ex.get("category", "legs"),
+                        "sets": len(sets)
+                        if isinstance(sets, list)
+                        else int(ex.get("sets_count", 1)),
+                        "reps": int(sets[0].get("reps", 10))
+                        if isinstance(sets, list) and sets
+                        else 10,
+                        "weight_kg": float(sets[0].get("weight_kg", 0))
+                        if isinstance(sets, list) and sets
+                        else None,
+                        "exercise_type": ex.get("exercise_type", "kraft"),
+                        "notes": ex.get("notes"),
+                    }
+                )
             exercises_data = json.dumps(template_exercises)
 
         tmpl = SessionTemplateModel(

@@ -57,9 +57,7 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
         focus = PhaseFocus(**raw_focus)
 
     target_metrics: Optional[PhaseTargetMetrics] = None
-    raw_metrics = _parse_json(
-        str(phase.target_metrics_json) if phase.target_metrics_json else None
-    )
+    raw_metrics = _parse_json(str(phase.target_metrics_json) if phase.target_metrics_json else None)
     if raw_metrics:
         target_metrics = PhaseTargetMetrics(**raw_metrics)
 
@@ -86,15 +84,14 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
 
 
 async def _get_goal_summary(
-    db: AsyncSession, goal_id: Optional[int],
+    db: AsyncSession,
+    goal_id: Optional[int],
 ) -> Optional[GoalSummary]:
     if goal_id is None:
         return None
     goal_id_int = int(goal_id)
     result = await db.execute(
-        select(RaceGoalModel.id, RaceGoalModel.title).where(
-            RaceGoalModel.id == goal_id_int
-        )
+        select(RaceGoalModel.id, RaceGoalModel.title).where(RaceGoalModel.id == goal_id_int)
     )
     row = result.one_or_none()
     if not row:
@@ -103,7 +100,8 @@ async def _get_goal_summary(
 
 
 async def _plan_to_response(
-    db: AsyncSession, plan: TrainingPlanModel,
+    db: AsyncSession,
+    plan: TrainingPlanModel,
 ) -> TrainingPlanResponse:
     # Fetch phases
     result = await db.execute(
@@ -119,9 +117,7 @@ async def _plan_to_response(
 
     # Weekly structure
     weekly_structure: Optional[WeeklyStructure] = None
-    raw_ws = _parse_json(
-        str(plan.weekly_structure_json) if plan.weekly_structure_json else None
-    )
+    raw_ws = _parse_json(str(plan.weekly_structure_json) if plan.weekly_structure_json else None)
     if raw_ws:
         weekly_structure = WeeklyStructure(**raw_ws)
 
@@ -143,7 +139,8 @@ async def _plan_to_response(
 
 
 async def _plan_to_summary(
-    db: AsyncSession, plan: TrainingPlanModel,
+    db: AsyncSession,
+    plan: TrainingPlanModel,
 ) -> TrainingPlanSummary:
     # Phase count
     result = await db.execute(
@@ -179,7 +176,8 @@ async def _plan_to_summary(
 
 
 def _create_phase_model(
-    plan_id: int, data: TrainingPhaseCreate,
+    plan_id: int,
+    data: TrainingPhaseCreate,
 ) -> TrainingPhaseModel:
     focus_json: Optional[str] = None
     if data.focus:
@@ -247,9 +245,7 @@ async def create_plan(
     if data.goal and not goal_id:
         # Check if a goal with this title already exists
         existing_result = await db.execute(
-            select(RaceGoalModel).where(
-                func.lower(RaceGoalModel.title) == data.goal.title.lower()
-            )
+            select(RaceGoalModel).where(func.lower(RaceGoalModel.title) == data.goal.title.lower())
         )
         existing_goal = existing_result.scalar_one_or_none()
         if existing_goal:
@@ -293,15 +289,14 @@ async def create_plan(
     if data.phases:
         for phase_data in data.phases:
             phase = _create_phase_model(
-                int(plan.id), phase_data,  # type: ignore[arg-type]
+                int(plan.id),
+                phase_data,  # type: ignore[arg-type]
             )
             db.add(phase)
 
     # S09: Set bidirectional link on goal
     if goal_id:
-        goal_result = await db.execute(
-            select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
-        )
+        goal_result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == goal_id))
         goal_obj = goal_result.scalar_one_or_none()
         if goal_obj:
             goal_obj.training_plan_id = plan.id  # type: ignore[assignment]
@@ -351,14 +346,16 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
                     is_rest = day_entry.get("rest", False)
                     training_type = day_entry.get("type") if not is_rest else None
                     run_type = day_entry.get("run_type") if training_type == "running" else None
-                    days.append({
-                        "day_of_week": day_of_week,
-                        "training_type": training_type,
-                        "is_rest_day": bool(is_rest),
-                        "run_type": run_type,
-                        "template_id": None,
-                        "notes": day_entry.get("notes"),
-                    })
+                    days.append(
+                        {
+                            "day_of_week": day_of_week,
+                            "training_type": training_type,
+                            "is_rest_day": bool(is_rest),
+                            "run_type": run_type,
+                            "template_id": None,
+                            "notes": day_entry.get("notes"),
+                        }
+                    )
                 mapped["weekly_template"] = {"days": days}
 
             result["phases"].append(mapped)
@@ -400,9 +397,7 @@ async def import_plan_from_yaml(
     goal_title = raw.get("goal_title")
     if goal_title and not raw.get("goal_id") and not raw.get("goal"):
         result = await db.execute(
-            select(RaceGoalModel.id).where(
-                func.lower(RaceGoalModel.title) == goal_title.lower()
-            )
+            select(RaceGoalModel.id).where(func.lower(RaceGoalModel.title) == goal_title.lower())
         )
         found_goal_id = result.scalar_one_or_none()
         if found_goal_id:
@@ -435,9 +430,7 @@ async def generate_plan_weeks(
     Manual entries (plan_id=NULL) are preserved.
     """
     # Load plan
-    result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
-    )
+    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -482,9 +475,7 @@ async def generate_plan_weeks(
 
     # Delete old entries: (1) by plan_id, (2) by week_start for legacy/manual
     old_by_plan = await db.execute(
-        select(WeeklyPlanEntryModel).where(
-            WeeklyPlanEntryModel.plan_id == plan_id
-        )
+        select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.plan_id == plan_id)
     )
     for old_entry in old_by_plan.scalars().all():
         await db.delete(old_entry)
@@ -537,9 +528,7 @@ async def get_plan(
     db: AsyncSession = Depends(get_db),
 ) -> TrainingPlanResponse:
     """Get a training plan with its phases and goal summary."""
-    result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
-    )
+    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -553,9 +542,7 @@ async def update_plan(
     db: AsyncSession = Depends(get_db),
 ) -> TrainingPlanResponse:
     """Update a training plan."""
-    result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
-    )
+    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -610,9 +597,7 @@ async def delete_plan(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a training plan and cascade-delete its phases."""
-    result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
-    )
+    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -628,9 +613,7 @@ async def delete_plan(
 
     # Delete all phases
     phase_result = await db.execute(
-        select(TrainingPhaseModel).where(
-            TrainingPhaseModel.training_plan_id == plan_id
-        )
+        select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan_id)
     )
     for phase in phase_result.scalars().all():
         await db.delete(phase)
@@ -674,9 +657,7 @@ async def create_phase(
     db: AsyncSession = Depends(get_db),
 ) -> TrainingPhaseResponse:
     """Add a phase to a training plan."""
-    plan_result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
-    )
+    plan_result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     if not plan_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 

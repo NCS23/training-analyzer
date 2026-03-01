@@ -55,9 +55,7 @@ export interface TrainingBalanceResponse {
 
 // --- API ---
 
-export async function getTrainingBalance(
-  days: number = 28,
-): Promise<TrainingBalanceResponse> {
+export async function getTrainingBalance(days: number = 28): Promise<TrainingBalanceResponse> {
   const response = await apiClient.get<TrainingBalanceResponse>(
     `/api/v1/training-balance?days=${days}`,
   );

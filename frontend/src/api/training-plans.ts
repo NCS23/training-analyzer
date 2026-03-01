@@ -143,9 +143,7 @@ export interface TrainingPhaseUpdateParams {
 
 // --- Plan API Functions ---
 
-export async function listTrainingPlans(
-  status?: PlanStatus,
-): Promise<TrainingPlanListResponse> {
+export async function listTrainingPlans(status?: PlanStatus): Promise<TrainingPlanListResponse> {
   const params = new URLSearchParams();
   if (status) params.set('status', status);
 
@@ -162,9 +160,7 @@ export async function getTrainingPlan(planId: number): Promise<TrainingPlan> {
   return response.data;
 }
 
-export async function createTrainingPlan(
-  params: TrainingPlanCreateParams,
-): Promise<TrainingPlan> {
+export async function createTrainingPlan(params: TrainingPlanCreateParams): Promise<TrainingPlan> {
   const response = await apiClient.post<TrainingPlan>('/api/v1/training-plans', params);
   return response.data;
 }
@@ -173,10 +169,7 @@ export async function updateTrainingPlan(
   planId: number,
   params: TrainingPlanUpdateParams,
 ): Promise<TrainingPlan> {
-  const response = await apiClient.patch<TrainingPlan>(
-    `/api/v1/training-plans/${planId}`,
-    params,
-  );
+  const response = await apiClient.patch<TrainingPlan>(`/api/v1/training-plans/${planId}`, params);
   return response.data;
 }
 
@@ -187,20 +180,16 @@ export async function deleteTrainingPlan(planId: number): Promise<void> {
 export async function importTrainingPlanYaml(file: File): Promise<TrainingPlan> {
   const formData = new FormData();
   formData.append('yaml_file', file);
-  const response = await apiClient.post<TrainingPlan>(
-    '/api/v1/training-plans/import',
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
-  );
+  const response = await apiClient.post<TrainingPlan>('/api/v1/training-plans/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return response.data;
 }
 
 // --- Phase API Functions ---
 
 export async function listPhases(planId: number): Promise<TrainingPhase[]> {
-  const response = await apiClient.get<TrainingPhase[]>(
-    `/api/v1/training-plans/${planId}/phases`,
-  );
+  const response = await apiClient.get<TrainingPhase[]>(`/api/v1/training-plans/${planId}/phases`);
   return response.data;
 }
 
@@ -238,9 +227,7 @@ export interface GenerateWeeklyPlansResponse {
   total_weeks: number;
 }
 
-export async function generateWeeklyPlans(
-  planId: number,
-): Promise<GenerateWeeklyPlansResponse> {
+export async function generateWeeklyPlans(planId: number): Promise<GenerateWeeklyPlansResponse> {
   const response = await apiClient.post<GenerateWeeklyPlansResponse>(
     `/api/v1/training-plans/${planId}/generate`,
     {},

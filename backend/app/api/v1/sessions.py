@@ -43,7 +43,8 @@ fit_parser = TrainingFITParser()
 
 
 async def _auto_match_planned_entry(
-    db: AsyncSession, workout: WorkoutModel,
+    db: AsyncSession,
+    workout: WorkoutModel,
 ) -> None:
     """Auto-match a workout to a planned weekly plan entry (S10).
 

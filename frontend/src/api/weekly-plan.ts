@@ -81,9 +81,7 @@ export interface ComplianceResponse {
 
 // --- API Functions ---
 
-export async function getWeeklyPlan(
-  weekStart?: string,
-): Promise<WeeklyPlanResponse> {
+export async function getWeeklyPlan(weekStart?: string): Promise<WeeklyPlanResponse> {
   const params = new URLSearchParams();
   if (weekStart) params.set('week_start', weekStart);
 
@@ -95,19 +93,12 @@ export async function getWeeklyPlan(
   return response.data;
 }
 
-export async function saveWeeklyPlan(
-  data: WeeklyPlanSaveRequest,
-): Promise<WeeklyPlanResponse> {
-  const response = await apiClient.put<WeeklyPlanResponse>(
-    '/api/v1/weekly-plan',
-    data,
-  );
+export async function saveWeeklyPlan(data: WeeklyPlanSaveRequest): Promise<WeeklyPlanResponse> {
+  const response = await apiClient.put<WeeklyPlanResponse>('/api/v1/weekly-plan', data);
   return response.data;
 }
 
-export async function clearWeeklyPlan(
-  weekStart?: string,
-): Promise<{ success: boolean }> {
+export async function clearWeeklyPlan(weekStart?: string): Promise<{ success: boolean }> {
   const params = new URLSearchParams();
   if (weekStart) params.set('week_start', weekStart);
 
@@ -119,9 +110,7 @@ export async function clearWeeklyPlan(
   return response.data;
 }
 
-export async function getCompliance(
-  weekStart?: string,
-): Promise<ComplianceResponse> {
+export async function getCompliance(weekStart?: string): Promise<ComplianceResponse> {
   const params = new URLSearchParams();
   if (weekStart) params.set('week_start', weekStart);
 

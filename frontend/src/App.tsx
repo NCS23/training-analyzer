@@ -149,7 +149,10 @@ function App() {
                   <Route path="/settings/plans/:planId" element={<TrainingPlanEditorPage />} />
                   <Route path="/settings/templates" element={<SessionTemplatesPage />} />
                   <Route path="/settings/templates/new" element={<SessionTemplateEditorPage />} />
-                  <Route path="/settings/templates/:templateId" element={<SessionTemplateEditorPage />} />
+                  <Route
+                    path="/settings/templates/:templateId"
+                    element={<SessionTemplateEditorPage />}
+                  />
                   <Route path="/settings/goals" element={<GoalsPage />} />
                   <Route path="/settings/athlete" element={<AthleteProfilePage />} />
                   <Route path="*" element={<NotFoundPage />} />

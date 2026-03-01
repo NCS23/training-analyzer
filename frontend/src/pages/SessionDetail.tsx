@@ -520,7 +520,9 @@ export function SessionDetailPage() {
       <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
-            <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
+            <Link to="/sessions" className="hover:underline underline-offset-2">
+              Sessions
+            </Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
         </Breadcrumbs>
@@ -556,7 +558,9 @@ export function SessionDetailPage() {
       <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
-            <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
+            <Link to="/sessions" className="hover:underline underline-offset-2">
+              Sessions
+            </Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
         </Breadcrumbs>
@@ -572,7 +576,14 @@ export function SessionDetailPage() {
   const hrZones = session.hr_zones;
 
   // Collect all metrics into a flat list for a clean grid
-  type MetricItem = { label: string; value: string; unit: string; icon: LucideIcon; kind?: 'rpe' | 'combined-hr'; rpeValue?: number };
+  type MetricItem = {
+    label: string;
+    value: string;
+    unit: string;
+    icon: LucideIcon;
+    kind?: 'rpe' | 'combined-hr';
+    rpeValue?: number;
+  };
   const metrics: MetricItem[] = [];
   if (session.duration_sec != null)
     metrics.push({
@@ -680,77 +691,79 @@ export function SessionDetailPage() {
     <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
       {/* Breadcrumbs */}
       <div className="space-y-1">
-      <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-        <BreadcrumbItem>
-          <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
-        </BreadcrumbItem>
-        <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
-      </Breadcrumbs>
+        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+          <BreadcrumbItem>
+            <Link to="/sessions" className="hover:underline underline-offset-2">
+              Sessions
+            </Link>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
+        </Breadcrumbs>
 
-      {/* Page header */}
-      <header className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)]">
-              {workoutTypeHeadings[session.workout_type] || session.workout_type}{' '}
-              {formatDateShort(session.date)}
-            </h1>
-            {trainingTypeInfo?.effective && (
-              <Badge
-                variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
-                size="xs"
-              >
-                {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-              </Badge>
-            )}
+        {/* Page header */}
+        <header className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)]">
+                {workoutTypeHeadings[session.workout_type] || session.workout_type}{' '}
+                {formatDateShort(session.date)}
+              </h1>
+              {trainingTypeInfo?.effective && (
+                <Badge
+                  variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
+                  size="xs"
+                >
+                  {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-              <EllipsisVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              icon={<Pencil />}
-              disabled={isEditing}
-              onSelect={() => setIsEditing(true)}
-            >
-              Bearbeiten
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              icon={<BookmarkPlus />}
-              onSelect={async () => {
-                try {
-                  await createTemplateFromSession(Number(id));
-                  toast({
-                    title: 'Template erstellt',
-                    description: 'Session wurde als Template gespeichert.',
-                    variant: 'success',
-                  });
-                } catch {
-                  toast({
-                    title: 'Fehler',
-                    description: 'Template konnte nicht erstellt werden.',
-                    variant: 'error',
-                  });
-                }
-              }}
-            >
-              Als Template speichern
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              icon={<Trash2 />}
-              destructive
-              onSelect={() => setShowDeleteConfirm(true)}
-            >
-              Löschen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+                <EllipsisVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                icon={<Pencil />}
+                disabled={isEditing}
+                onSelect={() => setIsEditing(true)}
+              >
+                Bearbeiten
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                icon={<BookmarkPlus />}
+                onSelect={async () => {
+                  try {
+                    await createTemplateFromSession(Number(id));
+                    toast({
+                      title: 'Template erstellt',
+                      description: 'Session wurde als Template gespeichert.',
+                      variant: 'success',
+                    });
+                  } catch {
+                    toast({
+                      title: 'Fehler',
+                      description: 'Template konnte nicht erstellt werden.',
+                      variant: 'error',
+                    });
+                  }
+                }}
+              >
+                Als Template speichern
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                icon={<Trash2 />}
+                destructive
+                onSelect={() => setShowDeleteConfirm(true)}
+              >
+                Löschen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
       </div>
 
       {/* Delete confirmation dialog */}
@@ -765,10 +778,7 @@ export function SessionDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -939,7 +949,8 @@ export function SessionDetailPage() {
                     <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
                       {m.value}
                       <span className="text-[11px] sm:text-[14px] font-normal text-[var(--color-text-muted)]">
-                        {' '}{m.unit}
+                        {' '}
+                        {m.unit}
                       </span>
                     </p>
                   ) : (
@@ -947,7 +958,8 @@ export function SessionDetailPage() {
                       {m.value}
                       {m.unit && (
                         <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
-                          {' '}{m.unit}
+                          {' '}
+                          {m.unit}
                         </span>
                       )}
                     </p>

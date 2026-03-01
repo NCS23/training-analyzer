@@ -96,11 +96,7 @@ export function SessionTemplatesPage() {
               Vorlagen für Kraft- und Lauftraining erstellen und verwalten.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/settings/templates/new')}
-          >
+          <Button variant="primary" size="sm" onClick={() => navigate('/settings/templates/new')}>
             <Plus className="w-4 h-4 mr-1" />
             Neues Template
           </Button>
@@ -158,7 +154,7 @@ export function SessionTemplatesPage() {
                     </span>
                     <span className="text-xs text-[var(--color-text-muted)]">
                       {tmpl.session_type === 'running'
-                        ? tmpl.run_type ?? 'Lauf-Template'
+                        ? (tmpl.run_type ?? 'Lauf-Template')
                         : `${tmpl.exercise_count} Übungen · ${tmpl.total_sets} Sätze`}
                     </span>
                   </button>
@@ -178,10 +174,7 @@ export function SessionTemplatesPage() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        icon={<Copy />}
-                        onSelect={() => handleDuplicate(tmpl.id)}
-                      >
+                      <DropdownMenuItem icon={<Copy />} onSelect={() => handleDuplicate(tmpl.id)}>
                         Duplizieren
                       </DropdownMenuItem>
                       <DropdownMenuItem

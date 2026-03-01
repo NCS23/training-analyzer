@@ -225,34 +225,31 @@ export function StrengthSessionPage() {
 
   // --- Load from plan ---
 
-  const loadFromPlan = useCallback(
-    async (planId: number) => {
-      setLoadingPlan(true);
-      try {
-        const plan = await getSessionTemplate(planId);
-        const loadedExercises: ExerciseForm[] = plan.exercises.map((ex) => ({
+  const loadFromPlan = useCallback(async (planId: number) => {
+    setLoadingPlan(true);
+    try {
+      const plan = await getSessionTemplate(planId);
+      const loadedExercises: ExerciseForm[] = plan.exercises.map((ex) => ({
+        id: genId(),
+        name: ex.name,
+        category: ex.category as ExerciseCategory,
+        sets: Array.from({ length: ex.sets }, () => ({
           id: genId(),
-          name: ex.name,
-          category: ex.category as ExerciseCategory,
-          sets: Array.from({ length: ex.sets }, () => ({
-            id: genId(),
-            reps: ex.reps,
-            weight_kg: ex.weight_kg ?? 0,
-            status: 'completed' as SetStatus,
-          })),
-          collapsed: false,
-        }));
-        if (loadedExercises.length > 0) {
-          setExercises(loadedExercises);
-        }
-      } catch {
-        setError('Plan konnte nicht geladen werden.');
-      } finally {
-        setLoadingPlan(false);
+          reps: ex.reps,
+          weight_kg: ex.weight_kg ?? 0,
+          status: 'completed' as SetStatus,
+        })),
+        collapsed: false,
+      }));
+      if (loadedExercises.length > 0) {
+        setExercises(loadedExercises);
       }
-    },
-    [],
-  );
+    } catch {
+      setError('Plan konnte nicht geladen werden.');
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, []);
 
   // --- Exercise name suggestions ---
 
@@ -260,9 +257,7 @@ export function StrengthSessionPage() {
     (query: string): Exercise[] => {
       if (!query.trim()) return libraryExercises.slice(0, 10);
       const lower = query.toLowerCase();
-      return libraryExercises
-        .filter((ex) => ex.name.toLowerCase().includes(lower))
-        .slice(0, 8);
+      return libraryExercises.filter((ex) => ex.name.toLowerCase().includes(lower)).slice(0, 8);
     },
     [libraryExercises],
   );
@@ -341,12 +336,7 @@ export function StrengthSessionPage() {
       {/* Header */}
       <header className="pb-2">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            aria-label="Zurück"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Zurück">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -371,7 +361,10 @@ export function StrengthSessionPage() {
         <CardBody>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="training-date" className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+              <Label
+                htmlFor="training-date"
+                className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
+              >
                 Datum
               </Label>
               <DatePicker
@@ -382,7 +375,10 @@ export function StrengthSessionPage() {
               />
             </div>
             <div>
-              <Label htmlFor="duration" className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+              <Label
+                htmlFor="duration"
+                className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
+              >
                 Dauer (Minuten)
               </Label>
               <NumberInput
@@ -450,7 +446,9 @@ export function StrengthSessionPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => updateExercise(exercise.id, { collapsed: !exercise.collapsed })}
+                        onClick={() =>
+                          updateExercise(exercise.id, { collapsed: !exercise.collapsed })
+                        }
                         aria-label={exercise.collapsed ? 'Aufklappen' : 'Zuklappen'}
                       >
                         {exercise.collapsed ? (
@@ -474,7 +472,10 @@ export function StrengthSessionPage() {
                 {/* Exercise Name (with suggestions) */}
                 {!exercise.collapsed && (
                   <>
-                    <div className="relative" ref={showSuggestions === exercise.id ? suggestionsRef : undefined}>
+                    <div
+                      className="relative"
+                      ref={showSuggestions === exercise.id ? suggestionsRef : undefined}
+                    >
                       <Input
                         value={exercise.name}
                         onChange={(e) => {
@@ -535,9 +536,13 @@ export function StrengthSessionPage() {
                       <div className="space-y-2">
                         {/* Header row */}
                         <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center px-1">
-                          <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">#</span>
+                          <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">
+                            #
+                          </span>
                           <span className="text-xs text-[var(--color-text-muted)]">Reps</span>
-                          <span className="text-xs text-[var(--color-text-muted)]">Gewicht (kg)</span>
+                          <span className="text-xs text-[var(--color-text-muted)]">
+                            Gewicht (kg)
+                          </span>
                           <span className="w-8" />
                         </div>
 
@@ -546,17 +551,20 @@ export function StrengthSessionPage() {
                           <div
                             key={set.id}
                             className={`grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center rounded-[var(--radius-component-md)] px-1 py-1 ${
-                              set.status === 'skipped'
-                                ? 'opacity-50'
-                                : ''
+                              set.status === 'skipped' ? 'opacity-50' : ''
                             }`}
                           >
                             <button
                               type="button"
                               onClick={() => {
-                                const statusCycle: SetStatus[] = ['completed', 'reduced', 'skipped'];
+                                const statusCycle: SetStatus[] = [
+                                  'completed',
+                                  'reduced',
+                                  'skipped',
+                                ];
                                 const currentIdx = statusCycle.indexOf(set.status);
-                                const nextStatus = statusCycle[(currentIdx + 1) % statusCycle.length];
+                                const nextStatus =
+                                  statusCycle[(currentIdx + 1) % statusCycle.length];
                                 updateSet(exercise.id, set.id, { status: nextStatus });
                               }}
                               className={`w-6 h-6 rounded-full text-xs font-medium flex items-center justify-center transition-colors duration-150 motion-reduce:transition-none ${
@@ -605,11 +613,7 @@ export function StrengthSessionPage() {
 
                         {/* Add set + Quick-Add */}
                         <div className="flex items-center gap-2 pt-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => addSet(exercise.id)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => addSet(exercise.id)}>
                             <Plus className="w-3.5 h-3.5 mr-1" />
                             Satz
                           </Button>
@@ -632,11 +636,10 @@ export function StrengthSessionPage() {
                 {/* Collapsed summary */}
                 {exercise.collapsed && exercise.name && (
                   <p className="text-sm text-[var(--color-text-muted)]">
-                    {exercise.sets.length} Sätze · {exercise.sets.reduce((sum, s) => sum + s.reps, 0)} Reps ·{' '}
-                    {Math.round(
-                      exercise.sets.reduce((sum, s) => sum + s.reps * s.weight_kg, 0),
-                    )}{' '}
-                    kg Tonnage
+                    {exercise.sets.length} Sätze ·{' '}
+                    {exercise.sets.reduce((sum, s) => sum + s.reps, 0)} Reps ·{' '}
+                    {Math.round(exercise.sets.reduce((sum, s) => sum + s.reps * s.weight_kg, 0))} kg
+                    Tonnage
                   </p>
                 )}
               </div>
@@ -645,11 +648,7 @@ export function StrengthSessionPage() {
         ))}
 
         {/* Add exercise button */}
-        <Button
-          variant="secondary"
-          onClick={addExercise}
-          className="w-full"
-        >
+        <Button variant="secondary" onClick={addExercise} className="w-full">
           <Plus className="w-4 h-4 mr-2" />
           Übung hinzufügen
         </Button>
@@ -680,7 +679,10 @@ export function StrengthSessionPage() {
 
             {/* Notes */}
             <div>
-              <Label htmlFor="notes" className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+              <Label
+                htmlFor="notes"
+                className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
+              >
                 Notizen (optional)
               </Label>
               <textarea
@@ -705,11 +707,7 @@ export function StrengthSessionPage() {
           className="w-full"
           size="lg"
         >
-          {submitting ? (
-            <Spinner size="sm" className="mr-2" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
+          {submitting ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
           {submitting ? 'Speichern...' : 'Training speichern'}
         </Button>
       </div>

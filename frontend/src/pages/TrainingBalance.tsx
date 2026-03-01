@@ -18,15 +18,7 @@ import {
   Info,
   TrendingUp,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTrainingBalance } from '@/api/training-balance';
 import type { TrainingBalanceResponse } from '@/api/training-balance';
 
@@ -128,9 +120,7 @@ export function TrainingBalancePage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--color-text-primary)]" />
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Trainingsmix
-              </h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Trainingsmix</h2>
             </div>
           </CardHeader>
           <CardBody>
@@ -202,10 +192,7 @@ export function TrainingBalancePage() {
                     {data.intensity.easy_percent.toFixed(0)}%
                   </span>
                 </div>
-                <Progress
-                  value={data.intensity.easy_percent}
-                  color="success"
-                />
+                <Progress value={data.intensity.easy_percent} color="success" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -216,10 +203,7 @@ export function TrainingBalancePage() {
                     {data.intensity.moderate_percent.toFixed(0)}%
                   </span>
                 </div>
-                <Progress
-                  value={data.intensity.moderate_percent}
-                  color="warning"
-                />
+                <Progress value={data.intensity.moderate_percent} color="warning" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -230,10 +214,7 @@ export function TrainingBalancePage() {
                     {data.intensity.hard_percent.toFixed(0)}%
                   </span>
                 </div>
-                <Progress
-                  value={data.intensity.hard_percent}
-                  color="error"
-                />
+                <Progress value={data.intensity.hard_percent} color="error" />
               </div>
             </div>
           </CardBody>
@@ -246,9 +227,7 @@ export function TrainingBalancePage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Footprints className="w-4 h-4 text-[var(--color-text-primary)]" />
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Wochenvolumen
-              </h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Wochenvolumen</h2>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               Lauf-Kilometer pro Woche. Rot markiert = &gt;10% Steigerung.
@@ -316,9 +295,7 @@ export function TrainingBalancePage() {
               {data.muscle_groups.map((mg) => (
                 <div key={mg.group}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-[var(--color-text-base)]">
-                      {mg.group}
-                    </span>
+                    <span className="text-xs text-[var(--color-text-base)]">{mg.group}</span>
                     <span className="text-xs text-[var(--color-text-muted)]">
                       {mg.total_sets} Sätze · {mg.percentage.toFixed(0)}%
                     </span>
@@ -337,9 +314,7 @@ export function TrainingBalancePage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 text-[var(--color-text-primary)]" />
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Erkenntnisse
-              </h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Erkenntnisse</h2>
             </div>
           </CardHeader>
           <CardBody>
@@ -348,16 +323,9 @@ export function TrainingBalancePage() {
                 const InsightIcon = INSIGHT_ICONS[insight.type];
                 const colorClass = INSIGHT_COLORS[insight.type];
                 return (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5"
-                  >
-                    <InsightIcon
-                      className={`w-4 h-4 mt-0.5 shrink-0 ${colorClass}`}
-                    />
-                    <p className="text-sm text-[var(--color-text-base)]">
-                      {insight.message}
-                    </p>
+                  <div key={i} className="flex items-start gap-2.5">
+                    <InsightIcon className={`w-4 h-4 mt-0.5 shrink-0 ${colorClass}`} />
+                    <p className="text-sm text-[var(--color-text-base)]">{insight.message}</p>
                   </div>
                 );
               })}

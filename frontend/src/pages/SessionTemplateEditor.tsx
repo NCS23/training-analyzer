@@ -31,11 +31,7 @@ import {
   getSessionTemplate,
   updateSessionTemplate,
 } from '@/api/session-templates';
-import type {
-  ExerciseCategory,
-  ExerciseType,
-  TemplateExercise,
-} from '@/api/session-templates';
+import type { ExerciseCategory, ExerciseType, TemplateExercise } from '@/api/session-templates';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
@@ -131,9 +127,7 @@ export function SessionTemplateEditorPage() {
   // Form state
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
-  const [exercises, setExercises] = useState<ExerciseForm[]>([
-    createDefaultExercise(),
-  ]);
+  const [exercises, setExercises] = useState<ExerciseForm[]>([createDefaultExercise()]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState<string | null>(null);
@@ -173,10 +167,7 @@ export function SessionTemplateEditorPage() {
   // Close suggestions on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(e.target as Node)
-      ) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
         setShowSuggestions(null);
       }
     }
@@ -186,14 +177,9 @@ export function SessionTemplateEditorPage() {
 
   // --- Exercise CRUD ---
 
-  const updateExercise = useCallback(
-    (exerciseId: string, updates: Partial<ExerciseForm>) => {
-      setExercises((prev) =>
-        prev.map((ex) => (ex.id === exerciseId ? { ...ex, ...updates } : ex)),
-      );
-    },
-    [],
-  );
+  const updateExercise = useCallback((exerciseId: string, updates: Partial<ExerciseForm>) => {
+    setExercises((prev) => prev.map((ex) => (ex.id === exerciseId ? { ...ex, ...updates } : ex)));
+  }, []);
 
   const removeExercise = useCallback((exerciseId: string) => {
     setExercises((prev) => {
@@ -222,9 +208,7 @@ export function SessionTemplateEditorPage() {
     (query: string): Exercise[] => {
       if (!query.trim()) return libraryExercises.slice(0, 10);
       const lower = query.toLowerCase();
-      return libraryExercises
-        .filter((ex) => ex.name.toLowerCase().includes(lower))
-        .slice(0, 8);
+      return libraryExercises.filter((ex) => ex.name.toLowerCase().includes(lower)).slice(0, 8);
     },
     [libraryExercises],
   );
@@ -287,15 +271,7 @@ export function SessionTemplateEditorPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [
-    templateName,
-    description,
-    exercises,
-    isEdit,
-    templateId,
-    navigate,
-    toast,
-  ]);
+  }, [templateName, description, exercises, isEdit, templateId, navigate, toast]);
 
   if (loading) {
     return (
@@ -316,16 +292,11 @@ export function SessionTemplateEditorPage() {
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem>
-            <Link
-              to="/settings/templates"
-              className="hover:underline underline-offset-2"
-            >
+            <Link to="/settings/templates" className="hover:underline underline-offset-2">
               Session-Templates
             </Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>
-            {isEdit ? 'Bearbeiten' : 'Neues Template'}
-          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>{isEdit ? 'Bearbeiten' : 'Neues Template'}</BreadcrumbItem>
         </Breadcrumbs>
         <header className="flex items-center gap-3">
           <Button
@@ -411,8 +382,7 @@ export function SessionTemplateEditorPage() {
                     </span>
                     {exercise.name && (
                       <Badge variant="info" size="xs">
-                        {CATEGORY_LABELS[exercise.category] ??
-                          exercise.category}
+                        {CATEGORY_LABELS[exercise.category] ?? exercise.category}
                       </Badge>
                     )}
                   </div>
@@ -437,9 +407,7 @@ export function SessionTemplateEditorPage() {
                             collapsed: !exercise.collapsed,
                           })
                         }
-                        aria-label={
-                          exercise.collapsed ? 'Aufklappen' : 'Zuklappen'
-                        }
+                        aria-label={exercise.collapsed ? 'Aufklappen' : 'Zuklappen'}
                       >
                         {exercise.collapsed ? (
                           <ChevronDown className="w-4 h-4" />
@@ -465,11 +433,7 @@ export function SessionTemplateEditorPage() {
                     {/* Name + suggestions */}
                     <div
                       className="relative"
-                      ref={
-                        showSuggestions === exercise.id
-                          ? suggestionsRef
-                          : undefined
-                      }
+                      ref={showSuggestions === exercise.id ? suggestionsRef : undefined}
                     >
                       <Input
                         value={exercise.name}
@@ -490,9 +454,7 @@ export function SessionTemplateEditorPage() {
                               key={ex.id}
                               type="button"
                               className="w-full text-left px-3 py-2.5 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-muted)] transition-colors duration-150 motion-reduce:transition-none flex items-center justify-between"
-                              onClick={() =>
-                                selectSuggestion(exercise.id, ex)
-                              }
+                              onClick={() => selectSuggestion(exercise.id, ex)}
                             >
                               <span>{ex.name}</span>
                               <Badge variant="neutral" size="xs">
@@ -500,8 +462,7 @@ export function SessionTemplateEditorPage() {
                               </Badge>
                             </button>
                           ))}
-                          {getFilteredSuggestions(exercise.name).length ===
-                            0 && (
+                          {getFilteredSuggestions(exercise.name).length === 0 && (
                             <p className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">
                               Keine Übung gefunden.
                             </p>
@@ -514,9 +475,7 @@ export function SessionTemplateEditorPage() {
                     {exercise.name && (
                       <>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            Kategorie:
-                          </span>
+                          <span className="text-xs text-[var(--color-text-muted)]">Kategorie:</span>
                           {CATEGORY_OPTIONS.map((cat) => (
                             <button
                               key={cat.value}
@@ -538,9 +497,7 @@ export function SessionTemplateEditorPage() {
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            Typ:
-                          </span>
+                          <span className="text-xs text-[var(--color-text-muted)]">Typ:</span>
                           {EXERCISE_TYPE_OPTIONS.map((t) => (
                             <button
                               key={t.value}
@@ -569,9 +526,7 @@ export function SessionTemplateEditorPage() {
                             </Label>
                             <NumberInput
                               value={exercise.sets}
-                              onChange={(val) =>
-                                updateExercise(exercise.id, { sets: val })
-                              }
+                              onChange={(val) => updateExercise(exercise.id, { sets: val })}
                               min={1}
                               max={20}
                               step={1}
@@ -586,9 +541,7 @@ export function SessionTemplateEditorPage() {
                             </Label>
                             <NumberInput
                               value={exercise.reps}
-                              onChange={(val) =>
-                                updateExercise(exercise.id, { reps: val })
-                              }
+                              onChange={(val) => updateExercise(exercise.id, { reps: val })}
                               min={1}
                               max={100}
                               step={1}
@@ -603,9 +556,7 @@ export function SessionTemplateEditorPage() {
                             </Label>
                             <NumberInput
                               value={exercise.weight_kg}
-                              onChange={(val) =>
-                                updateExercise(exercise.id, { weight_kg: val })
-                              }
+                              onChange={(val) => updateExercise(exercise.id, { weight_kg: val })}
                               min={0}
                               max={999}
                               step={2.5}
@@ -663,16 +614,8 @@ export function SessionTemplateEditorPage() {
           className="w-full"
           size="lg"
         >
-          {submitting ? (
-            <Spinner size="sm" className="mr-2" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
-          {submitting
-            ? 'Speichern...'
-            : isEdit
-              ? 'Template aktualisieren'
-              : 'Template erstellen'}
+          {submitting ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+          {submitting ? 'Speichern...' : isEdit ? 'Template aktualisieren' : 'Template erstellen'}
         </Button>
       </div>
     </div>

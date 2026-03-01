@@ -35,7 +35,8 @@ def _monday_of_week(d: date) -> date:
 
 
 async def _get_template_names(
-    db: AsyncSession, template_ids: list[int],
+    db: AsyncSession,
+    template_ids: list[int],
 ) -> dict[int, str]:
     """Fetch template names for a list of template IDs."""
     if not template_ids:
@@ -77,7 +78,8 @@ async def get_weekly_plan(
         .order_by(WeeklyPlanEntryModel.day_of_week)
     )
     existing = {
-        int(e.day_of_week): e for e in result.scalars().all()  # type: ignore[arg-type]
+        int(e.day_of_week): e
+        for e in result.scalars().all()  # type: ignore[arg-type]
     }
 
     # Collect template IDs for name lookup
@@ -141,9 +143,7 @@ async def save_weekly_plan(
 
     # Delete existing entries for this week
     result = await db.execute(
-        select(WeeklyPlanEntryModel).where(
-            WeeklyPlanEntryModel.week_start == week_start
-        )
+        select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.week_start == week_start)
     )
     for existing in result.scalars().all():
         await db.delete(existing)
@@ -184,9 +184,7 @@ async def clear_weekly_plan(
         week_start = _monday_of_week(week_start)
 
     result = await db.execute(
-        select(WeeklyPlanEntryModel).where(
-            WeeklyPlanEntryModel.week_start == week_start
-        )
+        select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.week_start == week_start)
     )
     for existing in result.scalars().all():
         await db.delete(existing)
@@ -232,9 +230,7 @@ def _determine_status(
         # Map plan training_type to workout_type
         type_map = {"strength": "strength", "running": "running"}
         expected_workout_type = type_map.get(planned_type, planned_type)
-        matched = any(
-            str(s.workout_type) == expected_workout_type for s in sessions
-        )
+        matched = any(str(s.workout_type) == expected_workout_type for s in sessions)
         return "completed" if matched else "off_target"
 
     return "completed"

@@ -39,7 +39,6 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-
 export function DashboardPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -176,7 +175,9 @@ export function DashboardPage() {
               </div>
               <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
                 {totalDistance.toFixed(1)}
-                <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">km</span>
+                <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+                  km
+                </span>
               </p>
             </div>
             <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
@@ -200,7 +201,9 @@ export function DashboardPage() {
                 </div>
                 <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
                   {avgHr}
-                  <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">bpm</span>
+                  <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+                    bpm
+                  </span>
                 </p>
               </div>
             )}
@@ -211,10 +214,8 @@ export function DashboardPage() {
       {/* Goal Progress Card */}
       {goalProgress &&
         (() => {
-          const isAhead =
-            goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec <= 0;
-          const isBehind =
-            goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec > 0;
+          const isAhead = goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec <= 0;
+          const isBehind = goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec > 0;
           return (
             <div
               className="cursor-pointer rounded-[var(--radius-xl)] border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-6 py-6 [box-shadow:var(--shadow-card-raised)] transition-shadow hover:[box-shadow:var(--shadow-card-hover)] motion-reduce:transition-none"
@@ -235,9 +236,13 @@ export function DashboardPage() {
                     {goalProgress.goal.days_until} Tage
                   </span>
                 ) : goalProgress.goal.days_until === 0 ? (
-                  <Badge variant="warning" size="xs">Heute</Badge>
+                  <Badge variant="warning" size="xs">
+                    Heute
+                  </Badge>
                 ) : (
-                  <Badge variant="neutral" size="xs">Vergangen</Badge>
+                  <Badge variant="neutral" size="xs">
+                    Vergangen
+                  </Badge>
                 )}
               </div>
               <p className="text-[12.5px] text-[var(--color-text-muted)] mb-5">
@@ -250,29 +255,39 @@ export function DashboardPage() {
                 <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-bg-paper)] px-3.5 py-3">
                   <div className="flex items-center gap-[5px] mb-[6px]">
                     <Target className="w-[11px] h-[11px] text-[var(--color-text-muted)]" />
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">Ziel</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+                      Ziel
+                    </p>
                   </div>
                   <p className="text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
                     {goalProgress.target_pace_formatted}
-                    <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">/km</span>
+                    <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">
+                      /km
+                    </span>
                   </p>
                 </div>
                 <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-bg-paper)] px-3.5 py-3">
                   <div className="flex items-center gap-[5px] mb-[6px]">
                     <Activity className="w-[11px] h-[11px] text-[var(--color-text-muted)]" />
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">Aktuell</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+                      Aktuell
+                    </p>
                   </div>
                   <p className="text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
                     {goalProgress.current_pace_formatted ?? '—'}
                     {goalProgress.current_pace_formatted && (
-                      <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">/km</span>
+                      <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">
+                        /km
+                      </span>
                     )}
                   </p>
                 </div>
                 <div className="col-span-2 sm:col-span-1 rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-bg-paper)] px-3.5 py-3">
                   <div className="flex items-center gap-[5px] mb-[6px]">
                     <TrendingUp className="w-[11px] h-[11px] text-[var(--color-text-muted)]" />
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">Differenz</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+                      Differenz
+                    </p>
                   </div>
                   <p
                     className={`text-[22px] font-semibold leading-none ${
@@ -287,7 +302,9 @@ export function DashboardPage() {
                       ? `${isAhead ? '−' : '+'}${goalProgress.pace_gap_formatted}`
                       : '—'}
                     {goalProgress.pace_gap_sec !== null && (
-                      <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">/km</span>
+                      <span className="text-[12px] font-normal text-[var(--color-text-muted)] ml-[1px]">
+                        /km
+                      </span>
                     )}
                   </p>
                 </div>
@@ -399,16 +416,12 @@ export function DashboardPage() {
                             : `${session.total_tonnage_kg} kg`}
                         </span>
                       )}
-                      {session.duration_sec && (
-                        <span>{formatDuration(session.duration_sec)}</span>
-                      )}
+                      {session.duration_sec && <span>{formatDuration(session.duration_sec)}</span>}
                     </>
                   ) : (
                     <>
                       {session.distance_km && <span>{session.distance_km} km</span>}
-                      {session.duration_sec && (
-                        <span>{formatDuration(session.duration_sec)}</span>
-                      )}
+                      {session.duration_sec && <span>{formatDuration(session.duration_sec)}</span>}
                       {session.hr_avg && <span>{session.hr_avg} bpm</span>}
                     </>
                   )}

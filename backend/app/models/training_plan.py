@@ -28,9 +28,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
     training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
     is_rest_day: bool = False
-    run_type: Optional[str] = Field(
-        None, pattern="^(recovery|easy|long_run|tempo|intervals)$"
-    )
+    run_type: Optional[str] = Field(None, pattern="^(recovery|easy|long_run|tempo|intervals)$")
     template_id: Optional[int] = None
     notes: Optional[str] = Field(None, max_length=200)
 
@@ -58,9 +56,7 @@ class TrainingPhaseUpdate(BaseModel):
     """Request schema: update a training phase."""
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
-    phase_type: Optional[str] = Field(
-        None, pattern="^(base|build|peak|taper|transition)$"
-    )
+    phase_type: Optional[str] = Field(None, pattern="^(base|build|peak|taper|transition)$")
     start_week: Optional[int] = Field(None, ge=1, le=52)
     end_week: Optional[int] = Field(None, ge=1, le=52)
     focus: Optional[PhaseFocus] = None
@@ -132,9 +128,7 @@ class TrainingPlanUpdate(BaseModel):
     end_date: Optional[date] = None
     target_event_date: Optional[date] = None
     weekly_structure: Optional[WeeklyStructure] = None
-    status: Optional[str] = Field(
-        None, pattern="^(draft|active|completed|paused)$"
-    )
+    status: Optional[str] = Field(None, pattern="^(draft|active|completed|paused)$")
 
 
 class TrainingPlanResponse(BaseModel):

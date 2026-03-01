@@ -69,7 +69,9 @@ function Sidebar() {
             NC
           </div>
           <div>
-            <div className="text-[13px] font-medium text-[var(--color-text-base)]">Nils-Christian</div>
+            <div className="text-[13px] font-medium text-[var(--color-text-base)]">
+              Nils-Christian
+            </div>
             <div className="text-[11px] text-[var(--color-text-muted)]">Sub-2h</div>
           </div>
         </div>

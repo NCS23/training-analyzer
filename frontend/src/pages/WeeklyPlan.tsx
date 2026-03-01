@@ -33,10 +33,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@/api/weekly-plan';
-import type {
-  WeeklyPlanEntry,
-  ComplianceResponse,
-} from '@/api/weekly-plan';
+import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { DayCard } from '@/components/DayCard';
 
 // --- Helpers ---
@@ -126,17 +123,10 @@ export function WeeklyPlanPage() {
 
   // --- Day editing ---
 
-  const updateEntry = useCallback(
-    (dayOfWeek: number, updates: Partial<WeeklyPlanEntry>) => {
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.day_of_week === dayOfWeek ? { ...e, ...updates } : e,
-        ),
-      );
-      setDirty(true);
-    },
-    [],
-  );
+  const updateEntry = useCallback((dayOfWeek: number, updates: Partial<WeeklyPlanEntry>) => {
+    setEntries((prev) => prev.map((e) => (e.day_of_week === dayOfWeek ? { ...e, ...updates } : e)));
+    setDirty(true);
+  }, []);
 
   // --- Save ---
 
@@ -341,10 +331,7 @@ export function WeeklyPlanPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteWeek}
-              disabled={deleting}
-            >
+            <AlertDialogAction onClick={handleDeleteWeek} disabled={deleting}>
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -367,8 +354,7 @@ export function WeeklyPlanPage() {
               {entries.map((entry) => {
                 const isToday =
                   isCurrentWeek &&
-                  new Date().getDay() ===
-                    (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
+                  new Date().getDay() === (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
                 const dayCompliance = compliance?.entries.find(
                   (c) => c.day_of_week === entry.day_of_week,
                 );
@@ -383,9 +369,7 @@ export function WeeklyPlanPage() {
                     compliance={dayCompliance}
                     showCompliance={hasContent}
                     onToggleExpand={() =>
-                      setSelectedDay(
-                        selectedDay === entry.day_of_week ? null : entry.day_of_week,
-                      )
+                      setSelectedDay(selectedDay === entry.day_of_week ? null : entry.day_of_week)
                     }
                     onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
                     onNavigateSession={(id) => navigate(`/sessions/${id}`)}
@@ -418,11 +402,7 @@ export function WeeklyPlanPage() {
             className="w-full"
             size="lg"
           >
-            {saving ? (
-              <Spinner size="sm" className="mr-2" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
+            {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
             {saving ? 'Speichern...' : 'Wochenplan speichern'}
           </Button>
         </div>

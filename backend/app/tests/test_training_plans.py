@@ -98,7 +98,8 @@ async def test_list_plans_filter_by_status(client: AsyncClient) -> None:
     )
 
     response = await client.get(
-        "/api/v1/training-plans", params={"status": "active"},
+        "/api/v1/training-plans",
+        params={"status": "active"},
     )
     assert response.status_code == 200
     body = response.json()
@@ -139,7 +140,8 @@ async def test_update_plan(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_update_plan_not_found(client: AsyncClient) -> None:
     response = await client.patch(
-        "/api/v1/training-plans/9999", json={"name": "Nope"},
+        "/api/v1/training-plans/9999",
+        json={"name": "Nope"},
     )
     assert response.status_code == 404
 
@@ -181,7 +183,8 @@ async def test_delete_plan_cascades_phases(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_list_phases(client: AsyncClient) -> None:
     create_resp = await client.post(
-        "/api/v1/training-plans", json={**PLAN_DATA, "phases": [PHASE_DATA]},
+        "/api/v1/training-plans",
+        json={**PLAN_DATA, "phases": [PHASE_DATA]},
     )
     plan_id = create_resp.json()["id"]
 
@@ -203,7 +206,8 @@ async def test_create_phase(client: AsyncClient) -> None:
     plan_id = create_resp.json()["id"]
 
     response = await client.post(
-        f"/api/v1/training-plans/{plan_id}/phases", json=PHASE_DATA,
+        f"/api/v1/training-plans/{plan_id}/phases",
+        json=PHASE_DATA,
     )
     assert response.status_code == 201
     body = response.json()
@@ -239,7 +243,8 @@ async def test_create_phase_invalid_type(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_update_phase(client: AsyncClient) -> None:
     create_resp = await client.post(
-        "/api/v1/training-plans", json={**PLAN_DATA, "phases": [PHASE_DATA]},
+        "/api/v1/training-plans",
+        json={**PLAN_DATA, "phases": [PHASE_DATA]},
     )
     plan_id = create_resp.json()["id"]
     phase_id = create_resp.json()["phases"][0]["id"]
@@ -268,7 +273,8 @@ async def test_update_phase_not_found(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_delete_phase(client: AsyncClient) -> None:
     create_resp = await client.post(
-        "/api/v1/training-plans", json={**PLAN_DATA, "phases": [PHASE_DATA]},
+        "/api/v1/training-plans",
+        json={**PLAN_DATA, "phases": [PHASE_DATA]},
     )
     plan_id = create_resp.json()["id"]
     phase_id = create_resp.json()["phases"][0]["id"]
@@ -298,7 +304,8 @@ async def test_delete_phase_not_found(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_create_plan_with_goal(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     # Create a goal first
     goal = RaceGoalModel(
@@ -328,7 +335,8 @@ async def test_create_plan_with_goal(
 
 @pytest.mark.anyio
 async def test_delete_plan_clears_goal_link(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     goal = RaceGoalModel(
         title="Hamburg HM",
@@ -341,7 +349,8 @@ async def test_delete_plan_clears_goal_link(
     await db_session.refresh(goal)
 
     create_resp = await client.post(
-        "/api/v1/training-plans", json={**PLAN_DATA, "goal_id": goal.id},
+        "/api/v1/training-plans",
+        json={**PLAN_DATA, "goal_id": goal.id},
     )
     plan_id = create_resp.json()["id"]
 
@@ -407,7 +416,8 @@ async def test_import_yaml_plan(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_import_yaml_with_goal_title(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     goal = RaceGoalModel(
         title="Hamburg Halbmarathon",
@@ -530,7 +540,8 @@ async def test_create_plan_auto_creates_goal(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_create_plan_auto_create_uses_existing_goal(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     """Goal block with matching title → reuses existing goal."""
     goal = RaceGoalModel(
@@ -584,7 +595,8 @@ async def test_create_plan_auto_create_race_date_fallback(
 
 @pytest.mark.anyio
 async def test_create_plan_goal_id_takes_precedence(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     """Explicit goal_id takes precedence over goal block."""
     goal = RaceGoalModel(
@@ -648,7 +660,8 @@ goal:
 
 @pytest.mark.anyio
 async def test_import_yaml_goal_uses_existing(
-    client: AsyncClient, db_session: AsyncSession,
+    client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     """YAML with goal: block reuses existing goal if title matches."""
     goal = RaceGoalModel(

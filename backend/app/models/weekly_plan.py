@@ -37,9 +37,7 @@ class WeeklyPlanEntry(BaseModel):
     """A single day entry in the weekly plan."""
 
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
-    training_type: Optional[str] = Field(
-        None, pattern="^(strength|running)$"
-    )
+    training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
     template_id: Optional[int] = None
     template_name: Optional[str] = None  # returned in response only
     is_rest_day: bool = False

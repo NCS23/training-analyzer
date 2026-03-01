@@ -140,10 +140,11 @@ class TestHelpers:
     def test_distribute_days_places_long_run_weekend(self) -> None:
         entries = _distribute_days(["easy", "easy", "easy", "long_run"], 0, [6])
         running_entries = [
-            e for e in entries
-            if e.training_type == "running" and e.run_details is not None
+            e for e in entries if e.training_type == "running" and e.run_details is not None
         ]
-        long_runs = [e for e in running_entries if e.run_details and e.run_details.run_type == "long_run"]
+        long_runs = [
+            e for e in running_entries if e.run_details and e.run_details.run_type == "long_run"
+        ]
         assert len(long_runs) == 1
         assert long_runs[0].day_of_week == 5  # Saturday
 
@@ -167,15 +168,17 @@ def _day(
     )
 
 
-SAMPLE_TEMPLATE = PhaseWeeklyTemplate(days=[
-    _day(0, "running", "easy"),
-    _day(1, "strength"),
-    _day(2, "running", "tempo"),
-    _day(3, "running", "easy"),
-    _day(4, "running", "intervals"),
-    _day(5, "running", "long_run"),
-    _day(6, is_rest_day=True),
-])
+SAMPLE_TEMPLATE = PhaseWeeklyTemplate(
+    days=[
+        _day(0, "running", "easy"),
+        _day(1, "strength"),
+        _day(2, "running", "tempo"),
+        _day(3, "running", "easy"),
+        _day(4, "running", "intervals"),
+        _day(5, "running", "long_run"),
+        _day(6, is_rest_day=True),
+    ]
+)
 
 
 class TestTemplateToEntries:
@@ -186,9 +189,7 @@ class TestTemplateToEntries:
     def test_template_preserves_run_types(self) -> None:
         entries = _template_to_entries(SAMPLE_TEMPLATE)
         run_types = {
-            e.day_of_week: e.run_details.run_type
-            for e in entries
-            if e.run_details is not None
+            e.day_of_week: e.run_details.run_type for e in entries if e.run_details is not None
         }
         assert run_types[0] == "easy"
         assert run_types[2] == "tempo"
@@ -215,20 +216,43 @@ async def test_generate_basic(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-06-28")  # ~12 weeks
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "base", 1, 6, {  # type: ignore[arg-type]
-        "weekly_volume_min": 30, "weekly_volume_max": 45,
-    })
-    _make_phase(db_session, int(plan.id), "build", 7, 12, {  # type: ignore[arg-type]
-        "weekly_volume_min": 40, "weekly_volume_max": 55,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        6,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 30,
+            "weekly_volume_max": 45,
+        },
+    )
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "build",
+        7,
+        12,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 40,
+            "weekly_volume_max": 55,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-        .order_by(TrainingPhaseModel.start_week)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel)
+                .where(TrainingPhaseModel.training_plan_id == plan.id)
+                .order_by(TrainingPhaseModel.start_week)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) == 12
@@ -246,16 +270,30 @@ async def test_generate_with_goal_pace(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=int(goal.id))  # type: ignore[arg-type]
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "base", 1, 4, {  # type: ignore[arg-type]
-        "weekly_volume_min": 30, "weekly_volume_max": 40,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        4,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 30,
+            "weekly_volume_max": 40,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], goal)
     assert len(result) > 0
@@ -276,16 +314,30 @@ async def test_generate_without_goal(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03")
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "base", 1, 4, {  # type: ignore[arg-type]
-        "weekly_volume_min": 30, "weekly_volume_max": 40,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        4,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 30,
+            "weekly_volume_max": 40,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) > 0
@@ -303,16 +355,30 @@ async def test_generate_volume_progression(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-06-28")
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "base", 1, 12, {  # type: ignore[arg-type]
-        "weekly_volume_min": 20, "weekly_volume_max": 50,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        12,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 20,
+            "weekly_volume_max": 50,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) >= 2
@@ -339,27 +405,37 @@ async def test_generate_phase_type_sessions(db_session: AsyncSession) -> None:
     await db_session.flush()
 
     # Peak phase should have intervals + tempo
-    _make_phase(db_session, int(plan.id), "peak", 1, 4, {  # type: ignore[arg-type]
-        "weekly_volume_min": 45, "weekly_volume_max": 55,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "peak",
+        1,
+        4,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 45,
+            "weekly_volume_max": 55,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) > 0
 
     # Check first week has interval and tempo sessions
     _, entries = result[0]
-    run_types = {
-        e.run_details.run_type
-        for e in entries
-        if e.run_details is not None
-    }
+    run_types = {e.run_details.run_type for e in entries if e.run_details is not None}
     assert "intervals" in run_types, f"Expected intervals in peak phase, got {run_types}"
     assert "tempo" in run_types, f"Expected tempo in peak phase, got {run_types}"
 
@@ -386,16 +462,31 @@ async def test_generate_with_template(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03")
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "build", 1, 4, {  # type: ignore[arg-type]
-        "weekly_volume_min": 30, "weekly_volume_max": 40,
-    }, weekly_template=TEMPLATE_JSON)
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "build",
+        1,
+        4,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 30,
+            "weekly_volume_max": 40,
+        },
+        weekly_template=TEMPLATE_JSON,
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) > 0
@@ -422,16 +513,31 @@ async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
     plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=int(goal.id))  # type: ignore[arg-type]
     await db_session.flush()
 
-    _make_phase(db_session, int(plan.id), "build", 1, 4, {  # type: ignore[arg-type]
-        "weekly_volume_min": 35, "weekly_volume_max": 45,
-    }, weekly_template=TEMPLATE_JSON)
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "build",
+        1,
+        4,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 35,
+            "weekly_volume_max": 45,
+        },
+        weekly_template=TEMPLATE_JSON,
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], goal)
     assert len(result) > 0
@@ -439,8 +545,7 @@ async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
     _, entries = result[0]
     # Running entries should have duration and pace filled
     running_with_details = [
-        e for e in entries
-        if e.run_details and e.run_details.target_duration_minutes
+        e for e in entries if e.run_details and e.run_details.target_duration_minutes
     ]
     assert len(running_with_details) > 0
     # At least one should have pace (because goal is set)
@@ -455,21 +560,45 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
     await db_session.flush()
 
     # Phase 1: with template
-    _make_phase(db_session, int(plan.id), "base", 1, 6, {  # type: ignore[arg-type]
-        "weekly_volume_min": 30, "weekly_volume_max": 40,
-    }, weekly_template=TEMPLATE_JSON)
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        6,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 30,
+            "weekly_volume_max": 40,
+        },
+        weekly_template=TEMPLATE_JSON,
+    )
     # Phase 2: without template (fallback to PHASE_DEFAULTS)
-    _make_phase(db_session, int(plan.id), "build", 7, 12, {  # type: ignore[arg-type]
-        "weekly_volume_min": 40, "weekly_volume_max": 55,
-    })
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "build",
+        7,
+        12,
+        {  # type: ignore[arg-type]
+            "weekly_volume_min": 40,
+            "weekly_volume_max": 55,
+        },
+    )
     await db_session.flush()
 
     from sqlalchemy import select
-    phases = list((await db_session.execute(
-        select(TrainingPhaseModel)
-        .where(TrainingPhaseModel.training_plan_id == plan.id)
-        .order_by(TrainingPhaseModel.start_week)
-    )).scalars().all())
+
+    phases = list(
+        (
+            await db_session.execute(
+                select(TrainingPhaseModel)
+                .where(TrainingPhaseModel.training_plan_id == plan.id)
+                .order_by(TrainingPhaseModel.start_week)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     result = generate_weekly_plans(plan, phases, [6], None)
     assert len(result) == 12
@@ -482,10 +611,7 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
     _, week7_entries = result[6]
     assert len(week7_entries) == 7
     # build phase defaults have tempo run
-    run_types = {
-        e.run_details.run_type for e in week7_entries
-        if e.run_details is not None
-    }
+    run_types = {e.run_details.run_type for e in week7_entries if e.run_details is not None}
     assert "tempo" in run_types
 
 

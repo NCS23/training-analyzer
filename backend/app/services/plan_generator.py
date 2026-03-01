@@ -123,14 +123,16 @@ def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]
                 target_hr_max=None,
                 intervals=None,
             )
-        entries.append(WeeklyPlanEntry(
-            day_of_week=day_entry.day_of_week,
-            training_type=day_entry.training_type,
-            template_id=day_entry.template_id,
-            is_rest_day=day_entry.is_rest_day,
-            notes=day_entry.notes,
-            run_details=run_details,
-        ))
+        entries.append(
+            WeeklyPlanEntry(
+                day_of_week=day_entry.day_of_week,
+                training_type=day_entry.training_type,
+                template_id=day_entry.template_id,
+                is_rest_day=day_entry.is_rest_day,
+                notes=day_entry.notes,
+                run_details=run_details,
+            )
+        )
     return entries
 
 
@@ -198,8 +200,11 @@ def _distribute_days(
     for day in rest_days:
         if 0 <= day <= 6:
             entries[day] = WeeklyPlanEntry(
-                day_of_week=day, training_type=None,
-                is_rest_day=True, notes=None, run_details=None,
+                day_of_week=day,
+                training_type=None,
+                is_rest_day=True,
+                notes=None,
+                run_details=None,
             )
 
     available = [d for d in range(7) if entries[d] is None]
@@ -269,27 +274,44 @@ def _distribute_days(
     # Build final entries
     for day, run_type in assigned_runs:
         entries[day] = WeeklyPlanEntry(
-            day_of_week=day, training_type="running", is_rest_day=False,
-            notes=None, run_details=RunDetails(
-                run_type=run_type, target_duration_minutes=None,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None, intervals=None,
+            day_of_week=day,
+            training_type="running",
+            is_rest_day=False,
+            notes=None,
+            run_details=RunDetails(
+                run_type=run_type,
+                target_duration_minutes=None,
+                target_pace_min=None,
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
+                intervals=None,
             ),
         )
 
     for day in strength_days:
         entries[day] = WeeklyPlanEntry(
-            day_of_week=day, training_type="strength",
-            is_rest_day=False, notes=None, run_details=None,
+            day_of_week=day,
+            training_type="strength",
+            is_rest_day=False,
+            notes=None,
+            run_details=None,
         )
 
     for day, run_type in easy_days:
         entries[day] = WeeklyPlanEntry(
-            day_of_week=day, training_type="running", is_rest_day=False,
-            notes=None, run_details=RunDetails(
-                run_type=run_type, target_duration_minutes=None,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None, intervals=None,
+            day_of_week=day,
+            training_type="running",
+            is_rest_day=False,
+            notes=None,
+            run_details=RunDetails(
+                run_type=run_type,
+                target_duration_minutes=None,
+                target_pace_min=None,
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
+                intervals=None,
             ),
         )
 
@@ -297,8 +319,11 @@ def _distribute_days(
     for day in range(7):
         if entries[day] is None:
             entries[day] = WeeklyPlanEntry(
-                day_of_week=day, training_type=None,
-                is_rest_day=True, notes=None, run_details=None,
+                day_of_week=day,
+                training_type=None,
+                is_rest_day=True,
+                notes=None,
+                run_details=None,
             )
 
     return [e for e in entries if e is not None]
@@ -350,8 +375,11 @@ def generate_weekly_plans(
             # No phase covers this week — generate rest week
             entries = [
                 WeeklyPlanEntry(
-                    day_of_week=d, training_type=None,
-                    is_rest_day=True, notes=None, run_details=None,
+                    day_of_week=d,
+                    training_type=None,
+                    is_rest_day=True,
+                    notes=None,
+                    run_details=None,
                 )
                 for d in range(7)
             ]
@@ -378,9 +406,7 @@ def generate_weekly_plans(
                 strength_count = defaults["strength"]
 
             default_run_types: list[str] = list(defaults["run_types"])
-            default_quality = sum(
-                1 for r in default_run_types if r in ("tempo", "intervals")
-            )
+            default_quality = sum(1 for r in default_run_types if r in ("tempo", "intervals"))
 
             if quality_count is not None:
                 if quality_count > default_quality:
@@ -394,7 +420,10 @@ def generate_weekly_plans(
                 elif quality_count < default_quality:
                     removed = 0
                     for i, rt in enumerate(default_run_types):
-                        if rt in ("tempo", "intervals") and removed < default_quality - quality_count:
+                        if (
+                            rt in ("tempo", "intervals")
+                            and removed < default_quality - quality_count
+                        ):
                             default_run_types[i] = "easy"
                             removed += 1
 
@@ -421,14 +450,12 @@ def generate_weekly_plans(
         # Distribute volume across running sessions and set RunDetails
         if weekly_volume is not None and weekly_volume > 0:
             running_entries = [
-                e for e in entries
-                if e.training_type == "running" and e.run_details is not None
+                e for e in entries if e.training_type == "running" and e.run_details is not None
             ]
             if running_entries:
                 # Determine long run volume pct from template or defaults
                 has_long_run = any(
-                    e.run_details and e.run_details.run_type == "long_run"
-                    for e in running_entries
+                    e.run_details and e.run_details.run_type == "long_run" for e in running_entries
                 )
                 if weekly_template and has_long_run:
                     # Template path: use 0.30 default for long run share
@@ -438,13 +465,19 @@ def generate_weekly_plans(
                 long_run_km = weekly_volume * long_run_pct if long_run_pct > 0 else 0.0
 
                 remaining_km = weekly_volume - long_run_km
-                non_long = [e for e in running_entries if e.run_details and e.run_details.run_type != "long_run"]
+                non_long = [
+                    e
+                    for e in running_entries
+                    if e.run_details and e.run_details.run_type != "long_run"
+                ]
                 quality_entries = [
-                    e for e in non_long
+                    e
+                    for e in non_long
                     if e.run_details and e.run_details.run_type in ("tempo", "intervals")
                 ]
                 easy_entries = [
-                    e for e in non_long
+                    e
+                    for e in non_long
                     if e.run_details and e.run_details.run_type not in ("tempo", "intervals")
                 ]
 

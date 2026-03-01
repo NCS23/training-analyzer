@@ -103,7 +103,9 @@ def _compute_intensity(sessions: Sequence[Any]) -> IntensityDistribution:
     total = easy + moderate + hard
     if total == 0:
         return IntensityDistribution(
-            easy_percent=0, moderate_percent=0, hard_percent=0,
+            easy_percent=0,
+            moderate_percent=0,
+            hard_percent=0,
         )
 
     easy_pct = round(easy / total * 100, 1)
@@ -149,9 +151,7 @@ def _compute_volume_weeks(sessions: Sequence[Any]) -> list[VolumeWeek]:
 
         if str(s.workout_type) == "running":
             w["running_km"] += float(s.distance_km) if s.distance_km else 0
-            w["running_min"] += (
-                int(s.duration_sec) // 60 if s.duration_sec else 0
-            )
+            w["running_min"] += int(s.duration_sec) // 60 if s.duration_sec else 0
         elif str(s.workout_type) == "strength":
             w["strength_sessions"] += 1
 

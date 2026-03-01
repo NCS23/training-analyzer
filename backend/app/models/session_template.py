@@ -16,9 +16,7 @@ class TemplateExercise(BaseModel):
     sets: int = Field(..., ge=1, le=20)
     reps: int = Field(..., ge=1, le=100)
     weight_kg: Optional[float] = Field(None, ge=0, le=999)
-    exercise_type: str = Field(
-        "kraft", pattern="^(kraft|mobilitaet|dehnung)$"
-    )
+    exercise_type: str = Field("kraft", pattern="^(kraft|mobilitaet|dehnung)$")
     notes: Optional[str] = Field(None, max_length=500)
 
 

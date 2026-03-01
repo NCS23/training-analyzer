@@ -49,9 +49,7 @@ async def _add_strength(
 @pytest.mark.anyio
 async def test_balance_empty(client: AsyncClient) -> None:
     """Empty period returns zeros."""
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     assert response.status_code == 200
     body = response.json()
     assert body["period_days"] == 28
@@ -62,9 +60,7 @@ async def test_balance_empty(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_intensity_distribution(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_intensity_distribution(client: AsyncClient, db_session: AsyncSession) -> None:
     """Running sessions classified by intensity."""
     # 4 easy, 1 tempo → 80/20 polarized
     await _add_running(db_session, 1, "easy")
@@ -73,9 +69,7 @@ async def test_intensity_distribution(
     await _add_running(db_session, 7, "recovery")
     await _add_running(db_session, 9, "tempo")
 
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
     intensity = body["intensity"]
     assert intensity["total_sessions"] == 5
@@ -86,17 +80,13 @@ async def test_intensity_distribution(
 
 
 @pytest.mark.anyio
-async def test_volume_weeks(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_volume_weeks(client: AsyncClient, db_session: AsyncSession) -> None:
     """Volume grouped by week with change percent."""
     # Week 1: 10km, Week 2: 15km → 50% increase
     await _add_running(db_session, 14, "easy", 10.0, 3600)
     await _add_running(db_session, 7, "easy", 15.0, 5400)
 
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
     weeks = body["volume_weeks"]
     assert len(weeks) >= 2
@@ -107,26 +97,30 @@ async def test_volume_weeks(
 
 
 @pytest.mark.anyio
-async def test_muscle_groups(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_muscle_groups(client: AsyncClient, db_session: AsyncSession) -> None:
     """Muscle groups from strength exercises."""
     exercises = [
-        {"name": "Bankdrücken", "category": "push", "sets": [
-            {"reps": 8, "weight_kg": 80},
-            {"reps": 8, "weight_kg": 80},
-            {"reps": 8, "weight_kg": 80},
-        ]},
-        {"name": "Kniebeugen", "category": "legs", "sets": [
-            {"reps": 10, "weight_kg": 60},
-            {"reps": 10, "weight_kg": 60},
-        ]},
+        {
+            "name": "Bankdrücken",
+            "category": "push",
+            "sets": [
+                {"reps": 8, "weight_kg": 80},
+                {"reps": 8, "weight_kg": 80},
+                {"reps": 8, "weight_kg": 80},
+            ],
+        },
+        {
+            "name": "Kniebeugen",
+            "category": "legs",
+            "sets": [
+                {"reps": 10, "weight_kg": 60},
+                {"reps": 10, "weight_kg": 60},
+            ],
+        },
     ]
     await _add_strength(db_session, 3, exercises)
 
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
     groups = body["muscle_groups"]
     assert len(groups) == 2
@@ -138,20 +132,20 @@ async def test_muscle_groups(
 
 
 @pytest.mark.anyio
-async def test_sport_mix(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_sport_mix(client: AsyncClient, db_session: AsyncSession) -> None:
     """Sport mix distribution."""
     await _add_running(db_session, 1, "easy")
     await _add_running(db_session, 3, "easy")
     await _add_running(db_session, 5, "tempo")
-    await _add_strength(db_session, 2, [
-        {"name": "Planks", "category": "core", "sets": [{"reps": 30}]},
-    ])
-
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
+    await _add_strength(
+        db_session,
+        2,
+        [
+            {"name": "Planks", "category": "core", "sets": [{"reps": 30}]},
+        ],
     )
+
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
     mix = body["sport_mix"]
     assert mix["total_sessions"] == 4
@@ -162,42 +156,30 @@ async def test_sport_mix(
 
 
 @pytest.mark.anyio
-async def test_insights_no_strength_warning(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_insights_no_strength_warning(client: AsyncClient, db_session: AsyncSession) -> None:
     """Warning when only running, no strength."""
     for i in range(5):
         await _add_running(db_session, i * 2, "easy")
 
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
     categories = [ins["category"] for ins in body["insights"]]
     assert "sport_mix" in categories
-    sport_insight = next(
-        ins for ins in body["insights"] if ins["category"] == "sport_mix"
-    )
+    sport_insight = next(ins for ins in body["insights"] if ins["category"] == "sport_mix")
     assert sport_insight["type"] == "warning"
     assert "Krafttraining" in sport_insight["message"]
 
 
 @pytest.mark.anyio
-async def test_insights_volume_spike(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_insights_volume_spike(client: AsyncClient, db_session: AsyncSession) -> None:
     """Warning when volume increases more than 10%."""
     # Week 1: 10km, Week 2: 20km → 100% increase
     await _add_running(db_session, 14, "easy", 10.0, 3600)
     await _add_running(db_session, 7, "easy", 20.0, 7200)
 
-    response = await client.get(
-        "/api/v1/training-balance", params={"days": 28}
-    )
+    response = await client.get("/api/v1/training-balance", params={"days": 28})
     body = response.json()
-    volume_insights = [
-        ins for ins in body["insights"] if ins["category"] == "volume"
-    ]
+    volume_insights = [ins for ins in body["insights"] if ins["category"] == "volume"]
     assert len(volume_insights) >= 1
     assert volume_insights[0]["type"] == "warning"
     assert "10%" in volume_insights[0]["message"]
