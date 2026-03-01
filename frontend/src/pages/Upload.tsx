@@ -238,9 +238,9 @@ export default function UploadPage() {
   /* ---- Render ---- */
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       {/* Breadcrumbs + Header */}
-      <div className="space-y-2 pb-2">
+      <div className="space-y-1 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
             <Link to="/sessions" className="hover:underline underline-offset-2">

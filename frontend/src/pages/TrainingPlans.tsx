@@ -74,9 +74,7 @@ export function TrainingPlansPage() {
       const result = await generateWeeklyPlans(planId);
       toast({
         title: `${result.weeks_generated} Wochenpläne erstellt`,
-        description: result.weeks_skipped > 0
-          ? `${result.weeks_skipped} bestehende Wochen übersprungen (${planName})`
-          : `für „${planName}"`,
+        description: `für „${planName}"`,
         variant: 'success',
       });
     } catch {
@@ -108,7 +106,7 @@ export function TrainingPlansPage() {
     new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
@@ -118,7 +116,7 @@ export function TrainingPlansPage() {
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>Trainingspläne</BreadcrumbItem>
         </Breadcrumbs>
-        <header className="flex items-start justify-between">
+        <header className="flex flex-wrap items-start justify-between gap-y-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
               Trainingspläne
@@ -127,7 +125,7 @@ export function TrainingPlansPage() {
               Periodisierte Trainingspläne erstellen und verwalten.
             </p>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2">
             <input
               ref={fileInputRef}
               type="file"

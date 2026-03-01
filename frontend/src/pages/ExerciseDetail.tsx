@@ -251,7 +251,7 @@ export function ExerciseDetailPage() {
 
   return (
     <div
-      className={`p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6 ${isEditing ? 'pb-20' : ''}`}
+      className={`p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6 ${isEditing ? 'pb-20' : ''}`}
     >
       {/* Breadcrumbs + Header (grouped for tighter spacing) */}
       <div className="space-y-2 pb-2">
@@ -409,7 +409,6 @@ export function ExerciseDetailPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="!bg-[var(--color-bg-error)] !text-[var(--color-text-on-error)]"
             >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>

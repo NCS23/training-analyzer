@@ -120,7 +120,7 @@ export function AthleteProfilePage() {
   }
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>

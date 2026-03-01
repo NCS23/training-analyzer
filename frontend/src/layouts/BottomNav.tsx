@@ -1,31 +1,31 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, TrendingUp, Weight, Settings } from 'lucide-react';
+import { LayoutDashboard, Activity, TrendingUp, CalendarDays, User } from 'lucide-react';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/sessions', label: 'Sessions', icon: Dumbbell },
+  { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/sessions', label: 'Sessions', icon: Activity },
   { to: '/trends', label: 'Trends', icon: TrendingUp },
-  { to: '/strength/progression', label: 'Kraft', icon: Weight },
-  { to: '/settings', label: 'Einstellungen', icon: Settings },
+  { to: '/plan', label: 'Plan', icon: CalendarDays },
+  { to: '/settings', label: 'Profil', icon: User },
 ];
 
 export function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] pb-[env(safe-area-inset-bottom)]">
-      <div className="flex justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-[200] border-t border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <div className="flex h-[62px] items-stretch">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 py-2 min-w-[64px] min-h-[48px] text-[10px] transition-colors ${
+              `flex flex-1 flex-col items-center justify-center gap-[3px] pt-1 text-[10px] font-medium transition-colors duration-150 motion-reduce:transition-none ${
                 isActive
-                  ? 'text-[color:var(--color-interactive-primary)] font-medium'
+                  ? 'text-[var(--color-interactive-primary)]'
                   : 'text-[var(--color-text-muted)]'
               }`
             }
           >
-            <Icon className="w-5 h-5" />
+            <Icon className="h-5 w-5" />
             <span>{label}</span>
           </NavLink>
         ))}

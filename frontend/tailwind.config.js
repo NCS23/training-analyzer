@@ -9,6 +9,10 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: "var(--font-family-sans)",
+        mono: "var(--font-base-family-mono)",
+      },
       colors: {
         primary: '#2563eb',
         workout: {

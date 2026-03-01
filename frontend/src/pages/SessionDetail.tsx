@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   getSession,
   getSessionTrack,
@@ -78,9 +78,11 @@ import {
   SegmentedControl,
   useToast,
   ActionBar,
+  Breadcrumbs,
+  BreadcrumbItem,
 } from '@nordlig/components';
 import {
-  ArrowLeft,
+  ChevronRight,
   Calendar,
   Trash2,
   Pencil,
@@ -131,9 +133,9 @@ function formatDateShort(dateStr: string): string {
 
 /** Fallback colors for 3-zone model (no Karvonen data). */
 function fallbackZoneColor(key: string): string {
-  if (key.includes('recovery') || key.includes('zone_1')) return '#94a3b8';
-  if (key.includes('base') || key.includes('zone_2')) return '#10b981';
-  return '#f59e0b';
+  if (key.includes('recovery') || key.includes('zone_1')) return 'var(--color-text-disabled)';
+  if (key.includes('base') || key.includes('zone_2')) return 'var(--color-bg-success-solid)';
+  return 'var(--color-bg-warning-solid)';
 }
 
 export function SessionDetailPage() {
@@ -515,27 +517,22 @@ export function SessionDetailPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-        <nav>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/sessions')}
-            className="gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Sessions
-          </Button>
-        </nav>
+      <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
+        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+          <BreadcrumbItem>
+            <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
+        </Breadcrumbs>
         <Card elevation="raised">
           <CardBody className="space-y-4">
             <div className="h-6 w-56 bg-[var(--color-bg-muted)] rounded animate-pulse" />
             <div className="border-t border-[var(--color-border-default)]" />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               {[...Array(4)].map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3"
+                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] px-3 py-3"
                 >
                   <div className="h-4 w-16 bg-[var(--color-bg-muted)] rounded animate-pulse mb-2" />
                   <div className="h-7 w-20 bg-[var(--color-bg-muted)] rounded animate-pulse" />
@@ -556,18 +553,13 @@ export function SessionDetailPage() {
   // Error state
   if (error && !session) {
     return (
-      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-        <nav>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/sessions')}
-            className="gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Sessions
-          </Button>
-        </nav>
+      <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
+        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+          <BreadcrumbItem>
+            <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
+        </Breadcrumbs>
         <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -580,7 +572,8 @@ export function SessionDetailPage() {
   const hrZones = session.hr_zones;
 
   // Collect all metrics into a flat list for a clean grid
-  const metrics: { label: string; value: string; unit: string; icon: LucideIcon }[] = [];
+  type MetricItem = { label: string; value: string; unit: string; icon: LucideIcon; kind?: 'rpe' | 'combined-hr'; rpeValue?: number };
+  const metrics: MetricItem[] = [];
   if (session.duration_sec != null)
     metrics.push({
       label: 'Dauer',
@@ -599,19 +592,28 @@ export function SessionDetailPage() {
   if (sessionGap) metrics.push({ label: 'GAP', value: sessionGap, unit: '/km', icon: TrendingUp });
   if (session.hr_avg != null)
     metrics.push({
-      label: 'Ø Herzfrequenz',
+      label: 'Ø HF',
       value: String(session.hr_avg),
       unit: 'bpm',
       icon: Heart,
     });
-  if (session.hr_max != null)
+  // Combined Max / Min HF tile
+  if (session.hr_max != null && session.hr_min != null)
+    metrics.push({
+      label: 'Max / Min HF',
+      value: `${session.hr_max}`,
+      unit: `/ ${session.hr_min} bpm`,
+      icon: HeartPulse,
+      kind: 'combined-hr',
+    });
+  else if (session.hr_max != null)
     metrics.push({
       label: 'Max HF',
       value: String(session.hr_max),
       unit: 'bpm',
       icon: HeartPulse,
     });
-  if (session.hr_min != null)
+  else if (session.hr_min != null)
     metrics.push({
       label: 'Min HF',
       value: String(session.hr_min),
@@ -660,7 +662,7 @@ export function SessionDetailPage() {
       });
   }
 
-  // RPE metric (all workout types)
+  // RPE metric (all workout types) — with inline progress bar
   const effectiveRpe = localRpe ?? session.rpe;
   if (effectiveRpe != null)
     metrics.push({
@@ -668,28 +670,28 @@ export function SessionDetailPage() {
       value: String(effectiveRpe),
       unit: '/10',
       icon: Gauge,
+      kind: 'rpe',
+      rpeValue: effectiveRpe,
     });
 
   const canShowHR = hrZoneBoundaries != null;
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-      {/* Back link */}
-      <nav>
-        <button
-          onClick={() => navigate('/sessions')}
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Sessions
-        </button>
-      </nav>
+    <div className="p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6">
+      {/* Breadcrumbs */}
+      <div className="space-y-1">
+      <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+        <BreadcrumbItem>
+          <Link to="/sessions" className="hover:underline underline-offset-2">Sessions</Link>
+        </BreadcrumbItem>
+        <BreadcrumbItem isCurrent>Detail</BreadcrumbItem>
+      </Breadcrumbs>
 
       {/* Page header */}
-      <header className="flex items-start justify-between gap-2 pb-2">
+      <header className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+            <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)]">
               {workoutTypeHeadings[session.workout_type] || session.workout_type}{' '}
               {formatDateShort(session.date)}
             </h1>
@@ -699,11 +701,6 @@ export function SessionDetailPage() {
                 size="xs"
               >
                 {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-              </Badge>
-            )}
-            {session.planned_entry_id != null && (
-              <Badge variant="info" size="xs">
-                Geplant
               </Badge>
             )}
           </div>
@@ -754,6 +751,7 @@ export function SessionDetailPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -770,7 +768,6 @@ export function SessionDetailPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="!bg-[var(--color-bg-error)] !text-[var(--color-text-on-error)]"
             >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
@@ -903,28 +900,58 @@ export function SessionDetailPage() {
       <section aria-label="Kennzahlen">
         <Card elevation="raised">
           <CardBody>
-            {/* Metrics grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Metrics grid — compact on mobile, spacious on desktop */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-[10px]">
               {metrics.map((m) => (
                 <div
                   key={m.label}
-                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 py-3"
+                  className={`rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3 ${
+                    m.kind === 'rpe' ? 'flex flex-col justify-center' : ''
+                  }`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <div className="flex items-center gap-1 mb-1 sm:mb-2">
                     <m.icon
-                      className="w-3.5 h-3.5 text-[var(--color-text-muted)]"
+                      className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]"
                       aria-hidden="true"
                     />
-                    <p className="text-xs text-[var(--color-text-muted)]">{m.label}</p>
+                    <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                      {m.label}
+                    </p>
                   </div>
-                  <p className="text-xl font-semibold text-[var(--color-text-base)] tabular-nums">
-                    {m.value}
-                    {m.unit && (
-                      <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">
-                        {m.unit}
+                  {m.kind === 'rpe' ? (
+                    /* RPE with inline progress bar */
+                    <div className="flex items-center gap-2 sm:gap-[10px]">
+                      <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none shrink-0">
+                        {m.value}
+                        <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+                          {m.unit}
+                        </span>
+                      </p>
+                      <div className="flex-1 h-1 rounded-full bg-[var(--color-border-default)] overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-[var(--color-interactive-primary)] transition-all duration-500 motion-reduce:transition-none"
+                          style={{ width: `${(m.rpeValue ?? 0) * 10}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : m.kind === 'combined-hr' ? (
+                    /* Combined Max / Min HF — "185 / 114 bpm" format */
+                    <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
+                      {m.value}
+                      <span className="text-[11px] sm:text-[14px] font-normal text-[var(--color-text-muted)]">
+                        {' '}{m.unit}
                       </span>
-                    )}
-                  </p>
+                    </p>
+                  ) : (
+                    <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
+                      {m.value}
+                      {m.unit && (
+                        <span className="text-[11px] sm:text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+                          {' '}{m.unit}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -950,7 +977,7 @@ export function SessionDetailPage() {
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Insights</h2>
               </CardHeader>
               <CardBody>
-                <div className="space-y-2">
+                <div className="space-y-2 break-words">
                   {insights.map((insight, i) => (
                     <Alert key={i} variant={variantMap[insight.type]}>
                       <AlertDescription>{insight.message}</AlertDescription>
@@ -1057,9 +1084,9 @@ export function SessionDetailPage() {
       {gpsTrack && gpsTrack.points.length > 0 && (
         <section aria-label="GPS Route">
           <Card elevation="raised">
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Select
                   options={Object.entries(MAP_TILE_LABELS).map(([value, label]) => ({
                     value,
@@ -1070,7 +1097,7 @@ export function SessionDetailPage() {
                     if (val) setTileStyle(val as MapTileStyle);
                   }}
                   inputSize="sm"
-                  className="w-32"
+                  className="w-28 sm:w-32"
                 />
                 <SegmentedControl
                   size="sm"
@@ -1152,7 +1179,7 @@ export function SessionDetailPage() {
       {hrZones && Object.keys(hrZones).length > 0 && (
         <section aria-label="Herzfrequenz-Zonen">
           <div
-            className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}
+            className={`grid gap-5 ${workingHrZones ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
           >
             {/* Gesamt */}
             <Card elevation="raised">
@@ -1241,16 +1268,16 @@ export function SessionDetailPage() {
       {(localLaps.length > 0 || kmSplits) && (
         <section aria-label="Laps">
           <Card elevation="raised">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <SegmentedControl
                 size="sm"
                 value={splitsTab}
                 onChange={(val) => setSplitsTab(val as 'laps' | 'km')}
                 items={[
                   ...(localLaps.length > 0
-                    ? [{ value: 'laps', label: `Geräte-Laps (${localLaps.length})` }]
+                    ? [{ value: 'laps', label: `Laps (${localLaps.length})` }]
                     : []),
-                  ...(kmSplits ? [{ value: 'km', label: `Kilometer (${kmSplits.length})` }] : []),
+                  ...(kmSplits ? [{ value: 'km', label: `km (${kmSplits.length})` }] : []),
                 ]}
               />
               {isEditing && savingLaps && splitsTab === 'laps' && <Spinner size="sm" />}
@@ -1433,7 +1460,7 @@ export function SessionDetailPage() {
       </section>
 
       {/* Session metadata */}
-      <footer className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+      <footer className="flex flex-wrap items-center justify-between gap-y-1 text-xs text-[var(--color-text-muted)]">
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" aria-hidden />
           <span>

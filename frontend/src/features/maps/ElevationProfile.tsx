@@ -160,7 +160,7 @@ export function ElevationProfile({
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-border-subtle)"
+              stroke="var(--color-border-muted)"
               vertical={false}
             />
             <XAxis

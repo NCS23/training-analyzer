@@ -337,7 +337,7 @@ export function StrengthSessionPage() {
   // --- Render ---
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <header className="pb-2">
         <div className="flex items-center gap-3">

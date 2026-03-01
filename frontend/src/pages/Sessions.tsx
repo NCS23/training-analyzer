@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardBody,
-  Badge,
   Skeleton,
   SkeletonKeyframes,
   Pagination,
@@ -65,15 +64,11 @@ const trainingTypeOptions = [
   { value: 'hill_repeats', label: 'Bergsprints' },
 ];
 
-const trainingTypeBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
-  recovery: 'info',
-  easy: 'success',
-  long_run: 'success',
-  tempo: 'warning',
-  intervals: 'error',
-  race: 'error',
-  hill_repeats: 'warning',
-};
+/* Colored border-style tags using design tokens */
+const tagBase = 'inline-flex items-center rounded-full border-[1.5px] px-[var(--spacing-xs)] py-[3px] text-[11.5px] font-medium';
+const workoutTagStyle = `${tagBase} bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] border-[var(--color-border-info-subtle)]`;
+const strengthTagStyle = `${tagBase} bg-[var(--color-bg-accent-subtle)] text-[var(--color-text-accent)] border-[var(--color-border-accent-subtle)]`;
+const trainingTagStyle = `${tagBase} bg-[var(--color-bg-success-subtle)] text-[var(--color-text-success)] border-[var(--color-border-success-subtle)]`;
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -206,112 +201,104 @@ export function SessionsPage() {
   const active = hasActiveFilters(filters);
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-      <header className="flex items-end justify-between gap-4 pb-2">
-        <div>
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
+      <header className="pb-2">
+        <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
             Sessions
           </h1>
-          {!loading && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {total} {active ? 'Treffer' : 'Trainings'}
-            </p>
-          )}
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-              <EllipsisVertical className="w-4 h-4" />
-            </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+                <EllipsisVertical className="w-4 h-4" />
+              </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
               icon={<Upload className="w-4 h-4" />}
               onSelect={() => navigate('/sessions/new')}
             >
-              Laufen hochladen
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              icon={<Dumbbell className="w-4 h-4" />}
-              onSelect={() => navigate('/sessions/new/strength')}
-            >
-              Krafttraining erfassen
+              Training hochladen
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
+        {!loading && (
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            {total} {active ? 'Treffer' : 'Trainings'}
+          </p>
+        )}
       </header>
 
       {/* Filter bar — always visible */}
-      <Card elevation="raised">
-        <CardBody>
-          <div className="space-y-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
-              <Input
-                value={searchInput}
-                onChange={handleSearchChange}
-                placeholder="Notizen durchsuchen..."
-                inputSize="sm"
-                className="pl-9"
-              />
-            </div>
-
-            {/* Dropdowns + dates */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Select
-                options={workoutTypeOptions}
-                value={filters.workoutType ?? ''}
-                onChange={(val) => updateFilter('workoutType', val || undefined)}
-                inputSize="sm"
-                placeholder="Workout-Typ"
-              />
-              <Select
-                options={trainingTypeOptions}
-                value={filters.trainingType ?? ''}
-                onChange={(val) => updateFilter('trainingType', val || undefined)}
-                inputSize="sm"
-                placeholder="Trainingstyp"
-              />
-              <DatePicker
-                value={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
-                onChange={(d) => updateFilter('dateFrom', d ? format(d, 'yyyy-MM-dd') : undefined)}
-                inputSize="sm"
-                placeholder="Von"
-              />
-              <DatePicker
-                value={filters.dateTo ? parseISO(filters.dateTo) : undefined}
-                onChange={(d) => updateFilter('dateTo', d ? format(d, 'yyyy-MM-dd') : undefined)}
-                inputSize="sm"
-                placeholder="Bis"
-              />
-            </div>
-
-            {/* Clear */}
-            {active && (
-              <div className="flex justify-end">
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  <X className="w-3.5 h-3.5" />
-                  Filter zurücksetzen
-                </Button>
-              </div>
-            )}
+      <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-5 py-4 [box-shadow:var(--shadow-card-raised)]">
+        <div className="space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" />
+            <Input
+              value={searchInput}
+              onChange={handleSearchChange}
+              placeholder="Notizen durchsuchen..."
+              inputSize="sm"
+              className="pl-9"
+            />
           </div>
-        </CardBody>
-      </Card>
+
+          {/* Dropdowns + dates */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Select
+              options={workoutTypeOptions}
+              value={filters.workoutType ?? ''}
+              onChange={(val) => updateFilter('workoutType', val || undefined)}
+              inputSize="sm"
+              placeholder="Workout-Typ"
+            />
+            <Select
+              options={trainingTypeOptions}
+              value={filters.trainingType ?? ''}
+              onChange={(val) => updateFilter('trainingType', val || undefined)}
+              inputSize="sm"
+              placeholder="Trainingstyp"
+            />
+            <DatePicker
+              value={filters.dateFrom ? parseISO(filters.dateFrom) : undefined}
+              onChange={(d) => updateFilter('dateFrom', d ? format(d, 'yyyy-MM-dd') : undefined)}
+              inputSize="sm"
+              placeholder="Von"
+            />
+            <DatePicker
+              value={filters.dateTo ? parseISO(filters.dateTo) : undefined}
+              onChange={(d) => updateFilter('dateTo', d ? format(d, 'yyyy-MM-dd') : undefined)}
+              inputSize="sm"
+              placeholder="Bis"
+            />
+          </div>
+
+          {/* Clear */}
+          {active && (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="w-3.5 h-3.5" />
+                Filter zurücksetzen
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {loading ? (
         <SessionsLoadingSkeleton />
       ) : sessions.length === 0 ? (
         <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-bg-info-subtle)] mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-bg-info-subtle)] mb-[var(--spacing-md)]">
               <Activity className="w-8 h-8 text-[var(--color-text-primary)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
               {active ? 'Keine Treffer' : 'Keine Sessions vorhanden'}
             </h2>
-            <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">
+            <p className="text-sm text-[var(--color-text-muted)] mb-[var(--spacing-lg)] max-w-sm">
               {active
                 ? 'Versuche andere Filterkriterien oder setze die Filter zurück.'
                 : 'Lade dein erstes Training hoch, um hier deine Trainingshistorie zu sehen.'}
@@ -331,88 +318,77 @@ export function SessionsPage() {
         </Card>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {sessions.map((session) => {
               const effectiveType = session.training_type?.effective;
               return (
                 <div
                   key={session.id}
-                  className="cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow rounded-[var(--radius-component-md)]"
+                  className="flex items-center gap-3 cursor-pointer rounded-[var(--radius-xl)] border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-5 py-[var(--spacing-md)] [box-shadow:var(--shadow-card-raised)] transition-shadow hover:[box-shadow:var(--shadow-card-hover)] motion-reduce:transition-none"
                   onClick={() => navigate(`/sessions/${session.id}`)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => e.key === 'Enter' && navigate(`/sessions/${session.id}`)}
                 >
-                  <Card elevation="raised">
-                    <CardBody>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-[var(--radius-xl)] bg-[var(--color-bg-info-subtle)]">
-                          {session.workout_type === 'strength' ? (
-                            <Dumbbell className="w-5 h-5 text-[var(--color-text-primary)]" />
-                          ) : (
-                            <Footprints className="w-5 h-5 text-[var(--color-text-primary)]" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium text-[var(--color-text-base)] truncate">
-                              {(() => {
-                                try {
-                                  return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
-                                    locale: de,
-                                  });
-                                } catch {
-                                  return session.date;
-                                }
-                              })()}
-                            </p>
-                            <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge variant="info" size="xs">
-                              {workoutTypeLabels[session.workout_type] || session.workout_type}
-                            </Badge>
-                            {effectiveType && (
-                              <Badge
-                                variant={trainingTypeBadgeVariant[effectiveType] ?? 'info'}
-                                size="xs"
-                              >
-                                {trainingTypeLabels[effectiveType] ?? effectiveType}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                            {session.workout_type === 'strength' ? (
-                              <>
-                                {session.exercises_count != null && (
-                                  <span>{session.exercises_count} Übungen</span>
-                                )}
-                                {session.total_tonnage_kg != null && (
-                                  <span>
-                                    {session.total_tonnage_kg >= 1000
-                                      ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
-                                      : `${session.total_tonnage_kg} kg`}
-                                  </span>
-                                )}
-                                {session.duration_sec && (
-                                  <span>{formatDuration(session.duration_sec)}</span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {session.distance_km && <span>{session.distance_km} km</span>}
-                                {session.duration_sec && (
-                                  <span>{formatDuration(session.duration_sec)}</span>
-                                )}
-                                {session.pace && <span>{session.pace} /km</span>}
-                                {session.hr_avg && <span>{session.hr_avg} bpm</span>}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
+                  {/* Icon */}
+                  <div className="flex h-[var(--spacing-xl)] w-[var(--spacing-xl)] shrink-0 items-center justify-center rounded-[var(--radius-xl)] bg-[var(--color-bg-primary-subtle)] text-[var(--color-interactive-primary)]">
+                    {session.workout_type === 'strength' ? (
+                      <Dumbbell className="w-[18px] h-[18px]" />
+                    ) : (
+                      <Footprints className="w-[18px] h-[18px]" />
+                    )}
+                  </div>
+                  {/* Body */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-[var(--color-text-base)] mb-[5px]">
+                      {(() => {
+                        try {
+                          return format(parseISO(session.date), 'EEEE, d. MMM yyyy', {
+                            locale: de,
+                          });
+                        } catch {
+                          return session.date;
+                        }
+                      })()}
+                    </p>
+                    {/* Colored border tags */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-[6px]">
+                      <span className={session.workout_type === 'strength' ? strengthTagStyle : workoutTagStyle}>
+                        {workoutTypeLabels[session.workout_type] || session.workout_type}
+                      </span>
+                      {effectiveType && (
+                        <span className={trainingTagStyle}>
+                          {trainingTypeLabels[effectiveType] ?? effectiveType}
+                        </span>
+                      )}
+                    </div>
+                    {/* Meta */}
+                    <div className="text-[12px] text-[var(--color-text-muted)]">
+                      {session.workout_type === 'strength' ? (
+                        [
+                          session.exercises_count != null && `${session.exercises_count} Übungen`,
+                          session.total_tonnage_kg != null &&
+                            (session.total_tonnage_kg >= 1000
+                              ? `${(session.total_tonnage_kg / 1000).toFixed(1)}t`
+                              : `${session.total_tonnage_kg} kg`),
+                          session.duration_sec && formatDuration(session.duration_sec),
+                        ]
+                          .filter(Boolean)
+                          .join(' \u00b7 ')
+                      ) : (
+                        [
+                          session.distance_km && `${session.distance_km} km`,
+                          session.duration_sec && formatDuration(session.duration_sec),
+                          session.pace && `${session.pace} /km`,
+                          session.hr_avg && `${session.hr_avg} bpm`,
+                        ]
+                          .filter(Boolean)
+                          .join(' \u00b7 ')
+                      )}
+                    </div>
+                  </div>
+                  {/* Chevron */}
+                  <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                 </div>
               );
             })}

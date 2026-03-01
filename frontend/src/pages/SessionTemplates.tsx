@@ -76,7 +76,7 @@ export function SessionTemplatesPage() {
   };
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       {/* Breadcrumbs + Header */}
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
@@ -87,7 +87,7 @@ export function SessionTemplatesPage() {
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>Session-Templates</BreadcrumbItem>
         </Breadcrumbs>
-        <header className="flex items-start justify-between">
+        <header className="flex flex-wrap items-start justify-between gap-y-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
               Session-Templates

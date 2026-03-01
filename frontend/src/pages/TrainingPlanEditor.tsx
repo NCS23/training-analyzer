@@ -23,7 +23,6 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-  CheckboxField,
 } from '@nordlig/components';
 import { Save, ArrowLeft, ChevronRight, Plus, Trash2, CalendarPlus } from 'lucide-react';
 import {
@@ -40,9 +39,11 @@ import type {
   PlanStatus,
   PhaseType,
   TrainingPhaseCreateParams,
+  PhaseWeeklyTemplate,
 } from '@/api/training-plans';
 import { listGoals } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
+import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEditor';
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'base', label: 'Grundlage' },
@@ -74,6 +75,11 @@ interface PhaseForm {
   start_week: number;
   end_week: number;
   notes: string;
+  weekly_volume_min: string;
+  weekly_volume_max: string;
+  quality_sessions_per_week: string;
+  strength_sessions_per_week: string;
+  weekly_template: PhaseWeeklyTemplate | null;
 }
 
 export function TrainingPlanEditorPage() {
@@ -102,7 +108,6 @@ export function TrainingPlanEditorPage() {
   const [deleting, setDeleting] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   // Load goals for dropdown
   useEffect(() => {
@@ -139,6 +144,11 @@ export function TrainingPlanEditorPage() {
           start_week: p.start_week,
           end_week: p.end_week,
           notes: p.notes ?? '',
+          weekly_volume_min: p.target_metrics?.weekly_volume_min?.toString() ?? '',
+          weekly_volume_max: p.target_metrics?.weekly_volume_max?.toString() ?? '',
+          quality_sessions_per_week: p.target_metrics?.quality_sessions_per_week?.toString() ?? '',
+          strength_sessions_per_week: p.target_metrics?.strength_sessions_per_week?.toString() ?? '',
+          weekly_template: p.weekly_template ?? null,
         })),
       );
     } catch {
@@ -199,13 +209,7 @@ export function TrainingPlanEditorPage() {
 
         // Update or create phases
         for (const phase of phases) {
-          const phaseData: TrainingPhaseCreateParams = {
-            name: phase.name,
-            phase_type: phase.phase_type,
-            start_week: phase.start_week,
-            end_week: phase.end_week,
-            notes: phase.notes || undefined,
-          };
+          const phaseData = phaseFormToParams(phase);
 
           if (phase.id && existingPhaseIds.has(phase.id)) {
             await updatePhase(parseInt(planId!, 10), phase.id, phaseData);
@@ -225,13 +229,7 @@ export function TrainingPlanEditorPage() {
           target_event_date: targetEventDate ? formatDate(targetEventDate) : undefined,
           status,
           goal_id: goalId,
-          phases: phases.map((p) => ({
-            name: p.name,
-            phase_type: p.phase_type,
-            start_week: p.start_week,
-            end_week: p.end_week,
-            notes: p.notes || undefined,
-          })),
+          phases: phases.map(phaseFormToParams),
         });
         toast({ title: 'Trainingsplan erstellt', variant: 'success' });
       }
@@ -262,14 +260,9 @@ export function TrainingPlanEditorPage() {
     if (!planId) return;
     setGenerating(true);
     try {
-      const result = await generateWeeklyPlans(parseInt(planId, 10), {
-        overwrite: overwriteExisting,
-      });
+      const result = await generateWeeklyPlans(parseInt(planId, 10));
       toast({
         title: `${result.weeks_generated} Wochenpläne erstellt`,
-        description: result.weeks_skipped > 0
-          ? `${result.weeks_skipped} bestehende Wochen übersprungen`
-          : undefined,
         variant: 'success',
       });
     } catch {
@@ -277,8 +270,30 @@ export function TrainingPlanEditorPage() {
     } finally {
       setGenerating(false);
       setShowGenerateDialog(false);
-      setOverwriteExisting(false);
     }
+  };
+
+  const phaseFormToParams = (phase: PhaseForm): TrainingPhaseCreateParams => {
+    const volMin = phase.weekly_volume_min ? parseFloat(phase.weekly_volume_min) : undefined;
+    const volMax = phase.weekly_volume_max ? parseFloat(phase.weekly_volume_max) : undefined;
+    const quality = phase.quality_sessions_per_week ? parseInt(phase.quality_sessions_per_week, 10) : undefined;
+    const strength = phase.strength_sessions_per_week ? parseInt(phase.strength_sessions_per_week, 10) : undefined;
+    const hasMetrics = volMin !== undefined || volMax !== undefined || quality !== undefined || strength !== undefined;
+
+    return {
+      name: phase.name,
+      phase_type: phase.phase_type,
+      start_week: phase.start_week,
+      end_week: phase.end_week,
+      notes: phase.notes || undefined,
+      target_metrics: hasMetrics ? {
+        weekly_volume_min: volMin,
+        weekly_volume_max: volMax,
+        quality_sessions_per_week: quality,
+        strength_sessions_per_week: strength,
+      } : undefined,
+      weekly_template: phase.weekly_template ?? undefined,
+    };
   };
 
   const addNewPhase = () => {
@@ -291,6 +306,11 @@ export function TrainingPlanEditorPage() {
         start_week: lastEnd + 1,
         end_week: lastEnd + 4,
         notes: '',
+        weekly_volume_min: '',
+        weekly_volume_max: '',
+        quality_sessions_per_week: '',
+        strength_sessions_per_week: '',
+        weekly_template: null,
       },
     ]);
   };
@@ -312,7 +332,7 @@ export function TrainingPlanEditorPage() {
   }
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       {/* Breadcrumbs */}
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
@@ -330,13 +350,13 @@ export function TrainingPlanEditorPage() {
             {isEdit ? name || 'Plan bearbeiten' : 'Neuer Plan'}
           </BreadcrumbItem>
         </Breadcrumbs>
-        <header className="flex items-start justify-between gap-3">
+        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
               {isEdit ? 'Plan bearbeiten' : 'Neuer Trainingsplan'}
             </h1>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings/plans')}>
               <ArrowLeft className="w-4 h-4 mr-1" />
               Zurück
@@ -369,7 +389,6 @@ export function TrainingPlanEditorPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="!bg-[var(--color-bg-error)] !text-[var(--color-text-on-error)]"
             >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
@@ -383,19 +402,12 @@ export function TrainingPlanEditorPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Wochenpläne generieren?</AlertDialogTitle>
             <AlertDialogDescription>
-              Es werden Wochenpläne für alle {phases.length > 0
-                ? `${phases.reduce((max, p) => Math.max(max, p.end_week), 0)} Wochen`
-                : 'Wochen'} des Trainingsplans erstellt (basierend auf den Phasen).
+              Alle bestehenden generierten Einträge dieses Plans werden ersetzt.
+              {phases.length > 0
+                ? ` ${phases.reduce((max, p) => Math.max(max, p.end_week), 0)} Wochen werden neu erstellt.`
+                : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="px-6 pb-2">
-            <CheckboxField
-              label="Bestehende Wochenpläne überschreiben"
-              description="Bereits vorhandene Einträge werden ersetzt"
-              checked={overwriteExisting}
-              onCheckedChange={(v) => setOverwriteExisting(v === true)}
-            />
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleGenerate} disabled={generating}>
@@ -577,6 +589,65 @@ export function TrainingPlanEditorPage() {
                       placeholder="Optionale Hinweise zur Phase"
                     />
                   </div>
+
+                  {/* Target Metrics */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label>Vol. min (km)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={5}
+                        value={phase.weekly_volume_min}
+                        onChange={(e) => updatePhaseForm(idx, { weekly_volume_min: e.target.value })}
+                        inputSize="sm"
+                        placeholder="z.B. 30"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Vol. max (km)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={5}
+                        value={phase.weekly_volume_max}
+                        onChange={(e) => updatePhaseForm(idx, { weekly_volume_max: e.target.value })}
+                        inputSize="sm"
+                        placeholder="z.B. 45"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Quality/Wo.</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={5}
+                        value={phase.quality_sessions_per_week}
+                        onChange={(e) => updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })}
+                        inputSize="sm"
+                        placeholder="z.B. 2"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Kraft/Wo.</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={5}
+                        value={phase.strength_sessions_per_week}
+                        onChange={(e) => updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })}
+                        inputSize="sm"
+                        placeholder="z.B. 2"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Weekly Template */}
+                  <PhaseWeeklyTemplateEditor
+                    template={phase.weekly_template}
+                    phaseType={phase.phase_type}
+                    onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
+                  />
                 </div>
               ))}
             </div>
@@ -591,7 +662,7 @@ export function TrainingPlanEditorPage() {
         </Alert>
       )}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate('/settings/plans')}>
           Abbrechen
         </Button>

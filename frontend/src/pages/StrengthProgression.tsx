@@ -8,8 +8,7 @@ import {
   AlertDescription,
   Badge,
   Select,
-  ToggleGroup,
-  ToggleGroupItem,
+  SegmentedControl,
   EmptyState,
 } from '@nordlig/components';
 import { Dumbbell, Trophy, TrendingUp, Weight, ArrowUp, ArrowDown, Minus } from 'lucide-react';
@@ -77,13 +76,17 @@ function formatDateFull(dateStr: string): string {
   }
 }
 
-export function StrengthProgressionPage() {
+/**
+ * Content-only variant (no page wrapper/header) — used inside the combined Trends page.
+ */
+export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRange }) {
   const [exercises, setExercises] = useState<ExerciseListItem[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [history, setHistory] = useState<ExerciseHistoryResponse | null>(null);
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [tonnageTrend, setTonnageTrend] = useState<TonnageTrendResponse | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>('90');
+  const [internalTimeRange, setInternalTimeRange] = useState<TimeRange>('90');
+  const effectiveTimeRange = timeRange ?? internalTimeRange;
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +99,7 @@ export function StrengthProgressionPage() {
       const [exerciseRes, prRes, tonnageRes] = await Promise.all([
         getExerciseList(),
         getPersonalRecords(),
-        getTonnageTrend(parseInt(timeRange, 10)),
+        getTonnageTrend(parseInt(effectiveTimeRange, 10)),
       ]);
       setExercises(exerciseRes.exercises);
       setPrs(prRes.records);
@@ -111,7 +114,7 @@ export function StrengthProgressionPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, selectedExercise]);
+  }, [effectiveTimeRange, selectedExercise]);
 
   useEffect(() => {
     loadInitialData();
@@ -141,10 +144,10 @@ export function StrengthProgressionPage() {
 
   // Reload tonnage when time range changes
   useEffect(() => {
-    getTonnageTrend(parseInt(timeRange, 10))
+    getTonnageTrend(parseInt(effectiveTimeRange, 10))
       .then(setTonnageTrend)
       .catch(() => {});
-  }, [timeRange]);
+  }, [effectiveTimeRange]);
 
   // Chart data for exercise progression
   const weightChartData = useMemo(() => {
@@ -185,67 +188,46 @@ export function StrengthProgressionPage() {
 
   if (loading) {
     return (
-      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto">
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <Spinner size="lg" />
-        </div>
+      <div className="flex items-center justify-center min-h-[30vh]">
+        <Spinner size="lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-        <Alert variant="error">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
+      <Alert variant="error">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 
   if (exercises.length === 0) {
     return (
-      <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-        <header className="pb-2">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-            Kraft-Progression
-          </h1>
-        </header>
-        <EmptyState
-          icon={<Dumbbell className="w-10 h-10" />}
-          title="Noch keine Krafttraining-Daten"
-          description="Erstelle deine erste Krafttraining-Session, um die Progression zu sehen."
-        />
-      </div>
+      <EmptyState
+        icon={<Dumbbell className="w-10 h-10" />}
+        title="Noch keine Krafttraining-Daten"
+        description="Erstelle deine erste Krafttraining-Session, um die Progression zu sehen."
+      />
     );
   }
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-2">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-            Kraft-Progression
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Gewichtsverlauf, PRs und Tonnage-Trends.
-          </p>
+    <>
+      {/* Time range toggle — only shown when used standalone (no prop) */}
+      {!timeRange && (
+        <div className="flex justify-end">
+          <SegmentedControl
+            size="sm"
+            value={internalTimeRange}
+            onChange={(v) => setInternalTimeRange(v as TimeRange)}
+            items={Object.entries(TIME_RANGE_LABELS).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+          />
         </div>
-        <ToggleGroup
-          type="single"
-          value={timeRange}
-          onValueChange={(v) => {
-            if (v) setTimeRange(v as TimeRange);
-          }}
-        >
-          {(Object.entries(TIME_RANGE_LABELS) as [TimeRange, string][]).map(([value, label]) => (
-            <ToggleGroupItem key={value} value={value}>
-              {label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </header>
+      )}
 
       {/* Exercise Selector + Weight Progression */}
       <Card elevation="raised" padding="spacious">
@@ -305,7 +287,7 @@ export function StrengthProgressionPage() {
                     data={weightChartData}
                     margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
@@ -396,7 +378,7 @@ export function StrengthProgressionPage() {
                   data={tonnageChartData}
                   margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
                   <YAxis
                     tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
@@ -427,7 +409,7 @@ export function StrengthProgressionPage() {
             </div>
             {/* Summary */}
             {tonnageTrend && (
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--color-border-muted)]">
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Gesamt-Tonnage</p>
                   <p className="text-sm font-medium text-[var(--color-text-base)]">
@@ -546,6 +528,23 @@ export function StrengthProgressionPage() {
           </div>
         </CardBody>
       </Card>
+    </>
+  );
+}
+
+/** Standalone page wrapper — kept for direct route access */
+export function StrengthProgressionPage() {
+  return (
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
+      <header className="pb-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Kraft-Progression
+        </h1>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Gewichtsverlauf, PRs und Tonnage-Trends.
+        </p>
+      </header>
+      <StrengthProgressionContent />
     </div>
   );
 }

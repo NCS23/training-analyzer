@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import {
   Card,
   CardBody,
@@ -6,8 +6,11 @@ import {
   Spinner,
   Alert,
   AlertDescription,
-  ToggleGroup,
-  ToggleGroupItem,
+  SegmentedControl,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
 } from '@nordlig/components';
 import { TrendingUp, Heart, MapPin } from 'lucide-react';
 import {
@@ -24,13 +27,11 @@ import {
 import { getTrends } from '@/api/trends';
 import type { TrendResponse, WeeklyDataPoint } from '@/api/trends';
 
-type TimeRange = '7' | '28' | '90';
+const StrengthProgressionContent = lazy(() =>
+  import('./StrengthProgression').then((m) => ({ default: m.StrengthProgressionContent })),
+);
 
-const TIME_RANGE_LABELS: Record<TimeRange, string> = {
-  '7': '7 Tage',
-  '28': '4 Wochen',
-  '90': '3 Monate',
-};
+type TimeRange = '7' | '28' | '90';
 
 function formatWeekLabel(weekStart: string): string {
   try {
@@ -54,11 +55,14 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-export function TrendsPage() {
+/* ------------------------------------------------------------------ */
+/*  Running Trends Content (inline)                                     */
+/* ------------------------------------------------------------------ */
+
+function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>('28');
 
   const loadTrends = useCallback(async () => {
     setLoading(true);
@@ -98,31 +102,7 @@ export function TrendsPage() {
   };
 
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-2">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-            Trends
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Entwicklung deiner Trainingsdaten über die Zeit.
-          </p>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={timeRange}
-          onValueChange={(v) => {
-            if (v) setTimeRange(v as TimeRange);
-          }}
-        >
-          {(Object.entries(TIME_RANGE_LABELS) as [TimeRange, string][]).map(([value, label]) => (
-            <ToggleGroupItem key={value} value={value}>
-              {label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </header>
-
+    <>
       {loading && (
         <div className="flex items-center justify-center min-h-[30vh]">
           <Spinner size="lg" />
@@ -172,7 +152,7 @@ export function TrendsPage() {
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
@@ -221,7 +201,7 @@ export function TrendsPage() {
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
@@ -268,7 +248,7 @@ export function TrendsPage() {
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
@@ -297,7 +277,7 @@ export function TrendsPage() {
                 </ResponsiveContainer>
               </div>
               {/* Summary row */}
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--color-border-muted)]">
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Gesamt-Distanz</p>
                   <p className="text-sm font-medium text-[var(--color-text-base)]">
@@ -321,6 +301,76 @@ export function TrendsPage() {
           </Card>
         </>
       )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Combined Trends Page                                                */
+/* ------------------------------------------------------------------ */
+
+type StrengthTimeRange = '28' | '90' | '180';
+
+const RUNNING_RANGE_ITEMS = [
+  { value: '7', label: '7T' },
+  { value: '28', label: '4W' },
+  { value: '90', label: '3M' },
+];
+
+const STRENGTH_RANGE_ITEMS = [
+  { value: '28', label: '4W' },
+  { value: '90', label: '3M' },
+  { value: '180', label: '6M' },
+];
+
+export function TrendsPage() {
+  const [activeTab, setActiveTab] = useState('running');
+  const [runningTimeRange, setRunningTimeRange] = useState<TimeRange>('28');
+  const [strengthTimeRange, setStrengthTimeRange] = useState<StrengthTimeRange>('90');
+
+  return (
+    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
+      <header className="pb-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Trends
+        </h1>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList variant="underline">
+          <TabsTrigger value="running">Laufen</TabsTrigger>
+          <TabsTrigger value="strength">Kraft</TabsTrigger>
+        </TabsList>
+
+        <div className="flex items-center justify-between rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-muted)] px-3 py-1.5 mt-4">
+          <span className="text-xs text-[var(--color-text-muted)]">Zeitraum</span>
+          <SegmentedControl
+            size="sm"
+            value={activeTab === 'running' ? runningTimeRange : strengthTimeRange}
+            onChange={(v) => {
+              if (activeTab === 'running') setRunningTimeRange(v as TimeRange);
+              else setStrengthTimeRange(v as StrengthTimeRange);
+            }}
+            items={activeTab === 'running' ? RUNNING_RANGE_ITEMS : STRENGTH_RANGE_ITEMS}
+          />
+        </div>
+
+        <TabsContent value="running" className="space-y-6">
+          <RunningTrendsContent timeRange={runningTimeRange} />
+        </TabsContent>
+
+        <TabsContent value="strength" className="space-y-6">
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[30vh]">
+                <Spinner size="lg" />
+              </div>
+            }
+          >
+            <StrengthProgressionContent timeRange={strengthTimeRange} />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

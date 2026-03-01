@@ -17,6 +17,21 @@ export interface PhaseTargetMetrics {
   strength_sessions_per_week?: number;
 }
 
+export type RunType = 'recovery' | 'easy' | 'long_run' | 'tempo' | 'intervals';
+
+export interface PhaseWeeklyTemplateDayEntry {
+  day_of_week: number;
+  training_type: 'strength' | 'running' | null;
+  is_rest_day: boolean;
+  run_type: RunType | null;
+  template_id: number | null;
+  notes: string | null;
+}
+
+export interface PhaseWeeklyTemplate {
+  days: PhaseWeeklyTemplateDayEntry[];
+}
+
 export interface TrainingPhase {
   id: number;
   training_plan_id: number;
@@ -26,6 +41,7 @@ export interface TrainingPhase {
   end_week: number;
   focus: PhaseFocus | null;
   target_metrics: PhaseTargetMetrics | null;
+  weekly_template: PhaseWeeklyTemplate | null;
   notes: string | null;
   created_at: string;
 }
@@ -110,6 +126,7 @@ export interface TrainingPhaseCreateParams {
   end_week: number;
   focus?: PhaseFocus;
   target_metrics?: PhaseTargetMetrics;
+  weekly_template?: PhaseWeeklyTemplate;
   notes?: string;
 }
 
@@ -120,6 +137,7 @@ export interface TrainingPhaseUpdateParams {
   end_week?: number;
   focus?: PhaseFocus;
   target_metrics?: PhaseTargetMetrics;
+  weekly_template?: PhaseWeeklyTemplate;
   notes?: string;
 }
 
@@ -215,23 +233,17 @@ export async function deletePhase(planId: number, phaseId: number): Promise<void
 
 // --- Generate Weekly Plans ---
 
-export interface GenerateWeeklyPlansParams {
-  overwrite?: boolean;
-}
-
 export interface GenerateWeeklyPlansResponse {
   weeks_generated: number;
-  weeks_skipped: number;
   total_weeks: number;
 }
 
 export async function generateWeeklyPlans(
   planId: number,
-  params?: GenerateWeeklyPlansParams,
 ): Promise<GenerateWeeklyPlansResponse> {
   const response = await apiClient.post<GenerateWeeklyPlansResponse>(
     `/api/v1/training-plans/${planId}/generate`,
-    params ?? {},
+    {},
   );
   return response.data;
 }

@@ -82,9 +82,6 @@ const StrengthSessionPage = lazy(() =>
   import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
 );
 const TrendsPage = lazy(() => import('./pages/Trends').then((m) => ({ default: m.TrendsPage })));
-const StrengthProgressionPage = lazy(() =>
-  import('./pages/StrengthProgression').then((m) => ({ default: m.StrengthProgressionPage })),
-);
 const ExerciseLibraryPage = lazy(() =>
   import('./pages/ExerciseLibrary').then((m) => ({ default: m.ExerciseLibraryPage })),
 );
@@ -141,7 +138,7 @@ function App() {
                   <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
                   <Route path="/trends" element={<TrendsPage />} />
-                  <Route path="/strength/progression" element={<StrengthProgressionPage />} />
+                  <Route path="/strength/progression" element={<Navigate to="/trends" replace />} />
                   <Route path="/plan" element={<WeeklyPlanPage />} />
                   <Route path="/balance" element={<TrainingBalancePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
