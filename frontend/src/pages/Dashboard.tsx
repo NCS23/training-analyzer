@@ -26,11 +26,16 @@ import {
   Calendar,
   Footprints,
   Dumbbell,
+  Flame,
+  AlertTriangle,
+  Trophy,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary } from '@/api/training';
 import { listGoals, getGoalProgress } from '@/api/goals';
 import type { GoalProgress } from '@/api/goals';
+import { getStreak } from '@/api/streak';
+import type { StreakResponse } from '@/api/streak';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -46,10 +51,12 @@ export function DashboardPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [goalProgress, setGoalProgress] = useState<GoalProgress | null>(null);
+  const [streak, setStreak] = useState<StreakResponse | null>(null);
 
   useEffect(() => {
     loadSessions();
     loadGoalProgress();
+    getStreak().then(setStreak).catch(() => {});
   }, []);
 
   const loadSessions = async () => {
@@ -215,6 +222,50 @@ export function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {/* Streak Widget */}
+      {streak && streak.current_streak > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card elevation="raised" padding="compact">
+            <CardBody>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Flame className="w-5 h-5 text-[var(--color-text-warning)]" />
+                <p className="text-xs font-medium text-[var(--color-text-warning)] uppercase tracking-wider">
+                  Streak
+                </p>
+              </div>
+              <p className="text-2xl font-bold text-[var(--color-text-base)]">
+                {streak.current_streak}{' '}
+                <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                  {streak.current_streak === 1 ? 'Tag' : 'Tage'}
+                </span>
+              </p>
+              {streak.streak_at_risk && (
+                <p className="flex items-center gap-1 text-xs text-[var(--color-text-warning)] mt-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Trainiere heute, um den Streak zu halten!
+                </p>
+              )}
+            </CardBody>
+          </Card>
+          <Card elevation="raised" padding="compact">
+            <CardBody>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Trophy className="w-5 h-5 text-[var(--color-chart-1)]" />
+                <p className="text-xs font-medium text-[var(--color-chart-1)] uppercase tracking-wider">
+                  Rekord
+                </p>
+              </div>
+              <p className="text-2xl font-bold text-[var(--color-text-base)]">
+                {streak.longest_streak}{' '}
+                <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                  {streak.longest_streak === 1 ? 'Tag' : 'Tage'}
+                </span>
+              </p>
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       {/* Goal Progress Card */}
       {goalProgress && (
