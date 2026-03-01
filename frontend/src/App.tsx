@@ -100,6 +100,9 @@ const TrainingPlanEditorPage = lazy(() =>
 const WeeklyPlanPage = lazy(() =>
   import('./pages/WeeklyPlan').then((m) => ({ default: m.WeeklyPlanPage })),
 );
+const TrainingBalancePage = lazy(() =>
+  import('./pages/TrainingBalance').then((m) => ({ default: m.TrainingBalancePage })),
+);
 const GoalsPage = lazy(() => import('./pages/Goals').then((m) => ({ default: m.GoalsPage })));
 const AthleteProfilePage = lazy(() =>
   import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
@@ -134,6 +137,7 @@ function App() {
                   <Route path="/trends" element={<TrendsPage />} />
                   <Route path="/strength/progression" element={<StrengthProgressionPage />} />
                   <Route path="/plan" element={<WeeklyPlanPage />} />
+                  <Route path="/balance" element={<TrainingBalancePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
                   <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />

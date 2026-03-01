@@ -8,7 +8,7 @@ import {
   Icon,
   Text,
 } from '@nordlig/components';
-import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Weight, Settings } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Weight, Scale, Settings } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/trends', label: 'Trends', icon: TrendingUp },
   { to: '/strength/progression', label: 'Kraft', icon: Weight },
   { to: '/plan', label: 'Wochenplan', icon: CalendarDays },
+  { to: '/balance', label: 'Balance', icon: Scale },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 
