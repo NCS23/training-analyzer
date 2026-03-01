@@ -13,11 +13,13 @@ from app.infrastructure.database.models import (
     TrainingPhaseModel,
     TrainingPlanModel,
 )
+from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplateDayEntry
 from app.services.plan_generator import (
     _build_run_details,
     _compute_race_pace,
     _distribute_days,
     _seconds_to_pace,
+    _template_to_entries,
     generate_weekly_plans,
 )
 
@@ -53,6 +55,7 @@ def _make_phase(
     start_week: int = 1,
     end_week: int = 4,
     metrics: Optional[dict] = None,
+    weekly_template: Optional[dict] = None,
 ) -> TrainingPhaseModel:
     phase = TrainingPhaseModel(
         training_plan_id=plan_id,
@@ -61,6 +64,7 @@ def _make_phase(
         start_week=start_week,
         end_week=end_week,
         target_metrics_json=json.dumps(metrics) if metrics else None,
+        weekly_template_json=json.dumps(weekly_template) if weekly_template else None,
         created_at=datetime.utcnow(),
     )
     db.add(phase)
@@ -142,6 +146,64 @@ class TestHelpers:
         long_runs = [e for e in running_entries if e.run_details and e.run_details.run_type == "long_run"]
         assert len(long_runs) == 1
         assert long_runs[0].day_of_week == 5  # Saturday
+
+
+# --- Template tests ---
+
+
+def _day(
+    day: int,
+    training_type: Optional[str] = None,
+    run_type: Optional[str] = None,
+    is_rest_day: bool = False,
+) -> PhaseWeeklyTemplateDayEntry:
+    return PhaseWeeklyTemplateDayEntry(
+        day_of_week=day,
+        training_type=training_type,
+        is_rest_day=is_rest_day,
+        run_type=run_type,
+        template_id=None,
+        notes=None,
+    )
+
+
+SAMPLE_TEMPLATE = PhaseWeeklyTemplate(days=[
+    _day(0, "running", "easy"),
+    _day(1, "strength"),
+    _day(2, "running", "tempo"),
+    _day(3, "running", "easy"),
+    _day(4, "running", "intervals"),
+    _day(5, "running", "long_run"),
+    _day(6, is_rest_day=True),
+])
+
+
+class TestTemplateToEntries:
+    def test_template_produces_7_entries(self) -> None:
+        entries = _template_to_entries(SAMPLE_TEMPLATE)
+        assert len(entries) == 7
+
+    def test_template_preserves_run_types(self) -> None:
+        entries = _template_to_entries(SAMPLE_TEMPLATE)
+        run_types = {
+            e.day_of_week: e.run_details.run_type
+            for e in entries
+            if e.run_details is not None
+        }
+        assert run_types[0] == "easy"
+        assert run_types[2] == "tempo"
+        assert run_types[4] == "intervals"
+        assert run_types[5] == "long_run"
+
+    def test_template_preserves_strength(self) -> None:
+        entries = _template_to_entries(SAMPLE_TEMPLATE)
+        assert entries[1].training_type == "strength"
+        assert entries[1].run_details is None
+
+    def test_template_preserves_rest_day(self) -> None:
+        entries = _template_to_entries(SAMPLE_TEMPLATE)
+        assert entries[6].is_rest_day is True
+        assert entries[6].training_type is None
 
 
 # --- Integration tests for generate_weekly_plans ---
@@ -302,6 +364,131 @@ async def test_generate_phase_type_sessions(db_session: AsyncSession) -> None:
     assert "tempo" in run_types, f"Expected tempo in peak phase, got {run_types}"
 
 
+# --- Template integration tests ---
+
+
+TEMPLATE_JSON = {
+    "days": [
+        {"day_of_week": 0, "training_type": "running", "run_type": "easy"},
+        {"day_of_week": 1, "training_type": "strength"},
+        {"day_of_week": 2, "training_type": "running", "run_type": "tempo"},
+        {"day_of_week": 3, "training_type": "running", "run_type": "easy"},
+        {"day_of_week": 4, "training_type": "running", "run_type": "intervals"},
+        {"day_of_week": 5, "training_type": "running", "run_type": "long_run"},
+        {"day_of_week": 6, "is_rest_day": True},
+    ]
+}
+
+
+@pytest.mark.anyio
+async def test_generate_with_template(db_session: AsyncSession) -> None:
+    """Phase with weekly_template → entries match template exactly."""
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03")
+    await db_session.flush()
+
+    _make_phase(db_session, int(plan.id), "build", 1, 4, {  # type: ignore[arg-type]
+        "weekly_volume_min": 30, "weekly_volume_max": 40,
+    }, weekly_template=TEMPLATE_JSON)
+    await db_session.flush()
+
+    from sqlalchemy import select
+    phases = list((await db_session.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan.id)
+    )).scalars().all())
+
+    result = generate_weekly_plans(plan, phases, [6], None)
+    assert len(result) > 0
+
+    _, entries = result[0]
+    assert len(entries) == 7
+
+    # Verify template structure is preserved
+    assert entries[0].training_type == "running"
+    assert entries[0].run_details is not None
+    assert entries[0].run_details.run_type == "easy"
+    assert entries[1].training_type == "strength"
+    assert entries[2].run_details is not None
+    assert entries[2].run_details.run_type == "tempo"
+    assert entries[6].is_rest_day is True
+
+
+@pytest.mark.anyio
+async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
+    """Template + volume metrics → RunDetails get duration/pace filled in."""
+    goal = _make_goal(db_session)
+    await db_session.flush()
+
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=int(goal.id))  # type: ignore[arg-type]
+    await db_session.flush()
+
+    _make_phase(db_session, int(plan.id), "build", 1, 4, {  # type: ignore[arg-type]
+        "weekly_volume_min": 35, "weekly_volume_max": 45,
+    }, weekly_template=TEMPLATE_JSON)
+    await db_session.flush()
+
+    from sqlalchemy import select
+    phases = list((await db_session.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan.id)
+    )).scalars().all())
+
+    result = generate_weekly_plans(plan, phases, [6], goal)
+    assert len(result) > 0
+
+    _, entries = result[0]
+    # Running entries should have duration and pace filled
+    running_with_details = [
+        e for e in entries
+        if e.run_details and e.run_details.target_duration_minutes
+    ]
+    assert len(running_with_details) > 0
+    # At least one should have pace (because goal is set)
+    has_pace = any(e.run_details.target_pace_min for e in running_with_details if e.run_details)
+    assert has_pace
+
+
+@pytest.mark.anyio
+async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
+    """One phase with template, one without → both work correctly."""
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-06-28")
+    await db_session.flush()
+
+    # Phase 1: with template
+    _make_phase(db_session, int(plan.id), "base", 1, 6, {  # type: ignore[arg-type]
+        "weekly_volume_min": 30, "weekly_volume_max": 40,
+    }, weekly_template=TEMPLATE_JSON)
+    # Phase 2: without template (fallback to PHASE_DEFAULTS)
+    _make_phase(db_session, int(plan.id), "build", 7, 12, {  # type: ignore[arg-type]
+        "weekly_volume_min": 40, "weekly_volume_max": 55,
+    })
+    await db_session.flush()
+
+    from sqlalchemy import select
+    phases = list((await db_session.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan.id)
+        .order_by(TrainingPhaseModel.start_week)
+    )).scalars().all())
+
+    result = generate_weekly_plans(plan, phases, [6], None)
+    assert len(result) == 12
+
+    # Week 1 (template phase): should match template
+    _, week1_entries = result[0]
+    assert week1_entries[1].training_type == "strength"  # day 1 = strength from template
+
+    # Week 7 (defaults phase): should have entries generated from defaults
+    _, week7_entries = result[6]
+    assert len(week7_entries) == 7
+    # build phase defaults have tempo run
+    run_types = {
+        e.run_details.run_type for e in week7_entries
+        if e.run_details is not None
+    }
+    assert "tempo" in run_types
+
+
 # --- API endpoint tests ---
 
 
@@ -339,7 +526,7 @@ async def test_generate_endpoint(client: AsyncClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["weeks_generated"] > 0
-    assert body["total_weeks"] == body["weeks_generated"] + body["weeks_skipped"]
+    assert body["total_weeks"] == body["weeks_generated"]
 
 
 @pytest.mark.anyio
@@ -364,8 +551,8 @@ async def test_generate_plan_not_found(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_generate_overwrite_false_skips(client: AsyncClient) -> None:
-    """overwrite=false skips existing weeks."""
+async def test_generate_replaces_previous(client: AsyncClient) -> None:
+    """Re-generating always replaces previous entries for the same plan."""
     create_resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
     plan_id = create_resp.json()["id"]
 
@@ -374,33 +561,37 @@ async def test_generate_overwrite_false_skips(client: AsyncClient) -> None:
     assert resp1.status_code == 200
     first_generated = resp1.json()["weeks_generated"]
 
-    # Second generate without overwrite
-    resp2 = await client.post(
-        f"/api/v1/training-plans/{plan_id}/generate",
-        json={"overwrite": False},
-    )
-    assert resp2.status_code == 200
-    body = resp2.json()
-    assert body["weeks_skipped"] == first_generated
-    assert body["weeks_generated"] == 0
-
-
-@pytest.mark.anyio
-async def test_generate_overwrite_true_replaces(client: AsyncClient) -> None:
-    """overwrite=true replaces existing weeks."""
-    create_resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
-    plan_id = create_resp.json()["id"]
-
-    # First generate
-    resp1 = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
-    first_generated = resp1.json()["weeks_generated"]
-
-    # Second generate with overwrite
-    resp2 = await client.post(
-        f"/api/v1/training-plans/{plan_id}/generate",
-        json={"overwrite": True},
-    )
+    # Second generate — should replace, not skip
+    resp2 = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
     assert resp2.status_code == 200
     body = resp2.json()
     assert body["weeks_generated"] == first_generated
-    assert body["weeks_skipped"] == 0
+
+    # Verify via weekly plan API: first week should have entries
+    week_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-04-06"})
+    assert week_resp.status_code == 200
+    entries = week_resp.json()["entries"]
+    has_content = any(e["training_type"] is not None or e["is_rest_day"] for e in entries)
+    assert has_content
+
+
+@pytest.mark.anyio
+async def test_generate_cleans_legacy_entries(client: AsyncClient) -> None:
+    """Generating cleans up legacy entries (plan_id=NULL) for covered weeks."""
+    # Create a manual entry first (simulates old data without plan_id)
+    manual_resp = await client.put(
+        "/api/v1/weekly-plan",
+        json={
+            "week_start": "2026-04-06",
+            "entries": [{"day_of_week": 0, "training_type": "strength", "is_rest_day": False}],
+        },
+    )
+    assert manual_resp.status_code == 200
+
+    # Now create a plan covering that week and generate
+    create_resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    plan_id = create_resp.json()["id"]
+
+    resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
+    assert resp.status_code == 200
+    assert resp.json()["weeks_generated"] > 0

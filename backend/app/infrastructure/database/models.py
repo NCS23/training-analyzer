@@ -168,6 +168,7 @@ class TrainingPhaseModel(Base):
     end_week = Column(Integer, nullable=False)
     focus_json = Column(Text, nullable=True)
     target_metrics_json = Column(Text, nullable=True)
+    weekly_template_json = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -178,6 +179,7 @@ class WeeklyPlanEntryModel(Base):
     __table_args__ = (UniqueConstraint("week_start", "day_of_week", name="uq_week_day"),)
 
     id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, nullable=True, index=True)  # FK to training_plans (NULL = manual)
     week_start = Column(Date, nullable=False, index=True)
     day_of_week = Column(Integer, nullable=False)  # 0=Mon, 6=Sun
     training_type = Column(String(30), nullable=True)  # 'strength', 'running', or None

@@ -22,6 +22,25 @@ class PhaseTargetMetrics(BaseModel):
     strength_sessions_per_week: Optional[int] = None
 
 
+class PhaseWeeklyTemplateDayEntry(BaseModel):
+    """A single day slot in a phase's weekly template."""
+
+    day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
+    training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
+    is_rest_day: bool = False
+    run_type: Optional[str] = Field(
+        None, pattern="^(recovery|easy|long_run|tempo|intervals)$"
+    )
+    template_id: Optional[int] = None
+    notes: Optional[str] = Field(None, max_length=200)
+
+
+class PhaseWeeklyTemplate(BaseModel):
+    """7-day weekly template for a training phase."""
+
+    days: list[PhaseWeeklyTemplateDayEntry] = Field(..., min_length=7, max_length=7)
+
+
 class TrainingPhaseCreate(BaseModel):
     """Request schema: create a training phase."""
 
@@ -31,6 +50,7 @@ class TrainingPhaseCreate(BaseModel):
     end_week: int = Field(..., ge=1, le=52)
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
+    weekly_template: Optional[PhaseWeeklyTemplate] = None
     notes: Optional[str] = Field(None, max_length=2000)
 
 
@@ -45,6 +65,7 @@ class TrainingPhaseUpdate(BaseModel):
     end_week: Optional[int] = Field(None, ge=1, le=52)
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
+    weekly_template: Optional[PhaseWeeklyTemplate] = None
     notes: Optional[str] = Field(None, max_length=2000)
 
 
@@ -59,6 +80,7 @@ class TrainingPhaseResponse(BaseModel):
     end_week: int
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
+    weekly_template: Optional[PhaseWeeklyTemplate] = None
     notes: Optional[str] = None
     created_at: str
 
@@ -154,15 +176,8 @@ class TrainingPlanListResponse(BaseModel):
     total: int
 
 
-class GenerateWeeklyPlansRequest(BaseModel):
-    """Request schema: generate weekly plans from training plan."""
-
-    overwrite: bool = False
-
-
 class GenerateWeeklyPlansResponse(BaseModel):
     """Response schema: weekly plan generation result."""
 
     weeks_generated: int
-    weeks_skipped: int
     total_weeks: int

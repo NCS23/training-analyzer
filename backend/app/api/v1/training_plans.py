@@ -17,11 +17,11 @@ from app.infrastructure.database.models import (
 )
 from app.infrastructure.database.session import get_db
 from app.models.training_plan import (
-    GenerateWeeklyPlansRequest,
     GenerateWeeklyPlansResponse,
     GoalSummary,
     PhaseFocus,
     PhaseTargetMetrics,
+    PhaseWeeklyTemplate,
     TrainingPhaseCreate,
     TrainingPhaseResponse,
     TrainingPhaseUpdate,
@@ -63,6 +63,13 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
     if raw_metrics:
         target_metrics = PhaseTargetMetrics(**raw_metrics)
 
+    weekly_template: Optional[PhaseWeeklyTemplate] = None
+    raw_template = _parse_json(
+        str(phase.weekly_template_json) if phase.weekly_template_json else None
+    )
+    if raw_template:
+        weekly_template = PhaseWeeklyTemplate(**raw_template)
+
     return TrainingPhaseResponse(
         id=int(phase.id),  # type: ignore[arg-type]
         training_plan_id=int(phase.training_plan_id),  # type: ignore[arg-type]
@@ -72,6 +79,7 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
         end_week=int(phase.end_week),  # type: ignore[arg-type]
         focus=focus,
         target_metrics=target_metrics,
+        weekly_template=weekly_template,
         notes=str(phase.notes) if phase.notes else None,
         created_at=phase.created_at.isoformat() if phase.created_at else "",  # type: ignore[union-attr]
     )
@@ -179,6 +187,9 @@ def _create_phase_model(
     target_metrics_json: Optional[str] = None
     if data.target_metrics:
         target_metrics_json = json.dumps(data.target_metrics.model_dump())
+    weekly_template_json: Optional[str] = None
+    if data.weekly_template:
+        weekly_template_json = json.dumps(data.weekly_template.model_dump())
 
     return TrainingPhaseModel(
         training_plan_id=plan_id,
@@ -188,6 +199,7 @@ def _create_phase_model(
         end_week=data.end_week,
         focus_json=focus_json,
         target_metrics_json=target_metrics_json,
+        weekly_template_json=weekly_template_json,
         notes=data.notes,
         created_at=datetime.utcnow(),
     )
@@ -328,6 +340,27 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
             mapped = dict(phase)
             if "type" in mapped and "phase_type" not in mapped:
                 mapped["phase_type"] = mapped.pop("type")
+
+            # Convert YAML weekly_template shorthand to PhaseWeeklyTemplate
+            if "weekly_template" in mapped and isinstance(mapped["weekly_template"], list):
+                days = []
+                for day_entry in mapped["weekly_template"]:
+                    if not isinstance(day_entry, dict):
+                        continue
+                    day_of_week = day_entry.get("day", 0)
+                    is_rest = day_entry.get("rest", False)
+                    training_type = day_entry.get("type") if not is_rest else None
+                    run_type = day_entry.get("run_type") if training_type == "running" else None
+                    days.append({
+                        "day_of_week": day_of_week,
+                        "training_type": training_type,
+                        "is_rest_day": bool(is_rest),
+                        "run_type": run_type,
+                        "template_id": None,
+                        "notes": day_entry.get("notes"),
+                    })
+                mapped["weekly_template"] = {"days": days}
+
             result["phases"].append(mapped)
 
     return result
@@ -394,10 +427,13 @@ async def import_plan_from_yaml(
 )
 async def generate_plan_weeks(
     plan_id: int,
-    data: GenerateWeeklyPlansRequest = GenerateWeeklyPlansRequest(),
     db: AsyncSession = Depends(get_db),
 ) -> GenerateWeeklyPlansResponse:
-    """Generate weekly plans from a training plan's phases."""
+    """Generate weekly plans from a training plan's phases.
+
+    Always replaces all previously generated entries for this plan.
+    Manual entries (plan_id=NULL) are preserved.
+    """
     # Load plan
     result = await db.execute(
         select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
@@ -441,34 +477,40 @@ async def generate_plan_weeks(
     # Generate
     weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
 
-    weeks_generated = 0
-    weeks_skipped = 0
+    # Collect all week_start dates that will be generated
+    new_week_starts = [ws for ws, _ in weekly_plans]
 
-    for week_start, entries in weekly_plans:
-        # Check for existing entries
-        existing = await db.execute(
+    # Delete old entries: (1) by plan_id, (2) by week_start for legacy/manual
+    old_by_plan = await db.execute(
+        select(WeeklyPlanEntryModel).where(
+            WeeklyPlanEntryModel.plan_id == plan_id
+        )
+    )
+    for old_entry in old_by_plan.scalars().all():
+        await db.delete(old_entry)
+
+    if new_week_starts:
+        old_by_week = await db.execute(
             select(WeeklyPlanEntryModel).where(
-                WeeklyPlanEntryModel.week_start == week_start
+                WeeklyPlanEntryModel.week_start.in_(new_week_starts),
+                WeeklyPlanEntryModel.plan_id.is_(None),
             )
         )
-        existing_entries = list(existing.scalars().all())
-
-        if existing_entries and not data.overwrite:
-            weeks_skipped += 1
-            continue
-
-        # Delete existing entries if overwriting
-        for old_entry in existing_entries:
+        for old_entry in old_by_week.scalars().all():
             await db.delete(old_entry)
-        await db.flush()
 
-        # Insert new entries
+    await db.flush()
+
+    # Insert new entries (with plan_id link)
+    weeks_generated = 0
+    for week_start, entries in weekly_plans:
         for plan_entry in entries:
             run_details_str: Optional[str] = None
             if plan_entry.run_details is not None:
                 run_details_str = json.dumps(plan_entry.run_details.model_dump())
 
             db_entry = WeeklyPlanEntryModel(
+                plan_id=plan_id,
                 week_start=week_start,
                 day_of_week=plan_entry.day_of_week,
                 training_type=plan_entry.training_type,
@@ -485,7 +527,6 @@ async def generate_plan_weeks(
 
     return GenerateWeeklyPlansResponse(
         weeks_generated=weeks_generated,
-        weeks_skipped=weeks_skipped,
         total_weeks=len(weekly_plans),
     )
 
@@ -685,6 +726,8 @@ async def update_phase(
         phase.focus_json = json.dumps(data.focus.model_dump())  # type: ignore[assignment]
     if data.target_metrics is not None:
         phase.target_metrics_json = json.dumps(data.target_metrics.model_dump())  # type: ignore[assignment]
+    if data.weekly_template is not None:
+        phase.weekly_template_json = json.dumps(data.weekly_template.model_dump())  # type: ignore[assignment]
     if data.notes is not None:
         phase.notes = data.notes  # type: ignore[assignment]
 

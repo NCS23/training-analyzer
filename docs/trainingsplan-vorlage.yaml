@@ -39,6 +39,9 @@ weekly_structure:
 
 # --- Phasen ---
 # Jede Phase hat einen Typ: base | build | peak | taper | transition
+# Optional: weekly_template definiert das 7-Tage-Muster pro Phase.
+#   day: 0=Mo, 6=So | type: running|strength | run_type: easy|tempo|intervals|long_run|recovery
+#   rest: true fuer Ruhetage
 
 phases:
   - name: "Grundlagenaufbau"
@@ -53,6 +56,14 @@ phases:
       weekly_volume_max: 45              # km pro Woche (Maximum)
       quality_sessions_per_week: 1
       strength_sessions_per_week: 2      # Kraft-Sessions pro Woche
+    weekly_template:
+      - { day: 0, type: running, run_type: easy }
+      - { day: 1, type: strength }
+      - { day: 2, type: running, run_type: easy }
+      - { day: 3, type: running, run_type: easy }
+      - { day: 4, type: strength }
+      - { day: 5, type: running, run_type: long_run }
+      - { day: 6, rest: true }
     notes: "Langsamer Umfangaufbau, max. 10% Steigerung pro Woche."
 
   - name: "Spezifischer Aufbau"
@@ -67,6 +78,14 @@ phases:
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
+    weekly_template:
+      - { day: 0, type: running, run_type: easy }
+      - { day: 1, type: strength }
+      - { day: 2, type: running, run_type: tempo }
+      - { day: 3, type: running, run_type: easy }
+      - { day: 4, type: running, run_type: easy }
+      - { day: 5, type: running, run_type: long_run }
+      - { day: 6, rest: true }
     notes: "Tempolaeufe und Schwellentraining einfuehren."
 
   - name: "Wettkampfvorbereitung"
@@ -80,6 +99,14 @@ phases:
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
+    weekly_template:
+      - { day: 0, type: running, run_type: easy }
+      - { day: 1, type: running, run_type: intervals }
+      - { day: 2, type: running, run_type: easy }
+      - { day: 3, type: running, run_type: tempo }
+      - { day: 4, type: strength }
+      - { day: 5, type: running, run_type: long_run }
+      - { day: 6, rest: true }
     notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
 
   - name: "Tapering"
@@ -93,4 +120,12 @@ phases:
       weekly_volume_max: 35
       quality_sessions_per_week: 1
       strength_sessions_per_week: 0
+    weekly_template:
+      - { day: 0, type: running, run_type: easy }
+      - { day: 1, type: running, run_type: tempo }
+      - { day: 2, rest: true }
+      - { day: 3, type: running, run_type: easy }
+      - { day: 4, rest: true }
+      - { day: 5, type: running, run_type: easy }
+      - { day: 6, rest: true }
     notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."

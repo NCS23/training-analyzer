@@ -1,7 +1,7 @@
 """Add training plans table for strength session planning.
 
 Revision ID: c009
-Revises: c008_add_rpe_column
+Revises: c008
 Create Date: 2026-03-01
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "c009"
-down_revision = "c008_add_rpe_column"
+down_revision = "c008"
 branch_labels = None
 depends_on = None
 
