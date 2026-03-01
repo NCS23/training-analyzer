@@ -16,8 +16,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@nordlig/components';
-import { Plus, ChevronRight, EllipsisVertical, Trash2, CalendarRange, Upload } from 'lucide-react';
-import { listTrainingPlans, deleteTrainingPlan, importTrainingPlanYaml } from '@/api/training-plans';
+import { Plus, ChevronRight, EllipsisVertical, Trash2, CalendarRange, Upload, CalendarPlus } from 'lucide-react';
+import { listTrainingPlans, deleteTrainingPlan, importTrainingPlanYaml, generateWeeklyPlans } from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -66,6 +66,21 @@ export function TrainingPlansPage() {
       await loadPlans();
     } catch {
       toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
+    }
+  };
+
+  const handleGenerate = async (planId: number, planName: string) => {
+    try {
+      const result = await generateWeeklyPlans(planId);
+      toast({
+        title: `${result.weeks_generated} Wochenpläne erstellt`,
+        description: result.weeks_skipped > 0
+          ? `${result.weeks_skipped} bestehende Wochen übersprungen (${planName})`
+          : `für „${planName}"`,
+        variant: 'success',
+      });
+    } catch {
+      toast({ title: 'Generierung fehlgeschlagen', variant: 'error' });
     }
   };
 
@@ -214,6 +229,14 @@ export function TrainingPlansPage() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {plan.phase_count > 0 && (
+                        <DropdownMenuItem
+                          icon={<CalendarPlus />}
+                          onSelect={() => handleGenerate(plan.id, plan.name)}
+                        >
+                          Wochenpläne generieren
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         icon={<Trash2 />}
                         onSelect={() => handleDelete(plan.id, plan.name)}

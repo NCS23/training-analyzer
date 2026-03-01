@@ -13,9 +13,12 @@ from app.infrastructure.database.models import (
     RaceGoalModel,
     TrainingPhaseModel,
     TrainingPlanModel,
+    WeeklyPlanEntryModel,
 )
 from app.infrastructure.database.session import get_db
 from app.models.training_plan import (
+    GenerateWeeklyPlansRequest,
+    GenerateWeeklyPlansResponse,
     GoalSummary,
     PhaseFocus,
     PhaseTargetMetrics,
@@ -29,6 +32,7 @@ from app.models.training_plan import (
     TrainingPlanUpdate,
     WeeklyStructure,
 )
+from app.services.plan_generator import generate_weekly_plans
 
 router = APIRouter(prefix="/training-plans")
 
@@ -382,6 +386,108 @@ async def import_plan_from_yaml(
         ) from None
 
     return await create_plan(data=plan_data, db=db)
+
+
+@router.post(
+    "/{plan_id}/generate",
+    response_model=GenerateWeeklyPlansResponse,
+)
+async def generate_plan_weeks(
+    plan_id: int,
+    data: GenerateWeeklyPlansRequest = GenerateWeeklyPlansRequest(),
+    db: AsyncSession = Depends(get_db),
+) -> GenerateWeeklyPlansResponse:
+    """Generate weekly plans from a training plan's phases."""
+    # Load plan
+    result = await db.execute(
+        select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
+    # Load phases
+    phase_result = await db.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan_id)
+        .order_by(TrainingPhaseModel.start_week)
+    )
+    phases = list(phase_result.scalars().all())
+    if not phases:
+        raise HTTPException(
+            status_code=400,
+            detail="Trainingsplan hat keine Phasen. Bitte zuerst Phasen anlegen.",
+        )
+
+    # Load goal (optional, for pace calculation)
+    goal: Optional[RaceGoalModel] = None
+    if plan.goal_id:
+        goal_result = await db.execute(
+            select(RaceGoalModel).where(
+                RaceGoalModel.id == int(plan.goal_id)  # type: ignore[arg-type]
+            )
+        )
+        goal = goal_result.scalar_one_or_none()
+
+    # Parse rest days from weekly_structure
+    rest_days = [6]  # Default: Sunday
+    if plan.weekly_structure_json:
+        try:
+            ws = json.loads(str(plan.weekly_structure_json))
+            rest_days = ws.get("rest_days", [6])
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Generate
+    weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
+
+    weeks_generated = 0
+    weeks_skipped = 0
+
+    for week_start, entries in weekly_plans:
+        # Check for existing entries
+        existing = await db.execute(
+            select(WeeklyPlanEntryModel).where(
+                WeeklyPlanEntryModel.week_start == week_start
+            )
+        )
+        existing_entries = list(existing.scalars().all())
+
+        if existing_entries and not data.overwrite:
+            weeks_skipped += 1
+            continue
+
+        # Delete existing entries if overwriting
+        for old_entry in existing_entries:
+            await db.delete(old_entry)
+        await db.flush()
+
+        # Insert new entries
+        for plan_entry in entries:
+            run_details_str: Optional[str] = None
+            if plan_entry.run_details is not None:
+                run_details_str = json.dumps(plan_entry.run_details.model_dump())
+
+            db_entry = WeeklyPlanEntryModel(
+                week_start=week_start,
+                day_of_week=plan_entry.day_of_week,
+                training_type=plan_entry.training_type,
+                is_rest_day=plan_entry.is_rest_day,
+                notes=plan_entry.notes,
+                run_details_json=run_details_str,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(db_entry)
+        weeks_generated += 1
+
+    await db.commit()
+
+    return GenerateWeeklyPlansResponse(
+        weeks_generated=weeks_generated,
+        weeks_skipped=weeks_skipped,
+        total_weeks=len(weekly_plans),
+    )
 
 
 @router.get("/{plan_id}", response_model=TrainingPlanResponse)

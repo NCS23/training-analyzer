@@ -52,6 +52,7 @@ phases:
       weekly_volume_min: 30              # km pro Woche (Minimum)
       weekly_volume_max: 45              # km pro Woche (Maximum)
       quality_sessions_per_week: 1
+      strength_sessions_per_week: 2      # Kraft-Sessions pro Woche
     notes: "Langsamer Umfangaufbau, max. 10% Steigerung pro Woche."
 
   - name: "Spezifischer Aufbau"
@@ -65,6 +66,7 @@ phases:
       weekly_volume_min: 40
       weekly_volume_max: 55
       quality_sessions_per_week: 2
+      strength_sessions_per_week: 1
     notes: "Tempolaeufe und Schwellentraining einfuehren."
 
   - name: "Wettkampfvorbereitung"
@@ -77,6 +79,7 @@ phases:
       weekly_volume_min: 45
       weekly_volume_max: 55
       quality_sessions_per_week: 2
+      strength_sessions_per_week: 1
     notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
 
   - name: "Tapering"
@@ -89,4 +92,5 @@ phases:
       weekly_volume_min: 20
       weekly_volume_max: 35
       quality_sessions_per_week: 1
+      strength_sessions_per_week: 0
     notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."

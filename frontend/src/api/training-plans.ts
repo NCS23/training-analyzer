@@ -14,6 +14,7 @@ export interface PhaseTargetMetrics {
   weekly_volume_min?: number;
   weekly_volume_max?: number;
   quality_sessions_per_week?: number;
+  strength_sessions_per_week?: number;
 }
 
 export interface TrainingPhase {
@@ -210,4 +211,27 @@ export async function updatePhase(
 
 export async function deletePhase(planId: number, phaseId: number): Promise<void> {
   await apiClient.delete(`/api/v1/training-plans/${planId}/phases/${phaseId}`);
+}
+
+// --- Generate Weekly Plans ---
+
+export interface GenerateWeeklyPlansParams {
+  overwrite?: boolean;
+}
+
+export interface GenerateWeeklyPlansResponse {
+  weeks_generated: number;
+  weeks_skipped: number;
+  total_weeks: number;
+}
+
+export async function generateWeeklyPlans(
+  planId: number,
+  params?: GenerateWeeklyPlansParams,
+): Promise<GenerateWeeklyPlansResponse> {
+  const response = await apiClient.post<GenerateWeeklyPlansResponse>(
+    `/api/v1/training-plans/${planId}/generate`,
+    params ?? {},
+  );
+  return response.data;
 }

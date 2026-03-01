@@ -19,6 +19,7 @@ class PhaseTargetMetrics(BaseModel):
     weekly_volume_min: Optional[float] = None
     weekly_volume_max: Optional[float] = None
     quality_sessions_per_week: Optional[int] = None
+    strength_sessions_per_week: Optional[int] = None
 
 
 class TrainingPhaseCreate(BaseModel):
@@ -151,3 +152,17 @@ class TrainingPlanListResponse(BaseModel):
 
     plans: list[TrainingPlanSummary]
     total: int
+
+
+class GenerateWeeklyPlansRequest(BaseModel):
+    """Request schema: generate weekly plans from training plan."""
+
+    overwrite: bool = False
+
+
+class GenerateWeeklyPlansResponse(BaseModel):
+    """Response schema: weekly plan generation result."""
+
+    weeks_generated: int
+    weeks_skipped: int
+    total_weeks: int

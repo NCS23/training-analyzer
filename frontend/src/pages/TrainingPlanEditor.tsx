@@ -23,8 +23,9 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
+  CheckboxField,
 } from '@nordlig/components';
-import { Save, ArrowLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, ChevronRight, Plus, Trash2, CalendarPlus } from 'lucide-react';
 import {
   createTrainingPlan,
   getTrainingPlan,
@@ -33,6 +34,7 @@ import {
   addPhase,
   updatePhase,
   deletePhase,
+  generateWeeklyPlans,
 } from '@/api/training-plans';
 import type {
   PlanStatus,
@@ -98,6 +100,9 @@ export function TrainingPlanEditorPage() {
   const [goals, setGoals] = useState<RaceGoal[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   // Load goals for dropdown
   useEffect(() => {
@@ -253,6 +258,29 @@ export function TrainingPlanEditorPage() {
     }
   };
 
+  const handleGenerate = async () => {
+    if (!planId) return;
+    setGenerating(true);
+    try {
+      const result = await generateWeeklyPlans(parseInt(planId, 10), {
+        overwrite: overwriteExisting,
+      });
+      toast({
+        title: `${result.weeks_generated} Wochenpläne erstellt`,
+        description: result.weeks_skipped > 0
+          ? `${result.weeks_skipped} bestehende Wochen übersprungen`
+          : undefined,
+        variant: 'success',
+      });
+    } catch {
+      toast({ title: 'Generierung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setGenerating(false);
+      setShowGenerateDialog(false);
+      setOverwriteExisting(false);
+    }
+  };
+
   const addNewPhase = () => {
     const lastEnd = phases.length > 0 ? phases[phases.length - 1].end_week : 0;
     setPhases([
@@ -344,6 +372,34 @@ export function TrainingPlanEditorPage() {
               className="!bg-[var(--color-bg-error)] !text-[var(--color-text-on-error)]"
             >
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Generate Dialog */}
+      <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wochenpläne generieren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Es werden Wochenpläne für alle {phases.length > 0
+                ? `${phases.reduce((max, p) => Math.max(max, p.end_week), 0)} Wochen`
+                : 'Wochen'} des Trainingsplans erstellt (basierend auf den Phasen).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-6 pb-2">
+            <CheckboxField
+              label="Bestehende Wochenpläne überschreiben"
+              description="Bereits vorhandene Einträge werden ersetzt"
+              checked={overwriteExisting}
+              onCheckedChange={(v) => setOverwriteExisting(v === true)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGenerate} disabled={generating}>
+              {generating ? <Spinner size="sm" /> : 'Generieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -539,6 +595,17 @@ export function TrainingPlanEditorPage() {
         <Button variant="ghost" size="sm" onClick={() => navigate('/settings/plans')}>
           Abbrechen
         </Button>
+        {isEdit && phases.length > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowGenerateDialog(true)}
+            disabled={generating}
+          >
+            <CalendarPlus className="w-4 h-4 mr-1" />
+            Wochenpläne generieren
+          </Button>
+        )}
         <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
           {saving ? (
             <Spinner size="sm" aria-hidden="true" />
