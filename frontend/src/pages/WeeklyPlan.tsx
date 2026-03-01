@@ -32,7 +32,7 @@ import type {
   ComplianceDayEntry,
   ComplianceResponse,
 } from '@/api/weekly-plan';
-import { listTrainingPlans } from '@/api/training-plans';
+import { listTrainingPlans, getTrainingPlan } from '@/api/training-plans';
 import type { TrainingPlanSummary } from '@/api/training-plans';
 
 // --- Helpers ---
@@ -177,6 +177,7 @@ export function WeeklyPlanPage() {
 
   // Training plans for linking
   const [plans, setPlans] = useState<TrainingPlanSummary[]>([]);
+  const [runningPlans, setRunningPlans] = useState<TrainingPlanSummary[]>([]);
 
   // Selected day for editing
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -185,6 +186,9 @@ export function WeeklyPlanPage() {
   useEffect(() => {
     listTrainingPlans('strength')
       .then((res) => setPlans(res.plans))
+      .catch(() => {});
+    listTrainingPlans('running')
+      .then((res) => setRunningPlans(res.plans))
       .catch(() => {});
   }, []);
 
@@ -327,6 +331,35 @@ export function WeeklyPlanPage() {
       ...plans.map((p) => ({ value: String(p.id), label: p.name })),
     ],
     [plans],
+  );
+
+  const runningPlanOptions = useMemo(
+    () => [
+      { value: '', label: 'Kein Template' },
+      ...runningPlans.map((p) => ({
+        value: String(p.id),
+        label: `${p.name}${p.run_type ? ` (${p.run_type})` : ''}`,
+      })),
+    ],
+    [runningPlans],
+  );
+
+  const applyRunningTemplate = useCallback(
+    async (dayOfWeek: number, planId: number) => {
+      try {
+        const plan = await getTrainingPlan(planId);
+        if (plan.run_details) {
+          updateEntry(dayOfWeek, {
+            run_details: plan.run_details,
+            plan_id: planId,
+            plan_name: plan.name,
+          });
+        }
+      } catch {
+        toast({ title: 'Template konnte nicht geladen werden', variant: 'error' });
+      }
+    },
+    [updateEntry, toast],
   );
 
   // Compute stats
@@ -674,6 +707,37 @@ export function WeeklyPlanPage() {
                                 }
                                 inputSize="sm"
                                 aria-label="Trainingsplan"
+                              />
+                            </div>
+                          )}
+
+                        {/* Running template selector */}
+                        {entry.training_type === 'running' &&
+                          runningPlans.length > 0 && (
+                            <div>
+                              <label className="text-xs text-[var(--color-text-muted)] mb-1 block">
+                                Lauf-Template (Quick-Add)
+                              </label>
+                              <Select
+                                options={runningPlanOptions}
+                                value={
+                                  entry.plan_id ? String(entry.plan_id) : ''
+                                }
+                                onChange={(val) => {
+                                  if (val) {
+                                    applyRunningTemplate(
+                                      entry.day_of_week,
+                                      Number(val),
+                                    );
+                                  } else {
+                                    updateEntry(entry.day_of_week, {
+                                      plan_id: null,
+                                      plan_name: null,
+                                    });
+                                  }
+                                }}
+                                inputSize="sm"
+                                aria-label="Lauf-Template"
                               />
                             </div>
                           )}

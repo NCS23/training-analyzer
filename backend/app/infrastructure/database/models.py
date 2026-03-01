@@ -115,6 +115,7 @@ class TrainingPlanModel(Base):
     description = Column(Text)
     session_type = Column(String(30), nullable=False, server_default="strength")
     exercises_json = Column(Text)  # JSON array of planned exercises
+    run_details_json = Column(Text)  # JSON for running template details
     is_template = Column(Boolean, default=True, nullable=False, server_default="true")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

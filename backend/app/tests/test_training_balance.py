@@ -33,7 +33,7 @@ async def _add_running(
 async def _add_strength(
     db: AsyncSession,
     days_ago: int,
-    exercises: list[dict[str, object]],
+    exercises: object,
 ) -> None:
     """Helper to add a strength session."""
     workout = WorkoutModel(

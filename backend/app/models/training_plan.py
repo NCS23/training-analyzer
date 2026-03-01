@@ -1,9 +1,11 @@
-"""Pydantic schemas for Training Plans (Issue #14)."""
+"""Pydantic schemas for Training Plans (Issue #14, #29)."""
 
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+from app.models.weekly_plan import RunDetails
 
 
 class PlanExercise(BaseModel):
@@ -26,7 +28,8 @@ class TrainingPlanCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=1000)
     session_type: str = Field("strength", pattern="^(strength|running)$")
-    exercises: list[PlanExercise] = Field(..., min_length=1)
+    exercises: Optional[list[PlanExercise]] = None
+    run_details: Optional[RunDetails] = None
 
 
 class TrainingPlanUpdate(BaseModel):
@@ -35,6 +38,7 @@ class TrainingPlanUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=1000)
     exercises: Optional[list[PlanExercise]] = Field(None, min_length=1)
+    run_details: Optional[RunDetails] = None
 
 
 class TrainingPlanResponse(BaseModel):
@@ -45,6 +49,7 @@ class TrainingPlanResponse(BaseModel):
     description: Optional[str]
     session_type: str
     exercises: list[PlanExercise]
+    run_details: Optional[RunDetails] = None
     is_template: bool
     created_at: datetime
     updated_at: datetime
@@ -58,6 +63,7 @@ class TrainingPlanSummary(BaseModel):
     session_type: str
     exercise_count: int
     total_sets: int
+    run_type: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

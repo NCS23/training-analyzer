@@ -97,10 +97,12 @@ import {
   Weight,
   TrendingUp,
   Gauge,
+  BookmarkPlus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { createTemplateFromSession } from '@/api/training-plans';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
 
@@ -714,6 +716,27 @@ export function SessionDetailPage() {
               onSelect={() => setIsEditing(true)}
             >
               Bearbeiten
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              icon={<BookmarkPlus />}
+              onSelect={async () => {
+                try {
+                  await createTemplateFromSession(Number(id));
+                  toast({
+                    title: 'Template erstellt',
+                    description: 'Session wurde als Template gespeichert.',
+                    variant: 'success',
+                  });
+                } catch {
+                  toast({
+                    title: 'Fehler',
+                    description: 'Template konnte nicht erstellt werden.',
+                    variant: 'error',
+                  });
+                }
+              }}
+            >
+              Als Template speichern
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

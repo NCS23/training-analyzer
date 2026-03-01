@@ -23,6 +23,7 @@ import {
   Copy,
   Trash2,
   ClipboardList,
+  Footprints,
 } from 'lucide-react';
 import {
   listTrainingPlans,
@@ -92,7 +93,7 @@ export function TrainingPlansPage() {
               Trainingspläne
             </h1>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Übungsvorlagen für dein Krafttraining erstellen und verwalten.
+              Templates für Kraft- und Lauftraining erstellen und verwalten.
             </p>
           </div>
           <Button
@@ -140,7 +141,11 @@ export function TrainingPlansPage() {
                   key={plan.id}
                   className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
                 >
-                  <ClipboardList className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+                  {plan.session_type === 'running' ? (
+                    <Footprints className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+                  ) : (
+                    <ClipboardList className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
+                  )}
 
                   <button
                     type="button"
@@ -152,7 +157,9 @@ export function TrainingPlansPage() {
                       {plan.name}
                     </span>
                     <span className="text-xs text-[var(--color-text-muted)]">
-                      {plan.exercise_count} Übungen · {plan.total_sets} Sätze
+                      {plan.session_type === 'running'
+                        ? plan.run_type ?? 'Lauf-Template'
+                        : `${plan.exercise_count} Übungen · ${plan.total_sets} Sätze`}
                     </span>
                   </button>
 

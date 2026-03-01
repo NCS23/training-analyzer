@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { RunDetails } from './weekly-plan';
 
 // --- Types ---
 
@@ -21,6 +22,7 @@ export interface TrainingPlan {
   description: string | null;
   session_type: string;
   exercises: PlanExercise[];
+  run_details: RunDetails | null;
   is_template: boolean;
   created_at: string;
   updated_at: string;
@@ -32,6 +34,7 @@ export interface TrainingPlanSummary {
   session_type: string;
   exercise_count: number;
   total_sets: number;
+  run_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,13 +48,15 @@ export interface TrainingPlanCreateParams {
   name: string;
   description?: string;
   session_type: string;
-  exercises: PlanExercise[];
+  exercises?: PlanExercise[];
+  run_details?: RunDetails;
 }
 
 export interface TrainingPlanUpdateParams {
   name?: string;
   description?: string;
   exercises?: PlanExercise[];
+  run_details?: RunDetails;
 }
 
 // --- API Functions ---
@@ -102,6 +107,15 @@ export async function duplicateTrainingPlan(
 ): Promise<TrainingPlan> {
   const response = await apiClient.post<TrainingPlan>(
     `/api/v1/plans/${planId}/duplicate`,
+  );
+  return response.data;
+}
+
+export async function createTemplateFromSession(
+  sessionId: number,
+): Promise<TrainingPlan> {
+  const response = await apiClient.post<TrainingPlan>(
+    `/api/v1/plans/from-session/${sessionId}`,
   );
   return response.data;
 }
