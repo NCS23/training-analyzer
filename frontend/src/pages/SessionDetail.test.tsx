@@ -92,6 +92,7 @@ const mockSession: SessionDetail = {
     zone_3_tempo: { seconds: 300, percentage: 35.7, label: '> 160 bpm' },
   },
   has_gps: false,
+  planned_entry_id: null,
   athlete_resting_hr: 65,
   athlete_max_hr: 185,
   exercises: null,

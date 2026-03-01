@@ -324,6 +324,7 @@ async def get_compliance(
                 duration_sec=int(s.duration_sec) if s.duration_sec else None,
                 distance_km=float(s.distance_km) if s.distance_km else None,
                 pace=str(s.pace) if s.pace else None,
+                planned_entry_id=int(s.planned_entry_id) if s.planned_entry_id else None,  # type: ignore[arg-type]
             )
             for s in day_sessions
         ]

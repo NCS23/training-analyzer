@@ -251,6 +251,7 @@ export interface SessionDetail {
     sets: Array<{ reps: number; weight_kg: number; status: string }>;
   }> | null;
   has_gps: boolean;
+  planned_entry_id: number | null;
   athlete_resting_hr: number | null;
   athlete_max_hr: number | null;
   created_at: string;

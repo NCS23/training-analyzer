@@ -61,6 +61,9 @@ class WorkoutModel(Base):
     # AI
     ai_analysis = Column(Text)
 
+    # Soll/Ist-Link (S10)
+    planned_entry_id = Column(Integer, nullable=True)  # FK to weekly_plan_entries
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -131,9 +134,43 @@ class RaceGoalModel(Base):
     distance_km = Column(Float, nullable=False)
     target_time_seconds = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False, server_default="true")
+    training_plan_id = Column(Integer, nullable=True)  # FK to training_plans (S09)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class TrainingPlanModel(Base):
+    __tablename__ = "training_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    goal_id = Column(Integer, nullable=True)  # FK to race_goals
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    target_event_date = Column(Date, nullable=True)
+    weekly_structure_json = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="draft")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class TrainingPhaseModel(Base):
+    __tablename__ = "training_phases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    training_plan_id = Column(Integer, nullable=False)  # FK to training_plans
+    name = Column(String(200), nullable=False)
+    phase_type = Column(String(30), nullable=False)  # base|build|peak|taper|transition
+    start_week = Column(Integer, nullable=False)
+    end_week = Column(Integer, nullable=False)
+    focus_json = Column(Text, nullable=True)
+    target_metrics_json = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class WeeklyPlanEntryModel(Base):

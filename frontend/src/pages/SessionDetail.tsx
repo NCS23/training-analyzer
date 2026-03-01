@@ -701,6 +701,11 @@ export function SessionDetailPage() {
                 {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
               </Badge>
             )}
+            {session.planned_entry_id != null && (
+              <Badge variant="info" size="xs">
+                Geplant
+              </Badge>
+            )}
           </div>
         </div>
         <DropdownMenu>

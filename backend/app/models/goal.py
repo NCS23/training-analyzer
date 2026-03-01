@@ -30,6 +30,14 @@ class RaceGoalUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class TrainingPlanSummaryForGoal(BaseModel):
+    """Embedded training plan summary in goal response (S09)."""
+
+    id: int
+    name: str
+    status: str
+
+
 class RaceGoalResponse(BaseModel):
     """Response-Schema: Wettkampf-Ziel."""
 
@@ -42,11 +50,16 @@ class RaceGoalResponse(BaseModel):
     target_pace_formatted: str
     is_active: bool
     days_until: int
+    training_plan_id: Optional[int] = None
+    training_plan_summary: Optional[TrainingPlanSummaryForGoal] = None
     created_at: str
     updated_at: str
 
     @staticmethod
-    def from_db(goal: RaceGoalModel) -> RaceGoalResponse:
+    def from_db(
+        goal: RaceGoalModel,
+        plan_summary: Optional[TrainingPlanSummaryForGoal] = None,
+    ) -> RaceGoalResponse:
         """Build response from DB model."""
         target_secs = int(goal.target_time_seconds)  # type: ignore[arg-type]
         distance = float(goal.distance_km)  # type: ignore[arg-type]
@@ -71,6 +84,10 @@ class RaceGoalResponse(BaseModel):
         race_d = race_dt.date() if isinstance(race_dt, datetime) else race_dt  # type: ignore[assignment]
         days = (race_d - date.today()).days
 
+        training_plan_id: Optional[int] = None
+        if goal.training_plan_id is not None:
+            training_plan_id = int(goal.training_plan_id)  # type: ignore[arg-type]
+
         return RaceGoalResponse(
             id=int(goal.id),  # type: ignore[arg-type]
             title=str(goal.title),
@@ -81,6 +98,8 @@ class RaceGoalResponse(BaseModel):
             target_pace_formatted=pace_fmt,
             is_active=bool(goal.is_active),
             days_until=days,
+            training_plan_id=training_plan_id,
+            training_plan_summary=plan_summary,
             created_at=goal.created_at.isoformat() if goal.created_at else "",  # type: ignore[union-attr]
             updated_at=goal.updated_at.isoformat() if goal.updated_at else "",  # type: ignore[union-attr]
         )

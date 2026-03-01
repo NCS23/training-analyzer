@@ -1,12 +1,17 @@
 """Race Goal API Endpoints — CRUD fuer Wettkampf-Ziele."""
 
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import RaceGoalModel, WorkoutModel
+from app.infrastructure.database.models import (
+    RaceGoalModel,
+    TrainingPlanModel,
+    WorkoutModel,
+)
 from app.infrastructure.database.session import get_db
 from app.models.goal import (
     GoalProgressResponse,
@@ -14,9 +19,40 @@ from app.models.goal import (
     RaceGoalListResponse,
     RaceGoalResponse,
     RaceGoalUpdate,
+    TrainingPlanSummaryForGoal,
 )
 
 router = APIRouter(prefix="/goals", tags=["goals"])
+
+
+async def _get_plan_summary(
+    db: AsyncSession, plan_id: Optional[int],
+) -> Optional[TrainingPlanSummaryForGoal]:
+    """Look up a training plan summary by ID."""
+    if plan_id is None:
+        return None
+    plan_id_int = int(plan_id)
+    result = await db.execute(
+        select(TrainingPlanModel.id, TrainingPlanModel.name, TrainingPlanModel.status)
+        .where(TrainingPlanModel.id == plan_id_int)
+    )
+    row = result.one_or_none()
+    if not row:
+        return None
+    return TrainingPlanSummaryForGoal(
+        id=int(row.id),  # type: ignore[arg-type]
+        name=str(row.name),
+        status=str(row.status),
+    )
+
+
+async def _goal_to_response(
+    db: AsyncSession, goal: RaceGoalModel,
+) -> RaceGoalResponse:
+    """Build RaceGoalResponse with optional plan summary."""
+    tp_id = int(goal.training_plan_id) if goal.training_plan_id else None  # type: ignore[arg-type]
+    plan_summary = await _get_plan_summary(db, tp_id)
+    return RaceGoalResponse.from_db(goal, plan_summary=plan_summary)
 
 
 @router.get("", response_model=RaceGoalListResponse)
@@ -30,7 +66,9 @@ async def list_goals(
     )
     result = await db.execute(query)
     goals = result.scalars().all()
-    return RaceGoalListResponse(goals=[RaceGoalResponse.from_db(g) for g in goals])
+    return RaceGoalListResponse(
+        goals=[await _goal_to_response(db, g) for g in goals],
+    )
 
 
 @router.post("", response_model=RaceGoalResponse, status_code=201)
@@ -49,7 +87,7 @@ async def create_goal(
     db.add(goal)
     await db.commit()
     await db.refresh(goal)
-    return RaceGoalResponse.from_db(goal)
+    return await _goal_to_response(db, goal)
 
 
 @router.get("/{goal_id}", response_model=RaceGoalResponse)
@@ -63,7 +101,7 @@ async def get_goal(
     goal = result.scalar_one_or_none()
     if not goal:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden.")
-    return RaceGoalResponse.from_db(goal)
+    return await _goal_to_response(db, goal)
 
 
 @router.patch("/{goal_id}", response_model=RaceGoalResponse)
@@ -92,7 +130,7 @@ async def update_goal(
 
     await db.commit()
     await db.refresh(goal)
-    return RaceGoalResponse.from_db(goal)
+    return await _goal_to_response(db, goal)
 
 
 @router.delete("/{goal_id}", status_code=204)
@@ -151,7 +189,7 @@ async def get_goal_progress(
     if not goal:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden.")
 
-    goal_response = RaceGoalResponse.from_db(goal)
+    goal_response = await _goal_to_response(db, goal)
     distance = float(goal.distance_km)  # type: ignore[arg-type]
     target_secs = int(goal.target_time_seconds)  # type: ignore[arg-type]
     target_pace_sec = target_secs / distance if distance > 0 else 0

@@ -1,5 +1,11 @@
 import { apiClient } from './client';
 
+export interface TrainingPlanSummaryForGoal {
+  id: number;
+  name: string;
+  status: string;
+}
+
 export interface RaceGoal {
   id: number;
   title: string;
@@ -10,6 +16,8 @@ export interface RaceGoal {
   target_pace_formatted: string;
   is_active: boolean;
   days_until: number;
+  training_plan_id: number | null;
+  training_plan_summary: TrainingPlanSummaryForGoal | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,8 +1,21 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, List, ListItem } from '@nordlig/components';
-import { ChevronRight, ClipboardList, Dumbbell, Target, HeartPulse } from 'lucide-react';
+import {
+  ChevronRight,
+  ClipboardList,
+  Dumbbell,
+  Target,
+  HeartPulse,
+  CalendarRange,
+} from 'lucide-react';
 
 const tiles = [
+  {
+    title: 'Trainingspläne',
+    description: 'Periodisierte Trainingspläne erstellen und verwalten',
+    icon: CalendarRange,
+    route: '/settings/plans',
+  },
   {
     title: 'Session-Templates',
     description: 'Übungsvorlagen für Krafttraining erstellen und verwalten',

@@ -70,6 +70,7 @@ class ActualSession(BaseModel):
     duration_sec: Optional[int] = None
     distance_km: Optional[float] = None
     pace: Optional[str] = None
+    planned_entry_id: Optional[int] = None  # S10: Soll/Ist-Link
 
 
 class ComplianceDayEntry(BaseModel):

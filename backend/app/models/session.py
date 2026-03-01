@@ -95,6 +95,7 @@ class SessionResponse(BaseModel):
     hr_zones: Optional[dict] = None
     exercises: Optional[list] = None
     has_gps: bool = False
+    planned_entry_id: Optional[int] = None  # S10: Soll/Ist-Link
     athlete_resting_hr: Optional[int] = None
     athlete_max_hr: Optional[int] = None
     created_at: datetime
@@ -163,6 +164,7 @@ class SessionResponse(BaseModel):
             hr_zones=hr_zones,
             exercises=exercises,
             has_gps=bool(model.has_gps),
+            planned_entry_id=int(model.planned_entry_id) if model.planned_entry_id else None,  # type: ignore[arg-type]
             athlete_resting_hr=int(model.athlete_resting_hr) if model.athlete_resting_hr else None,  # type: ignore[arg-type]
             athlete_max_hr=int(model.athlete_max_hr) if model.athlete_max_hr else None,  # type: ignore[arg-type]
             created_at=model.created_at,  # type: ignore[arg-type]

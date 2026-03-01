@@ -1,14 +1,18 @@
 """Session API Endpoints — CRUD + CSV Upload mit DB-Persistenz."""
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import AthleteModel, WorkoutModel
+from app.infrastructure.database.models import (
+    AthleteModel,
+    WeeklyPlanEntryModel,
+    WorkoutModel,
+)
 from app.infrastructure.database.session import get_db
 from app.models.session import (
     DateUpdateRequest,
@@ -36,6 +40,42 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 csv_parser = TrainingCSVParser()
 fit_parser = TrainingFITParser()
+
+
+async def _auto_match_planned_entry(
+    db: AsyncSession, workout: WorkoutModel,
+) -> None:
+    """Auto-match a workout to a planned weekly plan entry (S10).
+
+    Matches by date + workout_type. Only sets planned_entry_id if unset.
+    """
+    if workout.planned_entry_id is not None:
+        return  # Already linked
+
+    workout_date = workout.date
+    if isinstance(workout_date, datetime):
+        workout_date = workout_date.date()
+
+    # Find the Monday of the week
+    week_start = workout_date - timedelta(days=workout_date.weekday())
+    day_of_week = workout_date.weekday()  # 0=Mon, 6=Sun
+
+    result = await db.execute(
+        select(WeeklyPlanEntryModel).where(
+            WeeklyPlanEntryModel.week_start == week_start,
+            WeeklyPlanEntryModel.day_of_week == day_of_week,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry or not entry.training_type:
+        return
+
+    # Check type match
+    type_map = {"strength": "strength", "running": "running"}
+    expected_workout_type = type_map.get(str(entry.training_type), str(entry.training_type))
+    if str(workout.workout_type) == expected_workout_type:
+        workout.planned_entry_id = entry.id  # type: ignore[assignment]
+        await db.commit()
 
 
 async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:
@@ -264,6 +304,9 @@ async def upload_csv(
     await db.commit()
     await db.refresh(workout)
 
+    # S10: Auto-match to planned entry
+    await _auto_match_planned_entry(db, workout)
+
     return SessionUploadResponse(
         success=True,
         session_id=int(workout.id),  # type: ignore[arg-type]
@@ -366,6 +409,9 @@ async def upload_fit(
     db.add(workout)
     await db.commit()
     await db.refresh(workout)
+
+    # S10: Auto-match to planned entry
+    await _auto_match_planned_entry(db, workout)
 
     return SessionUploadResponse(
         success=True,

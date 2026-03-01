@@ -401,6 +401,21 @@ export function GoalsPage() {
                       {' · '}
                       {goal.target_pace_formatted} /km
                     </p>
+                    {goal.training_plan_summary ? (
+                      <Link
+                        to={`/settings/plans/${goal.training_plan_summary.id}`}
+                        className="text-xs text-[var(--color-interactive-primary)] hover:underline mt-0.5 inline-block"
+                      >
+                        Plan: {goal.training_plan_summary.name}
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/settings/plans/new?goalId=${goal.id}`}
+                        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-interactive-primary)] hover:underline mt-0.5 inline-block"
+                      >
+                        + Trainingsplan erstellen
+                      </Link>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     {goal.days_until > 0 ? (
