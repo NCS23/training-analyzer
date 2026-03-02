@@ -427,10 +427,7 @@ def _check_progression(
 
     if pace_drop_pct >= t.progression_min_pace_drop_pct:
         score = 65
-        reasons.append(
-            f"Pace-Abnahme {pace_drop_pct:.0f}% "
-            f"(>= {t.progression_min_pace_drop_pct}%)"
-        )
+        reasons.append(f"Pace-Abnahme {pace_drop_pct:.0f}% (>= {t.progression_min_pace_drop_pct}%)")
 
         # Zone 3+ zwischen 30-70% (Start Easy, Ende Tempo)
         zone3_plus = zone_pcts.get("zone_3_plus", 0)

@@ -455,10 +455,7 @@ def generate_weekly_plans(
                 elif quality_count < default_quality:
                     removed = 0
                     for i, rt in enumerate(default_run_types):
-                        if (
-                            rt in _qual
-                            and removed < default_quality - quality_count
-                        ):
+                        if rt in _qual and removed < default_quality - quality_count:
                             default_run_types[i] = "easy"
                             removed += 1
 
@@ -503,14 +500,10 @@ def generate_weekly_plans(
                 ]
                 _qual_vol = {"tempo", "intervals", "repetitions", "progression", "fartlek"}
                 quality_entries = [
-                    e
-                    for e in non_long
-                    if e.run_details and e.run_details.run_type in _qual_vol
+                    e for e in non_long if e.run_details and e.run_details.run_type in _qual_vol
                 ]
                 easy_entries = [
-                    e
-                    for e in non_long
-                    if e.run_details and e.run_details.run_type not in _qual_vol
+                    e for e in non_long if e.run_details and e.run_details.run_type not in _qual_vol
                 ]
 
                 quality_km_each = remaining_km * QUALITY_VOLUME_PCT if quality_entries else 0.0

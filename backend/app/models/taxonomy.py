@@ -5,31 +5,35 @@ Used by validators, classifiers, API endpoints, and data migrations.
 """
 
 # Session types (what kind of run was this?)
-SESSION_TYPES = frozenset({
-    "recovery",
-    "easy",
-    "long_run",
-    "progression",
-    "tempo",
-    "intervals",
-    "repetitions",
-    "fartlek",
-    "race",
-})
+SESSION_TYPES = frozenset(
+    {
+        "recovery",
+        "easy",
+        "long_run",
+        "progression",
+        "tempo",
+        "intervals",
+        "repetitions",
+        "fartlek",
+        "race",
+    }
+)
 
 SESSION_TYPE_REGEX = "^(" + "|".join(sorted(SESSION_TYPES)) + ")$"
 
 # Segment/lap types (what is this lap within a session?)
-SEGMENT_TYPES = frozenset({
-    "warmup",
-    "cooldown",
-    "steady",
-    "work",
-    "recovery_jog",
-    "rest",
-    "strides",
-    "drills",
-})
+SEGMENT_TYPES = frozenset(
+    {
+        "warmup",
+        "cooldown",
+        "steady",
+        "work",
+        "recovery_jog",
+        "rest",
+        "strides",
+        "drills",
+    }
+)
 
 SEGMENT_TYPE_REGEX = "^(" + "|".join(sorted(SEGMENT_TYPES)) + ")$"
 
