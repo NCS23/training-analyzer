@@ -689,3 +689,237 @@ async def test_edited_and_plan_id_in_get_response(
         else:
             assert e["plan_id"] is None
             assert e["edited"] is False
+
+
+# --- Sync-to-Plan Tests (E16-S04) ---
+
+
+async def _generate_plan_entries_multi_week(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    week_start: str = "2026-09-07",
+    num_weeks: int = 3,
+) -> int:
+    """Helper: create a plan with one phase spanning multiple weeks. Returns plan_id."""
+    start = date.fromisoformat(week_start)
+    end = start + timedelta(weeks=num_weeks) - timedelta(days=1)
+    plan_resp = await client.post(
+        "/api/v1/training-plans",
+        json={
+            "name": "Sync-Test-Plan",
+            "start_date": week_start,
+            "end_date": end.isoformat(),
+            "phases": [
+                {
+                    "name": "Build",
+                    "phase_type": "build",
+                    "start_week": 1,
+                    "end_week": num_weeks,
+                    "weekly_template": {
+                        "days": [
+                            {
+                                "day_of_week": i,
+                                "training_type": "running" if i < 4 else None,
+                                "is_rest_day": i >= 4,
+                            }
+                            for i in range(7)
+                        ],
+                    },
+                },
+            ],
+        },
+    )
+    assert plan_resp.status_code == 201
+    plan_id: int = plan_resp.json()["id"]
+
+    gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
+    assert gen_resp.status_code == 200
+    return plan_id
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_per_week_override(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Sync should create per-week override in phase.weekly_templates_json."""
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-09-07")
+
+    # Edit Monday of week 1 (add notes)
+    save_data = {
+        "week_start": "2026-09-07",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "notes": "Sync-Test-Edit",
+            },
+        ],
+    }
+    put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert put_resp.status_code == 200
+
+    # Sync per-week (default)
+    sync_resp = await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-09-07", "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+    assert sync_resp.status_code == 200
+    body = sync_resp.json()
+    assert body["phase_name"] == "Build"
+    assert body["week_key"] == "1"
+    assert body["apply_to_all_weeks"] is False
+    assert body["synced_days"] >= 1
+
+    # Verify phase has per-week override
+    plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
+    phase = plan_resp.json()["phases"][0]
+    assert phase["weekly_templates"] is not None
+    assert "1" in phase["weekly_templates"]["weeks"]
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_all_weeks(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Sync with apply_to_all_weeks should update shared template."""
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-09-28")
+
+    # Edit Monday
+    save_data = {
+        "week_start": "2026-09-28",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "strength",
+                "is_rest_day": False,
+                "notes": "Changed to strength",
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=save_data)
+
+    # Sync to all weeks
+    sync_resp = await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-09-28", "plan_id": plan_id, "apply_to_all_weeks": True},
+    )
+    assert sync_resp.status_code == 200
+    body = sync_resp.json()
+    assert body["apply_to_all_weeks"] is True
+
+    # Verify shared template was updated
+    plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
+    phase = plan_resp.json()["phases"][0]
+    assert phase["weekly_template"] is not None
+    monday = phase["weekly_template"]["days"][0]
+    assert monday["training_type"] == "strength"
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_plan_not_found(client: AsyncClient) -> None:
+    """Sync with invalid plan_id should return 404."""
+    sync_resp = await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-10-05", "plan_id": 99999, "apply_to_all_weeks": False},
+    )
+    assert sync_resp.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_week_outside_phase(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Sync a week that falls outside any phase should return 404."""
+    plan_id = await _generate_plan_entries_multi_week(
+        client, db_session, "2026-10-12", num_weeks=1
+    )
+
+    # Try to sync week 2 (outside the 1-week phase)
+    week2_start = "2026-10-19"
+    sync_resp = await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": week2_start, "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+    assert sync_resp.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_preserves_existing_overrides(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Syncing week 2 should not overwrite existing override for week 1."""
+    plan_id = await _generate_plan_entries_multi_week(
+        client, db_session, "2026-10-26", num_weeks=3
+    )
+
+    # Sync week 1
+    save1 = {
+        "week_start": "2026-10-26",
+        "entries": [
+            {"day_of_week": 0, "training_type": "running", "is_rest_day": False, "notes": "W1"},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=save1)
+    await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-10-26", "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+
+    # Sync week 2
+    save2 = {
+        "week_start": "2026-11-02",
+        "entries": [
+            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False, "notes": "W2"},
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=save2)
+    await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-11-02", "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+
+    # Both overrides should exist
+    plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
+    phase = plan_resp.json()["phases"][0]
+    weeks = phase["weekly_templates"]["weeks"]
+    assert "1" in weeks
+    assert "2" in weeks
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_resets_edited_flag(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """After sync, edited flag should be reset to False."""
+    plan_id = await _generate_plan_entries_multi_week(
+        client, db_session, "2026-11-16", num_weeks=1
+    )
+
+    # Edit an entry
+    save_data = {
+        "week_start": "2026-11-16",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "notes": "Edited!",
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=save_data)
+
+    # Verify edited=True
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
+    assert get_resp.json()["entries"][0]["edited"] is True
+
+    # Sync
+    await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-11-16", "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+
+    # Verify edited=False after sync
+    get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
+    assert get_resp2.json()["entries"][0]["edited"] is False

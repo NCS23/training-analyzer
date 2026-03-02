@@ -97,3 +97,21 @@ class ComplianceResponse(BaseModel):
     entries: list[ComplianceDayEntry]
     completed_count: int
     planned_count: int
+
+
+class SyncToPlanRequest(BaseModel):
+    """Request: sync weekly plan entries back to training plan phase template."""
+
+    week_start: date
+    plan_id: int = Field(..., gt=0)
+    apply_to_all_weeks: bool = False
+
+
+class SyncToPlanResponse(BaseModel):
+    """Response: result of syncing weekly plan back to training plan."""
+
+    phase_id: int
+    phase_name: str
+    week_key: str
+    apply_to_all_weeks: bool
+    synced_days: int

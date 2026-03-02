@@ -10,15 +10,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
     SessionTemplateModel,
+    TrainingPhaseModel,
+    TrainingPlanModel,
     WeeklyPlanEntryModel,
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
+from app.models.training_plan import (
+    PhaseWeeklyTemplate,
+    PhaseWeeklyTemplateDayEntry,
+)
 from app.models.weekly_plan import (
     ActualSession,
     ComplianceDayEntry,
     ComplianceResponse,
     RunDetails,
+    SyncToPlanRequest,
+    SyncToPlanResponse,
     WeeklyPlanEntry,
     WeeklyPlanResponse,
     WeeklyPlanSaveRequest,
@@ -378,4 +386,121 @@ async def get_compliance(
         entries=entries,
         completed_count=completed_count,
         planned_count=planned_count,
+    )
+
+
+@router.post("/sync-to-plan", response_model=SyncToPlanResponse)
+async def sync_to_plan(
+    data: SyncToPlanRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SyncToPlanResponse:
+    """Sync edited weekly plan entries back to training plan phase template."""
+    week_start = _monday_of_week(data.week_start)
+
+    # Load training plan
+    plan_result = await db.execute(
+        select(TrainingPlanModel).where(TrainingPlanModel.id == data.plan_id)
+    )
+    plan = plan_result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
+    # Load phases ordered by start_week
+    phases_result = await db.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == data.plan_id)
+        .order_by(TrainingPhaseModel.start_week)
+    )
+    phases = phases_result.scalars().all()
+
+    # Compute plan-relative week number (1-indexed)
+    plan_start = plan.start_date
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())  # type: ignore[operator]
+    week_number = ((week_start - plan_start_monday).days // 7) + 1
+
+    # Find phase for this week
+    phase: TrainingPhaseModel | None = None
+    for p in phases:
+        if int(p.start_week) <= week_number <= int(p.end_week):  # type: ignore[arg-type]
+            phase = p
+            break
+
+    if not phase:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Keine Phase fuer Woche {week_number} gefunden",
+        )
+
+    # Load weekly plan entries for this week
+    entries_result = await db.execute(
+        select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.week_start == week_start)
+    )
+    db_entries = {int(e.day_of_week): e for e in entries_result.scalars().all()}
+
+    # Build PhaseWeeklyTemplate from weekly plan entries
+    days: list[PhaseWeeklyTemplateDayEntry] = []
+    synced_days = 0
+    for day in range(7):
+        entry = db_entries.get(day)
+        if entry and (entry.training_type or entry.is_rest_day):
+            run_details = _parse_run_details(
+                str(entry.run_details_json) if entry.run_details_json else None
+            )
+            run_type = run_details.run_type if run_details else None
+            days.append(
+                PhaseWeeklyTemplateDayEntry(
+                    day_of_week=day,
+                    training_type=str(entry.training_type) if entry.training_type else None,
+                    is_rest_day=bool(entry.is_rest_day),
+                    run_type=run_type,
+                    template_id=int(entry.template_id) if entry.template_id else None,
+                    notes=str(entry.notes) if entry.notes else None,
+                    run_details=run_details,
+                )
+            )
+            synced_days += 1
+        else:
+            days.append(
+                PhaseWeeklyTemplateDayEntry(
+                    day_of_week=day,
+                    training_type=None,
+                    is_rest_day=False,
+                )
+            )
+    template = PhaseWeeklyTemplate(days=days)
+
+    # Compute week key within phase (1-indexed)
+    week_in_phase = week_number - int(phase.start_week)  # type: ignore[arg-type]
+    week_key = str(week_in_phase + 1)
+
+    # Update phase template
+    template_dict = template.model_dump()
+    if data.apply_to_all_weeks:
+        # Update shared template (all weeks of phase)
+        phase.weekly_template_json = json.dumps(template_dict)  # type: ignore[assignment]
+    else:
+        # Update per-week override (merge with existing)
+        existing_overrides: dict[str, object] = {}
+        if phase.weekly_templates_json:
+            try:
+                parsed = json.loads(str(phase.weekly_templates_json))
+                existing_overrides = parsed.get("weeks", {})
+            except (json.JSONDecodeError, ValueError):
+                pass
+        existing_overrides[week_key] = template_dict
+        phase.weekly_templates_json = json.dumps({"weeks": existing_overrides})  # type: ignore[assignment]
+
+    # Reset edited flag on synced entries
+    for entry in db_entries.values():
+        if entry.plan_id and int(entry.plan_id) == data.plan_id:
+            entry.edited = False  # type: ignore[assignment]
+
+    await db.commit()
+
+    return SyncToPlanResponse(
+        phase_id=int(phase.id),  # type: ignore[arg-type]
+        phase_name=str(phase.name),
+        week_key=week_key,
+        apply_to_all_weeks=data.apply_to_all_weeks,
+        synced_days=synced_days,
     )

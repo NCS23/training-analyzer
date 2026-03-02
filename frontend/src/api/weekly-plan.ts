@@ -90,6 +90,22 @@ export interface ComplianceResponse {
   planned_count: number;
 }
 
+// --- Sync-to-Plan Types ---
+
+export interface SyncToPlanRequest {
+  week_start: string;
+  plan_id: number;
+  apply_to_all_weeks: boolean;
+}
+
+export interface SyncToPlanResponse {
+  phase_id: number;
+  phase_name: string;
+  week_key: string;
+  apply_to_all_weeks: boolean;
+  synced_days: number;
+}
+
 // --- API Functions ---
 
 export async function getWeeklyPlan(weekStart?: string): Promise<WeeklyPlanResponse> {
@@ -118,6 +134,14 @@ export async function clearWeeklyPlan(weekStart?: string): Promise<{ success: bo
     : '/api/v1/weekly-plan';
 
   const response = await apiClient.delete<{ success: boolean }>(url);
+  return response.data;
+}
+
+export async function syncToPlan(data: SyncToPlanRequest): Promise<SyncToPlanResponse> {
+  const response = await apiClient.post<SyncToPlanResponse>(
+    '/api/v1/weekly-plan/sync-to-plan',
+    data,
+  );
   return response.data;
 }
 

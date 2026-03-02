@@ -35,6 +35,7 @@ import {
 import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@/api/weekly-plan';
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { DayCard } from '@/components/DayCard';
+import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 
 // --- Helpers ---
 
@@ -85,6 +86,7 @@ export function WeeklyPlanPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showSyncBar, setShowSyncBar] = useState(false);
 
   // Load week data + compliance
   const loadWeek = useCallback(
@@ -92,6 +94,7 @@ export function WeeklyPlanPage() {
       setLoading(true);
       setError(null);
       setSelectedDay(null);
+      setShowSyncBar(false);
       try {
         const [planResult, complianceResult] = await Promise.all([
           getWeeklyPlan(ws),
@@ -156,6 +159,9 @@ export function WeeklyPlanPage() {
       setEntries(result.entries);
       setDirty(false);
       toast({ title: 'Wochenplan gespeichert', variant: 'success' });
+      // Show sync bar if there are edited entries linked to a plan
+      const hasEditedPlanEntries = result.entries.some((e) => e.plan_id != null && e.edited);
+      setShowSyncBar(hasEditedPlanEntries);
     } catch {
       setError('Speichern fehlgeschlagen.');
     } finally {
@@ -200,6 +206,8 @@ export function WeeklyPlanPage() {
 
   const isCurrentWeek = weekStart === getMondayOfWeek(new Date());
   const hasContent = entries.some((e) => e.training_type != null || e.is_rest_day);
+  const linkedPlanId = entries.find((e) => e.plan_id != null)?.plan_id ?? null;
+  const editedPlanCount = entries.filter((e) => e.plan_id != null && e.edited).length;
 
   return (
     <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-7xl mx-auto space-y-4">
@@ -380,6 +388,20 @@ export function WeeklyPlanPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Sync-to-Plan Bar */}
+      {showSyncBar && linkedPlanId && editedPlanCount > 0 && (
+        <SyncToPlanBar
+          planId={linkedPlanId}
+          weekStart={weekStart}
+          editedCount={editedPlanCount}
+          onSynced={() => {
+            setShowSyncBar(false);
+            loadWeek(weekStart);
+          }}
+          onDismiss={() => setShowSyncBar(false)}
+        />
+      )}
 
       {/* Quick action */}
       <Button
