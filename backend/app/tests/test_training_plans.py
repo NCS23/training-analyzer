@@ -988,3 +988,158 @@ phases:
         files={"yaml_file": ("plan.yaml", yaml_bad, "application/x-yaml")},
     )
     assert response.status_code == 422
+
+
+# --- Changelog ---
+
+
+@pytest.mark.anyio
+async def test_changelog_created_on_plan_create(client: AsyncClient) -> None:
+    """Creating a plan should log a plan_created entry."""
+    resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    assert resp.status_code == 201
+    plan_id = resp.json()["id"]
+
+    log_resp = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    assert log_resp.status_code == 200
+    body = log_resp.json()
+    assert body["total"] >= 1
+    types = [e["change_type"] for e in body["entries"]]
+    assert "plan_created" in types
+
+
+@pytest.mark.anyio
+async def test_changelog_on_phase_add_update_delete(client: AsyncClient) -> None:
+    """Phase CRUD should create changelog entries."""
+    # Create plan
+    resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    plan_id = resp.json()["id"]
+
+    # Add phase
+    phase_resp = await client.post(
+        f"/api/v1/training-plans/{plan_id}/phases",
+        json=PHASE_DATA,
+    )
+    assert phase_resp.status_code == 201
+    phase_id = phase_resp.json()["id"]
+
+    # Update phase
+    await client.patch(
+        f"/api/v1/training-plans/{plan_id}/phases/{phase_id}",
+        json={"name": "Neuer Name"},
+    )
+
+    # Delete phase
+    await client.delete(f"/api/v1/training-plans/{plan_id}/phases/{phase_id}")
+
+    # Check changelog
+    log_resp = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    body = log_resp.json()
+    types = [e["change_type"] for e in body["entries"]]
+    assert "phase_added" in types
+    assert "phase_updated" in types
+    assert "phase_deleted" in types
+
+
+@pytest.mark.anyio
+async def test_changelog_on_generate(client: AsyncClient) -> None:
+    """Generating weekly plans should log a weekly_generated entry."""
+    data = {
+        **PLAN_DATA,
+        "phases": [
+            {
+                **PHASE_DATA,
+                "weekly_template": {
+                    "days": [
+                        {
+                            "day_of_week": i,
+                            "training_type": "running" if i < 3 else None,
+                            "is_rest_day": i >= 3,
+                            "run_type": "easy" if i < 3 else None,
+                            "template_id": None,
+                            "notes": None,
+                        }
+                        for i in range(7)
+                    ]
+                },
+            }
+        ],
+    }
+    resp = await client.post("/api/v1/training-plans", json=data)
+    plan_id = resp.json()["id"]
+
+    gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
+    assert gen_resp.status_code == 200
+
+    log_resp = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    types = [e["change_type"] for e in log_resp.json()["entries"]]
+    assert "weekly_generated" in types
+
+
+@pytest.mark.anyio
+async def test_changelog_pagination(client: AsyncClient) -> None:
+    """Changelog should support pagination."""
+    # Create plan with phases to generate multiple log entries
+    resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    plan_id = resp.json()["id"]
+
+    # Create enough entries by adding and deleting phases
+    for i in range(12):
+        phase_resp = await client.post(
+            f"/api/v1/training-plans/{plan_id}/phases",
+            json={
+                "name": f"Phase {i}",
+                "phase_type": "base",
+                "start_week": i + 1,
+                "end_week": i + 1,
+            },
+        )
+        if phase_resp.status_code == 201:
+            await client.delete(
+                f"/api/v1/training-plans/{plan_id}/phases/{phase_resp.json()['id']}"
+            )
+
+    # Check total (1 plan_created + 12 phase_added + 12 phase_deleted = 25)
+    log_resp = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    total = log_resp.json()["total"]
+    assert total == 25
+
+    # Paginate with limit=10
+    page1 = await client.get(f"/api/v1/training-plans/{plan_id}/changelog?limit=10&offset=0")
+    assert len(page1.json()["entries"]) == 10
+    assert page1.json()["total"] == 25
+
+    page2 = await client.get(f"/api/v1/training-plans/{plan_id}/changelog?limit=10&offset=10")
+    assert len(page2.json()["entries"]) == 10
+
+
+@pytest.mark.anyio
+async def test_changelog_update_reason(client: AsyncClient) -> None:
+    """PATCH should set the reason on a changelog entry."""
+    resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    plan_id = resp.json()["id"]
+
+    # Get the plan_created entry
+    log_resp = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    log_id = log_resp.json()["entries"][0]["id"]
+
+    # Update reason
+    patch_resp = await client.patch(
+        f"/api/v1/training-plans/{plan_id}/changelog/{log_id}",
+        json={"reason": "Initialer Plan fuer HM-Vorbereitung"},
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["reason"] == "Initialer Plan fuer HM-Vorbereitung"
+
+
+@pytest.mark.anyio
+async def test_changelog_reason_404(client: AsyncClient) -> None:
+    """PATCH on non-existing log_id should return 404."""
+    resp = await client.post("/api/v1/training-plans", json=PLAN_DATA)
+    plan_id = resp.json()["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/training-plans/{plan_id}/changelog/99999",
+        json={"reason": "test"},
+    )
+    assert patch_resp.status_code == 404

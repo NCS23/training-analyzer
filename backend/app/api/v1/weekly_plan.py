@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.training_plans import log_plan_change
 from app.infrastructure.database.models import (
     SessionTemplateModel,
     TrainingPhaseModel,
@@ -209,6 +210,21 @@ async def save_weekly_plan(
             edited=edited,
         )
         db.add(db_entry)
+
+    # Log manual edits to plan-linked entries
+    edited_plan_ids: dict[int, int] = {}
+    for entry in data.entries:
+        old = old_entries.get(entry.day_of_week)
+        if old and old.plan_id and _has_content_changed(old, entry, None):
+            pid = int(old.plan_id)
+            edited_plan_ids[pid] = edited_plan_ids.get(pid, 0) + 1
+    for pid, count in edited_plan_ids.items():
+        await log_plan_change(
+            db,
+            pid,
+            "manual_edit",
+            f"Wochenplan {week_start}: {count} Eintraege bearbeitet",
+        )
 
     await db.commit()
 
@@ -497,6 +513,12 @@ async def sync_to_plan(
         if entry.plan_id and int(entry.plan_id) == data.plan_id:
             entry.edited = False  # type: ignore[assignment]
 
+    await log_plan_change(
+        db,
+        data.plan_id,
+        "back_sync",
+        f"Woche {week_start} in Phase '{phase.name}' synchronisiert",
+    )
     await db.commit()
 
     return SyncToPlanResponse(

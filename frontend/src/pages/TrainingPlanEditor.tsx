@@ -47,6 +47,7 @@ import type {
 import { listGoals } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
 import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEditor';
+import { PlanChangeLog } from '@/components/PlanChangeLog';
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'base', label: 'Grundlage' },
@@ -735,6 +736,9 @@ export function TrainingPlanEditorPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Change Log */}
+      {isEdit && planId && <PlanChangeLog planId={parseInt(planId, 10)} />}
 
       {/* Error + Save */}
       {error && (

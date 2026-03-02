@@ -271,3 +271,44 @@ export async function generateWeeklyPlans(
   );
   return response.data;
 }
+
+// --- Change Log ---
+
+export interface PlanChangeLogEntry {
+  id: number;
+  plan_id: number;
+  change_type: string;
+  summary: string;
+  details: Record<string, unknown> | null;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PlanChangeLogResponse {
+  entries: PlanChangeLogEntry[];
+  total: number;
+}
+
+export async function getChangelog(
+  planId: number,
+  limit = 50,
+  offset = 0,
+): Promise<PlanChangeLogResponse> {
+  const response = await apiClient.get<PlanChangeLogResponse>(
+    `/api/v1/training-plans/${planId}/changelog?limit=${limit}&offset=${offset}`,
+  );
+  return response.data;
+}
+
+export async function updateChangelogReason(
+  planId: number,
+  logId: number,
+  reason: string,
+): Promise<PlanChangeLogEntry> {
+  const response = await apiClient.patch<PlanChangeLogEntry>(
+    `/api/v1/training-plans/${planId}/changelog/${logId}`,
+    { reason },
+  );
+  return response.data;
+}

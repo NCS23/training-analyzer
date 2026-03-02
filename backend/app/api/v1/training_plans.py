@@ -10,12 +10,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
+    PlanChangeLogModel,
     RaceGoalModel,
     TrainingPhaseModel,
     TrainingPlanModel,
     WeeklyPlanEntryModel,
 )
 from app.infrastructure.database.session import get_db
+from app.models.plan_changelog import (
+    PlanChangeLogEntry,
+    PlanChangeLogReasonUpdate,
+    PlanChangeLogResponse,
+)
 from app.models.training_plan import (
     GenerateWeeklyPlansResponse,
     GenerationPreviewResponse,
@@ -217,6 +223,42 @@ def _create_phase_model(
     )
 
 
+async def log_plan_change(
+    db: AsyncSession,
+    plan_id: int,
+    change_type: str,
+    summary: str,
+    details: Optional[dict[str, object]] = None,
+    reason: Optional[str] = None,
+) -> None:
+    """Log a change to a training plan (audit trail)."""
+    entry = PlanChangeLogModel(
+        plan_id=plan_id,
+        change_type=change_type,
+        summary=summary,
+        details_json=json.dumps(details) if details else None,
+        reason=reason,
+        created_at=datetime.utcnow(),
+    )
+    db.add(entry)
+
+
+def _changelog_to_response(entry: PlanChangeLogModel) -> PlanChangeLogEntry:
+    details: Optional[dict[str, object]] = None
+    if entry.details_json:
+        details = _parse_json(str(entry.details_json))
+    return PlanChangeLogEntry(
+        id=int(entry.id),  # type: ignore[arg-type]
+        plan_id=int(entry.plan_id),  # type: ignore[arg-type]
+        change_type=str(entry.change_type),
+        summary=str(entry.summary),
+        details=details,
+        reason=str(entry.reason) if entry.reason else None,
+        created_by=str(entry.created_by) if entry.created_by else None,
+        created_at=entry.created_at.isoformat() if entry.created_at else "",  # type: ignore[union-attr]
+    )
+
+
 # --- Plan CRUD ---
 
 
@@ -315,6 +357,12 @@ async def create_plan(
         if goal_obj:
             goal_obj.training_plan_id = plan.id  # type: ignore[assignment]
 
+    await log_plan_change(
+        db,
+        int(plan.id),  # type: ignore[arg-type]
+        "plan_created",
+        f"Trainingsplan '{data.name}' erstellt",
+    )
     await db.commit()
     await db.refresh(plan)
     return await _plan_to_response(db, plan)
@@ -428,7 +476,15 @@ async def import_plan_from_yaml(
             detail=f"Validierungsfehler: {exc}",
         ) from None
 
-    return await create_plan(data=plan_data, db=db)
+    result = await create_plan(data=plan_data, db=db)
+    await log_plan_change(
+        db,
+        result.id,
+        "yaml_import",
+        f"Plan aus YAML importiert: {yaml_file.filename}",
+    )
+    await db.commit()
+    return result
 
 
 @router.get(
@@ -603,6 +659,12 @@ async def generate_plan_weeks(
             db.add(db_entry)
         weeks_generated += 1
 
+    await log_plan_change(
+        db,
+        plan_id,
+        "weekly_generated",
+        f"{weeks_generated} Wochen generiert (Strategie: {strategy})",
+    )
     await db.commit()
 
     return GenerateWeeklyPlansResponse(
@@ -674,7 +736,33 @@ async def update_plan(
             if new_goal:
                 new_goal.training_plan_id = plan.id  # type: ignore[assignment]
 
+    # Build details of changed fields
+    changed_fields: list[str] = []
+    if data.name is not None:
+        changed_fields.append("name")
+    if data.description is not None:
+        changed_fields.append("description")
+    if data.start_date is not None:
+        changed_fields.append("start_date")
+    if data.end_date is not None:
+        changed_fields.append("end_date")
+    if data.target_event_date is not None:
+        changed_fields.append("target_event_date")
+    if data.weekly_structure is not None:
+        changed_fields.append("weekly_structure")
+    if data.status is not None:
+        changed_fields.append("status")
+    if data.goal_id is not None:
+        changed_fields.append("goal_id")
+
     plan.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    await log_plan_change(
+        db,
+        plan_id,
+        "plan_updated",
+        "Plan aktualisiert",
+        details={"changed_fields": changed_fields} if changed_fields else None,
+    )
     await db.commit()
     await db.refresh(plan)
     return await _plan_to_response(db, plan)
@@ -758,6 +846,12 @@ async def create_phase(
 
     phase = _create_phase_model(plan_id, data)
     db.add(phase)
+    await log_plan_change(
+        db,
+        plan_id,
+        "phase_added",
+        f"Phase '{data.name}' hinzugefuegt (Woche {data.start_week}-{data.end_week})",
+    )
     await db.commit()
     await db.refresh(phase)
     return _phase_to_response(phase)
@@ -803,6 +897,12 @@ async def update_phase(
     if data.notes is not None:
         phase.notes = data.notes  # type: ignore[assignment]
 
+    await log_plan_change(
+        db,
+        plan_id,
+        "phase_updated",
+        f"Phase '{phase.name}' aktualisiert",
+    )
     await db.commit()
     await db.refresh(phase)
     return _phase_to_response(phase)
@@ -825,5 +925,76 @@ async def delete_phase(
     if not phase:
         raise HTTPException(status_code=404, detail="Phase nicht gefunden")
 
+    phase_name = str(phase.name)
+    await log_plan_change(
+        db,
+        plan_id,
+        "phase_deleted",
+        f"Phase '{phase_name}' geloescht",
+    )
     await db.delete(phase)
     await db.commit()
+
+
+# --- Change Log ---
+
+
+@router.get("/{plan_id}/changelog", response_model=PlanChangeLogResponse)
+async def get_changelog(
+    plan_id: int,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> PlanChangeLogResponse:
+    """Get the change log for a training plan (paginated, newest first)."""
+    # Verify plan exists
+    plan_result = await db.execute(
+        select(TrainingPlanModel.id).where(TrainingPlanModel.id == plan_id)
+    )
+    if not plan_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
+    # Total count
+    count_result = await db.execute(
+        select(func.count(PlanChangeLogModel.id)).where(PlanChangeLogModel.plan_id == plan_id)
+    )
+    total = count_result.scalar() or 0
+
+    # Fetch entries
+    result = await db.execute(
+        select(PlanChangeLogModel)
+        .where(PlanChangeLogModel.plan_id == plan_id)
+        .order_by(PlanChangeLogModel.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    entries = [_changelog_to_response(e) for e in result.scalars().all()]
+
+    return PlanChangeLogResponse(entries=entries, total=total)
+
+
+@router.patch(
+    "/{plan_id}/changelog/{log_id}",
+    response_model=PlanChangeLogEntry,
+)
+async def update_changelog_reason(
+    plan_id: int,
+    log_id: int,
+    data: PlanChangeLogReasonUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> PlanChangeLogEntry:
+    """Set or update the reason on a changelog entry."""
+    result = await db.execute(
+        select(PlanChangeLogModel).where(
+            PlanChangeLogModel.id == log_id,
+            PlanChangeLogModel.plan_id == plan_id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Changelog-Eintrag nicht gefunden")
+
+    entry.reason = data.reason  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(entry)
+    return _changelog_to_response(entry)

@@ -192,3 +192,16 @@ class WeeklyPlanEntryModel(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class PlanChangeLogModel(Base):
+    __tablename__ = "plan_changelog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, nullable=False, index=True)  # FK to training_plans
+    change_type = Column(String(30), nullable=False)
+    summary = Column(String(500), nullable=False)
+    details_json = Column(Text, nullable=True)
+    reason = Column(Text, nullable=True)
+    created_by = Column(String(50), nullable=True)  # future: user auth
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
