@@ -1,0 +1,60 @@
+name: Sync NDS Packages
+
+on:
+  repository_dispatch:
+    types: [nds-updated]
+
+jobs:
+  sync:
+    name: Update NDS packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout NDS
+        uses: actions/checkout@v6
+        with:
+          repository: NCS23/nordlig-design-system
+          path: nds
+          token: ${{ secrets.NDS_CHECKOUT_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Build NDS packages
+        working-directory: nds
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:tokens
+          pnpm --filter @nordlig/components build
+
+      - name: Pack and copy tarballs
+        run: |
+          cd nds/packages/components && pnpm pack && cd ../../..
+          cd nds/packages/styles && pnpm pack && cd ../../..
+          cp nds/packages/components/nordlig-components-1.0.0.tgz frontend/packages/
+          cp nds/packages/styles/nordlig-styles-1.0.0.tgz frontend/packages/
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet frontend/packages/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frontend/packages/nordlig-components-1.0.0.tgz frontend/packages/nordlig-styles-1.0.0.tgz
+          NDS_SHA="${{ github.event.client_payload.sha }}"
+          git commit -m "chore: sync NDS packages (${NDS_SHA:0:7})"
+          git push
