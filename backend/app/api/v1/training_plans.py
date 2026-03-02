@@ -476,15 +476,15 @@ async def import_plan_from_yaml(
             detail=f"Validierungsfehler: {exc}",
         ) from None
 
-    result = await create_plan(data=plan_data, db=db)
+    created_plan = await create_plan(data=plan_data, db=db)
     await log_plan_change(
         db,
-        result.id,
+        created_plan.id,
         "yaml_import",
         f"Plan aus YAML importiert: {yaml_file.filename}",
     )
     await db.commit()
-    return result
+    return created_plan
 
 
 @router.get(
