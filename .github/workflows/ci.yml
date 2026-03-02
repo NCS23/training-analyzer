@@ -178,3 +178,17 @@ jobs:
           print(f'| Missed Lines | {miss} | |')
             " >> $GITHUB_STEP_SUMMARY
           fi
+
+  # Deploy to Coolify after all checks pass (main branch only)
+  deploy:
+    name: Deploy to Coolify
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-lint, backend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Coolify deployment
+        run: |
+          curl -s -X POST "${{ secrets.COOLIFY_URL }}/api/v1/deploy" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"uuid":"${{ secrets.COOLIFY_APP_UUID }}"}'
