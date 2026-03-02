@@ -126,12 +126,25 @@ def _parse_weekly_templates(
         return None
 
 
+def _has_explicit_run_details(rd: RunDetails) -> bool:
+    """Check whether RunDetails has user-provided values (not just a skeleton)."""
+    return (
+        rd.target_duration_minutes is not None
+        or rd.target_pace_min is not None
+        or rd.intervals is not None
+    )
+
+
 def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]:
     """Convert a PhaseWeeklyTemplate into 7 WeeklyPlanEntry objects."""
     entries: list[WeeklyPlanEntry] = []
     for day_entry in template.days:
         run_details: Optional[RunDetails] = None
-        if day_entry.training_type == "running" and day_entry.run_type:
+        if day_entry.run_details is not None:
+            # Template provides explicit RunDetails — use directly
+            run_details = day_entry.run_details
+        elif day_entry.training_type == "running" and day_entry.run_type:
+            # Skeleton RunDetails (only run_type, rest None)
             run_details = RunDetails(
                 run_type=day_entry.run_type,
                 target_duration_minutes=None,
@@ -513,6 +526,9 @@ def generate_weekly_plans(
 
                 for entry in running_entries:
                     if entry.run_details is None:
+                        continue
+                    # Skip entries with explicit template RunDetails
+                    if _has_explicit_run_details(entry.run_details):
                         continue
                     rt = entry.run_details.run_type
                     if rt == "long_run":

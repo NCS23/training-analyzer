@@ -57,7 +57,14 @@ phases:
       quality_sessions_per_week: 1
       strength_sessions_per_week: 2      # Kraft-Sessions pro Woche
     weekly_template:
-      - { day: 0, type: running, run_type: easy }
+      - day: 0
+        type: running
+        run_type: easy
+        run_details:                          # Optional: Konkrete Laufdetails
+          run_type: easy
+          target_duration_minutes: 45
+          target_pace_min: "5:40"             # Schnelleres Ende (M:SS)
+          target_pace_max: "6:10"             # Langsameres Ende (M:SS)
       - { day: 1, type: strength }
       - { day: 2, type: running, run_type: easy }
       - { day: 3, type: running, run_type: easy }
@@ -101,7 +108,17 @@ phases:
       strength_sessions_per_week: 1
     weekly_template:
       - { day: 0, type: running, run_type: easy }
-      - { day: 1, type: running, run_type: intervals }
+      - day: 1
+        type: running
+        run_type: intervals
+        run_details:                          # Strukturierte Intervall-Session
+          run_type: intervals
+          target_duration_minutes: 60
+          intervals:
+            - { type: warmup, duration_minutes: 10, target_pace_min: "5:40", target_pace_max: "6:00", repeats: 1 }
+            - { type: work, duration_minutes: 3, target_pace_min: "4:20", target_pace_max: "4:35", repeats: 5 }
+            - { type: recovery_jog, duration_minutes: 2, target_pace_min: "6:00", target_pace_max: "6:30", repeats: 5 }
+            - { type: cooldown, duration_minutes: 10, target_pace_min: "5:40", target_pace_max: "6:00", repeats: 1 }
       - { day: 2, type: running, run_type: easy }
       - { day: 3, type: running, run_type: tempo }
       - { day: 4, type: strength }

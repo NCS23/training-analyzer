@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.models.taxonomy import SESSION_TYPE_REGEX
+from app.models.weekly_plan import RunDetails
 
 
 class PhaseFocus(BaseModel):
@@ -33,6 +34,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
     run_type: Optional[str] = Field(None, pattern=SESSION_TYPE_REGEX)
     template_id: Optional[int] = None
     notes: Optional[str] = Field(None, max_length=200)
+    run_details: Optional[RunDetails] = None
 
 
 class PhaseWeeklyTemplate(BaseModel):

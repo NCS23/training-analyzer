@@ -367,6 +367,7 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
                             "run_type": run_type,
                             "template_id": None,
                             "notes": day_entry.get("notes"),
+                            "run_details": day_entry.get("run_details"),
                         }
                     )
                 mapped["weekly_template"] = {"days": days}

@@ -6,6 +6,7 @@ from typing import Optional
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
@@ -14,10 +15,12 @@ from app.infrastructure.database.models import (
     TrainingPlanModel,
 )
 from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplateDayEntry
+from app.models.weekly_plan import RunDetails, RunInterval
 from app.services.plan_generator import (
     _build_run_details,
     _compute_race_pace,
     _distribute_days,
+    _has_explicit_run_details,
     _seconds_to_pace,
     _template_to_entries,
     generate_weekly_plans,
@@ -205,6 +208,147 @@ class TestTemplateToEntries:
         entries = _template_to_entries(SAMPLE_TEMPLATE)
         assert entries[6].is_rest_day is True
         assert entries[6].training_type is None
+
+    def test_template_with_explicit_run_details(self) -> None:
+        """Template RunDetails are passed through 1:1."""
+        explicit_rd = RunDetails(
+            run_type="easy",
+            target_duration_minutes=45,
+            target_pace_min="5:40",
+            target_pace_max="6:10",
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=None,
+        )
+        template = PhaseWeeklyTemplate(
+            days=[
+                PhaseWeeklyTemplateDayEntry(
+                    day_of_week=0,
+                    training_type="running",
+                    run_type="easy",
+                    template_id=None,
+                    notes=None,
+                    run_details=explicit_rd,
+                ),
+                *[_day(d, is_rest_day=True) for d in range(1, 7)],
+            ]
+        )
+        entries = _template_to_entries(template)
+        rd = entries[0].run_details
+        assert rd is not None
+        assert rd.target_duration_minutes == 45
+        assert rd.target_pace_min == "5:40"
+        assert rd.target_pace_max == "6:10"
+
+    def test_template_with_interval_run_details(self) -> None:
+        """Template with intervals in RunDetails."""
+        intervals = [
+            RunInterval(
+                type="warmup", duration_minutes=10, repeats=1,
+                target_pace_min=None, target_pace_max=None,
+                target_hr_min=None, target_hr_max=None,
+            ),
+            RunInterval(
+                type="work", duration_minutes=3, target_pace_min="4:20",
+                target_pace_max=None, target_hr_min=None, target_hr_max=None,
+                repeats=5,
+            ),
+            RunInterval(
+                type="recovery_jog", duration_minutes=2, repeats=5,
+                target_pace_min=None, target_pace_max=None,
+                target_hr_min=None, target_hr_max=None,
+            ),
+            RunInterval(
+                type="cooldown", duration_minutes=10, repeats=1,
+                target_pace_min=None, target_pace_max=None,
+                target_hr_min=None, target_hr_max=None,
+            ),
+        ]
+        explicit_rd = RunDetails(
+            run_type="intervals",
+            target_duration_minutes=60,
+            target_pace_min=None,
+            target_pace_max=None,
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=intervals,
+        )
+        template = PhaseWeeklyTemplate(
+            days=[
+                PhaseWeeklyTemplateDayEntry(
+                    day_of_week=0,
+                    training_type="running",
+                    run_type="intervals",
+                    template_id=None,
+                    notes=None,
+                    run_details=explicit_rd,
+                ),
+                *[_day(d, is_rest_day=True) for d in range(1, 7)],
+            ]
+        )
+        entries = _template_to_entries(template)
+        rd = entries[0].run_details
+        assert rd is not None
+        assert rd.run_type == "intervals"
+        assert rd.intervals is not None
+        assert len(rd.intervals) == 4
+        assert rd.intervals[1].type == "work"
+        assert rd.intervals[1].repeats == 5
+
+    def test_template_without_run_details_creates_skeleton(self) -> None:
+        """Without run_details on template entry, a skeleton is created."""
+        template = PhaseWeeklyTemplate(
+            days=[
+                _day(0, "running", "easy"),
+                *[_day(d, is_rest_day=True) for d in range(1, 7)],
+            ]
+        )
+        entries = _template_to_entries(template)
+        rd = entries[0].run_details
+        assert rd is not None
+        assert rd.run_type == "easy"
+        assert rd.target_duration_minutes is None
+        assert rd.target_pace_min is None
+        assert rd.intervals is None
+
+
+class TestHasExplicitRunDetails:
+    def test_skeleton_is_not_explicit(self) -> None:
+        rd = RunDetails(
+            run_type="easy", target_duration_minutes=None,
+            target_pace_min=None, target_pace_max=None,
+            target_hr_min=None, target_hr_max=None, intervals=None,
+        )
+        assert _has_explicit_run_details(rd) is False
+
+    def test_duration_makes_explicit(self) -> None:
+        rd = RunDetails(
+            run_type="easy", target_duration_minutes=45,
+            target_pace_min=None, target_pace_max=None,
+            target_hr_min=None, target_hr_max=None, intervals=None,
+        )
+        assert _has_explicit_run_details(rd) is True
+
+    def test_pace_makes_explicit(self) -> None:
+        rd = RunDetails(
+            run_type="tempo", target_duration_minutes=None,
+            target_pace_min="5:00", target_pace_max=None,
+            target_hr_min=None, target_hr_max=None, intervals=None,
+        )
+        assert _has_explicit_run_details(rd) is True
+
+    def test_intervals_make_explicit(self) -> None:
+        rd = RunDetails(
+            run_type="intervals", target_duration_minutes=None,
+            target_pace_min=None, target_pace_max=None,
+            target_hr_min=None, target_hr_max=None,
+            intervals=[RunInterval(
+                type="work", duration_minutes=3, repeats=5,
+                target_pace_min=None, target_pace_max=None,
+                target_hr_min=None, target_hr_max=None,
+            )],
+        )
+        assert _has_explicit_run_details(rd) is True
 
 
 # --- Integration tests for generate_weekly_plans ---
@@ -699,6 +843,125 @@ async def test_generate_replaces_previous(client: AsyncClient) -> None:
     entries = week_resp.json()["entries"]
     has_content = any(e["training_type"] is not None or e["is_rest_day"] for e in entries)
     assert has_content
+
+
+@pytest.mark.anyio
+async def test_generate_preserves_template_run_details(db_session: AsyncSession) -> None:
+    """Volume distribution must NOT overwrite explicit template RunDetails."""
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-04-26", rest_days=[6])
+    await db_session.flush()
+
+    explicit_easy = RunDetails(
+        run_type="easy",
+        target_duration_minutes=45,
+        target_pace_min="5:40",
+        target_pace_max="6:10",
+        target_hr_min=None,
+        target_hr_max=None,
+        intervals=None,
+    ).model_dump()
+    template = {
+        "days": [
+            {"day_of_week": 0, "training_type": "running", "run_type": "easy",
+             "is_rest_day": False, "run_details": explicit_easy},
+            {"day_of_week": 1, "training_type": "running", "run_type": "easy",
+             "is_rest_day": False},  # no run_details → skeleton → will be filled
+            {"day_of_week": 2, "training_type": "running", "run_type": "tempo",
+             "is_rest_day": False},
+            {"day_of_week": 3, "training_type": "running", "run_type": "easy",
+             "is_rest_day": False},
+            {"day_of_week": 4, "training_type": "strength", "is_rest_day": False},
+            {"day_of_week": 5, "training_type": "running", "run_type": "long_run",
+             "is_rest_day": False},
+            {"day_of_week": 6, "is_rest_day": True},
+        ]
+    }
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        3,
+        metrics={"weekly_volume_min": 30, "weekly_volume_max": 45},
+        weekly_template=template,
+    )
+    goal = _make_goal(db_session)
+    await db_session.flush()
+
+    plan.goal_id = goal.id
+    # _make_phase added to db_session but plan.phases won't auto-load;
+    # we need the actual phase objects
+    phases_result = await db_session.execute(
+        select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+    )
+    phases = list(phases_result.scalars().all())
+
+    result = generate_weekly_plans(plan, phases, [6], goal)
+    assert len(result) > 0
+
+    _, entries = result[0]
+    # Day 0: had explicit run_details → must be preserved
+    day0 = next(e for e in entries if e.day_of_week == 0)
+    assert day0.run_details is not None
+    assert day0.run_details.target_duration_minutes == 45
+    assert day0.run_details.target_pace_min == "5:40"
+    assert day0.run_details.target_pace_max == "6:10"
+
+    # Day 1: had skeleton → should be filled by volume distribution
+    day1 = next(e for e in entries if e.day_of_week == 1)
+    assert day1.run_details is not None
+    assert day1.run_details.target_duration_minutes is not None
+    assert day1.run_details.target_duration_minutes != 45  # different from template
+
+
+@pytest.mark.anyio
+async def test_generate_fills_skeleton_run_details(db_session: AsyncSession) -> None:
+    """Skeleton RunDetails (no explicit values) get filled with volume/pace."""
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-04-19", rest_days=[6])
+    await db_session.flush()
+
+    # Template without any run_details
+    template = {
+        "days": [
+            {"day_of_week": d, "training_type": "running", "run_type": "easy", "is_rest_day": False}
+            if d < 5
+            else (
+                {"day_of_week": 5, "training_type": "running", "run_type": "long_run", "is_rest_day": False}
+                if d == 5
+                else {"day_of_week": 6, "is_rest_day": True}
+            )
+            for d in range(7)
+        ]
+    }
+    _make_phase(
+        db_session,
+        int(plan.id),
+        "base",
+        1,
+        2,
+        metrics={"weekly_volume_min": 30, "weekly_volume_max": 35},
+        weekly_template=template,
+    )
+    goal = _make_goal(db_session)
+    await db_session.flush()
+    plan.goal_id = goal.id
+
+    phases_result = await db_session.execute(
+        select(TrainingPhaseModel).where(TrainingPhaseModel.training_plan_id == plan.id)
+    )
+    phases = list(phases_result.scalars().all())
+
+    result = generate_weekly_plans(plan, phases, [6], goal)
+    assert len(result) > 0
+    _, entries = result[0]
+
+    running = [e for e in entries if e.run_details is not None]
+    assert len(running) >= 4
+    # All skeleton entries should now have duration and pace filled
+    for e in running:
+        assert e.run_details is not None
+        assert e.run_details.target_duration_minutes is not None
+        assert e.run_details.target_pace_min is not None
 
 
 @pytest.mark.anyio

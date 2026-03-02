@@ -508,6 +508,105 @@ status: draft
     assert "Validierung" in response.json()["detail"]
 
 
+# --- YAML Import with RunDetails ---
+
+
+YAML_WITH_RUN_DETAILS = b"""
+name: Plan mit RunDetails
+start_date: 2026-04-06
+end_date: 2026-07-26
+status: draft
+
+phases:
+  - name: Base
+    type: base
+    start_week: 1
+    end_week: 4
+    weekly_template:
+      - day: 0
+        type: running
+        run_type: easy
+        run_details:
+          run_type: easy
+          target_duration_minutes: 45
+          target_pace_min: "5:40"
+          target_pace_max: "6:10"
+      - { day: 1, type: strength }
+      - { day: 2, type: running, run_type: easy }
+      - { day: 3, rest: true }
+      - day: 4
+        type: running
+        run_type: intervals
+        run_details:
+          run_type: intervals
+          target_duration_minutes: 60
+          intervals:
+            - { type: warmup, duration_minutes: 10, repeats: 1 }
+            - { type: work, duration_minutes: 3, target_pace_min: "4:20", repeats: 5 }
+            - { type: recovery_jog, duration_minutes: 2, repeats: 5 }
+            - { type: cooldown, duration_minutes: 10, repeats: 1 }
+      - { day: 5, type: running, run_type: long_run }
+      - { day: 6, rest: true }
+"""
+
+
+@pytest.mark.anyio
+async def test_import_yaml_with_run_details(client: AsyncClient) -> None:
+    """YAML import correctly parses run_details including intervals."""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", YAML_WITH_RUN_DETAILS, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert len(body["phases"]) == 1
+
+    phase = body["phases"][0]
+    wt = phase["weekly_template"]
+    assert wt is not None
+
+    # Day 0: easy with explicit run_details
+    day0 = wt["days"][0]
+    assert day0["run_type"] == "easy"
+    assert day0["run_details"] is not None
+    assert day0["run_details"]["target_duration_minutes"] == 45
+    assert day0["run_details"]["target_pace_min"] == "5:40"
+    assert day0["run_details"]["target_pace_max"] == "6:10"
+
+    # Day 4: intervals with intervals list
+    day4 = wt["days"][4]
+    assert day4["run_type"] == "intervals"
+    assert day4["run_details"] is not None
+    assert day4["run_details"]["run_type"] == "intervals"
+    assert len(day4["run_details"]["intervals"]) == 4
+    assert day4["run_details"]["intervals"][1]["type"] == "work"
+    assert day4["run_details"]["intervals"][1]["repeats"] == 5
+
+    # Day 2: no run_details → should be None
+    day2 = wt["days"][2]
+    assert day2["run_type"] == "easy"
+    assert day2["run_details"] is None
+
+    # Day 5: long_run without run_details
+    day5 = wt["days"][5]
+    assert day5["run_type"] == "long_run"
+    assert day5["run_details"] is None
+
+
+@pytest.mark.anyio
+async def test_import_yaml_without_run_details_backward_compat(client: AsyncClient) -> None:
+    """Existing YAML format without run_details still works."""
+    response = await client.post(
+        "/api/v1/training-plans/import",
+        files={"yaml_file": ("plan.yaml", VALID_YAML, "application/x-yaml")},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert len(body["phases"]) == 2
+    # Phases without weekly_template → no run_details to check
+    assert body["phases"][0]["weekly_template"] is None
+
+
 # --- Goal Auto-Create (API) ---
 
 
