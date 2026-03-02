@@ -465,6 +465,8 @@ async def sync_to_plan(
                     day_of_week=day,
                     training_type=None,
                     is_rest_day=False,
+                    run_type=None,
+                    notes=None,
                 )
             )
     template = PhaseWeeklyTemplate(days=days)
