@@ -779,9 +779,7 @@ async def test_sync_to_plan_per_week_override(
 
 
 @pytest.mark.anyio
-async def test_sync_to_plan_all_weeks(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_sync_to_plan_all_weeks(client: AsyncClient, db_session: AsyncSession) -> None:
     """Sync with apply_to_all_weeks should update shared template."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-09-28")
 
@@ -831,9 +829,7 @@ async def test_sync_to_plan_week_outside_phase(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Sync a week that falls outside any phase should return 404."""
-    plan_id = await _generate_plan_entries_multi_week(
-        client, db_session, "2026-10-12", num_weeks=1
-    )
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-10-12", num_weeks=1)
 
     # Try to sync week 2 (outside the 1-week phase)
     week2_start = "2026-10-19"
@@ -849,9 +845,7 @@ async def test_sync_to_plan_preserves_existing_overrides(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """Syncing week 2 should not overwrite existing override for week 1."""
-    plan_id = await _generate_plan_entries_multi_week(
-        client, db_session, "2026-10-26", num_weeks=3
-    )
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-10-26", num_weeks=3)
 
     # Sync week 1
     save1 = {
@@ -892,9 +886,7 @@ async def test_sync_to_plan_resets_edited_flag(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """After sync, edited flag should be reset to False."""
-    plan_id = await _generate_plan_entries_multi_week(
-        client, db_session, "2026-11-16", num_weeks=1
-    )
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-11-16", num_weeks=1)
 
     # Edit an entry
     save_data = {
