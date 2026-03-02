@@ -1,9 +1,5 @@
 import { Info } from 'lucide-react';
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from '@nordlig/components';
+import { Popover, PopoverTrigger, PopoverContent } from '@nordlig/components';
 
 interface InfoHintProps {
   /** Content shown in the popover. Can be a string or JSX. */
@@ -20,12 +16,7 @@ interface InfoHintProps {
  * Small (i) icon that shows explanatory text on tap/click.
  * Works on both desktop and mobile (touch).
  */
-export function InfoHint({
-  content,
-  size = 14,
-  side = 'top',
-  maxWidth = 260,
-}: InfoHintProps) {
+export function InfoHint({ content, size = 14, side = 'top', maxWidth = 260 }: InfoHintProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
