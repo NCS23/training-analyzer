@@ -701,7 +701,9 @@ export function SessionDetailPage() {
   const canShowHR = hrZoneBoundaries != null;
 
   return (
-    <div className={`p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6 ${isEditing ? 'pb-20' : ''}`}>
+    <div
+      className={`p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6 ${isEditing ? 'pb-20' : ''}`}
+    >
       {/* Breadcrumbs */}
       <div className="space-y-1">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
