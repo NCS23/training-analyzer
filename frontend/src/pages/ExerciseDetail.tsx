@@ -28,7 +28,6 @@ import {
   Textarea,
   MultiSelect,
   Label,
-  ActionBar,
 } from '@nordlig/components';
 import {
   Star,
@@ -637,9 +636,12 @@ export function ExerciseDetailPage() {
           </Card>
         )}
 
-      {/* Sticky edit bar */}
+      {/* Fixed edit mode bar — fixed instead of sticky to work with overflow-x-hidden parent */}
       {isEditing && (
-        <ActionBar className="-mx-4 md:-mx-6 md:px-6">
+        <div
+          role="toolbar"
+          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
+        >
           <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
             Ungespeicherte Änderungen
           </span>
@@ -651,7 +653,7 @@ export function ExerciseDetailPage() {
               {saving ? <Spinner size="sm" /> : 'Speichern'}
             </Button>
           </div>
-        </ActionBar>
+        </div>
       )}
 
       {/* Exercise DB Picker */}
