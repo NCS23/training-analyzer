@@ -106,7 +106,9 @@ export function TrainingBalanceContent({ days }: { days?: number }) {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[var(--color-text-primary)]" />
-                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Trainingsmix</h2>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    Trainingsmix
+                  </h2>
                 </div>
               </CardHeader>
               <CardBody>
@@ -213,7 +215,9 @@ export function TrainingBalanceContent({ days }: { days?: number }) {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Footprints className="w-4 h-4 text-[var(--color-text-primary)]" />
-                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Wochenvolumen</h2>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    Wochenvolumen
+                  </h2>
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)] mt-1">
                   Lauf-Kilometer pro Woche. Rot markiert = &gt;10% Steigerung.
@@ -300,7 +304,9 @@ export function TrainingBalanceContent({ days }: { days?: number }) {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-[var(--color-text-primary)]" />
-                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Erkenntnisse</h2>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    Erkenntnisse
+                  </h2>
                 </div>
               </CardHeader>
               <CardBody>

@@ -61,8 +61,6 @@ const categoryOptions = [
   { value: 'cardio', label: 'Cardio' },
 ];
 
-
-
 const equipmentLabels: Record<string, string> = {
   barbell: 'Langhantel',
   dumbbell: 'Kurzhantel',

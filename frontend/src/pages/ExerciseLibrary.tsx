@@ -48,8 +48,6 @@ const categoryLabels: Record<string, string> = {
   cardio: 'Cardio',
 };
 
-
-
 export function ExerciseLibraryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();

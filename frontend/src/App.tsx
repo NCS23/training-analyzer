@@ -81,9 +81,7 @@ const SettingsPage = lazy(() =>
 const StrengthSessionPage = lazy(() =>
   import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
 );
-const AnalysePage = lazy(() =>
-  import('./pages/Analyse').then((m) => ({ default: m.AnalysePage })),
-);
+const AnalysePage = lazy(() => import('./pages/Analyse').then((m) => ({ default: m.AnalysePage })));
 const ExerciseLibraryPage = lazy(() =>
   import('./pages/ExerciseLibrary').then((m) => ({ default: m.ExerciseLibraryPage })),
 );
@@ -138,7 +136,10 @@ function App() {
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
                   <Route path="/analyse" element={<AnalysePage />} />
                   <Route path="/trends" element={<Navigate to="/analyse" replace />} />
-                  <Route path="/strength/progression" element={<Navigate to="/analyse" replace />} />
+                  <Route
+                    path="/strength/progression"
+                    element={<Navigate to="/analyse" replace />}
+                  />
                   <Route path="/balance" element={<Navigate to="/analyse" replace />} />
                   <Route path="/plan" element={<WeeklyPlanPage />} />
                   <Route path="/settings" element={<SettingsPage />} />

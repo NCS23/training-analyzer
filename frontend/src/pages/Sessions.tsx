@@ -47,7 +47,10 @@ const workoutTypeOptions = [
   { value: 'strength', label: 'Kraft' },
 ];
 
-const trainingTypeOptions = [{ value: '', label: 'Alle Trainingstypen' }, ...baseTrainingTypeOptions];
+const trainingTypeOptions = [
+  { value: '', label: 'Alle Trainingstypen' },
+  ...baseTrainingTypeOptions,
+];
 
 /* Colored border-style tags using primary/neutral tokens */
 const tagBase =

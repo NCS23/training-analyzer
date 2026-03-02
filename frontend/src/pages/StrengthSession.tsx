@@ -437,7 +437,10 @@ export function StrengthSessionPage() {
                       Übung {exIndex + 1}
                     </span>
                     {exercise.name && (
-                      <Badge variant={categoryBadgeVariant[exercise.category] ?? 'neutral'} size="xs">
+                      <Badge
+                        variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
+                        size="xs"
+                      >
                         {CATEGORY_LABELS[exercise.category] ?? exercise.category}
                       </Badge>
                     )}
@@ -497,7 +500,10 @@ export function StrengthSessionPage() {
                               onClick={() => selectSuggestion(exercise.id, ex)}
                             >
                               <span>{ex.name}</span>
-                              <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="xs">
+                              <Badge
+                                variant={categoryBadgeVariant[ex.category] ?? 'neutral'}
+                                size="xs"
+                              >
                                 {CATEGORY_LABELS[ex.category] ?? ex.category}
                               </Badge>
                             </button>

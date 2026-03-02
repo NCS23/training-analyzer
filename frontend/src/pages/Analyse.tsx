@@ -361,7 +361,9 @@ export function AnalysePage() {
   return (
     <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       <header className="pb-2">
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Analyse</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Analyse
+        </h1>
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

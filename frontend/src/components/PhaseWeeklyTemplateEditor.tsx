@@ -123,8 +123,7 @@ export function PhaseWeeklyTemplateEditor({
   onChangeWeeklyTemplates,
 }: Props) {
   const totalWeeks = Math.max(1, endWeek - startWeek + 1);
-  const perWeekMode =
-    weeklyTemplates !== null && Object.keys(weeklyTemplates.weeks).length > 0;
+  const perWeekMode = weeklyTemplates !== null && Object.keys(weeklyTemplates.weeks).length > 0;
   const [activeWeek, setActiveWeek] = useState(1);
 
   // Ensure activeWeek stays in bounds
@@ -133,7 +132,7 @@ export function PhaseWeeklyTemplateEditor({
   // Resolve the template to display
   const sharedTemplate = template ?? createDefaultTemplate(phaseType);
   const currentTemplate = perWeekMode
-    ? weeklyTemplates?.weeks[String(clampedActiveWeek)] ?? sharedTemplate
+    ? (weeklyTemplates?.weeks[String(clampedActiveWeek)] ?? sharedTemplate)
     : sharedTemplate;
 
   const handleDayChange = useCallback(
@@ -151,7 +150,14 @@ export function PhaseWeeklyTemplateEditor({
         onChange(newTemplate);
       }
     },
-    [currentTemplate, perWeekMode, weeklyTemplates, clampedActiveWeek, onChange, onChangeWeeklyTemplates],
+    [
+      currentTemplate,
+      perWeekMode,
+      weeklyTemplates,
+      clampedActiveWeek,
+      onChange,
+      onChangeWeeklyTemplates,
+    ],
   );
 
   const handleLoadDefaults = useCallback(() => {
@@ -163,7 +169,14 @@ export function PhaseWeeklyTemplateEditor({
     } else {
       onChange(defaultTemplate);
     }
-  }, [phaseType, perWeekMode, weeklyTemplates, clampedActiveWeek, onChange, onChangeWeeklyTemplates]);
+  }, [
+    phaseType,
+    perWeekMode,
+    weeklyTemplates,
+    clampedActiveWeek,
+    onChange,
+    onChangeWeeklyTemplates,
+  ]);
 
   const handleTogglePerWeek = useCallback(() => {
     if (perWeekMode) {

@@ -3,15 +3,7 @@ import { apiClient } from './client';
 // --- Types ---
 
 export interface RunInterval {
-  type:
-    | 'warmup'
-    | 'cooldown'
-    | 'steady'
-    | 'work'
-    | 'recovery_jog'
-    | 'rest'
-    | 'strides'
-    | 'drills';
+  type: 'warmup' | 'cooldown' | 'steady' | 'work' | 'recovery_jog' | 'rest' | 'strides' | 'drills';
   duration_minutes: number;
   target_pace_min: string | null;
   target_pace_max: string | null;

@@ -1,9 +1,5 @@
 import { Info } from 'lucide-react';
-import {
-  HoverCard,
-  HoverCardTrigger,
-  HoverCardContent,
-} from '@nordlig/components';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@nordlig/components';
 
 interface InfoHintProps {
   /** Content shown in the hover card. Can be a string or JSX. */
@@ -20,12 +16,7 @@ interface InfoHintProps {
  * Small (i) icon that shows explanatory text on hover / tap-and-hold.
  * Use wherever a term or concept needs clarification.
  */
-export function InfoHint({
-  content,
-  size = 14,
-  side = 'top',
-  maxWidth = 260,
-}: InfoHintProps) {
+export function InfoHint({ content, size = 14, side = 'top', maxWidth = 260 }: InfoHintProps) {
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
@@ -37,7 +28,12 @@ export function InfoHint({
           <Info style={{ width: size, height: size }} />
         </button>
       </HoverCardTrigger>
-      <HoverCardContent side={side} showArrow className="text-xs leading-relaxed" style={{ maxWidth }}>
+      <HoverCardContent
+        side={side}
+        showArrow
+        className="text-xs leading-relaxed"
+        style={{ maxWidth }}
+      >
         {content}
       </HoverCardContent>
     </HoverCard>

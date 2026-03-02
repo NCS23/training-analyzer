@@ -1,13 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@nordlig/components';
-import {
-  CalendarDays,
-  LayoutDashboard,
-  Dumbbell,
-  TrendingUp,
-  Settings,
-  Zap,
-} from 'lucide-react';
+import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Settings, Zap } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 const navItems = [

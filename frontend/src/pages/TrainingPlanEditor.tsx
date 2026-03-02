@@ -671,9 +671,7 @@ export function TrainingPlanEditorPage() {
                     startWeek={phase.start_week}
                     endWeek={phase.end_week}
                     onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
-                    onChangeWeeklyTemplates={(wt) =>
-                      updatePhaseForm(idx, { weekly_templates: wt })
-                    }
+                    onChangeWeeklyTemplates={(wt) => updatePhaseForm(idx, { weekly_templates: wt })}
                   />
                 </div>
               ))}

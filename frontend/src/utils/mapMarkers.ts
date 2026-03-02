@@ -58,14 +58,14 @@ export interface LapMarkerData {
 
 /** Color per lap type — uses primary/secondary palette for non-semantic differentiation. */
 export const LAP_TYPE_COLORS: Record<string, string> = {
-  interval: '#4f46e5',   // primary-2-600 (indigo)
-  tempo: '#6366f1',      // primary-2-500 (indigo)
-  warmup: '#94a3b8',     // secondary-1-400 (slate)
-  cooldown: '#94a3b8',   // secondary-1-400 (slate)
-  pause: '#6b7280',      // secondary-1-500 (slate)
-  recovery: '#7dd3fc',   // primary-1-300 (sky)
-  longrun: '#0284c7',    // primary-1-600 (sky)
-  working: '#0ea5e9',    // primary-1-500 (sky)
+  interval: '#4f46e5', // primary-2-600 (indigo)
+  tempo: '#6366f1', // primary-2-500 (indigo)
+  warmup: '#94a3b8', // secondary-1-400 (slate)
+  cooldown: '#94a3b8', // secondary-1-400 (slate)
+  pause: '#6b7280', // secondary-1-500 (slate)
+  recovery: '#7dd3fc', // primary-1-300 (sky)
+  longrun: '#0284c7', // primary-1-600 (sky)
+  working: '#0ea5e9', // primary-1-500 (sky)
   unclassified: '#64748b', // secondary-1-500 (slate)
 };
 
