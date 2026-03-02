@@ -209,7 +209,7 @@ export function ExerciseDbPicker({
                           </Badge>
                         )}
                         {ex.primary_muscles.slice(0, 3).map((m) => (
-                          <Badge key={m} variant="info" size="xs">
+                          <Badge key={m} variant="neutral" size="xs">
                             {muscleLabels[m] ?? m}
                           </Badge>
                         ))}

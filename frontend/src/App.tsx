@@ -81,7 +81,9 @@ const SettingsPage = lazy(() =>
 const StrengthSessionPage = lazy(() =>
   import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
 );
-const TrendsPage = lazy(() => import('./pages/Trends').then((m) => ({ default: m.TrendsPage })));
+const AnalysePage = lazy(() =>
+  import('./pages/Analyse').then((m) => ({ default: m.AnalysePage })),
+);
 const ExerciseLibraryPage = lazy(() =>
   import('./pages/ExerciseLibrary').then((m) => ({ default: m.ExerciseLibraryPage })),
 );
@@ -102,9 +104,6 @@ const TrainingPlanEditorPage = lazy(() =>
 );
 const WeeklyPlanPage = lazy(() =>
   import('./pages/WeeklyPlan').then((m) => ({ default: m.WeeklyPlanPage })),
-);
-const TrainingBalancePage = lazy(() =>
-  import('./pages/TrainingBalance').then((m) => ({ default: m.TrainingBalancePage })),
 );
 const GoalsPage = lazy(() => import('./pages/Goals').then((m) => ({ default: m.GoalsPage })));
 const AthleteProfilePage = lazy(() =>
@@ -137,10 +136,11 @@ function App() {
                   <Route path="/sessions/new" element={<UploadPage />} />
                   <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
-                  <Route path="/trends" element={<TrendsPage />} />
-                  <Route path="/strength/progression" element={<Navigate to="/trends" replace />} />
+                  <Route path="/analyse" element={<AnalysePage />} />
+                  <Route path="/trends" element={<Navigate to="/analyse" replace />} />
+                  <Route path="/strength/progression" element={<Navigate to="/analyse" replace />} />
+                  <Route path="/balance" element={<Navigate to="/analyse" replace />} />
                   <Route path="/plan" element={<WeeklyPlanPage />} />
-                  <Route path="/balance" element={<TrainingBalancePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
                   <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />

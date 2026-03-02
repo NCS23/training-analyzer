@@ -27,6 +27,10 @@ import {
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
 import type { SessionSummary, SessionFilters } from '@/api/training';
+import {
+  trainingTypeLabels,
+  trainingTypeOptions as baseTrainingTypeOptions,
+} from '@/constants/training';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -43,33 +47,14 @@ const workoutTypeOptions = [
   { value: 'strength', label: 'Kraft' },
 ];
 
-const trainingTypeLabels: Record<string, string> = {
-  recovery: 'Recovery',
-  easy: 'Easy Run',
-  long_run: 'Long Run',
-  tempo: 'Tempo',
-  intervals: 'Intervall',
-  race: 'Wettkampf',
-  hill_repeats: 'Bergsprints',
-};
+const trainingTypeOptions = [{ value: '', label: 'Alle Trainingstypen' }, ...baseTrainingTypeOptions];
 
-const trainingTypeOptions = [
-  { value: '', label: 'Alle Trainingstypen' },
-  { value: 'recovery', label: 'Recovery' },
-  { value: 'easy', label: 'Easy Run' },
-  { value: 'long_run', label: 'Long Run' },
-  { value: 'tempo', label: 'Tempo' },
-  { value: 'intervals', label: 'Intervall' },
-  { value: 'race', label: 'Wettkampf' },
-  { value: 'hill_repeats', label: 'Bergsprints' },
-];
-
-/* Colored border-style tags using design tokens */
+/* Colored border-style tags using primary/neutral tokens */
 const tagBase =
   'inline-flex items-center rounded-full border-[1.5px] px-[var(--spacing-xs)] py-[3px] text-[11.5px] font-medium';
-const workoutTagStyle = `${tagBase} bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] border-[var(--color-border-info-subtle)]`;
-const strengthTagStyle = `${tagBase} bg-[var(--color-bg-accent-subtle)] text-[var(--color-text-accent)] border-[var(--color-border-accent-subtle)]`;
-const trainingTagStyle = `${tagBase} bg-[var(--color-bg-success-subtle)] text-[var(--color-text-success)] border-[var(--color-border-success-subtle)]`;
+const workoutTagStyle = `${tagBase} bg-[var(--color-bg-primary-subtle)] text-[var(--color-primary-1-600)] border-[var(--color-primary-1-200)]`;
+const strengthTagStyle = `${tagBase} bg-[var(--color-primary-2-50)] text-[var(--color-primary-2-600)] border-[var(--color-primary-2-200)]`;
+const trainingTagStyle = `${tagBase} bg-[var(--color-secondary-1-100)] text-[var(--color-secondary-1-600)] border-[var(--color-secondary-1-200)]`;
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -293,8 +278,8 @@ export function SessionsPage() {
       ) : sessions.length === 0 ? (
         <Card elevation="raised">
           <CardBody className="flex flex-col items-center py-16 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-bg-info-subtle)] mb-[var(--spacing-md)]">
-              <Activity className="w-8 h-8 text-[var(--color-text-primary)]" />
+            <div className="flex items-center justify-center w-16 h-16 rounded-[var(--radius-2xl)] bg-[var(--color-bg-primary-subtle)] mb-[var(--spacing-md)]">
+              <Activity className="w-8 h-8 text-[var(--color-primary-1-500)]" />
             </div>
             <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-2">
               {active ? 'Keine Treffer' : 'Keine Sessions vorhanden'}

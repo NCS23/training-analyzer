@@ -168,8 +168,8 @@ export function DashboardPage() {
             </div>
             <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
               <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                <MapPin className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-accent-1-500)]" />
-                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-accent-1-500)] uppercase tracking-wider">
+                <MapPin className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-primary-1-500)]" />
+                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-primary-1-500)] uppercase tracking-wider">
                   Distanz
                 </p>
               </div>
@@ -182,8 +182,8 @@ export function DashboardPage() {
             </div>
             <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
               <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                <Clock className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-accent-2-500)]" />
-                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-accent-2-500)] uppercase tracking-wider">
+                <Clock className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-primary-1-500)]" />
+                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-primary-1-500)] uppercase tracking-wider">
                   Trainingszeit
                 </p>
               </div>
@@ -194,8 +194,8 @@ export function DashboardPage() {
             {avgHr > 0 && (
               <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
                 <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                  <Heart className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-accent-3-500)]" />
-                  <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-accent-3-500)] uppercase tracking-wider">
+                  <Heart className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-primary-1-500)]" />
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-primary-1-500)] uppercase tracking-wider">
                     Ø HF
                   </p>
                 </div>
@@ -227,11 +227,11 @@ export function DashboardPage() {
               {/* Goal header */}
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="flex items-start gap-2 text-[15px] font-semibold leading-[1.4] flex-1 min-w-0">
-                  <Target className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-chart-1)]" />
+                  <Target className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-primary-1-500)]" />
                   {goalProgress.goal.title}
                 </div>
                 {goalProgress.goal.days_until > 0 ? (
-                  <span className="inline-flex shrink-0 items-center gap-[5px] rounded-full border border-[var(--color-border-info-subtle)] bg-[var(--color-bg-info-subtle)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--color-text-info)]">
+                  <span className="inline-flex shrink-0 items-center gap-[5px] rounded-full border border-[var(--color-primary-1-200)] bg-[var(--color-bg-primary-subtle)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--color-primary-1-600)]">
                     <Calendar className="w-[11px] h-[11px]" />
                     {goalProgress.goal.days_until} Tage
                   </span>
@@ -292,9 +292,9 @@ export function DashboardPage() {
                   <p
                     className={`text-[22px] font-semibold leading-none ${
                       isAhead
-                        ? 'text-[var(--color-accent-1-500)]'
+                        ? 'text-[var(--color-text-success)]'
                         : isBehind
-                          ? 'text-[var(--color-accent-2-500)]'
+                          ? 'text-[var(--color-text-warning)]'
                           : 'text-[var(--color-text-base)]'
                     }`}
                   >
@@ -341,10 +341,10 @@ export function DashboardPage() {
                     className={`text-xs font-medium ${
                       goalProgress.weekly_pace_trend_sec !== null &&
                       goalProgress.weekly_pace_trend_sec > 0
-                        ? 'text-[var(--color-accent-1-500)]'
+                        ? 'text-[var(--color-text-success)]'
                         : goalProgress.weekly_pace_trend_sec !== null &&
                             goalProgress.weekly_pace_trend_sec < 0
-                          ? 'text-[var(--color-accent-2-500)]'
+                          ? 'text-[var(--color-text-warning)]'
                           : 'text-[var(--color-text-muted)]'
                     }`}
                   >

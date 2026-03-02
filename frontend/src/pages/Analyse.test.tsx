@@ -1,6 +1,6 @@
 import { vi, describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@/test/test-utils';
-import { TrendsPage } from './Trends';
+import { AnalysePage } from './Analyse';
 
 // Mock recharts — jsdom has no ResizeObserver
 vi.mock('recharts', () => ({
@@ -13,9 +13,10 @@ vi.mock('recharts', () => ({
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
   Tooltip: () => <div />,
+  Cell: () => <div />,
 }));
 
-// Mock API
+// Mock API — Running Trends
 vi.mock('@/api/trends', () => ({
   getTrends: vi.fn().mockResolvedValue({
     weeks: [
@@ -34,24 +35,58 @@ vi.mock('@/api/trends', () => ({
   }),
 }));
 
-describe('TrendsPage', () => {
+// Mock API — Training Balance
+vi.mock('@/api/training-balance', () => ({
+  getTrainingBalance: vi.fn().mockResolvedValue({
+    period_days: 28,
+    sport_mix: {
+      running_sessions: 3,
+      strength_sessions: 2,
+      running_percent: 60,
+      strength_percent: 40,
+      total_sessions: 5,
+    },
+    intensity: {
+      easy_percent: 70,
+      moderate_percent: 20,
+      hard_percent: 10,
+      easy_sessions: 3,
+      moderate_sessions: 1,
+      hard_sessions: 1,
+      total_sessions: 5,
+      is_polarized: false,
+    },
+    volume_weeks: [],
+    muscle_groups: [],
+    insights: [],
+  }),
+}));
+
+describe('AnalysePage', () => {
   it('renders heading and time range selector', async () => {
-    render(<TrendsPage />);
+    render(<AnalysePage />);
     await waitFor(() => {
-      expect(screen.getByText('Trends')).toBeInTheDocument();
+      expect(screen.getByText('Analyse')).toBeInTheDocument();
     });
     expect(screen.getByText('4W')).toBeInTheDocument();
   });
 
+  it('renders all three tabs', () => {
+    render(<AnalysePage />);
+    expect(screen.getByText('Laufen')).toBeInTheDocument();
+    expect(screen.getByText('Kraft')).toBeInTheDocument();
+    expect(screen.getByText('Balance')).toBeInTheDocument();
+  });
+
   it('shows insights after loading', async () => {
-    render(<TrendsPage />);
+    render(<AnalysePage />);
     await waitFor(() => {
       expect(screen.getByText('Pace verbessert!')).toBeInTheDocument();
     });
   });
 
   it('shows summary totals', async () => {
-    render(<TrendsPage />);
+    render(<AnalysePage />);
     await waitFor(() => {
       expect(screen.getByText('25.0 km')).toBeInTheDocument();
     });

@@ -5,11 +5,13 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
+
 
 class RunInterval(BaseModel):
     """A single interval in a structured run workout."""
 
-    type: str = Field(..., pattern="^(work|rest|warmup|cooldown)$")
+    type: str = Field(..., pattern=SEGMENT_TYPE_REGEX)
     duration_minutes: float = Field(..., gt=0, le=180)
     target_pace_min: Optional[str] = Field(None, max_length=10)  # e.g. "5:30"
     target_pace_max: Optional[str] = Field(None, max_length=10)  # e.g. "6:00"
@@ -23,7 +25,7 @@ class RunDetails(BaseModel):
 
     run_type: str = Field(
         ...,
-        pattern="^(recovery|easy|long_run|tempo|intervals)$",
+        pattern=SESSION_TYPE_REGEX,
     )
     target_duration_minutes: Optional[int] = Field(None, ge=5, le=360)
     target_pace_min: Optional[str] = Field(None, max_length=10)

@@ -37,7 +37,7 @@ function secondsInZonesAbove(zones: Record<string, HRZone>, minZone: number): nu
   return seconds;
 }
 
-const EXCLUDED_LAP_TYPES = new Set(['warmup', 'cooldown', 'pause']);
+const EXCLUDED_LAP_TYPES = new Set(['warmup', 'cooldown', 'rest']);
 
 /** Weighted average cadence from working laps only. */
 function workingCadence(session: SessionDetail): number | null {

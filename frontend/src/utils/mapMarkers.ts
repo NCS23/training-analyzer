@@ -56,17 +56,17 @@ export interface LapMarkerData {
   distance_km: number | null;
 }
 
-/** Color per lap type — matching Badge variants in SessionDetail. */
+/** Color per lap type — uses primary/secondary palette for non-semantic differentiation. */
 export const LAP_TYPE_COLORS: Record<string, string> = {
-  interval: '#ef4444',
-  tempo: '#f59e0b',
-  warmup: '#94a3b8',
-  cooldown: '#94a3b8',
-  pause: '#6b7280',
-  recovery: '#3b82f6',
-  longrun: '#10b981',
-  working: '#10b981',
-  unclassified: '#64748b',
+  interval: '#4f46e5',   // primary-2-600 (indigo)
+  tempo: '#6366f1',      // primary-2-500 (indigo)
+  warmup: '#94a3b8',     // secondary-1-400 (slate)
+  cooldown: '#94a3b8',   // secondary-1-400 (slate)
+  pause: '#6b7280',      // secondary-1-500 (slate)
+  recovery: '#7dd3fc',   // primary-1-300 (sky)
+  longrun: '#0284c7',    // primary-1-600 (sky)
+  working: '#0ea5e9',    // primary-1-500 (sky)
+  unclassified: '#64748b', // secondary-1-500 (slate)
 };
 
 /** Lap types rendered with dashed stroke. */

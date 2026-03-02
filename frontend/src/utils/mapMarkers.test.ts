@@ -126,9 +126,9 @@ describe('buildLapPopupHtml', () => {
 
 describe('LAP_TYPE_COLORS', () => {
   it('has colors for common types', () => {
-    expect(LAP_TYPE_COLORS.interval).toBe('#ef4444');
+    expect(LAP_TYPE_COLORS.interval).toBe('#4f46e5');
     expect(LAP_TYPE_COLORS.warmup).toBe('#94a3b8');
-    expect(LAP_TYPE_COLORS.working).toBe('#10b981');
+    expect(LAP_TYPE_COLORS.working).toBe('#0ea5e9');
   });
 });
 

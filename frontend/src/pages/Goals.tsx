@@ -380,7 +380,7 @@ export function GoalsPage() {
                         {goal.title}
                       </span>
                       {goal.is_active && (
-                        <Badge variant="info" size="xs">
+                        <Badge variant="neutral" size="xs">
                           Aktiv
                         </Badge>
                       )}

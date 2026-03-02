@@ -31,7 +31,12 @@ const StrengthProgressionContent = lazy(() =>
   import('./StrengthProgression').then((m) => ({ default: m.StrengthProgressionContent })),
 );
 
+const TrainingBalanceContent = lazy(() =>
+  import('./TrainingBalance').then((m) => ({ default: m.TrainingBalanceContent })),
+);
+
 type TimeRange = '7' | '28' | '90';
+type StrengthTimeRange = '28' | '90' | '180';
 
 function formatWeekLabel(weekStart: string): string {
   try {
@@ -56,7 +61,7 @@ function formatDuration(seconds: number): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Running Trends Content (inline)                                     */
+/*  Running Trends Content (inline)                                   */
 /* ------------------------------------------------------------------ */
 
 function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
@@ -167,7 +172,7 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                       contentStyle={{
                         backgroundColor: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-default)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
                       formatter={(value: number) => [formatPace(value), 'Ø Pace']}
@@ -214,7 +219,7 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                       contentStyle={{
                         backgroundColor: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-default)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
                       formatter={(value: number) => [`${value} bpm`, 'Ø HF']}
@@ -238,7 +243,7 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
           <Card elevation="raised" padding="spacious">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[var(--color-chart-2)]" />
+                <MapPin className="w-4 h-4 text-[var(--color-primary-1-500)]" />
                 <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                   Wochenvolumen
                 </h2>
@@ -258,7 +263,7 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                       contentStyle={{
                         backgroundColor: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-default)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
                       formatter={(value: number, name: string) => {
@@ -270,7 +275,7 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                     />
                     <Bar
                       dataKey="total_distance_km"
-                      fill="var(--color-chart-2)"
+                      fill="var(--color-primary-1-400)"
                       radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
@@ -306,10 +311,8 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Combined Trends Page                                                */
+/*  Combined Analyse Page                                             */
 /* ------------------------------------------------------------------ */
-
-type StrengthTimeRange = '28' | '90' | '180';
 
 const RUNNING_RANGE_ITEMS = [
   { value: '7', label: '7T' },
@@ -323,33 +326,58 @@ const STRENGTH_RANGE_ITEMS = [
   { value: '180', label: '6M' },
 ];
 
-export function TrendsPage() {
+const BALANCE_RANGE_ITEMS = [
+  { value: '7', label: '7T' },
+  { value: '28', label: '4W' },
+  { value: '90', label: '3M' },
+];
+
+export function AnalysePage() {
   const [activeTab, setActiveTab] = useState('running');
   const [runningTimeRange, setRunningTimeRange] = useState<TimeRange>('28');
   const [strengthTimeRange, setStrengthTimeRange] = useState<StrengthTimeRange>('90');
+  const [balanceTimeRange, setBalanceTimeRange] = useState<TimeRange>('28');
+
+  const currentRangeItems =
+    activeTab === 'running'
+      ? RUNNING_RANGE_ITEMS
+      : activeTab === 'strength'
+        ? STRENGTH_RANGE_ITEMS
+        : BALANCE_RANGE_ITEMS;
+
+  const currentRangeValue =
+    activeTab === 'running'
+      ? runningTimeRange
+      : activeTab === 'strength'
+        ? strengthTimeRange
+        : balanceTimeRange;
+
+  const handleRangeChange = (v: string) => {
+    if (activeTab === 'running') setRunningTimeRange(v as TimeRange);
+    else if (activeTab === 'strength') setStrengthTimeRange(v as StrengthTimeRange);
+    else setBalanceTimeRange(v as TimeRange);
+  };
 
   return (
     <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
       <header className="pb-2">
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Trends</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">Analyse</h1>
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="underline">
           <TabsTrigger value="running">Laufen</TabsTrigger>
           <TabsTrigger value="strength">Kraft</TabsTrigger>
+          <TabsTrigger value="balance">Balance</TabsTrigger>
         </TabsList>
 
         <div className="flex items-center justify-between rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] border border-[var(--color-border-muted)] px-3 py-1.5 mt-4">
           <span className="text-xs text-[var(--color-text-muted)]">Zeitraum</span>
           <SegmentedControl
             size="sm"
-            value={activeTab === 'running' ? runningTimeRange : strengthTimeRange}
-            onChange={(v) => {
-              if (activeTab === 'running') setRunningTimeRange(v as TimeRange);
-              else setStrengthTimeRange(v as StrengthTimeRange);
-            }}
-            items={activeTab === 'running' ? RUNNING_RANGE_ITEMS : STRENGTH_RANGE_ITEMS}
+            value={currentRangeValue}
+            onChange={handleRangeChange}
+            items={currentRangeItems}
           />
         </div>
 
@@ -366,6 +394,18 @@ export function TrendsPage() {
             }
           >
             <StrengthProgressionContent timeRange={strengthTimeRange} />
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="balance" className="space-y-6">
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[30vh]">
+                <Spinner size="lg" />
+              </div>
+            }
+          >
+            <TrainingBalanceContent days={parseInt(balanceTimeRange, 10)} />
           </Suspense>
         </TabsContent>
       </Tabs>

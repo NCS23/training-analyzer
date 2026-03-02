@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.taxonomy import SESSION_TYPE_REGEX
+
 
 class PhaseFocus(BaseModel):
     """Focus areas for a training phase."""
@@ -28,7 +30,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
     training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
     is_rest_day: bool = False
-    run_type: Optional[str] = Field(None, pattern="^(recovery|easy|long_run|tempo|intervals)$")
+    run_type: Optional[str] = Field(None, pattern=SESSION_TYPE_REGEX)
     template_id: Optional[int] = None
     notes: Optional[str] = Field(None, max_length=200)
 
@@ -37,6 +39,12 @@ class PhaseWeeklyTemplate(BaseModel):
     """7-day weekly template for a training phase."""
 
     days: list[PhaseWeeklyTemplateDayEntry] = Field(..., min_length=7, max_length=7)
+
+
+class PhaseWeeklyTemplates(BaseModel):
+    """Per-week templates: week_number (1-indexed within phase) to template."""
+
+    weeks: dict[str, PhaseWeeklyTemplate] = Field(default_factory=dict)
 
 
 class TrainingPhaseCreate(BaseModel):
@@ -49,6 +57,7 @@ class TrainingPhaseCreate(BaseModel):
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
     weekly_template: Optional[PhaseWeeklyTemplate] = None
+    weekly_templates: Optional[PhaseWeeklyTemplates] = None
     notes: Optional[str] = Field(None, max_length=2000)
 
 
@@ -62,6 +71,7 @@ class TrainingPhaseUpdate(BaseModel):
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
     weekly_template: Optional[PhaseWeeklyTemplate] = None
+    weekly_templates: Optional[PhaseWeeklyTemplates] = None
     notes: Optional[str] = Field(None, max_length=2000)
 
 
@@ -77,6 +87,7 @@ class TrainingPhaseResponse(BaseModel):
     focus: Optional[PhaseFocus] = None
     target_metrics: Optional[PhaseTargetMetrics] = None
     weekly_template: Optional[PhaseWeeklyTemplate] = None
+    weekly_templates: Optional[PhaseWeeklyTemplates] = None
     notes: Optional[str] = None
     created_at: str
 

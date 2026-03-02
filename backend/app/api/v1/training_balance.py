@@ -25,8 +25,8 @@ router = APIRouter(prefix="/training-balance", tags=["analytics"])
 
 # Classification of running types into intensity zones
 EASY_TYPES = {"recovery", "easy", "long_run"}
-MODERATE_TYPES = {"tempo"}
-HARD_TYPES = {"intervals", "threshold", "race"}
+MODERATE_TYPES = {"tempo", "progression", "fartlek"}
+HARD_TYPES = {"intervals", "repetitions", "race"}
 
 # Muscle group mapping from exercise categories
 CATEGORY_TO_MUSCLE = {

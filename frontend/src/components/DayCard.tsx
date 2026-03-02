@@ -10,16 +10,24 @@ const RUN_TYPE_SHORT: Record<string, string> = {
   recovery: 'Rec.',
   easy: 'Easy',
   long_run: 'Long',
+  progression: 'Prog.',
   tempo: 'Tempo',
   intervals: 'Int.',
+  repetitions: 'Reps',
+  fartlek: 'Fartl.',
+  race: 'Race',
 };
 
 const RUN_TYPE_OPTIONS = [
   { value: 'recovery', label: 'Regeneration' },
   { value: 'easy', label: 'Lockerer Lauf' },
   { value: 'long_run', label: 'Langer Lauf' },
+  { value: 'progression', label: 'Steigerungslauf' },
   { value: 'tempo', label: 'Tempolauf' },
   { value: 'intervals', label: 'Intervalle' },
+  { value: 'repetitions', label: 'Repetitions' },
+  { value: 'fartlek', label: 'Fahrtspiel' },
+  { value: 'race', label: 'Wettkampf' },
 ];
 
 const TYPE_OPTIONS = [
@@ -31,16 +39,19 @@ const TYPE_OPTIONS = [
 
 /**
  * Icon colors per training type.
- * Matches DESIGN_REVIEW.md: Quality=Lila, Recovery=Gruen, Longrun=Blau, Kraft=Orange
- * Uses tailwind.config workout palette.
+ * Uses NDS primary/secondary palette for cohesive, non-accent differentiation.
  */
 const TYPE_ICON_COLORS: Record<string, string> = {
-  easy: 'text-workout-recovery',
-  recovery: 'text-workout-recovery',
-  tempo: 'text-workout-quality',
-  intervals: 'text-workout-quality',
-  long_run: 'text-workout-longrun',
-  strength: 'text-workout-strength',
+  easy: 'text-[var(--color-primary-1-500)]',
+  recovery: 'text-[var(--color-primary-1-400)]',
+  tempo: 'text-[var(--color-primary-2-500)]',
+  intervals: 'text-[var(--color-primary-2-600)]',
+  long_run: 'text-[var(--color-primary-1-600)]',
+  progression: 'text-[var(--color-primary-1-600)]',
+  repetitions: 'text-[var(--color-primary-2-600)]',
+  fartlek: 'text-[var(--color-primary-2-400)]',
+  race: 'text-[var(--color-primary-2-700)]',
+  strength: 'text-[var(--color-secondary-1-500)]',
   rest: 'text-[var(--color-text-muted)]',
   empty: 'text-[var(--color-text-disabled)]',
 };

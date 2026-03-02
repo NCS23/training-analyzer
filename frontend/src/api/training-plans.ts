@@ -17,7 +17,16 @@ export interface PhaseTargetMetrics {
   strength_sessions_per_week?: number;
 }
 
-export type RunType = 'recovery' | 'easy' | 'long_run' | 'tempo' | 'intervals';
+export type RunType =
+  | 'recovery'
+  | 'easy'
+  | 'long_run'
+  | 'progression'
+  | 'tempo'
+  | 'intervals'
+  | 'repetitions'
+  | 'fartlek'
+  | 'race';
 
 export interface PhaseWeeklyTemplateDayEntry {
   day_of_week: number;
@@ -32,6 +41,10 @@ export interface PhaseWeeklyTemplate {
   days: PhaseWeeklyTemplateDayEntry[];
 }
 
+export interface PhaseWeeklyTemplates {
+  weeks: Record<string, PhaseWeeklyTemplate>;
+}
+
 export interface TrainingPhase {
   id: number;
   training_plan_id: number;
@@ -42,6 +55,7 @@ export interface TrainingPhase {
   focus: PhaseFocus | null;
   target_metrics: PhaseTargetMetrics | null;
   weekly_template: PhaseWeeklyTemplate | null;
+  weekly_templates: PhaseWeeklyTemplates | null;
   notes: string | null;
   created_at: string;
 }
@@ -127,6 +141,7 @@ export interface TrainingPhaseCreateParams {
   focus?: PhaseFocus;
   target_metrics?: PhaseTargetMetrics;
   weekly_template?: PhaseWeeklyTemplate;
+  weekly_templates?: PhaseWeeklyTemplates;
   notes?: string;
 }
 
@@ -138,6 +153,7 @@ export interface TrainingPhaseUpdateParams {
   focus?: PhaseFocus;
   target_metrics?: PhaseTargetMetrics;
   weekly_template?: PhaseWeeklyTemplate;
+  weekly_templates?: PhaseWeeklyTemplates;
   notes?: string;
 }
 

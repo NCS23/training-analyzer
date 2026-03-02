@@ -664,10 +664,12 @@ VALID_TRAINING_TYPES = {
     "recovery",
     "easy",
     "long_run",
+    "progression",
     "tempo",
     "intervals",
+    "repetitions",
+    "fartlek",
     "race",
-    "hill_repeats",
 }
 
 

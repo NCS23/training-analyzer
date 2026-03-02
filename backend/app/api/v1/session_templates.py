@@ -239,7 +239,12 @@ def _classify_run_type(
             "long_run": "long_run",
             "tempo": "tempo",
             "intervals": "intervals",
+            "progression": "progression",
+            "repetitions": "repetitions",
+            "fartlek": "fartlek",
+            "race": "race",
             "threshold": "tempo",
+            "hill_repeats": "repetitions",
         }
         if training_type in type_map:
             return type_map[training_type]

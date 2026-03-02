@@ -29,6 +29,7 @@ import {
   getPersonalRecords,
   getTonnageTrend,
 } from '@/api/progression';
+import { categoryBadgeVariant } from '@/constants/training';
 import type {
   ExerciseListItem,
   ExerciseHistoryResponse,
@@ -271,7 +272,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                       {history.weight_progression} kg
                     </Badge>
                   ) : (
-                    <Badge variant="info" size="xs">
+                    <Badge variant="neutral" size="xs">
                       <Minus className="w-3 h-3 mr-0.5" />
                       Gleich
                     </Badge>
@@ -358,7 +359,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                       ? 'success'
                       : tonnageTrend.trend_direction === 'down'
                         ? 'warning'
-                        : 'info'
+                        : 'neutral'
                   }
                   size="xs"
                 >
@@ -505,7 +506,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                 onClick={() => setSelectedExercise(ex.name)}
                 className={`w-full text-left rounded-[var(--radius-component-md)] px-3 py-2.5 transition-colors duration-200 motion-reduce:transition-none ${
                   selectedExercise === ex.name
-                    ? 'bg-[var(--color-bg-info-subtle)] border border-[var(--color-border-info)]'
+                    ? 'bg-[var(--color-bg-primary-subtle)] border border-[var(--color-primary-1-200)]'
                     : 'bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-muted)]'
                 }`}
               >
@@ -514,7 +515,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                     <span className="text-sm font-medium text-[var(--color-text-base)]">
                       {ex.name}
                     </span>
-                    <Badge variant="info" size="xs">
+                    <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="xs">
                       {CATEGORY_LABELS[ex.category] ?? ex.category}
                     </Badge>
                   </div>

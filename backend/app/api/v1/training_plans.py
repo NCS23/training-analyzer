@@ -22,6 +22,7 @@ from app.models.training_plan import (
     PhaseFocus,
     PhaseTargetMetrics,
     PhaseWeeklyTemplate,
+    PhaseWeeklyTemplates,
     TrainingPhaseCreate,
     TrainingPhaseResponse,
     TrainingPhaseUpdate,
@@ -68,6 +69,13 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
     if raw_template:
         weekly_template = PhaseWeeklyTemplate(**raw_template)
 
+    weekly_templates: Optional[PhaseWeeklyTemplates] = None
+    raw_templates = _parse_json(
+        str(phase.weekly_templates_json) if phase.weekly_templates_json else None
+    )
+    if raw_templates:
+        weekly_templates = PhaseWeeklyTemplates(**raw_templates)
+
     return TrainingPhaseResponse(
         id=int(phase.id),  # type: ignore[arg-type]
         training_plan_id=int(phase.training_plan_id),  # type: ignore[arg-type]
@@ -78,6 +86,7 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
         focus=focus,
         target_metrics=target_metrics,
         weekly_template=weekly_template,
+        weekly_templates=weekly_templates,
         notes=str(phase.notes) if phase.notes else None,
         created_at=phase.created_at.isoformat() if phase.created_at else "",  # type: ignore[union-attr]
     )
@@ -188,6 +197,9 @@ def _create_phase_model(
     weekly_template_json: Optional[str] = None
     if data.weekly_template:
         weekly_template_json = json.dumps(data.weekly_template.model_dump())
+    weekly_templates_json: Optional[str] = None
+    if data.weekly_templates:
+        weekly_templates_json = json.dumps(data.weekly_templates.model_dump())
 
     return TrainingPhaseModel(
         training_plan_id=plan_id,
@@ -198,6 +210,7 @@ def _create_phase_model(
         focus_json=focus_json,
         target_metrics_json=target_metrics_json,
         weekly_template_json=weekly_template_json,
+        weekly_templates_json=weekly_templates_json,
         notes=data.notes,
         created_at=datetime.utcnow(),
     )
@@ -709,6 +722,8 @@ async def update_phase(
         phase.target_metrics_json = json.dumps(data.target_metrics.model_dump())  # type: ignore[assignment]
     if data.weekly_template is not None:
         phase.weekly_template_json = json.dumps(data.weekly_template.model_dump())  # type: ignore[assignment]
+    if data.weekly_templates is not None:
+        phase.weekly_templates_json = json.dumps(data.weekly_templates.model_dump())  # type: ignore[assignment]
     if data.notes is not None:
         phase.notes = data.notes  # type: ignore[assignment]
 

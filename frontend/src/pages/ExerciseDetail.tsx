@@ -39,6 +39,7 @@ import {
   Sparkles,
   ChevronRight,
 } from 'lucide-react';
+import { categoryBadgeVariant } from '@/constants/training';
 import { getExercise, toggleFavorite, updateExercise, deleteExercise } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { MuscleMap } from '@/features/exercises/MuscleMap';
@@ -60,13 +61,7 @@ const categoryOptions = [
   { value: 'cardio', label: 'Cardio' },
 ];
 
-const categoryBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error' | 'neutral'> = {
-  push: 'info',
-  pull: 'success',
-  legs: 'warning',
-  core: 'neutral',
-  cardio: 'error',
-};
+
 
 const equipmentLabels: Record<string, string> = {
   barbell: 'Langhantel',

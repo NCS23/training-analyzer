@@ -40,6 +40,7 @@ import type {
   PhaseType,
   TrainingPhaseCreateParams,
   PhaseWeeklyTemplate,
+  PhaseWeeklyTemplates,
 } from '@/api/training-plans';
 import { listGoals } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
@@ -80,6 +81,7 @@ interface PhaseForm {
   quality_sessions_per_week: string;
   strength_sessions_per_week: string;
   weekly_template: PhaseWeeklyTemplate | null;
+  weekly_templates: PhaseWeeklyTemplates | null;
 }
 
 export function TrainingPlanEditorPage() {
@@ -150,6 +152,7 @@ export function TrainingPlanEditorPage() {
           strength_sessions_per_week:
             p.target_metrics?.strength_sessions_per_week?.toString() ?? '',
           weekly_template: p.weekly_template ?? null,
+          weekly_templates: p.weekly_templates ?? null,
         })),
       );
     } catch {
@@ -304,6 +307,7 @@ export function TrainingPlanEditorPage() {
           }
         : undefined,
       weekly_template: phase.weekly_template ?? undefined,
+      weekly_templates: phase.weekly_templates ?? undefined,
     };
   };
 
@@ -322,6 +326,7 @@ export function TrainingPlanEditorPage() {
         quality_sessions_per_week: '',
         strength_sessions_per_week: '',
         weekly_template: null,
+        weekly_templates: null,
       },
     ]);
   };
@@ -661,8 +666,14 @@ export function TrainingPlanEditorPage() {
                   {/* Weekly Template */}
                   <PhaseWeeklyTemplateEditor
                     template={phase.weekly_template}
+                    weeklyTemplates={phase.weekly_templates}
                     phaseType={phase.phase_type}
+                    startWeek={phase.start_week}
+                    endWeek={phase.end_week}
                     onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
+                    onChangeWeeklyTemplates={(wt) =>
+                      updatePhaseForm(idx, { weekly_templates: wt })
+                    }
                   />
                 </div>
               ))}

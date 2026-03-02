@@ -42,7 +42,7 @@ def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> l
         is_first = i == 0
         is_last = i == len(laps) - 1
 
-        suggested_type = "unclassified"
+        suggested_type = "steady"
         confidence = "low"
 
         avg_hr = lap.get("avg_hr_bpm")
@@ -56,16 +56,16 @@ def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> l
                 suggested_type = "cooldown"
                 confidence = "high"
             elif avg_hr and avg_hr > 160:
-                suggested_type = "interval"
+                suggested_type = "work"
                 confidence = "high" if avg_hr > 170 else "medium"
             elif avg_hr and avg_hr < 150:
-                suggested_type = "pause"
+                suggested_type = "rest"
                 confidence = "medium"
             else:
-                suggested_type = "interval"
+                suggested_type = "work"
                 confidence = "low"
 
-        elif training_subtype == "tempo":
+        elif training_subtype in ("tempo", "longrun"):
             if is_first and duration < 600:
                 suggested_type = "warmup"
                 confidence = "medium"
@@ -73,22 +73,11 @@ def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> l
                 suggested_type = "cooldown"
                 confidence = "medium"
             else:
-                suggested_type = "tempo"
-                confidence = "high"
-
-        elif training_subtype == "longrun":
-            if is_first and duration < 600:
-                suggested_type = "warmup"
-                confidence = "medium"
-            elif is_last and duration < 600:
-                suggested_type = "cooldown"
-                confidence = "medium"
-            else:
-                suggested_type = "longrun"
+                suggested_type = "steady"
                 confidence = "high"
 
         elif training_subtype == "recovery":
-            suggested_type = "recovery"
+            suggested_type = "recovery_jog"
             confidence = "high"
 
         else:
@@ -100,7 +89,7 @@ def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> l
                 suggested_type = "cooldown"
                 confidence = "low"
             elif avg_hr and avg_hr > 165:
-                suggested_type = "interval"
+                suggested_type = "work"
                 confidence = "low"
 
         lap["suggested_type"] = suggested_type

@@ -25,6 +25,7 @@ import {
   BreadcrumbItem,
 } from '@nordlig/components';
 import { Plus, Star, ChevronRight, EllipsisVertical } from 'lucide-react';
+import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises, createExercise, toggleFavorite } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
@@ -47,13 +48,7 @@ const categoryLabels: Record<string, string> = {
   cardio: 'Cardio',
 };
 
-const categoryBadgeVariant: Record<string, 'info' | 'success' | 'warning' | 'error' | 'neutral'> = {
-  push: 'info',
-  pull: 'success',
-  legs: 'warning',
-  core: 'neutral',
-  cardio: 'error',
-};
+
 
 export function ExerciseLibraryPage() {
   const navigate = useNavigate();

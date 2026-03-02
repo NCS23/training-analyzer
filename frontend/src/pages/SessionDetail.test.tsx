@@ -79,9 +79,9 @@ const mockSession: SessionDetail = {
       max_hr_bpm: 168,
       min_hr_bpm: 140,
       avg_cadence_spm: 175,
-      suggested_type: 'tempo',
+      suggested_type: 'steady',
       confidence: 'medium',
-      user_override: 'tempo',
+      user_override: 'steady',
       start_seconds: 300,
       end_seconds: 900,
     },
@@ -232,7 +232,7 @@ describe('SessionDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Warm-up')).toBeInTheDocument();
     });
-    expect(screen.getByText('Tempo')).toBeInTheDocument();
+    expect(screen.getByText('Steady')).toBeInTheDocument();
   });
 
   it('renders notes as read-only text by default', async () => {

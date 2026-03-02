@@ -4,7 +4,7 @@ import { LayoutDashboard, Activity, TrendingUp, CalendarDays, User } from 'lucid
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Activity },
-  { to: '/trends', label: 'Trends', icon: TrendingUp },
+  { to: '/analyse', label: 'Analyse', icon: TrendingUp },
   { to: '/plan', label: 'Plan', icon: CalendarDays },
   { to: '/settings', label: 'Profil', icon: User },
 ];

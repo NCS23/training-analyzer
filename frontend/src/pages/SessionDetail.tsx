@@ -31,8 +31,12 @@ import {
   trainingTypeLabels,
   trainingTypeBadgeVariant,
   trainingTypeOptions,
+  trainingTypeHints,
+  categoryBadgeVariant,
   lapTypeLabels,
+  lapTypeBadgeVariant,
   lapTypeOptions,
+  lapTypeHints,
 } from '@/constants/training';
 import {
   Button,
@@ -77,9 +81,9 @@ import {
   Slider,
   SegmentedControl,
   useToast,
-  ActionBar,
   Breadcrumbs,
   BreadcrumbItem,
+  Tooltip,
 } from '@nordlig/components';
 import {
   ChevronRight,
@@ -105,6 +109,8 @@ import type { LucideIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { createTemplateFromSession } from '@/api/session-templates';
+import { GlossaryHint } from '@/components/GlossaryHint';
+import { SEGMENT_TYPES } from '@/constants/taxonomy';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
 
@@ -112,6 +118,11 @@ const workoutTypeHeadings: Record<string, string> = {
   running: 'Lauftraining',
   strength: 'Krafttraining',
 };
+
+const lapTypeGlossary = SEGMENT_TYPES.map((key) => ({
+  term: lapTypeLabels[key] ?? key,
+  description: lapTypeHints[key] ?? '',
+}));
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -709,12 +720,17 @@ export function SessionDetailPage() {
                 {formatDateShort(session.date)}
               </h1>
               {trainingTypeInfo?.effective && (
-                <Badge
-                  variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'info'}
-                  size="xs"
+                <Tooltip
+                  content={trainingTypeHints[trainingTypeInfo.effective] ?? ''}
+                  side="bottom"
                 >
-                  {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-                </Badge>
+                  <Badge
+                    variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'neutral'}
+                    size="xs"
+                  >
+                    {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
+                  </Badge>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -1034,7 +1050,7 @@ export function SessionDetailPage() {
                         <span className="text-sm font-medium text-[var(--color-text-base)]">
                           {ex.name}
                         </span>
-                        <Badge variant="info" size="xs">
+                        <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="xs">
                           {categoryLabels[ex.category] ?? ex.category}
                         </Badge>
                       </div>
@@ -1304,7 +1320,12 @@ export function SessionDetailPage() {
                       <TableHead className="w-12 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
                         #
                       </TableHead>
-                      <TableHead>Typ</TableHead>
+                      <TableHead>
+                        <span className="inline-flex items-center gap-1">
+                          Typ
+                          <GlossaryHint entries={lapTypeGlossary} />
+                        </span>
+                      </TableHead>
                       <TableHead>Dauer</TableHead>
                       <TableHead>Distanz</TableHead>
                       <TableHead>Pace</TableHead>
@@ -1323,7 +1344,7 @@ export function SessionDetailPage() {
                           onMouseLeave={() => setHighlightedLap(null)}
                           className={
                             highlightedLap === lap.lap_number
-                              ? 'bg-[var(--color-bg-info-subtle)]'
+                              ? 'bg-[var(--color-bg-primary-subtle)]'
                               : ''
                           }
                         >
@@ -1340,20 +1361,18 @@ export function SessionDetailPage() {
                                 className="w-36"
                               />
                             ) : (
-                              <Badge
-                                variant={
-                                  effectiveType === 'warmup' || effectiveType === 'cooldown'
-                                    ? 'info'
-                                    : effectiveType === 'pause'
-                                      ? 'warning'
-                                      : effectiveType === 'interval'
-                                        ? 'error'
-                                        : 'success'
-                                }
-                                size="xs"
+                              <Tooltip
+                                content={lapTypeHints[effectiveType] ?? ''}
+                                side="right"
+                                delayDuration={300}
                               >
-                                {lapTypeLabels[effectiveType] || effectiveType}
-                              </Badge>
+                                <Badge
+                                  variant={lapTypeBadgeVariant[effectiveType] ?? 'neutral'}
+                                  size="xs"
+                                >
+                                  {lapTypeLabels[effectiveType] || effectiveType}
+                                </Badge>
+                              </Tooltip>
                             )}
                           </TableCell>
                           <TableCell>{lap.duration_formatted}</TableCell>
@@ -1404,7 +1423,7 @@ export function SessionDetailPage() {
                         onMouseLeave={() => setHighlightedKm(null)}
                         className={
                           highlightedKm === split.km_number
-                            ? 'bg-[var(--color-bg-info-subtle)]'
+                            ? 'bg-[var(--color-bg-primary-subtle)]'
                             : ''
                         }
                       >
@@ -1423,7 +1442,7 @@ export function SessionDetailPage() {
                           }
                         >
                           {split.pace_corrected_formatted ? (
-                            <span className="text-[var(--color-text-info)]">
+                            <span className="text-[var(--color-primary-1-600)]">
                               {split.pace_corrected_formatted} /km
                             </span>
                           ) : (
@@ -1485,9 +1504,12 @@ export function SessionDetailPage() {
         <span>Session #{session.id}</span>
       </footer>
 
-      {/* Sticky edit mode bar */}
+      {/* Fixed edit mode bar — fixed instead of sticky to work with overflow-x-hidden parent */}
       {isEditing && (
-        <ActionBar className="-mx-4 md:-mx-6 md:px-6">
+        <div
+          role="toolbar"
+          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
+        >
           <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
             Ungespeicherte Änderungen
           </span>
@@ -1499,7 +1521,7 @@ export function SessionDetailPage() {
               Fertig
             </Button>
           </div>
-        </ActionBar>
+        </div>
       )}
     </div>
   );

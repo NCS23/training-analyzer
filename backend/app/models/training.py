@@ -22,6 +22,10 @@ class TrainingSubType(str, Enum):
     TEMPO = "tempo"
     LONGRUN = "longrun"
     RECOVERY = "recovery"
+    PROGRESSION = "progression"
+    FARTLEK = "fartlek"
+    REPETITIONS = "repetitions"
+    RACE = "race"
 
     # Strength
     KNEE_DOMINANT = "knee_dominant"  # Studio Tag 1

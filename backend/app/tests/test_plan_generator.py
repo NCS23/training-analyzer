@@ -610,9 +610,9 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
     # Week 7 (defaults phase): should have entries generated from defaults
     _, week7_entries = result[6]
     assert len(week7_entries) == 7
-    # build phase defaults have tempo run
+    # build phase defaults have progression run
     run_types = {e.run_details.run_type for e in week7_entries if e.run_details is not None}
-    assert "tempo" in run_types
+    assert "progression" in run_types
 
 
 # --- API endpoint tests ---

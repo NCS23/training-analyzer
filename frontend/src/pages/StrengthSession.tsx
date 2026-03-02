@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { createStrengthSession } from '@/api/strength';
 import type { ExerciseCategory, SetStatus } from '@/api/strength';
+import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { getLastExerciseSets } from '@/api/strength';
@@ -436,7 +437,7 @@ export function StrengthSessionPage() {
                       Übung {exIndex + 1}
                     </span>
                     {exercise.name && (
-                      <Badge variant="info" size="xs">
+                      <Badge variant={categoryBadgeVariant[exercise.category] ?? 'neutral'} size="xs">
                         {CATEGORY_LABELS[exercise.category] ?? exercise.category}
                       </Badge>
                     )}
@@ -496,7 +497,7 @@ export function StrengthSessionPage() {
                               onClick={() => selectSuggestion(exercise.id, ex)}
                             >
                               <span>{ex.name}</span>
-                              <Badge variant="neutral" size="xs">
+                              <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="xs">
                                 {CATEGORY_LABELS[ex.category] ?? ex.category}
                               </Badge>
                             </button>
@@ -521,7 +522,7 @@ export function StrengthSessionPage() {
                             onClick={() => updateExercise(exercise.id, { category: cat.value })}
                             className={`px-2.5 py-1 text-xs rounded-[var(--radius-component-sm)] transition-colors duration-150 motion-reduce:transition-none ${
                               exercise.category === cat.value
-                                ? 'bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] font-medium'
+                                ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-primary-1-600)] font-medium'
                                 : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
                             }`}
                           >

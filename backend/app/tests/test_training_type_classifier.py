@@ -105,35 +105,35 @@ def test_intervals_varying_hr_multiple_laps() -> None:
             "avg_hr_bpm": 175,
             "duration_seconds": 240,
             "pace_min_per_km": 3.8,
-            "suggested_type": "interval",
+            "suggested_type": "work",
         },
         {
             "lap_number": 3,
             "avg_hr_bpm": 140,
             "duration_seconds": 120,
             "pace_min_per_km": 7.0,
-            "suggested_type": "pause",
+            "suggested_type": "rest",
         },
         {
             "lap_number": 4,
             "avg_hr_bpm": 178,
             "duration_seconds": 240,
             "pace_min_per_km": 3.7,
-            "suggested_type": "interval",
+            "suggested_type": "work",
         },
         {
             "lap_number": 5,
             "avg_hr_bpm": 138,
             "duration_seconds": 120,
             "pace_min_per_km": 7.2,
-            "suggested_type": "pause",
+            "suggested_type": "rest",
         },
         {
             "lap_number": 6,
             "avg_hr_bpm": 180,
             "duration_seconds": 240,
             "pace_min_per_km": 3.6,
-            "suggested_type": "interval",
+            "suggested_type": "work",
         },
         {
             "lap_number": 7,
@@ -470,6 +470,103 @@ date;timestamp;ISO8601;since_start;hr (count/min)
     assert response.json()["training_type"] is None
 
 
+# --- New Session Type Tests ---
+
+
+def test_progression_decreasing_pace() -> None:
+    """Progression: Pace nimmt ueber die Laps systematisch ab."""
+    laps = [
+        {"lap_number": 1, "avg_hr_bpm": 140, "duration_seconds": 600, "pace_min_per_km": 6.0, "suggested_type": "steady"},
+        {"lap_number": 2, "avg_hr_bpm": 145, "duration_seconds": 600, "pace_min_per_km": 5.7, "suggested_type": "steady"},
+        {"lap_number": 3, "avg_hr_bpm": 152, "duration_seconds": 600, "pace_min_per_km": 5.3, "suggested_type": "steady"},
+        {"lap_number": 4, "avg_hr_bpm": 158, "duration_seconds": 600, "pace_min_per_km": 5.0, "suggested_type": "steady"},
+        {"lap_number": 5, "avg_hr_bpm": 165, "duration_seconds": 600, "pace_min_per_km": 4.6, "suggested_type": "steady"},
+        {"lap_number": 6, "avg_hr_bpm": 170, "duration_seconds": 600, "pace_min_per_km": 4.3, "suggested_type": "steady"},
+    ]
+    result = classify_training_type(
+        duration_sec=60 * 60,
+        hr_avg=155,
+        hr_max=170,
+        distance_km=12.0,
+        laps=laps,
+        hr_zone_distribution={
+            "zone_1_recovery": {"percentage": 15.0, "seconds": 540, "label": "Recovery"},
+            "zone_2_base": {"percentage": 30.0, "seconds": 1080, "label": "Base"},
+            "zone_3_tempo": {"percentage": 35.0, "seconds": 1260, "label": "Tempo"},
+            "zone_4_threshold": {"percentage": 20.0, "seconds": 720, "label": "Threshold"},
+            "zone_5_vo2max": {"percentage": 0.0, "seconds": 0, "label": "VO2max"},
+        },
+    )
+    assert result.training_type == "progression"
+    assert result.confidence >= 65
+
+
+def test_fartlek_mixed_pace() -> None:
+    """Fartlek: Gemischte Pace mit moderater HR-Variabilitaet.
+
+    Key constraints for triggering fartlek and not other types:
+    - Pace CV ~0.12 (within 0.10-0.30 fartlek range)
+    - HR below 160 to avoid interval checker's high-HR heuristic
+    - HR CV ~0.06 (within 0.05-0.12 fartlek range)
+    - Non-progressive pace pattern (both halves have similar avg)
+    """
+    laps = [
+        {"lap_number": 1, "avg_hr_bpm": 135, "duration_seconds": 300, "pace_min_per_km": 5.5, "suggested_type": "steady"},
+        {"lap_number": 2, "avg_hr_bpm": 158, "duration_seconds": 240, "pace_min_per_km": 4.3, "suggested_type": "steady"},
+        {"lap_number": 3, "avg_hr_bpm": 145, "duration_seconds": 280, "pace_min_per_km": 4.8, "suggested_type": "steady"},
+        {"lap_number": 4, "avg_hr_bpm": 138, "duration_seconds": 300, "pace_min_per_km": 5.6, "suggested_type": "steady"},
+        {"lap_number": 5, "avg_hr_bpm": 157, "duration_seconds": 240, "pace_min_per_km": 4.1, "suggested_type": "steady"},
+        {"lap_number": 6, "avg_hr_bpm": 142, "duration_seconds": 280, "pace_min_per_km": 5.2, "suggested_type": "steady"},
+    ]
+    result = classify_training_type(
+        duration_sec=27 * 60,
+        hr_avg=146,
+        hr_max=158,
+        distance_km=5.5,
+        laps=laps,
+        hr_zone_distribution={
+            "zone_1_recovery": {"percentage": 25.0, "seconds": 405, "label": "Recovery"},
+            "zone_2_base": {"percentage": 35.0, "seconds": 567, "label": "Base"},
+            "zone_3_tempo": {"percentage": 30.0, "seconds": 486, "label": "Tempo"},
+            "zone_4_threshold": {"percentage": 10.0, "seconds": 162, "label": "Threshold"},
+            "zone_5_vo2max": {"percentage": 0.0, "seconds": 0, "label": "VO2max"},
+        },
+    )
+    assert result.training_type == "fartlek"
+    assert result.confidence >= 50
+
+
+def test_repetitions_short_fast_laps() -> None:
+    """Repetitions: Kurze, schnelle Wiederholungen mit hoher HR."""
+    laps = [
+        {"lap_number": 1, "avg_hr_bpm": 130, "duration_seconds": 600, "pace_min_per_km": 6.0, "suggested_type": "warmup"},
+        {"lap_number": 2, "avg_hr_bpm": 175, "duration_seconds": 60, "pace_min_per_km": 3.2, "suggested_type": "work"},
+        {"lap_number": 3, "avg_hr_bpm": 140, "duration_seconds": 90, "pace_min_per_km": 7.0, "suggested_type": "rest"},
+        {"lap_number": 4, "avg_hr_bpm": 178, "duration_seconds": 55, "pace_min_per_km": 3.1, "suggested_type": "work"},
+        {"lap_number": 5, "avg_hr_bpm": 138, "duration_seconds": 90, "pace_min_per_km": 7.0, "suggested_type": "rest"},
+        {"lap_number": 6, "avg_hr_bpm": 180, "duration_seconds": 58, "pace_min_per_km": 3.0, "suggested_type": "work"},
+        {"lap_number": 7, "avg_hr_bpm": 135, "duration_seconds": 90, "pace_min_per_km": 7.0, "suggested_type": "rest"},
+        {"lap_number": 8, "avg_hr_bpm": 176, "duration_seconds": 62, "pace_min_per_km": 3.3, "suggested_type": "work"},
+        {"lap_number": 9, "avg_hr_bpm": 130, "duration_seconds": 600, "pace_min_per_km": 6.5, "suggested_type": "cooldown"},
+    ]
+    result = classify_training_type(
+        duration_sec=1705,
+        hr_avg=155,
+        hr_max=180,
+        distance_km=4.0,
+        laps=laps,
+        hr_zone_distribution={
+            "zone_1_recovery": {"percentage": 40.0, "seconds": 682, "label": "Recovery"},
+            "zone_2_base": {"percentage": 15.0, "seconds": 256, "label": "Base"},
+            "zone_3_tempo": {"percentage": 10.0, "seconds": 171, "label": "Tempo"},
+            "zone_4_threshold": {"percentage": 25.0, "seconds": 426, "label": "Threshold"},
+            "zone_5_vo2max": {"percentage": 10.0, "seconds": 171, "label": "VO2max"},
+        },
+    )
+    assert result.training_type == "repetitions"
+    assert result.confidence >= 60
+
+
 # --- Helpers ---
 
 
@@ -482,7 +579,7 @@ def _make_laps(count: int, avg_hr: int = 150, pace: float = 5.5, duration: int =
             "duration_seconds": duration,
             "pace_min_per_km": pace,
             "distance_km": round(duration / 60 / pace, 2),
-            "suggested_type": "unclassified",
+            "suggested_type": "steady",
         }
         for i in range(count)
     ]

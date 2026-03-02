@@ -3,7 +3,15 @@ import { apiClient } from './client';
 // --- Types ---
 
 export interface RunInterval {
-  type: 'work' | 'rest' | 'warmup' | 'cooldown';
+  type:
+    | 'warmup'
+    | 'cooldown'
+    | 'steady'
+    | 'work'
+    | 'recovery_jog'
+    | 'rest'
+    | 'strides'
+    | 'drills';
   duration_minutes: number;
   target_pace_min: string | null;
   target_pace_max: string | null;
@@ -13,7 +21,16 @@ export interface RunInterval {
 }
 
 export interface RunDetails {
-  run_type: 'recovery' | 'easy' | 'long_run' | 'tempo' | 'intervals';
+  run_type:
+    | 'recovery'
+    | 'easy'
+    | 'long_run'
+    | 'progression'
+    | 'tempo'
+    | 'intervals'
+    | 'repetitions'
+    | 'fartlek'
+    | 'race';
   target_duration_minutes: number | null;
   target_pace_min: string | null;
   target_pace_max: string | null;

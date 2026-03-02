@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from app.infrastructure.database.models import RaceGoalModel, TrainingPhaseModel, TrainingPlanModel
-from app.models.training_plan import PhaseWeeklyTemplate
+from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplates
 from app.models.weekly_plan import RunDetails, WeeklyPlanEntry
 
 # --- Phase Defaults ---
@@ -26,7 +26,7 @@ PHASE_DEFAULTS: dict[str, dict] = {  # type: ignore[type-arg]
         "long_run_volume_pct": 0.30,
     },
     "build": {
-        "run_types": ["easy", "tempo", "easy", "long_run"],
+        "run_types": ["easy", "progression", "easy", "long_run"],
         "strength": 1,
         "long_run_volume_pct": 0.28,
     },
@@ -36,7 +36,7 @@ PHASE_DEFAULTS: dict[str, dict] = {  # type: ignore[type-arg]
         "long_run_volume_pct": 0.25,
     },
     "taper": {
-        "run_types": ["easy", "tempo", "easy"],
+        "run_types": ["easy", "fartlek", "easy"],
         "strength": 0,
         "long_run_volume_pct": 0.0,
     },
@@ -55,6 +55,10 @@ PACE_MULTIPLIERS: dict[str, tuple[float, float]] = {
     "tempo": (1.02, 1.07),
     "intervals": (0.90, 0.96),
     "long_run": (1.08, 1.15),
+    "progression": (1.10, 1.22),
+    "repetitions": (0.85, 0.92),
+    "fartlek": (1.05, 1.18),
+    "race": (1.00, 1.00),
 }
 
 # Volume share per run type (as fraction of remaining volume after long run).
@@ -104,6 +108,20 @@ def _parse_weekly_template(phase: TrainingPhaseModel) -> Optional[PhaseWeeklyTem
     try:
         raw = json.loads(str(phase.weekly_template_json))
         return PhaseWeeklyTemplate(**raw)
+    except (json.JSONDecodeError, ValueError, Exception):
+        return None
+
+
+def _parse_weekly_templates(
+    phase: TrainingPhaseModel,
+) -> Optional[PhaseWeeklyTemplates]:
+    """Parse phase weekly_templates_json into PhaseWeeklyTemplates."""
+    if not phase.weekly_templates_json:
+        return None
+    try:
+        raw = json.loads(str(phase.weekly_templates_json))
+        result = PhaseWeeklyTemplates(**raw)
+        return result if result.weeks else None
     except (json.JSONDecodeError, ValueError, Exception):
         return None
 
@@ -211,8 +229,9 @@ def _distribute_days(
 
     # Separate run types
     long_run_types = [r for r in run_types if r == "long_run"]
-    quality_types = [r for r in run_types if r in ("tempo", "intervals")]
-    easy_types = [r for r in run_types if r not in ("long_run", "tempo", "intervals")]
+    _quality_set = {"tempo", "intervals", "repetitions", "progression", "fartlek"}
+    quality_types = [r for r in run_types if r in _quality_set]
+    easy_types = [r for r in run_types if r != "long_run" and r not in _quality_set]
 
     assigned_runs: list[tuple[int, str]] = []  # (day, run_type)
 
@@ -390,10 +409,25 @@ def generate_weekly_plans(
         defaults = PHASE_DEFAULTS.get(phase_type, PHASE_DEFAULTS["base"])
         metrics = _parse_target_metrics(phase)
 
-        # Template-first path: use phase's weekly template if available
-        weekly_template = _parse_weekly_template(phase)
-        if weekly_template:
-            entries = _template_to_entries(weekly_template)
+        # Compute week position within phase (needed for per-week templates + volume)
+        phase_start_week = int(phase.start_week)  # type: ignore[arg-type]
+        phase_end_week = int(phase.end_week)  # type: ignore[arg-type]
+        phase_duration = max(1, phase_end_week - phase_start_week + 1)
+        week_in_phase = week_number - phase_start_week  # 0-indexed
+
+        # 3-tier template resolution: per-week → shared → PHASE_DEFAULTS
+        per_week_templates = _parse_weekly_templates(phase)
+        week_key = str(week_in_phase + 1)  # 1-indexed key
+        per_week_template: Optional[PhaseWeeklyTemplate] = None
+        if per_week_templates and week_key in per_week_templates.weeks:
+            per_week_template = per_week_templates.weeks[week_key]
+
+        shared_template = _parse_weekly_template(phase)
+
+        if per_week_template:
+            entries = _template_to_entries(per_week_template)
+        elif shared_template:
+            entries = _template_to_entries(shared_template)
         else:
             # Fallback: use PHASE_DEFAULTS heuristic
             raw_quality = metrics.get("quality_sessions_per_week")
@@ -406,7 +440,8 @@ def generate_weekly_plans(
                 strength_count = defaults["strength"]
 
             default_run_types: list[str] = list(defaults["run_types"])
-            default_quality = sum(1 for r in default_run_types if r in ("tempo", "intervals"))
+            _qual = {"tempo", "intervals", "repetitions", "progression", "fartlek"}
+            default_quality = sum(1 for r in default_run_types if r in _qual)
 
             if quality_count is not None:
                 if quality_count > default_quality:
@@ -421,7 +456,7 @@ def generate_weekly_plans(
                     removed = 0
                     for i, rt in enumerate(default_run_types):
                         if (
-                            rt in ("tempo", "intervals")
+                            rt in _qual
                             and removed < default_quality - quality_count
                         ):
                             default_run_types[i] = "easy"
@@ -432,10 +467,6 @@ def generate_weekly_plans(
         # Calculate volume for this week (linear progression within phase)
         vol_min = metrics.get("weekly_volume_min")
         vol_max = metrics.get("weekly_volume_max")
-        phase_start_week = int(phase.start_week)  # type: ignore[arg-type]
-        phase_end_week = int(phase.end_week)  # type: ignore[arg-type]
-        phase_duration = max(1, phase_end_week - phase_start_week + 1)
-        week_in_phase = week_number - phase_start_week  # 0-indexed
 
         if vol_min is not None and vol_max is not None:
             progress = week_in_phase / max(1, phase_duration - 1) if phase_duration > 1 else 0.5
@@ -457,7 +488,7 @@ def generate_weekly_plans(
                 has_long_run = any(
                     e.run_details and e.run_details.run_type == "long_run" for e in running_entries
                 )
-                if weekly_template and has_long_run:
+                if (per_week_template or shared_template) and has_long_run:
                     # Template path: use 0.30 default for long run share
                     long_run_pct: float = 0.30
                 else:
@@ -470,15 +501,16 @@ def generate_weekly_plans(
                     for e in running_entries
                     if e.run_details and e.run_details.run_type != "long_run"
                 ]
+                _qual_vol = {"tempo", "intervals", "repetitions", "progression", "fartlek"}
                 quality_entries = [
                     e
                     for e in non_long
-                    if e.run_details and e.run_details.run_type in ("tempo", "intervals")
+                    if e.run_details and e.run_details.run_type in _qual_vol
                 ]
                 easy_entries = [
                     e
                     for e in non_long
-                    if e.run_details and e.run_details.run_type not in ("tempo", "intervals")
+                    if e.run_details and e.run_details.run_type not in _qual_vol
                 ]
 
                 quality_km_each = remaining_km * QUALITY_VOLUME_PCT if quality_entries else 0.0
@@ -492,7 +524,7 @@ def generate_weekly_plans(
                     rt = entry.run_details.run_type
                     if rt == "long_run":
                         dist = long_run_km
-                    elif rt in ("tempo", "intervals"):
+                    elif rt in _qual_vol:
                         dist = quality_km_each
                     else:
                         dist = easy_km_each

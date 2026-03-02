@@ -169,6 +169,7 @@ class TrainingPhaseModel(Base):
     focus_json = Column(Text, nullable=True)
     target_metrics_json = Column(Text, nullable=True)
     weekly_template_json = Column(Text, nullable=True)
+    weekly_templates_json = Column(Text, nullable=True)  # Per-week overrides
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

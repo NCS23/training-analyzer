@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Dumbbell,
   TrendingUp,
-  Scale,
   Settings,
   Zap,
 } from 'lucide-react';
@@ -14,9 +13,8 @@ import { BottomNav } from './BottomNav';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
-  { to: '/trends', label: 'Trends', icon: TrendingUp },
+  { to: '/analyse', label: 'Analyse', icon: TrendingUp },
   { to: '/plan', label: 'Wochenplan', icon: CalendarDays },
-  { to: '/balance', label: 'Balance', icon: Scale },
   { to: '/settings', label: 'Einstellungen', icon: Settings },
 ];
 

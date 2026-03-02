@@ -32,6 +32,7 @@ import {
   updateSessionTemplate,
 } from '@/api/session-templates';
 import type { ExerciseCategory, ExerciseType, TemplateExercise } from '@/api/session-templates';
+import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
@@ -381,7 +382,7 @@ export function SessionTemplateEditorPage() {
                       Übung {exIndex + 1}
                     </span>
                     {exercise.name && (
-                      <Badge variant="info" size="xs">
+                      <Badge variant={categoryBadgeVariant[exercise.category] ?? 'neutral'} size="xs">
                         {CATEGORY_LABELS[exercise.category] ?? exercise.category}
                       </Badge>
                     )}
@@ -457,7 +458,7 @@ export function SessionTemplateEditorPage() {
                               onClick={() => selectSuggestion(exercise.id, ex)}
                             >
                               <span>{ex.name}</span>
-                              <Badge variant="neutral" size="xs">
+                              <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="xs">
                                 {CATEGORY_LABELS[ex.category] ?? ex.category}
                               </Badge>
                             </button>
@@ -487,7 +488,7 @@ export function SessionTemplateEditorPage() {
                               }
                               className={`px-2.5 py-1 text-xs rounded-[var(--radius-component-sm)] transition-colors duration-150 motion-reduce:transition-none ${
                                 exercise.category === cat.value
-                                  ? 'bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] font-medium'
+                                  ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-primary-1-600)] font-medium'
                                   : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
                               }`}
                             >
@@ -509,7 +510,7 @@ export function SessionTemplateEditorPage() {
                               }
                               className={`px-2.5 py-1 text-xs rounded-[var(--radius-component-sm)] transition-colors duration-150 motion-reduce:transition-none ${
                                 exercise.exercise_type === t.value
-                                  ? 'bg-[var(--color-bg-info-subtle)] text-[var(--color-text-info)] font-medium'
+                                  ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-primary-1-600)] font-medium'
                                   : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
                               }`}
                             >

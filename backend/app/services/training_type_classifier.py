@@ -41,6 +41,19 @@ class ClassifierThresholds:
     race_min_zone4_plus_pct: float = 60.0  # Min % in Zone 4+
     race_min_duration_min: int = 10
 
+    # Progression: systematisch abnehmende Pace
+    progression_min_laps: int = 4
+    progression_min_pace_drop_pct: float = 10.0  # Letzte Haelfte >= 10% schneller
+
+    # Fartlek: gemischte Pace, moderate HR-Variabilitaet
+    fartlek_min_laps: int = 4
+    fartlek_min_pace_cv: float = 0.10
+    fartlek_max_pace_cv: float = 0.30
+
+    # Repetitions: kurze, schnelle Wiederholungen
+    repetitions_min_laps: int = 4
+    repetitions_max_work_lap_duration: int = 120  # Max 2 min pro Work-Lap
+
 
 DEFAULT_THRESHOLDS = ClassifierThresholds()
 
@@ -122,7 +135,26 @@ def classify_training_type(
     if interval_score > 0:
         candidates.append(("intervals", interval_score, interval_reasons))
 
-    # 3. Tempo Check
+    # 3. Repetitions Check (vor Tempo — kurze schnelle Laps)
+    reps_score, reps_reasons = _check_repetitions(
+        laps,
+        lap_hr_stats,
+        t,
+    )
+    if reps_score > 0:
+        candidates.append(("repetitions", reps_score, reps_reasons))
+
+    # 4. Progression Check (vor Tempo — abnehmende Pace)
+    prog_score, prog_reasons = _check_progression(
+        laps,
+        pace_values,
+        zone_pcts,
+        t,
+    )
+    if prog_score > 0:
+        candidates.append(("progression", prog_score, prog_reasons))
+
+    # 5. Tempo Check
     tempo_score, tempo_reasons = _check_tempo(
         duration_min,
         zone_pcts,
@@ -132,7 +164,17 @@ def classify_training_type(
     if tempo_score > 0:
         candidates.append(("tempo", tempo_score, tempo_reasons))
 
-    # 4. Long Run Check
+    # 6. Fartlek Check (nach Tempo — gemischte Pace)
+    fartlek_score, fartlek_reasons = _check_fartlek(
+        laps,
+        pace_values,
+        lap_hr_stats,
+        t,
+    )
+    if fartlek_score > 0:
+        candidates.append(("fartlek", fartlek_score, fartlek_reasons))
+
+    # 7. Long Run Check
     long_run_score, long_run_reasons = _check_long_run(
         duration_min,
         zone_pcts,
@@ -141,7 +183,7 @@ def classify_training_type(
     if long_run_score > 0:
         candidates.append(("long_run", long_run_score, long_run_reasons))
 
-    # 5. Recovery Check
+    # 8. Recovery Check
     recovery_score, recovery_reasons = _check_recovery(
         duration_min,
         zone_pcts,
@@ -150,7 +192,7 @@ def classify_training_type(
     if recovery_score > 0:
         candidates.append(("recovery", recovery_score, recovery_reasons))
 
-    # 6. Easy Run (Default-Kandidat)
+    # 9. Easy Run (Default-Kandidat)
     easy_score, easy_reasons = _check_easy(
         duration_min,
         zone_pcts,
@@ -359,6 +401,144 @@ def _check_easy(
     return score, reasons
 
 
+def _check_progression(
+    _laps: list[dict],
+    pace_values: list[float],
+    zone_pcts: dict[str, float],
+    t: ClassifierThresholds,
+) -> tuple[int, list[str]]:
+    """Prueft ob die Session ein Steigerungslauf ist (Pace nimmt systematisch ab)."""
+    reasons: list[str] = []
+    score = 0
+
+    if len(pace_values) < t.progression_min_laps:
+        return 0, []
+
+    # Vergleiche erste Haelfte vs zweite Haelfte
+    mid = len(pace_values) // 2
+    first_half_avg = sum(pace_values[:mid]) / mid
+    second_half_avg = sum(pace_values[mid:]) / (len(pace_values) - mid)
+
+    if first_half_avg <= 0:
+        return 0, []
+
+    # Pace-Drop: zweite Haelfte schneller (niedrigere min/km) als erste
+    pace_drop_pct = ((first_half_avg - second_half_avg) / first_half_avg) * 100
+
+    if pace_drop_pct >= t.progression_min_pace_drop_pct:
+        score = 65
+        reasons.append(
+            f"Pace-Abnahme {pace_drop_pct:.0f}% "
+            f"(>= {t.progression_min_pace_drop_pct}%)"
+        )
+
+        # Zone 3+ zwischen 30-70% (Start Easy, Ende Tempo)
+        zone3_plus = zone_pcts.get("zone_3_plus", 0)
+        if 30 <= zone3_plus <= 70:
+            score += 10
+            reasons.append(f"Moderate Intensitaet ({zone3_plus:.0f}% Zone 3+)")
+
+        # Bonus fuer monoton abnehmende Pace
+        decreasing = sum(
+            1 for i in range(1, len(pace_values)) if pace_values[i] < pace_values[i - 1]
+        )
+        monotonic_pct = decreasing / (len(pace_values) - 1) * 100
+        if monotonic_pct >= 70:
+            score += 10
+            reasons.append(f"Nahezu monotone Pace-Abnahme ({monotonic_pct:.0f}%)")
+
+    return score, reasons
+
+
+def _check_fartlek(
+    laps: list[dict],
+    pace_values: list[float],
+    lap_hr_stats: dict,
+    t: ClassifierThresholds,
+) -> tuple[int, list[str]]:
+    """Prueft ob die Session ein Fartlek (Fahrtspiel) ist — gemischte Pace."""
+    reasons: list[str] = []
+    score = 0
+
+    if len(laps) < t.fartlek_min_laps or len(pace_values) < t.fartlek_min_laps:
+        return 0, []
+
+    pace_cv = _coefficient_of_variation(pace_values)
+    hr_cv = lap_hr_stats.get("hr_cv", 0)
+
+    if t.fartlek_min_pace_cv <= pace_cv <= t.fartlek_max_pace_cv:
+        score = 50
+        reasons.append(f"Gemischte Pace (CV={pace_cv:.2f})")
+
+        # Moderate HR-Variabilitaet (0.05-0.12)
+        if 0.05 <= hr_cv <= 0.12:
+            score += 15
+            reasons.append(f"Moderate HR-Variabilitaet (CV={hr_cv:.2f})")
+        elif hr_cv > 0:
+            score += 5
+
+        # Bonus fuer viele Laps
+        if len(laps) >= 6:
+            score += 5
+            reasons.append(f"{len(laps)} Laps")
+
+    return score, reasons
+
+
+def _check_repetitions(
+    laps: list[dict],
+    lap_hr_stats: dict,
+    t: ClassifierThresholds,
+) -> tuple[int, list[str]]:
+    """Prueft ob die Session Repetitions sind — kurze, schnelle Wiederholungen."""
+    reasons: list[str] = []
+    score = 0
+
+    num_laps = len(laps)
+    if num_laps < t.repetitions_min_laps:
+        return 0, []
+
+    # Zaehle kurze Laps mit hoher HR
+    short_fast_count = 0
+    for lap in laps:
+        duration = lap.get("duration_seconds", 0)
+        avg_hr = lap.get("avg_hr_bpm")
+        if duration <= t.repetitions_max_work_lap_duration and avg_hr and avg_hr > 160:
+            short_fast_count += 1
+
+    short_fast_pct = (short_fast_count / num_laps * 100) if num_laps > 0 else 0
+
+    if short_fast_pct >= 25 and short_fast_count >= 3:
+        score = 60
+        reasons.append(f"{short_fast_count} kurze schnelle Laps (<= 2 min, HR > 160)")
+
+        # HR-Variabilitaet (typisch fuer Wechsel zwischen schnell und Pause)
+        hr_cv = lap_hr_stats.get("hr_cv", 0)
+        if hr_cv > 0.10:
+            score += 15
+            reasons.append(f"Hohe HR-Variabilitaet (CV={hr_cv:.2f})")
+        elif hr_cv > 0.05:
+            score += 5
+
+        # Unterscheidung zu Intervallen: Repetitions haben kuerzere Work-Phasen
+        avg_work_duration = sum(
+            lap.get("duration_seconds", 0)
+            for lap in laps
+            if lap.get("avg_hr_bpm", 0) and lap["avg_hr_bpm"] > 160
+        )
+        work_laps = sum(1 for lap in laps if lap.get("avg_hr_bpm", 0) and lap["avg_hr_bpm"] > 160)
+        if work_laps > 0:
+            avg_dur = avg_work_duration / work_laps
+            if avg_dur <= 90:
+                score += 15
+                reasons.append(f"Sehr kurze Work-Dauer {avg_dur:.0f}s (<= 90s)")
+            elif avg_dur <= t.repetitions_max_work_lap_duration:
+                score += 10
+                reasons.append(f"Kurze Work-Dauer {avg_dur:.0f}s (<= 120s)")
+
+    return score, reasons
+
+
 # --- Helpers ---
 
 
@@ -407,12 +587,12 @@ def _extract_zone_percentages(hr_zones: Optional[dict]) -> dict[str, float]:
 
 
 def _extract_pace_values(laps: list[dict]) -> list[float]:
-    """Extrahiert Pace-Werte aus Working-Laps (ohne Warmup/Cooldown/Pause)."""
-    excluded = {"warmup", "cooldown", "pause"}
+    """Extrahiert Pace-Werte aus Working-Laps (ohne Warmup/Cooldown/Rest)."""
+    excluded = {"warmup", "cooldown", "rest"}
     pace_values = []
 
     for lap in laps:
-        effective_type = lap.get("user_override") or lap.get("suggested_type") or "unclassified"
+        effective_type = lap.get("user_override") or lap.get("suggested_type") or "steady"
         if effective_type in excluded:
             continue
         pace = lap.get("pace_min_per_km")
