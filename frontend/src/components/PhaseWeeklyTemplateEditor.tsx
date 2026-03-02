@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Label } from '@nordlig/components';
+import { ChevronDown } from 'lucide-react';
 import type {
   PhaseWeeklyTemplate,
   PhaseWeeklyTemplateDayEntry,
@@ -7,6 +8,8 @@ import type {
   RunType,
   PhaseType,
 } from '@/api/training-plans';
+import type { RunDetails } from '@/api/weekly-plan';
+import { RunDetailsEditor } from './RunDetailsEditor';
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -70,6 +73,7 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
       run_type: null,
       template_id: null,
       notes: null,
+      run_details: null,
     };
   }
   if (type === 'strength') {
@@ -80,6 +84,7 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
       run_type: null,
       template_id: null,
       notes: null,
+      run_details: null,
     };
   }
   return {
@@ -89,6 +94,7 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
     run_type: type as RunType,
     template_id: null,
     notes: null,
+    // run_details: keep null — will be auto-calculated unless user sets details
   };
 }
 
@@ -100,7 +106,30 @@ function createDefaultTemplate(phaseType: PhaseType): PhaseWeeklyTemplate {
 }
 
 function cloneTemplate(template: PhaseWeeklyTemplate): PhaseWeeklyTemplate {
-  return { days: template.days.map((d) => ({ ...d })) };
+  return {
+    days: template.days.map((d) => ({
+      ...d,
+      run_details: d.run_details
+        ? {
+            ...d.run_details,
+            intervals: d.run_details.intervals
+              ? d.run_details.intervals.map((iv) => ({ ...iv }))
+              : null,
+          }
+        : d.run_details,
+    })),
+  };
+}
+
+/** Check if a running day has any explicitly set RunDetails. */
+function hasRunDetails(day: PhaseWeeklyTemplateDayEntry): boolean {
+  const rd = day.run_details;
+  if (!rd) return false;
+  return (
+    rd.target_duration_minutes !== null ||
+    rd.target_pace_min !== null ||
+    rd.intervals !== null
+  );
 }
 
 interface Props {
@@ -125,6 +154,7 @@ export function PhaseWeeklyTemplateEditor({
   const totalWeeks = Math.max(1, endWeek - startWeek + 1);
   const perWeekMode = weeklyTemplates !== null && Object.keys(weeklyTemplates.weeks).length > 0;
   const [activeWeek, setActiveWeek] = useState(1);
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
 
   // Ensure activeWeek stays in bounds
   const clampedActiveWeek = Math.min(activeWeek, totalWeeks);
@@ -135,13 +165,8 @@ export function PhaseWeeklyTemplateEditor({
     ? (weeklyTemplates?.weeks[String(clampedActiveWeek)] ?? sharedTemplate)
     : sharedTemplate;
 
-  const handleDayChange = useCallback(
-    (dayIndex: number, newType: DayType) => {
-      const newDays = currentTemplate.days.map((day, i) =>
-        i === dayIndex ? dayTypeToEntry(dayIndex, newType) : day,
-      );
-      const newTemplate: PhaseWeeklyTemplate = { days: newDays };
-
+  const updateTemplate = useCallback(
+    (newTemplate: PhaseWeeklyTemplate) => {
       if (perWeekMode && weeklyTemplates) {
         const updatedWeeks = { ...weeklyTemplates.weeks };
         updatedWeeks[String(clampedActiveWeek)] = newTemplate;
@@ -150,33 +175,34 @@ export function PhaseWeeklyTemplateEditor({
         onChange(newTemplate);
       }
     },
-    [
-      currentTemplate,
-      perWeekMode,
-      weeklyTemplates,
-      clampedActiveWeek,
-      onChange,
-      onChangeWeeklyTemplates,
-    ],
+    [perWeekMode, weeklyTemplates, clampedActiveWeek, onChange, onChangeWeeklyTemplates],
+  );
+
+  const handleDayChange = useCallback(
+    (dayIndex: number, newType: DayType) => {
+      const newDays = currentTemplate.days.map((day, i) =>
+        i === dayIndex ? dayTypeToEntry(dayIndex, newType) : day,
+      );
+      updateTemplate({ days: newDays });
+    },
+    [currentTemplate, updateTemplate],
+  );
+
+  const handleRunDetailsChange = useCallback(
+    (dayIndex: number, runDetails: RunDetails | null) => {
+      const newDays = currentTemplate.days.map((day, i) =>
+        i === dayIndex ? { ...day, run_details: runDetails } : day,
+      );
+      updateTemplate({ days: newDays });
+    },
+    [currentTemplate, updateTemplate],
   );
 
   const handleLoadDefaults = useCallback(() => {
     const defaultTemplate = createDefaultTemplate(phaseType);
-    if (perWeekMode && weeklyTemplates) {
-      const updatedWeeks = { ...weeklyTemplates.weeks };
-      updatedWeeks[String(clampedActiveWeek)] = defaultTemplate;
-      onChangeWeeklyTemplates({ weeks: updatedWeeks });
-    } else {
-      onChange(defaultTemplate);
-    }
-  }, [
-    phaseType,
-    perWeekMode,
-    weeklyTemplates,
-    clampedActiveWeek,
-    onChange,
-    onChangeWeeklyTemplates,
-  ]);
+    updateTemplate(defaultTemplate);
+    setExpandedDay(null);
+  }, [phaseType, updateTemplate]);
 
   const handleTogglePerWeek = useCallback(() => {
     if (perWeekMode) {
@@ -195,6 +221,7 @@ export function PhaseWeeklyTemplateEditor({
       onChangeWeeklyTemplates({ weeks });
       setActiveWeek(1);
     }
+    setExpandedDay(null);
   }, [perWeekMode, weeklyTemplates, sharedTemplate, totalWeeks, onChange, onChangeWeeklyTemplates]);
 
   const handleCopyFromWeek = useCallback(
@@ -205,9 +232,19 @@ export function PhaseWeeklyTemplateEditor({
       const updatedWeeks = { ...weeklyTemplates.weeks };
       updatedWeeks[String(clampedActiveWeek)] = cloneTemplate(source);
       onChangeWeeklyTemplates({ weeks: updatedWeeks });
+      setExpandedDay(null);
     },
     [weeklyTemplates, clampedActiveWeek, onChangeWeeklyTemplates],
   );
+
+  const expandedDayEntry = expandedDay !== null ? currentTemplate.days[expandedDay] : null;
+  const expandedDayType = expandedDayEntry ? getDayType(expandedDayEntry) : null;
+  const expandedDayLabel = expandedDay !== null ? DAY_LABELS[expandedDay] : '';
+  const expandedDayTypeName = expandedDayType
+    ? DAY_TYPE_OPTIONS.find((o) => o.value === expandedDayType)?.label
+    : '';
+  const showRunDetailsForExpanded =
+    expandedDayEntry?.training_type === 'running' && expandedDayEntry.run_type;
 
   return (
     <div className="space-y-2">
@@ -245,7 +282,10 @@ export function PhaseWeeklyTemplateEditor({
               <button
                 key={w}
                 type="button"
-                onClick={() => setActiveWeek(w)}
+                onClick={() => {
+                  setActiveWeek(w);
+                  setExpandedDay(null);
+                }}
                 className={`
                   shrink-0 min-w-[44px] min-h-[44px] px-3 py-1.5
                   rounded-[var(--radius-component-sm)] text-xs font-medium
@@ -288,39 +328,101 @@ export function PhaseWeeklyTemplateEditor({
 
       {/* 7-day grid */}
       <div className="grid grid-cols-7 gap-1">
-        {DAY_LABELS.map((label, i) => (
-          <div key={label} className="text-center">
-            <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              {label}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const current = getDayType(currentTemplate.days[i]);
-                const currentIdx = DAY_TYPE_OPTIONS.findIndex((o) => o.value === current);
-                const nextIdx = (currentIdx + 1) % DAY_TYPE_OPTIONS.length;
-                handleDayChange(i, DAY_TYPE_OPTIONS[nextIdx].value);
-              }}
-              className={`
-                w-full mt-0.5 py-1.5 px-0.5 rounded-[var(--radius-component-sm)]
-                text-[11px] font-medium leading-tight text-center
-                transition-colors motion-reduce:transition-none
-                min-h-[44px] flex items-center justify-center
-                ${DAY_TYPE_COLORS[getDayType(currentTemplate.days[i])]}
-                hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-              `}
-              title={
-                DAY_TYPE_OPTIONS.find((o) => o.value === getDayType(currentTemplate.days[i]))?.label
-              }
-            >
-              {DAY_TYPE_OPTIONS.find((o) => o.value === getDayType(currentTemplate.days[i]))?.short}
-            </button>
-          </div>
-        ))}
+        {DAY_LABELS.map((label, i) => {
+          const dayType = getDayType(currentTemplate.days[i]);
+          const dayOption = DAY_TYPE_OPTIONS.find((o) => o.value === dayType);
+          const isExpanded = expandedDay === i;
+          const dayHasDetails = hasRunDetails(currentTemplate.days[i]);
+
+          return (
+            <div key={label} className="text-center">
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                {label}
+              </span>
+              {/* Type cycle button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const currentIdx = DAY_TYPE_OPTIONS.findIndex((o) => o.value === dayType);
+                  const nextIdx = (currentIdx + 1) % DAY_TYPE_OPTIONS.length;
+                  handleDayChange(i, DAY_TYPE_OPTIONS[nextIdx].value);
+                  if (expandedDay === i) setExpandedDay(null);
+                }}
+                className={`
+                  w-full mt-0.5 py-1.5 px-0.5 rounded-t-[var(--radius-component-sm)]
+                  text-[11px] font-medium leading-tight text-center
+                  transition-colors motion-reduce:transition-none
+                  min-h-[44px] flex items-center justify-center
+                  ${DAY_TYPE_COLORS[dayType]}
+                  hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
+                `}
+                title={dayOption?.label}
+              >
+                {dayOption?.short}
+                {dayHasDetails && (
+                  <span className="ml-0.5 text-[8px] opacity-70">*</span>
+                )}
+              </button>
+              {/* Expand toggle */}
+              <button
+                type="button"
+                onClick={() => setExpandedDay(isExpanded ? null : i)}
+                className={`
+                  w-full flex items-center justify-center
+                  min-h-[22px] rounded-b-[var(--radius-component-sm)]
+                  transition-colors motion-reduce:transition-none
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
+                  ${isExpanded
+                    ? 'bg-[var(--color-bg-surface-hover)]'
+                    : 'bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-surface-hover)]'
+                  }
+                `}
+                aria-expanded={isExpanded}
+                aria-label={`${label} Details ${isExpanded ? 'schliessen' : 'oeffnen'}`}
+              >
+                <ChevronDown
+                  className={`w-3 h-3 text-[var(--color-text-muted)] transition-transform duration-150 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
+                />
+              </button>
+            </div>
+          );
+        })}
       </div>
       <p className="text-[10px] text-[var(--color-text-muted)]">
         Klick zum Wechseln: Ruhe → Easy → Tempo → Intervalle → Long Run → Recovery → Kraft
       </p>
+
+      {/* Expanded day detail panel */}
+      {expandedDay !== null && expandedDayEntry && (
+        <div className="border border-[var(--color-border-muted)] rounded-[var(--radius-component-md)] p-[var(--spacing-sm)] space-y-2 bg-[var(--color-bg-paper)]">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-[var(--color-text-base)]">
+              {expandedDayLabel}
+            </span>
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {expandedDayTypeName}
+            </span>
+          </div>
+
+          {showRunDetailsForExpanded ? (
+            <RunDetailsEditor
+              runDetails={expandedDayEntry.run_details ?? null}
+              runType={expandedDayEntry.run_type ?? null}
+              onChange={(details) => handleRunDetailsChange(expandedDay, details)}
+            />
+          ) : expandedDayEntry.is_rest_day ? (
+            <p className="text-xs text-[var(--color-text-muted)] italic">Ruhetag</p>
+          ) : expandedDayEntry.training_type === 'strength' ? (
+            <p className="text-xs text-[var(--color-text-muted)] italic">
+              Krafttraining — Details werden im Wochenplan konfiguriert
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--color-text-muted)] italic">
+              Wird automatisch berechnet
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

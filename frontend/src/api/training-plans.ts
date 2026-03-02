@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { RunDetails } from './weekly-plan';
 
 // --- Types ---
 
@@ -35,7 +36,10 @@ export interface PhaseWeeklyTemplateDayEntry {
   run_type: RunType | null;
   template_id: number | null;
   notes: string | null;
+  run_details?: RunDetails | null;
 }
+
+export type { RunDetails } from './weekly-plan';
 
 export interface PhaseWeeklyTemplate {
   days: PhaseWeeklyTemplateDayEntry[];
