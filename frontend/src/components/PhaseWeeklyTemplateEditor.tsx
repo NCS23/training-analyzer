@@ -126,9 +126,7 @@ function hasRunDetails(day: PhaseWeeklyTemplateDayEntry): boolean {
   const rd = day.run_details;
   if (!rd) return false;
   return (
-    rd.target_duration_minutes !== null ||
-    rd.target_pace_min !== null ||
-    rd.intervals !== null
+    rd.target_duration_minutes !== null || rd.target_pace_min !== null || rd.intervals !== null
   );
 }
 
@@ -359,9 +357,7 @@ export function PhaseWeeklyTemplateEditor({
                 title={dayOption?.label}
               >
                 {dayOption?.short}
-                {dayHasDetails && (
-                  <span className="ml-0.5 text-[8px] opacity-70">*</span>
-                )}
+                {dayHasDetails && <span className="ml-0.5 text-[8px] opacity-70">*</span>}
               </button>
               {/* Expand toggle */}
               <button
@@ -372,9 +368,10 @@ export function PhaseWeeklyTemplateEditor({
                   min-h-[22px] rounded-b-[var(--radius-component-sm)]
                   transition-colors motion-reduce:transition-none
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-                  ${isExpanded
-                    ? 'bg-[var(--color-bg-surface-hover)]'
-                    : 'bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-surface-hover)]'
+                  ${
+                    isExpanded
+                      ? 'bg-[var(--color-bg-surface-hover)]'
+                      : 'bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-surface-hover)]'
                   }
                 `}
                 aria-expanded={isExpanded}
@@ -399,9 +396,7 @@ export function PhaseWeeklyTemplateEditor({
             <span className="text-xs font-semibold text-[var(--color-text-base)]">
               {expandedDayLabel}
             </span>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {expandedDayTypeName}
-            </span>
+            <span className="text-xs text-[var(--color-text-muted)]">{expandedDayTypeName}</span>
           </div>
 
           {showRunDetailsForExpanded ? (

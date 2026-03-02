@@ -105,9 +105,7 @@ interface RunDetailsEditorProps {
 export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEditorProps) {
   if (!runType) {
     return (
-      <p className="text-xs text-[var(--color-text-muted)] italic">
-        Wird automatisch berechnet
-      </p>
+      <p className="text-xs text-[var(--color-text-muted)] italic">Wird automatisch berechnet</p>
     );
   }
 

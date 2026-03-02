@@ -244,24 +244,40 @@ class TestTemplateToEntries:
         """Template with intervals in RunDetails."""
         intervals = [
             RunInterval(
-                type="warmup", duration_minutes=10, repeats=1,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None,
+                type="warmup",
+                duration_minutes=10,
+                repeats=1,
+                target_pace_min=None,
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
             ),
             RunInterval(
-                type="work", duration_minutes=3, target_pace_min="4:20",
-                target_pace_max=None, target_hr_min=None, target_hr_max=None,
+                type="work",
+                duration_minutes=3,
+                target_pace_min="4:20",
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
                 repeats=5,
             ),
             RunInterval(
-                type="recovery_jog", duration_minutes=2, repeats=5,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None,
+                type="recovery_jog",
+                duration_minutes=2,
+                repeats=5,
+                target_pace_min=None,
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
             ),
             RunInterval(
-                type="cooldown", duration_minutes=10, repeats=1,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None,
+                type="cooldown",
+                duration_minutes=10,
+                repeats=1,
+                target_pace_min=None,
+                target_pace_max=None,
+                target_hr_min=None,
+                target_hr_max=None,
             ),
         ]
         explicit_rd = RunDetails(
@@ -315,38 +331,59 @@ class TestTemplateToEntries:
 class TestHasExplicitRunDetails:
     def test_skeleton_is_not_explicit(self) -> None:
         rd = RunDetails(
-            run_type="easy", target_duration_minutes=None,
-            target_pace_min=None, target_pace_max=None,
-            target_hr_min=None, target_hr_max=None, intervals=None,
+            run_type="easy",
+            target_duration_minutes=None,
+            target_pace_min=None,
+            target_pace_max=None,
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=None,
         )
         assert _has_explicit_run_details(rd) is False
 
     def test_duration_makes_explicit(self) -> None:
         rd = RunDetails(
-            run_type="easy", target_duration_minutes=45,
-            target_pace_min=None, target_pace_max=None,
-            target_hr_min=None, target_hr_max=None, intervals=None,
+            run_type="easy",
+            target_duration_minutes=45,
+            target_pace_min=None,
+            target_pace_max=None,
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=None,
         )
         assert _has_explicit_run_details(rd) is True
 
     def test_pace_makes_explicit(self) -> None:
         rd = RunDetails(
-            run_type="tempo", target_duration_minutes=None,
-            target_pace_min="5:00", target_pace_max=None,
-            target_hr_min=None, target_hr_max=None, intervals=None,
+            run_type="tempo",
+            target_duration_minutes=None,
+            target_pace_min="5:00",
+            target_pace_max=None,
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=None,
         )
         assert _has_explicit_run_details(rd) is True
 
     def test_intervals_make_explicit(self) -> None:
         rd = RunDetails(
-            run_type="intervals", target_duration_minutes=None,
-            target_pace_min=None, target_pace_max=None,
-            target_hr_min=None, target_hr_max=None,
-            intervals=[RunInterval(
-                type="work", duration_minutes=3, repeats=5,
-                target_pace_min=None, target_pace_max=None,
-                target_hr_min=None, target_hr_max=None,
-            )],
+            run_type="intervals",
+            target_duration_minutes=None,
+            target_pace_min=None,
+            target_pace_max=None,
+            target_hr_min=None,
+            target_hr_max=None,
+            intervals=[
+                RunInterval(
+                    type="work",
+                    duration_minutes=3,
+                    repeats=5,
+                    target_pace_min=None,
+                    target_pace_max=None,
+                    target_hr_min=None,
+                    target_hr_max=None,
+                )
+            ],
         )
         assert _has_explicit_run_details(rd) is True
 
@@ -862,17 +899,38 @@ async def test_generate_preserves_template_run_details(db_session: AsyncSession)
     ).model_dump()
     template = {
         "days": [
-            {"day_of_week": 0, "training_type": "running", "run_type": "easy",
-             "is_rest_day": False, "run_details": explicit_easy},
-            {"day_of_week": 1, "training_type": "running", "run_type": "easy",
-             "is_rest_day": False},  # no run_details → skeleton → will be filled
-            {"day_of_week": 2, "training_type": "running", "run_type": "tempo",
-             "is_rest_day": False},
-            {"day_of_week": 3, "training_type": "running", "run_type": "easy",
-             "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "run_type": "easy",
+                "is_rest_day": False,
+                "run_details": explicit_easy,
+            },
+            {
+                "day_of_week": 1,
+                "training_type": "running",
+                "run_type": "easy",
+                "is_rest_day": False,
+            },  # no run_details → skeleton → will be filled
+            {
+                "day_of_week": 2,
+                "training_type": "running",
+                "run_type": "tempo",
+                "is_rest_day": False,
+            },
+            {
+                "day_of_week": 3,
+                "training_type": "running",
+                "run_type": "easy",
+                "is_rest_day": False,
+            },
             {"day_of_week": 4, "training_type": "strength", "is_rest_day": False},
-            {"day_of_week": 5, "training_type": "running", "run_type": "long_run",
-             "is_rest_day": False},
+            {
+                "day_of_week": 5,
+                "training_type": "running",
+                "run_type": "long_run",
+                "is_rest_day": False,
+            },
             {"day_of_week": 6, "is_rest_day": True},
         ]
     }
@@ -926,7 +984,12 @@ async def test_generate_fills_skeleton_run_details(db_session: AsyncSession) -> 
             {"day_of_week": d, "training_type": "running", "run_type": "easy", "is_rest_day": False}
             if d < 5
             else (
-                {"day_of_week": 5, "training_type": "running", "run_type": "long_run", "is_rest_day": False}
+                {
+                    "day_of_week": 5,
+                    "training_type": "running",
+                    "run_type": "long_run",
+                    "is_rest_day": False,
+                }
                 if d == 5
                 else {"day_of_week": 6, "is_rest_day": True}
             )
