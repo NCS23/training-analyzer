@@ -4,6 +4,9 @@ on:
   repository_dispatch:
     types: [nds-updated]
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     name: Update NDS packages
