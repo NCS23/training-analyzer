@@ -83,7 +83,9 @@ import {
   useToast,
   Breadcrumbs,
   BreadcrumbItem,
-  Tooltip,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
 } from '@nordlig/components';
 import {
   ChevronRight,
@@ -720,17 +722,22 @@ export function SessionDetailPage() {
                 {formatDateShort(session.date)}
               </h1>
               {trainingTypeInfo?.effective && (
-                <Tooltip
-                  content={trainingTypeHints[trainingTypeInfo.effective] ?? ''}
-                  side="bottom"
-                >
-                  <Badge
-                    variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'neutral'}
-                    size="xs"
-                  >
-                    {trainingTypeLabels[trainingTypeInfo.effective] ?? trainingTypeInfo.effective}
-                  </Badge>
-                </Tooltip>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="cursor-pointer">
+                      <Badge
+                        variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'neutral'}
+                        size="xs"
+                      >
+                        {trainingTypeLabels[trainingTypeInfo.effective] ??
+                          trainingTypeInfo.effective}
+                      </Badge>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" showArrow className="text-xs leading-relaxed">
+                    {trainingTypeHints[trainingTypeInfo.effective] ?? ''}
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           </div>
@@ -1361,18 +1368,25 @@ export function SessionDetailPage() {
                                 className="w-36"
                               />
                             ) : (
-                              <Tooltip
-                                content={lapTypeHints[effectiveType] ?? ''}
-                                side="right"
-                                delayDuration={300}
-                              >
-                                <Badge
-                                  variant={lapTypeBadgeVariant[effectiveType] ?? 'neutral'}
-                                  size="xs"
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button type="button" className="cursor-pointer">
+                                    <Badge
+                                      variant={lapTypeBadgeVariant[effectiveType] ?? 'neutral'}
+                                      size="xs"
+                                    >
+                                      {lapTypeLabels[effectiveType] || effectiveType}
+                                    </Badge>
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  side="right"
+                                  showArrow
+                                  className="text-xs leading-relaxed"
                                 >
-                                  {lapTypeLabels[effectiveType] || effectiveType}
-                                </Badge>
-                              </Tooltip>
+                                  {lapTypeHints[effectiveType] ?? ''}
+                                </PopoverContent>
+                              </Popover>
                             )}
                           </TableCell>
                           <TableCell>{lap.duration_formatted}</TableCell>
