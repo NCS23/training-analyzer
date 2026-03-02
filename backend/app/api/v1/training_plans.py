@@ -18,6 +18,7 @@ from app.infrastructure.database.models import (
 from app.infrastructure.database.session import get_db
 from app.models.training_plan import (
     GenerateWeeklyPlansResponse,
+    GenerationPreviewResponse,
     GoalSummary,
     PhaseFocus,
     PhaseTargetMetrics,
@@ -430,19 +431,67 @@ async def import_plan_from_yaml(
     return await create_plan(data=plan_data, db=db)
 
 
+@router.get(
+    "/{plan_id}/generation-preview",
+    response_model=GenerationPreviewResponse,
+)
+async def get_generation_preview(
+    plan_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> GenerationPreviewResponse:
+    """Preview what re-generation would affect: count edited vs unedited weeks."""
+    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
+    entries_result = await db.execute(
+        select(WeeklyPlanEntryModel)
+        .where(WeeklyPlanEntryModel.plan_id == plan_id)
+        .order_by(WeeklyPlanEntryModel.week_start)
+    )
+    entries = list(entries_result.scalars().all())
+
+    weeks: dict[str, list[WeeklyPlanEntryModel]] = {}
+    for e in entries:
+        ws_key = str(e.week_start)
+        if ws_key not in weeks:
+            weeks[ws_key] = []
+        weeks[ws_key].append(e)
+
+    edited_week_starts: list[str] = []
+    for ws_key in sorted(weeks.keys()):
+        if any(bool(e.edited) for e in weeks[ws_key]):
+            edited_week_starts.append(ws_key)
+
+    return GenerationPreviewResponse(
+        total_generated_weeks=len(weeks),
+        edited_week_count=len(edited_week_starts),
+        edited_week_starts=edited_week_starts,
+        unedited_week_count=len(weeks) - len(edited_week_starts),
+    )
+
+
 @router.post(
     "/{plan_id}/generate",
     response_model=GenerateWeeklyPlansResponse,
 )
 async def generate_plan_weeks(
     plan_id: int,
+    strategy: str = "all",
     db: AsyncSession = Depends(get_db),
 ) -> GenerateWeeklyPlansResponse:
     """Generate weekly plans from a training plan's phases.
 
-    Always replaces all previously generated entries for this plan.
-    Manual entries (plan_id=NULL) are preserved.
+    strategy=all: replaces all previously generated entries (default).
+    strategy=unedited_only: preserves weeks with manually edited entries.
     """
+    if strategy not in ("all", "unedited_only"):
+        raise HTTPException(
+            status_code=422,
+            detail="strategy muss 'all' oder 'unedited_only' sein.",
+        )
+
     # Load plan
     result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
@@ -483,21 +532,43 @@ async def generate_plan_weeks(
 
     # Generate
     weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
-
-    # Collect all week_start dates that will be generated
     new_week_starts = [ws for ws, _ in weekly_plans]
 
-    # Delete old entries: (1) by plan_id, (2) by week_start for legacy/manual
+    # Determine edited weeks to skip (for unedited_only strategy)
+    from datetime import date as date_type
+
+    edited_weeks: set[date_type] = set()
+    if strategy == "unedited_only":
+        edited_result = await db.execute(
+            select(WeeklyPlanEntryModel.week_start)
+            .where(
+                WeeklyPlanEntryModel.plan_id == plan_id,
+                WeeklyPlanEntryModel.edited.is_(True),
+            )
+            .distinct()
+        )
+        edited_weeks = {row[0] for row in edited_result.all()}
+
+    # Delete old entries by plan_id (skip edited weeks if strategy=unedited_only)
     old_by_plan = await db.execute(
         select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.plan_id == plan_id)
     )
     for old_entry in old_by_plan.scalars().all():
+        if strategy == "unedited_only" and old_entry.week_start in edited_weeks:
+            continue
         await db.delete(old_entry)
 
-    if new_week_starts:
+    # Delete manual entries for weeks that will be regenerated
+    weeks_to_generate = (
+        [ws for ws in new_week_starts if ws not in edited_weeks]
+        if strategy == "unedited_only"
+        else new_week_starts
+    )
+
+    if weeks_to_generate:
         old_by_week = await db.execute(
             select(WeeklyPlanEntryModel).where(
-                WeeklyPlanEntryModel.week_start.in_(new_week_starts),
+                WeeklyPlanEntryModel.week_start.in_(weeks_to_generate),
                 WeeklyPlanEntryModel.plan_id.is_(None),
             )
         )
@@ -506,9 +577,12 @@ async def generate_plan_weeks(
 
     await db.flush()
 
-    # Insert new entries (with plan_id link)
+    # Insert new entries (skip edited weeks if strategy=unedited_only)
     weeks_generated = 0
     for week_start, entries in weekly_plans:
+        if strategy == "unedited_only" and week_start in edited_weeks:
+            continue
+
         for plan_entry in entries:
             run_details_str: Optional[str] = None
             if plan_entry.run_details is not None:
@@ -522,6 +596,7 @@ async def generate_plan_weeks(
                 is_rest_day=plan_entry.is_rest_day,
                 notes=plan_entry.notes,
                 run_details_json=run_details_str,
+                edited=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )

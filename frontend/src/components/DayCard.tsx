@@ -1,5 +1,5 @@
 import { Select, Input } from '@nordlig/components';
-import { Check, ChevronDown, Dumbbell, Footprints, Moon } from 'lucide-react';
+import { Check, ChevronDown, Dumbbell, Footprints, Moon, Pencil } from 'lucide-react';
 import type { RunDetails, WeeklyPlanEntry, ComplianceDayEntry } from '@/api/weekly-plan';
 
 // --- Constants ---
@@ -181,9 +181,17 @@ export function DayCard({
           <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
             {DAY_LABELS[entry.day_of_week]}
           </span>
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {getDateStr(weekStart, entry.day_of_week)}.
-          </span>
+          <div className="flex items-center gap-1">
+            {entry.plan_id != null && entry.edited && (
+              <Pencil
+                className="w-2.5 h-2.5 text-[var(--color-text-muted)]"
+                aria-label="Manuell bearbeitet"
+              />
+            )}
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {getDateStr(weekStart, entry.day_of_week)}.
+            </span>
+          </div>
         </div>
 
         {/* Training type — icon + label */}

@@ -107,6 +107,8 @@ async def get_weekly_plan(
                     is_rest_day=bool(e.is_rest_day),
                     notes=str(e.notes) if e.notes else None,
                     run_details=run_details,
+                    plan_id=int(e.plan_id) if e.plan_id else None,
+                    edited=bool(e.edited),
                 )
             )
         else:
@@ -121,6 +123,24 @@ async def get_weekly_plan(
             )
 
     return WeeklyPlanResponse(week_start=week_start, entries=entries)
+
+
+def _has_content_changed(
+    old: WeeklyPlanEntryModel,
+    new_entry: WeeklyPlanEntry,
+    new_run_details_str: Optional[str],
+) -> bool:
+    """Compare old DB entry with new request entry to detect edits."""
+    if str(old.training_type or "") != str(new_entry.training_type or ""):
+        return True
+    if bool(old.is_rest_day) != new_entry.is_rest_day:
+        return True
+    if str(old.notes or "") != str(new_entry.notes or ""):
+        return True
+    if (old.template_id or None) != (new_entry.template_id or None):
+        return True
+    old_rd = str(old.run_details_json) if old.run_details_json else None
+    return (old_rd or None) != (new_run_details_str or None)
 
 
 @router.put("", response_model=WeeklyPlanResponse)
@@ -141,19 +161,33 @@ async def save_weekly_plan(
             )
         seen_days.add(entry.day_of_week)
 
-    # Delete existing entries for this week
+    # Fetch existing entries BEFORE deletion (for plan_id + edited preservation)
     result = await db.execute(
         select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.week_start == week_start)
     )
-    for existing in result.scalars().all():
-        await db.delete(existing)
-    await db.flush()  # Ensure deletes are applied before inserts
+    old_entries: dict[int, WeeklyPlanEntryModel] = {
+        int(e.day_of_week): e for e in result.scalars().all()
+    }
 
-    # Insert new entries
+    # Delete existing entries
+    for existing in old_entries.values():
+        await db.delete(existing)
+    await db.flush()
+
+    # Insert new entries, preserving plan_id and detecting edits
     for entry in data.entries:
         run_details_str: Optional[str] = None
         if entry.run_details is not None:
             run_details_str = json.dumps(entry.run_details.model_dump())
+
+        # Carry over plan_id and detect edits
+        old = old_entries.get(entry.day_of_week)
+        plan_id: Optional[int] = None
+        edited = False
+
+        if old and old.plan_id:
+            plan_id = int(old.plan_id)
+            edited = True if _has_content_changed(old, entry, run_details_str) else bool(old.edited)
 
         db_entry = WeeklyPlanEntryModel(
             week_start=week_start,
@@ -163,6 +197,8 @@ async def save_weekly_plan(
             is_rest_day=entry.is_rest_day,
             notes=entry.notes,
             run_details_json=run_details_str,
+            plan_id=plan_id,
+            edited=edited,
         )
         db.add(db_entry)
 

@@ -637,6 +637,159 @@ async def test_create_plan_auto_creates_goal(client: AsyncClient) -> None:
     assert goal["race_date"].startswith("2026-07-05")
 
 
+# --- Generation Preview & Strategy (E16-S03) ---
+
+
+async def _create_plan_with_generated_entries(
+    client: AsyncClient,
+    plan_name: str = "Strategy-Test-Plan",
+    start_date: str = "2026-09-07",
+    end_date: str = "2026-09-20",
+) -> int:
+    """Helper: create plan with 2-week phase and generate entries."""
+    plan_resp = await client.post(
+        "/api/v1/training-plans",
+        json={
+            "name": plan_name,
+            "start_date": start_date,
+            "end_date": end_date,
+            "phases": [
+                {
+                    "name": "Base",
+                    "phase_type": "base",
+                    "start_week": 1,
+                    "end_week": 2,
+                    "weekly_template": {
+                        "days": [
+                            {
+                                "day_of_week": i,
+                                "training_type": "running" if i < 3 else None,
+                                "is_rest_day": i >= 3,
+                            }
+                            for i in range(7)
+                        ],
+                    },
+                },
+            ],
+        },
+    )
+    assert plan_resp.status_code == 201
+    plan_id: int = plan_resp.json()["id"]
+
+    gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
+    assert gen_resp.status_code == 200
+    assert gen_resp.json()["weeks_generated"] == 2
+    return plan_id
+
+
+async def _edit_week(client: AsyncClient, week_start: str) -> None:
+    """Helper: edit a generated week to mark entries as edited."""
+    save_data = {
+        "week_start": week_start,
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "notes": "Manuell bearbeitet",
+            },
+        ],
+    }
+    resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert resp.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_generation_preview_no_edits(client: AsyncClient) -> None:
+    """Preview should show 0 edited weeks when nothing was changed."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Preview-No-Edit", "2026-09-07", "2026-09-20"
+    )
+    resp = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_generated_weeks"] == 2
+    assert body["edited_week_count"] == 0
+    assert body["edited_week_starts"] == []
+    assert body["unedited_week_count"] == 2
+
+
+@pytest.mark.anyio
+async def test_generation_preview_with_edits(client: AsyncClient) -> None:
+    """Preview should count edited weeks after manual changes."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Preview-With-Edit", "2026-09-21", "2026-10-04"
+    )
+    # Edit the first week
+    await _edit_week(client, "2026-09-21")
+
+    resp = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_generated_weeks"] == 2
+    assert body["edited_week_count"] == 1
+    assert "2026-09-21" in body["edited_week_starts"]
+    assert body["unedited_week_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_generate_strategy_all_replaces_edited(client: AsyncClient) -> None:
+    """strategy=all should replace even edited weeks."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Strategy-All", "2026-10-05", "2026-10-18"
+    )
+    await _edit_week(client, "2026-10-05")
+
+    # Verify edited
+    preview = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
+    assert preview.json()["edited_week_count"] == 1
+
+    # Re-generate with strategy=all
+    gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate?strategy=all")
+    assert gen_resp.status_code == 200
+    assert gen_resp.json()["weeks_generated"] == 2
+
+    # Edited should be gone
+    preview2 = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
+    assert preview2.json()["edited_week_count"] == 0
+
+
+@pytest.mark.anyio
+async def test_generate_strategy_unedited_only_preserves_edited(
+    client: AsyncClient,
+) -> None:
+    """strategy=unedited_only should skip edited weeks."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Strategy-Unedited", "2026-10-19", "2026-11-01"
+    )
+    await _edit_week(client, "2026-10-19")
+
+    # Re-generate with strategy=unedited_only
+    gen_resp = await client.post(
+        f"/api/v1/training-plans/{plan_id}/generate?strategy=unedited_only"
+    )
+    assert gen_resp.status_code == 200
+    # Only 1 week regenerated (the unedited one)
+    assert gen_resp.json()["weeks_generated"] == 1
+
+    # Edited week should still have the edits
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-10-19"})
+    entries = get_resp.json()["entries"]
+    monday = entries[0]
+    assert monday["edited"] is True
+    assert monday["notes"] == "Manuell bearbeitet"
+
+
+@pytest.mark.anyio
+async def test_generate_invalid_strategy_422(client: AsyncClient) -> None:
+    """Invalid strategy value should return 422."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Strategy-Invalid", "2026-11-02", "2026-11-15"
+    )
+    resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate?strategy=invalid")
+    assert resp.status_code == 422
+
+
 @pytest.mark.anyio
 async def test_create_plan_auto_create_uses_existing_goal(
     client: AsyncClient,

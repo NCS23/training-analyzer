@@ -188,6 +188,7 @@ class WeeklyPlanEntryModel(Base):
     is_rest_day = Column(Boolean, default=False, nullable=False, server_default="false")
     notes = Column(Text, nullable=True)
     run_details_json = Column(Text, nullable=True)  # JSON for run planning details
+    edited = Column(Boolean, default=False, nullable=False, server_default="false")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

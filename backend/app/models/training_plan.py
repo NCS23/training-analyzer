@@ -188,3 +188,12 @@ class GenerateWeeklyPlansResponse(BaseModel):
 
     weeks_generated: int
     total_weeks: int
+
+
+class GenerationPreviewResponse(BaseModel):
+    """Response schema: preview of what generation would affect."""
+
+    total_generated_weeks: int
+    edited_week_count: int
+    edited_week_starts: list[str]
+    unedited_week_count: int

@@ -15,6 +15,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  Label,
+  Select,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
 } from '@nordlig/components';
 import {
   Plus,
@@ -30,8 +40,9 @@ import {
   deleteTrainingPlan,
   importTrainingPlanYaml,
   generateWeeklyPlans,
+  getGenerationPreview,
 } from '@/api/training-plans';
-import type { TrainingPlanSummary } from '@/api/training-plans';
+import type { TrainingPlanSummary, GenerationPreviewResponse } from '@/api/training-plans';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Entwurf',
@@ -55,6 +66,11 @@ export function TrainingPlansPage() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [generatingPlan, setGeneratingPlan] = useState<{ id: number; name: string } | null>(null);
+  const [genPreview, setGenPreview] = useState<GenerationPreviewResponse | null>(null);
+  const [genStrategy, setGenStrategy] = useState<'all' | 'unedited_only'>('all');
+  const [generating, setGenerating] = useState(false);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -82,9 +98,30 @@ export function TrainingPlansPage() {
     }
   };
 
-  const handleGenerate = async (planId: number, planName: string) => {
+  const handleGenerateClick = async (planId: number, planName: string) => {
     try {
-      const result = await generateWeeklyPlans(planId);
+      const previewData = await getGenerationPreview(planId);
+      if (previewData.edited_week_count > 0) {
+        setGeneratingPlan({ id: planId, name: planName });
+        setGenPreview(previewData);
+        setGenStrategy('unedited_only');
+        setShowGenerateDialog(true);
+        return;
+      }
+    } catch {
+      // Fallback: generate directly
+    }
+    await handleGenerateConfirm(planId, planName, 'all');
+  };
+
+  const handleGenerateConfirm = async (
+    planId: number,
+    planName: string,
+    strategy: 'all' | 'unedited_only',
+  ) => {
+    setGenerating(true);
+    try {
+      const result = await generateWeeklyPlans(planId, strategy);
       toast({
         title: `${result.weeks_generated} Wochenpläne erstellt`,
         description: `für „${planName}"`,
@@ -92,6 +129,10 @@ export function TrainingPlansPage() {
       });
     } catch {
       toast({ title: 'Generierung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setGenerating(false);
+      setShowGenerateDialog(false);
+      setGeneratingPlan(null);
     }
   };
 
@@ -235,7 +276,7 @@ export function TrainingPlansPage() {
                       {plan.phase_count > 0 && (
                         <DropdownMenuItem
                           icon={<CalendarPlus />}
-                          onSelect={() => handleGenerate(plan.id, plan.name)}
+                          onSelect={() => handleGenerateClick(plan.id, plan.name)}
                         >
                           Wochenpläne generieren
                         </DropdownMenuItem>
@@ -255,6 +296,62 @@ export function TrainingPlansPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Generate Strategy Dialog */}
+      <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wochenpläne generieren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {genPreview && genPreview.edited_week_count > 0 && (
+                <>
+                  <span className="font-medium text-[var(--color-text-warning)]">
+                    {genPreview.edited_week_count} von {genPreview.total_generated_weeks} Wochen
+                  </span>{' '}
+                  für „{generatingPlan?.name}" wurden manuell bearbeitet.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {genPreview && genPreview.edited_week_count > 0 && (
+            <div className="space-y-2 px-[var(--spacing-md)]">
+              <Label>Strategie</Label>
+              <Select
+                options={[
+                  {
+                    value: 'unedited_only',
+                    label: `Nur unbearbeitete Wochen (${genPreview.unedited_week_count})`,
+                  },
+                  {
+                    value: 'all',
+                    label: `Alle Wochen überschreiben (${genPreview.total_generated_weeks})`,
+                  },
+                ]}
+                value={genStrategy}
+                onChange={(v) => {
+                  if (v) setGenStrategy(v as 'all' | 'unedited_only');
+                }}
+                inputSize="sm"
+              />
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (generatingPlan) {
+                  handleGenerateConfirm(generatingPlan.id, generatingPlan.name, genStrategy);
+                }
+              }}
+              disabled={generating}
+            >
+              {generating ? <Spinner size="sm" /> : 'Generieren'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
-"""Tests for Weekly Plan (Issue #26, #28)."""
+"""Tests for Weekly Plan (Issue #26, #28, E16-S03)."""
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -526,3 +526,166 @@ async def test_compliance_run_type_in_response(
     assert monday["status"] == "completed"
     assert monday["planned_run_type"] == "tempo"
     assert monday["actual_sessions"][0]["training_type_effective"] == "tempo"
+
+
+# --- plan_id / edited Tests (E16-S03) ---
+
+
+async def _generate_plan_entries(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    week_start: str = "2026-08-03",
+) -> int:
+    """Helper: create a plan with one phase and generate entries. Returns plan_id."""
+    end_date = (date.fromisoformat(week_start) + timedelta(days=6)).isoformat()
+    plan_resp = await client.post(
+        "/api/v1/training-plans",
+        json={
+            "name": "Edited-Test-Plan",
+            "start_date": week_start,
+            "end_date": end_date,
+            "phases": [
+                {
+                    "name": "Base",
+                    "phase_type": "base",
+                    "start_week": 1,
+                    "end_week": 1,
+                    "weekly_template": {
+                        "days": [
+                            {
+                                "day_of_week": i,
+                                "training_type": "running" if i < 3 else None,
+                                "is_rest_day": i >= 3,
+                            }
+                            for i in range(7)
+                        ],
+                    },
+                },
+            ],
+        },
+    )
+    assert plan_resp.status_code == 201
+    plan_id: int = plan_resp.json()["id"]
+
+    gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate")
+    assert gen_resp.status_code == 200
+    return plan_id
+
+
+@pytest.mark.anyio
+async def test_save_preserves_plan_id(client: AsyncClient, db_session: AsyncSession) -> None:
+    """PUT /weekly-plan should preserve plan_id from generated entries."""
+    plan_id = await _generate_plan_entries(client, db_session, "2026-08-03")
+
+    # Verify entries have plan_id
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-03"})
+    entries = get_resp.json()["entries"]
+    assert entries[0]["plan_id"] == plan_id
+
+    # Save same content via PUT
+    save_data = {
+        "week_start": "2026-08-03",
+        "entries": [
+            {
+                "day_of_week": e["day_of_week"],
+                "training_type": e["training_type"],
+                "is_rest_day": e["is_rest_day"],
+                "notes": e["notes"],
+                "run_details": e["run_details"],
+            }
+            for e in entries
+            if e["training_type"] or e["is_rest_day"]
+        ],
+    }
+    put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert put_resp.status_code == 200
+
+    # plan_id should still be there
+    get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-03"})
+    for e in get_resp2.json()["entries"]:
+        if e["training_type"] or e["is_rest_day"]:
+            assert e["plan_id"] == plan_id
+
+
+@pytest.mark.anyio
+async def test_save_sets_edited_on_content_change(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /weekly-plan should set edited=True when content changes."""
+    await _generate_plan_entries(client, db_session, "2026-08-10")
+
+    # Modify one entry (add notes to Monday)
+    save_data = {
+        "week_start": "2026-08-10",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "training_type": "running",
+                "is_rest_day": False,
+                "notes": "Manuell geaendert",
+            },
+            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+        ],
+    }
+    put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert put_resp.status_code == 200
+
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-10"})
+    entries = get_resp.json()["entries"]
+    # Monday should be edited (we added notes)
+    assert entries[0]["edited"] is True
+    # Tuesday should not be edited (content unchanged)
+    assert entries[1]["edited"] is False
+
+
+@pytest.mark.anyio
+async def test_save_preserves_edited_false_on_no_change(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /weekly-plan with identical content should keep edited=False."""
+    await _generate_plan_entries(client, db_session, "2026-08-17")
+
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-17"})
+    entries = get_resp.json()["entries"]
+
+    # Save identical content
+    save_data = {
+        "week_start": "2026-08-17",
+        "entries": [
+            {
+                "day_of_week": e["day_of_week"],
+                "training_type": e["training_type"],
+                "is_rest_day": e["is_rest_day"],
+                "notes": e["notes"],
+                "run_details": e["run_details"],
+            }
+            for e in entries
+            if e["training_type"] or e["is_rest_day"]
+        ],
+    }
+    put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert put_resp.status_code == 200
+
+    get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-17"})
+    for e in get_resp2.json()["entries"]:
+        assert e["edited"] is False
+
+
+@pytest.mark.anyio
+async def test_edited_and_plan_id_in_get_response(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /weekly-plan should return plan_id and edited fields."""
+    plan_id = await _generate_plan_entries(client, db_session, "2026-08-24")
+
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-24"})
+    entries = get_resp.json()["entries"]
+
+    # Generated entries should have plan_id and edited=False
+    for e in entries:
+        if e["training_type"] or e["is_rest_day"]:
+            assert e["plan_id"] == plan_id
+            assert e["edited"] is False
+        else:
+            assert e["plan_id"] is None
+            assert e["edited"] is False

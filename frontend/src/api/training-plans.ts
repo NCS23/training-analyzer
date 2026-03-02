@@ -247,9 +247,26 @@ export interface GenerateWeeklyPlansResponse {
   total_weeks: number;
 }
 
-export async function generateWeeklyPlans(planId: number): Promise<GenerateWeeklyPlansResponse> {
+export interface GenerationPreviewResponse {
+  total_generated_weeks: number;
+  edited_week_count: number;
+  edited_week_starts: string[];
+  unedited_week_count: number;
+}
+
+export async function getGenerationPreview(planId: number): Promise<GenerationPreviewResponse> {
+  const response = await apiClient.get<GenerationPreviewResponse>(
+    `/api/v1/training-plans/${planId}/generation-preview`,
+  );
+  return response.data;
+}
+
+export async function generateWeeklyPlans(
+  planId: number,
+  strategy: 'all' | 'unedited_only' = 'all',
+): Promise<GenerateWeeklyPlansResponse> {
   const response = await apiClient.post<GenerateWeeklyPlansResponse>(
-    `/api/v1/training-plans/${planId}/generate`,
+    `/api/v1/training-plans/${planId}/generate?strategy=${strategy}`,
     {},
   );
   return response.data;

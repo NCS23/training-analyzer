@@ -39,6 +39,8 @@ export interface WeeklyPlanEntry {
   is_rest_day: boolean;
   notes: string | null;
   run_details: RunDetails | null;
+  plan_id: number | null;
+  edited: boolean;
 }
 
 export interface WeeklyPlanResponse {

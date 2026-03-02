@@ -45,6 +45,8 @@ class WeeklyPlanEntry(BaseModel):
     is_rest_day: bool = False
     notes: Optional[str] = Field(None, max_length=500)
     run_details: Optional[RunDetails] = None
+    plan_id: Optional[int] = None  # returned in response only
+    edited: bool = False  # returned in response only
 
 
 class WeeklyPlanResponse(BaseModel):
