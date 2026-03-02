@@ -1,8 +1,6 @@
 #!/bin/sh
-set -e
 
 echo "Waiting for PostgreSQL..."
-# Extract host and port from DATABASE_URL
 DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\1|p')
 DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\2|p')
 
@@ -16,7 +14,11 @@ for i in $(seq 1 30); do
 done
 
 echo "Running Alembic migrations..."
-alembic upgrade head
+if alembic upgrade head; then
+  echo "Migrations completed successfully."
+else
+  echo "WARNING: Alembic migrations failed (exit code $?). Starting app anyway."
+fi
 
 echo "Starting uvicorn..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
