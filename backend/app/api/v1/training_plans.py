@@ -7,7 +7,7 @@ from typing import Optional
 import yaml
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
@@ -823,36 +823,23 @@ async def generate_plan_weeks(
         )
         edited_weeks = {row[0] for row in edited_result.all()}
 
-    # Delete old days + sessions by plan_id (skip edited weeks if strategy=unedited_only)
-    old_by_plan = await db.execute(
-        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.plan_id == plan_id)
-    )
-    for old_day in old_by_plan.scalars().all():
-        if strategy == "unedited_only" and old_day.week_start in edited_weeks:
-            continue
-        # Delete associated sessions first
-        old_sessions = await db.execute(
-            select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
-        )
-        for old_sess in old_sessions.scalars().all():
-            await db.delete(old_sess)
-        await db.delete(old_day)
-
-    # Delete manual entries for weeks that will be regenerated
+    # Determine weeks to (re)generate
     weeks_to_generate = (
         [ws for ws in new_week_starts if ws not in edited_weeks]
         if strategy == "unedited_only"
         else new_week_starts
     )
 
+    # Delete ALL existing days for target weeks (regardless of plan_id).
+    # This handles: same plan re-generation, orphaned entries from deleted
+    # plans, and manual entries — preventing UniqueConstraint violations.
     if weeks_to_generate:
-        old_by_week = await db.execute(
+        old_days_result = await db.execute(
             select(WeeklyPlanDayModel).where(
                 WeeklyPlanDayModel.week_start.in_(weeks_to_generate),
-                WeeklyPlanDayModel.plan_id.is_(None),
             )
         )
-        for old_day in old_by_week.scalars().all():
+        for old_day in old_days_result.scalars().all():
             old_sessions = await db.execute(
                 select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
             )
@@ -1110,6 +1097,13 @@ async def delete_plan(
                 for workout in workout_result.scalars().all():
                     workout.planned_entry_id = None  # type: ignore[assignment]
             await db.delete(day)
+    else:
+        # Detach weekly plan days from deleted plan (prevent orphaned plan_id)
+        await db.execute(
+            update(WeeklyPlanDayModel)
+            .where(WeeklyPlanDayModel.plan_id == plan_id)
+            .values(plan_id=None)
+        )
 
     # Always clean up changelog entries
     changelog_result = await db.execute(

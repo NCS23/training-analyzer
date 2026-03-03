@@ -297,8 +297,9 @@ export function TrainingPlanEditorPage() {
         title: `${result.weeks_generated} Wochenpläne erstellt`,
         variant: 'success',
       });
-    } catch {
-      toast({ title: 'Generierung fehlgeschlagen', variant: 'error' });
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast({ title: detail ?? 'Generierung fehlgeschlagen', variant: 'error' });
     } finally {
       setGenerating(false);
       setShowGenerateDialog(false);
