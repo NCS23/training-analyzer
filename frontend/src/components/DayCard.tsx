@@ -1,6 +1,11 @@
 import { Button, Input, Select, Separator } from '@nordlig/components';
 import { Check, ChevronDown, Dumbbell, Footprints, Minus, Moon, Pencil, Plus } from 'lucide-react';
-import type { PlannedSession, RunDetails, WeeklyPlanEntry, ComplianceDayEntry } from '@/api/weekly-plan';
+import type {
+  PlannedSession,
+  RunDetails,
+  WeeklyPlanEntry,
+  ComplianceDayEntry,
+} from '@/api/weekly-plan';
 
 // --- Constants ---
 
@@ -257,10 +262,7 @@ function SessionHeaderRow({ session }: { session: PlannedSession }) {
         {runDetails?.target_pace_min && (
           <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
             {runDetails.target_pace_min}
-            {runDetails.target_pace_max
-              ? `–${runDetails.target_pace_max}`
-              : ''}{' '}
-            /km
+            {runDetails.target_pace_max ? `–${runDetails.target_pace_max}` : ''} /km
           </span>
         )}
       </div>
@@ -396,9 +398,7 @@ export function DayCard({
               <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
             </div>
           ) : hasPlanSessions ? (
-            entry.sessions.map((session, idx) => (
-              <SessionHeaderRow key={idx} session={session} />
-            ))
+            entry.sessions.map((session, idx) => <SessionHeaderRow key={idx} session={session} />)
           ) : (
             <span className="text-xs text-[var(--color-text-disabled)]">—</span>
           )}

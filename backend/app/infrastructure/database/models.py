@@ -177,9 +177,7 @@ class TrainingPhaseModel(Base):
 
 class WeeklyPlanDayModel(Base):
     __tablename__ = "weekly_plan_days"
-    __table_args__ = (
-        UniqueConstraint("week_start", "day_of_week", name="uq_day_week_day"),
-    )
+    __table_args__ = (UniqueConstraint("week_start", "day_of_week", name="uq_day_week_day"),)
 
     id = Column(Integer, primary_key=True, index=True)
     plan_id = Column(Integer, nullable=True, index=True)  # FK to training_plans (NULL = manual)
@@ -206,7 +204,6 @@ class PlannedSessionModel(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
 
 
 class PlanChangeLogModel(Base):

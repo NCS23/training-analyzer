@@ -509,8 +509,7 @@ def generate_weekly_plans(
             if running_sessions:
                 # Determine long run volume pct from template or defaults
                 has_long_run = any(
-                    s.run_details and s.run_details.run_type == "long_run"
-                    for s in running_sessions
+                    s.run_details and s.run_details.run_type == "long_run" for s in running_sessions
                 )
                 if (per_week_template or shared_template) and has_long_run:
                     # Template path: use 0.30 default for long run share
@@ -530,9 +529,7 @@ def generate_weekly_plans(
                     s for s in non_long if s.run_details and s.run_details.run_type in _qual_vol
                 ]
                 easy_sessions = [
-                    s
-                    for s in non_long
-                    if s.run_details and s.run_details.run_type not in _qual_vol
+                    s for s in non_long if s.run_details and s.run_details.run_type not in _qual_vol
                 ]
 
                 quality_km_each = remaining_km * QUALITY_VOLUME_PCT if quality_sessions else 0.0

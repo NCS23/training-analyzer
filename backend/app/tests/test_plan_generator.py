@@ -758,9 +758,7 @@ async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
     assert len(running_with_details) > 0
     # At least one should have pace (because goal is set)
     has_pace = any(
-        _first_run_details(e).target_pace_min
-        for e in running_with_details
-        if _first_run_details(e)
+        _first_run_details(e).target_pace_min for e in running_with_details if _first_run_details(e)
     )
     assert has_pace
 

@@ -715,9 +715,7 @@ async def generate_plan_weeks(
             continue
         # Delete associated sessions first
         old_sessions = await db.execute(
-            select(PlannedSessionModel).where(
-                PlannedSessionModel.day_id == old_day.id
-            )
+            select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
         )
         for old_sess in old_sessions.scalars().all():
             await db.delete(old_sess)
@@ -739,9 +737,7 @@ async def generate_plan_weeks(
         )
         for old_day in old_by_week.scalars().all():
             old_sessions = await db.execute(
-                select(PlannedSessionModel).where(
-                    PlannedSessionModel.day_id == old_day.id
-                )
+                select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
             )
             for old_sess in old_sessions.scalars().all():
                 await db.delete(old_sess)

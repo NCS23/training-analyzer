@@ -105,14 +105,24 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
   if (type === 'strength') {
     return {
       day_of_week: dayOfWeek,
-      sessions: [{ position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null }],
+      sessions: [
+        { position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null },
+      ],
       is_rest_day: false,
       notes: null,
     };
   }
   return {
     day_of_week: dayOfWeek,
-    sessions: [{ position: 0, training_type: 'running', run_type: type as RunType, template_id: null, notes: null }],
+    sessions: [
+      {
+        position: 0,
+        training_type: 'running',
+        run_type: type as RunType,
+        template_id: null,
+        notes: null,
+      },
+    ],
     is_rest_day: false,
     notes: null,
   };
@@ -153,7 +163,12 @@ interface TemplateSessionEditorProps {
   onRemove: () => void;
 }
 
-function TemplateSessionEditor({ session, canRemove, onUpdate, onRemove }: TemplateSessionEditorProps) {
+function TemplateSessionEditor({
+  session,
+  canRemove,
+  onUpdate,
+  onRemove,
+}: TemplateSessionEditorProps) {
   const handleTypeChange = (val: string) => {
     if (val === 'strength') {
       onUpdate({ ...session, training_type: 'strength', run_type: null, run_details: undefined });
@@ -229,7 +244,8 @@ function TemplateSessionEditor({ session, canRemove, onUpdate, onRemove }: Templ
 
 function DayCellIcon({ type }: { type: DayType }) {
   if (type === 'rest') return <Moon className="w-3 h-3 text-[var(--color-text-muted)]" />;
-  if (type === 'strength') return <Dumbbell className="w-3 h-3 text-[var(--color-secondary-1-500)]" />;
+  if (type === 'strength')
+    return <Dumbbell className="w-3 h-3 text-[var(--color-secondary-1-500)]" />;
   return <Footprints className="w-3 h-3 text-[var(--color-primary-1-500)]" />;
 }
 
@@ -283,9 +299,7 @@ export function PhaseWeeklyTemplateEditor({
 
   const updateDay = useCallback(
     (dayIndex: number, updatedDay: PhaseWeeklyTemplateDayEntry) => {
-      const newDays = currentTemplate.days.map((day, i) =>
-        i === dayIndex ? updatedDay : day,
-      );
+      const newDays = currentTemplate.days.map((day, i) => (i === dayIndex ? updatedDay : day));
       updateTemplate({ days: newDays });
     },
     [currentTemplate, updateTemplate],
@@ -329,23 +343,49 @@ export function PhaseWeeklyTemplateEditor({
   const handleInitialTypeChange = useCallback(
     (dayIndex: number, val: string) => {
       if (val === 'rest') {
-        updateDay(dayIndex, { day_of_week: dayIndex, sessions: [], is_rest_day: true, notes: null });
+        updateDay(dayIndex, {
+          day_of_week: dayIndex,
+          sessions: [],
+          is_rest_day: true,
+          notes: null,
+        });
       } else if (val === 'strength') {
         updateDay(dayIndex, {
           day_of_week: dayIndex,
-          sessions: [{ position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null }],
+          sessions: [
+            {
+              position: 0,
+              training_type: 'strength',
+              run_type: null,
+              template_id: null,
+              notes: null,
+            },
+          ],
           is_rest_day: false,
           notes: null,
         });
       } else if (val === 'running') {
         updateDay(dayIndex, {
           day_of_week: dayIndex,
-          sessions: [{ position: 0, training_type: 'running', run_type: 'easy', template_id: null, notes: null }],
+          sessions: [
+            {
+              position: 0,
+              training_type: 'running',
+              run_type: 'easy',
+              template_id: null,
+              notes: null,
+            },
+          ],
           is_rest_day: false,
           notes: null,
         });
       } else {
-        updateDay(dayIndex, { day_of_week: dayIndex, sessions: [], is_rest_day: false, notes: null });
+        updateDay(dayIndex, {
+          day_of_week: dayIndex,
+          sessions: [],
+          is_rest_day: false,
+          notes: null,
+        });
       }
     },
     [updateDay],
@@ -504,7 +544,9 @@ export function PhaseWeeklyTemplateEditor({
                   dayTypes.map((type, idx) => (
                     <div key={idx} className="flex items-center gap-0.5">
                       <DayCellIcon type={type} />
-                      <span className={`text-[10px] font-medium ${DAY_TYPE_COLORS[type].split(' ')[1] ?? 'text-[var(--color-text-base)]'}`}>
+                      <span
+                        className={`text-[10px] font-medium ${DAY_TYPE_COLORS[type].split(' ')[1] ?? 'text-[var(--color-text-base)]'}`}
+                      >
                         {DAY_TYPE_SHORT[type]}
                       </span>
                     </div>

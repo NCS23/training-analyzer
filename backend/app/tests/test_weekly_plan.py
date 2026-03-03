@@ -1011,9 +1011,7 @@ async def test_sync_to_plan_all_weeks(client: AsyncClient, db_session: AsyncSess
 
 
 @pytest.mark.anyio
-async def test_sync_to_plan_multi_session(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_sync_to_plan_multi_session(client: AsyncClient, db_session: AsyncSession) -> None:
     """Sync a day with multiple sessions → all sessions appear in template."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-12-07")
 

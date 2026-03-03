@@ -123,9 +123,7 @@ def _build_entry_from_db(
 
     session_list: list[PlannedSession] = []
     for s in sessions:
-        run_details = _parse_run_details(
-            str(s.run_details_json) if s.run_details_json else None
-        )
+        run_details = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
         tid = int(s.template_id) if s.template_id else None
         session_list.append(
             PlannedSession(
@@ -279,7 +277,9 @@ def _diff_day_entry(
 
         # RunDetails diff
         old_rd_str = str(old_s.run_details_json) if old_s and old_s.run_details_json else None
-        new_rd_str = json.dumps(new_s.run_details.model_dump()) if new_s and new_s.run_details else None
+        new_rd_str = (
+            json.dumps(new_s.run_details.model_dump()) if new_s and new_s.run_details else None
+        )
         if (old_rd_str or None) != (new_rd_str or None):
             old_rd: dict[str, object] = json.loads(old_rd_str) if old_rd_str else {}
             new_rd: dict[str, object] = json.loads(new_rd_str) if new_rd_str else {}
@@ -337,9 +337,7 @@ async def save_weekly_plan(
         if old_day and old_day.plan_id:
             plan_id = int(old_day.plan_id)
             edited = (
-                True
-                if _has_content_changed(old_day, old_sessions, entry)
-                else bool(old_day.edited)
+                True if _has_content_changed(old_day, old_sessions, entry) else bool(old_day.edited)
             )
 
         db_day = WeeklyPlanDayModel(
@@ -375,11 +373,7 @@ async def save_weekly_plan(
         old_day = old[0] if old else None
         old_sessions = old[1] if old else []
 
-        if (
-            old_day
-            and old_day.plan_id
-            and _has_content_changed(old_day, old_sessions, entry)
-        ):
+        if old_day and old_day.plan_id and _has_content_changed(old_day, old_sessions, entry):
             pid = int(old_day.plan_id)
             day_changes = _diff_day_entry(old_day, old_sessions, entry)
             if day_changes:
@@ -552,9 +546,7 @@ async def get_compliance(
             for s in db_sessions:
                 planned_types.append(str(s.training_type))
                 if str(s.training_type) == "running" and planned_run_type is None:
-                    rd = _parse_run_details(
-                        str(s.run_details_json) if s.run_details_json else None
-                    )
+                    rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
                     if rd:
                         planned_run_type = rd.run_type
 
@@ -653,17 +645,13 @@ async def sync_to_plan(
             if db_sessions or db_day.is_rest_day:
                 template_sessions: list[PhaseWeeklyTemplateSessionEntry] = []
                 for s in db_sessions:
-                    rd = _parse_run_details(
-                        str(s.run_details_json) if s.run_details_json else None
-                    )
+                    rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
                     template_sessions.append(
                         PhaseWeeklyTemplateSessionEntry(
                             position=int(s.position),
                             training_type=str(s.training_type),
                             run_type=rd.run_type if rd else None,
-                            template_id=(
-                                int(s.template_id) if s.template_id else None
-                            ),
+                            template_id=(int(s.template_id) if s.template_id else None),
                             run_details=rd,
                         )
                     )

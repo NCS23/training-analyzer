@@ -45,9 +45,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=200)
 
     # Legacy flat fields (backwards-compat for old JSON, excluded from serialization)
-    training_type: Optional[str] = Field(
-        default=None, pattern="^(strength|running)$", exclude=True
-    )
+    training_type: Optional[str] = Field(default=None, pattern="^(strength|running)$", exclude=True)
     run_type: Optional[str] = Field(default=None, pattern=SESSION_TYPE_REGEX, exclude=True)
     template_id: Optional[int] = Field(default=None, exclude=True)
     run_details: Optional[RunDetails] = Field(default=None, exclude=True)
