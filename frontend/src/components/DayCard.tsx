@@ -138,13 +138,7 @@ function isDayInPast(weekStart: string, dayOfWeek: number): boolean {
 
 // --- Card-level session row (compact, clickable) ---
 
-function SessionCardRow({
-  session,
-  onClick,
-}: {
-  session: PlannedSession;
-  onClick: () => void;
-}) {
+function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick: () => void }) {
   const typeKey = getSessionTypeKey(session);
   const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
   const rd = session.run_details;
@@ -322,7 +316,9 @@ function SessionDetailDialog({
       <DialogContent>
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>Session {sessionIndex + 1} — {sessionLabel}</DialogTitle>
+            <DialogTitle>
+              Session {sessionIndex + 1} — {sessionLabel}
+            </DialogTitle>
             {!isEditing && (
               <DropdownMenu>
                 <DropdownMenuTrigger>
@@ -513,8 +509,7 @@ export function DayCard({
   const isPast = isDayInPast(weekStart, entry.day_of_week);
   const isCompleted = compliance?.status === 'completed' || compliance?.status === 'rest_ok';
   const isPartial = compliance?.status === 'partial';
-  const hasActualSessions =
-    compliance?.actual_sessions && compliance.actual_sessions.length > 0;
+  const hasActualSessions = compliance?.actual_sessions && compliance.actual_sessions.length > 0;
 
   const hasPlanSessions = entry.sessions.length > 0;
   const [openSessionIdx, setOpenSessionIdx] = useState<number | null>(null);
@@ -597,11 +592,7 @@ export function DayCard({
             </button>
           ) : hasPlanSessions ? (
             entry.sessions.map((session, idx) => (
-              <SessionCardRow
-                key={idx}
-                session={session}
-                onClick={() => setOpenSessionIdx(idx)}
-              />
+              <SessionCardRow key={idx} session={session} onClick={() => setOpenSessionIdx(idx)} />
             ))
           ) : (
             <span className="text-xs text-[var(--color-text-disabled)] px-1">—</span>
