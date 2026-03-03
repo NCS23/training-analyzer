@@ -15,12 +15,23 @@ class RunInterval(BaseModel):
     """A single interval in a structured run workout."""
 
     type: str = Field(..., pattern=SEGMENT_TYPE_REGEX)
-    duration_minutes: float = Field(..., gt=0, le=180)
+    duration_minutes: Optional[float] = Field(default=None, gt=0, le=180)
+    distance_km: Optional[float] = Field(default=None, gt=0, le=100)
     target_pace_min: Optional[str] = Field(default=None, max_length=10)  # e.g. "5:30"
     target_pace_max: Optional[str] = Field(default=None, max_length=10)  # e.g. "6:00"
     target_hr_min: Optional[int] = Field(default=None, ge=60, le=220)
     target_hr_max: Optional[int] = Field(default=None, ge=60, le=220)
     repeats: int = Field(default=1, ge=1, le=50)
+    notes: Optional[str] = Field(default=None, max_length=500)
+    exercise_name: Optional[str] = Field(default=None, max_length=100)
+
+    @model_validator(mode="after")
+    def _require_duration_or_distance(self) -> RunInterval:
+        """At least one of duration_minutes or distance_km must be set."""
+        if self.duration_minutes is None and self.distance_km is None:
+            msg = "Entweder duration_minutes oder distance_km muss gesetzt sein."
+            raise ValueError(msg)
+        return self
 
 
 class RunDetails(BaseModel):

@@ -104,11 +104,14 @@ def run_interval_to_segment(
         position=position,
         segment_type=interval.type,
         target_duration_minutes=interval.duration_minutes,
+        target_distance_km=interval.distance_km,
         target_pace_min=interval.target_pace_min,
         target_pace_max=interval.target_pace_max,
         target_hr_min=interval.target_hr_min,
         target_hr_max=interval.target_hr_max,
         repeats=interval.repeats,
+        notes=interval.notes,
+        exercise_name=interval.exercise_name,
     )
 
 
@@ -186,7 +189,8 @@ def segments_to_intervals(segments: list[Segment]) -> list[RunInterval]:
     """Konvertiert Segments zurueck zu RunIntervals (Backward-Compat).
 
     Bestimmt duration_minutes aus target_duration_minutes (Soll) oder
-    actual_duration_seconds (Ist), mit Fallback auf 1.0 Minute.
+    actual_duration_seconds (Ist). Wenn target_distance_km gesetzt ist,
+    wird distance_km uebernommen (duration bleibt dann ggf. None).
     """
     from app.models.weekly_plan import RunInterval as RunIntervalCls
 
@@ -195,19 +199,27 @@ def segments_to_intervals(segments: list[Segment]) -> list[RunInterval]:
         duration_min = seg.target_duration_minutes
         if duration_min is None and seg.actual_duration_seconds:
             duration_min = round(seg.actual_duration_seconds / 60, 1)
-        if duration_min is None or duration_min <= 0:
+
+        # Only force a fallback if there's no distance_km either
+        if duration_min is None and seg.target_distance_km is None:
             duration_min = 1.0
-        duration_min = min(duration_min, 180.0)
+        if duration_min is not None:
+            if duration_min <= 0:
+                duration_min = 1.0
+            duration_min = min(duration_min, 180.0)
 
         result.append(
             RunIntervalCls(
                 type=seg.segment_type,
                 duration_minutes=duration_min,
+                distance_km=seg.target_distance_km,
                 target_pace_min=seg.target_pace_min,
                 target_pace_max=seg.target_pace_max,
                 target_hr_min=seg.target_hr_min,
                 target_hr_max=seg.target_hr_max,
                 repeats=seg.repeats,
+                notes=seg.notes,
+                exercise_name=seg.exercise_name,
             )
         )
     return result

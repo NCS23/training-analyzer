@@ -676,3 +676,116 @@ class TestLapsToTemplateSegmentsDistance:
         ]
         segments = laps_to_template_segments(laps)
         assert segments[0].target_distance_km is None
+
+
+class TestRunIntervalNewFields:
+    """Test RunInterval with notes, exercise_name, distance_km (#141)."""
+
+    def test_interval_with_distance_instead_of_duration(self) -> None:
+        interval = RunInterval(type="work", distance_km=0.4, repeats=5)
+        assert interval.duration_minutes is None
+        assert interval.distance_km == 0.4
+        assert interval.repeats == 5
+
+    def test_interval_with_both_duration_and_distance(self) -> None:
+        interval = RunInterval(type="work", duration_minutes=3.0, distance_km=0.8)
+        assert interval.duration_minutes == 3.0
+        assert interval.distance_km == 0.8
+
+    def test_interval_without_duration_or_distance_fails(self) -> None:
+        with pytest.raises(ValueError, match="duration_minutes oder distance_km"):
+            RunInterval(type="work")
+
+    def test_interval_with_notes(self) -> None:
+        interval = RunInterval(type="work", duration_minutes=3.0, notes="bergauf")
+        assert interval.notes == "bergauf"
+
+    def test_interval_with_exercise_name(self) -> None:
+        interval = RunInterval(
+            type="drills",
+            duration_minutes=1.0,
+            exercise_name="Kniehebelauf",
+            notes="Fokus auf Kniehub",
+        )
+        assert interval.exercise_name == "Kniehebelauf"
+        assert interval.notes == "Fokus auf Kniehub"
+
+    def test_conversion_roundtrip_with_new_fields(self) -> None:
+        """RunInterval → Segment → RunInterval preserves new fields."""
+        interval = RunInterval(
+            type="drills",
+            distance_km=0.05,
+            notes="locker",
+            exercise_name="Anfersen",
+            repeats=2,
+        )
+        seg = run_interval_to_segment(interval, position=3)
+        assert seg.segment_type == "drills"
+        assert seg.target_distance_km == 0.05
+        assert seg.target_duration_minutes is None
+        assert seg.notes == "locker"
+        assert seg.exercise_name == "Anfersen"
+        assert seg.repeats == 2
+
+        # Round-trip back
+        intervals_back = segments_to_intervals([seg])
+        assert len(intervals_back) == 1
+        iv = intervals_back[0]
+        assert iv.type == "drills"
+        assert iv.distance_km == 0.05
+        assert iv.duration_minutes is None
+        assert iv.notes == "locker"
+        assert iv.exercise_name == "Anfersen"
+
+    def test_conversion_roundtrip_duration_only(self) -> None:
+        """Duration-only interval roundtrips correctly."""
+        interval = RunInterval(type="work", duration_minutes=3.0, notes="letzte 2 Vollgas")
+        seg = run_interval_to_segment(interval)
+        assert seg.target_duration_minutes == 3.0
+        assert seg.target_distance_km is None
+        assert seg.notes == "letzte 2 Vollgas"
+
+        intervals_back = segments_to_intervals([seg])
+        assert intervals_back[0].duration_minutes == 3.0
+        assert intervals_back[0].distance_km is None
+        assert intervals_back[0].notes == "letzte 2 Vollgas"
+
+    def test_intervals_to_segments_preserves_new_fields(self) -> None:
+        """intervals_to_segments maps notes, exercise_name, distance_km."""
+        intervals = [
+            RunInterval(type="warmup", duration_minutes=10),
+            RunInterval(
+                type="drills",
+                distance_km=0.03,
+                exercise_name="Skippings",
+                notes="schnell",
+                repeats=3,
+            ),
+            RunInterval(type="cooldown", duration_minutes=5),
+        ]
+        segments = intervals_to_segments(intervals)
+        assert len(segments) == 3
+        assert segments[1].exercise_name == "Skippings"
+        assert segments[1].notes == "schnell"
+        assert segments[1].target_distance_km == 0.03
+        assert segments[1].target_duration_minutes is None
+
+    def test_run_details_auto_derives_segments_with_new_fields(self) -> None:
+        """RunDetails model_validator auto-creates segments from intervals."""
+        rd = RunDetails(
+            run_type="intervals",
+            intervals=[
+                RunInterval(type="warmup", duration_minutes=10),
+                RunInterval(
+                    type="work",
+                    distance_km=0.4,
+                    notes="400m Wiederholungen",
+                    repeats=6,
+                ),
+            ],
+        )
+        assert rd.segments is not None
+        assert len(rd.segments) == 2
+        assert rd.segments[1].target_distance_km == 0.4
+        assert rd.segments[1].notes == "400m Wiederholungen"
+        assert rd.segments[1].repeats == 6

@@ -5,12 +5,15 @@ import type { Segment } from './segment';
 
 export interface RunInterval {
   type: 'warmup' | 'cooldown' | 'steady' | 'work' | 'recovery_jog' | 'rest' | 'strides' | 'drills';
-  duration_minutes: number;
+  duration_minutes?: number | null;
+  distance_km?: number | null;
   target_pace_min: string | null;
   target_pace_max: string | null;
   target_hr_min: number | null;
   target_hr_max: number | null;
   repeats: number;
+  notes?: string | null;
+  exercise_name?: string | null;
 }
 
 export interface RunDetails {

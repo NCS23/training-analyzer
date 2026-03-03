@@ -1,11 +1,115 @@
 # ============================================================
-# Trainingsplan — YAML-Vorlage
+# Trainingsplan — YAML Schema-Referenz
 # ============================================================
-# Diese Datei zeigt alle unterstuetzten Felder fuer den Import.
-# Importiere sie unter: Einstellungen → Trainingsplaene → Importieren
 #
-# Pflichtfelder sind mit (PFLICHT) markiert.
-# Alles andere ist optional.
+# Dieses Dokument dient als vollstaendige Referenz fuer das
+# YAML-Import-Format des Training Analyzers. Es ist so geschrieben,
+# dass sowohl Menschen als auch KI-Systeme es lesen und daraus
+# korrekte Trainingsplaene erzeugen koennen.
+#
+# Import: Einstellungen → Trainingsplaene → Importieren
+# Validierung: Die App prueft das YAML vor dem Import auf Fehler.
+#
+# ============================================================
+# SCHEMA-UEBERSICHT
+# ============================================================
+#
+# Ein Trainingsplan besteht aus:
+#   1. Grunddaten (name, start_date, end_date)
+#   2. Optionales Wettkampf-Ziel (goal)
+#   3. Wochenstruktur (rest_days)
+#   4. Phasen (phases[]) mit jeweils:
+#      - Phasentyp und Wochen-Range
+#      - Fokus und Ziel-Metriken
+#      - Wochen-Template mit 7 Tagen (weekly_template[])
+#        Jeder Tag hat optional Sessions mit run_details
+#        und strukturierten Intervallen/Segmenten.
+#
+# PFLICHTFELDER sind mit (PFLICHT) markiert.
+# Alle anderen Felder sind optional.
+#
+# ============================================================
+# ERLAUBTE WERTE (Enums)
+# ============================================================
+#
+# --- Session-Typen (run_type) ---
+# Verwendet fuer: run_type in weekly_template und run_details
+#
+#   recovery     — Regenerationslauf (sehr locker, kurz)
+#   easy         — Lockerer Dauerlauf (Grundlage, Zone 2)
+#   long_run     — Langer Lauf (Umfang, aerobe Basis)
+#   progression  — Steigerungslauf (beginnt locker, endet schnell)
+#   tempo        — Tempodauerlauf (Schwellentempo, 20-40 min)
+#   intervals    — Intervalltraining (strukturierte Belastungen)
+#   repetitions  — Wiederholungslaeufe (kurz + schnell, volle Erholung)
+#   fartlek      — Fahrtspiel (unstrukturierte Tempowechsel)
+#   race         — Wettkampf oder Wettkampfsimulation
+#
+# --- Segment-Typen (intervals[].type) ---
+# Verwendet fuer: type in intervals[] Bloecken
+#
+#   warmup       — Einlaufen (lockerer Start, 5-15 min)
+#   cooldown     — Auslaufen (lockeres Ende, 5-15 min)
+#   steady       — Gleichmaessiges Tempo (z.B. Dauerlauf-Abschnitt)
+#   work         — Belastungsintervall (schnelles Tempo)
+#   recovery_jog — Trabpause zwischen Intervallen
+#   rest         — Gehpause (komplett)
+#   strides      — Steigerungslaeufe (80-100m, 8-10x)
+#   drills       — Lauf-ABC / Technikuebungen
+#
+# --- Phasentypen (phases[].type) ---
+#
+#   base         — Grundlagenphase (Umfang aufbauen, aerobe Basis)
+#   build        — Aufbauphase (Intensitaet steigern)
+#   peak         — Wettkampfphase (hoechste Intensitaet, Wettkampftempo)
+#   taper        — Tapering (Umfang reduzieren, Frische gewinnen)
+#   transition   — Uebergangsphase (aktive Erholung)
+#
+# --- Trainingstypen (weekly_template[].type) ---
+#
+#   running      — Laufsession
+#   strength     — Krafttraining
+#
+# ============================================================
+# PACE-FORMAT
+# ============================================================
+#
+# Pace wird im Format M:SS angegeben (Minuten:Sekunden pro km).
+# Beispiele: "5:30" = 5 min 30 sek/km, "4:15" = 4 min 15 sek/km
+#
+# target_pace_min = schnelleres Ende der Pace-Range (niedrigerer Wert)
+# target_pace_max = langsameres Ende der Pace-Range (hoeherer Wert)
+#
+# Beispiel: target_pace_min: "5:30", target_pace_max: "6:00"
+#   → Laeufer soll zwischen 5:30 und 6:00 min/km laufen
+#
+# ============================================================
+# INTERVALL-FELDER
+# ============================================================
+#
+# Jedes Intervall in intervals[] unterstuetzt folgende Felder:
+#
+#   type             (PFLICHT) — Segment-Typ (siehe oben)
+#   duration_minutes (BEDINGT) — Dauer in Minuten (>0, max 180)
+#   distance_km      (BEDINGT) — Distanz in km (>0, max 100)
+#     → Mindestens duration_minutes ODER distance_km muss gesetzt sein.
+#     → Beide koennen auch gleichzeitig gesetzt sein.
+#   target_pace_min  — Schnelleres Pace-Ende (M:SS)
+#   target_pace_max  — Langsameres Pace-Ende (M:SS)
+#   target_hr_min    — Untere HR-Grenze (60-220 bpm)
+#   target_hr_max    — Obere HR-Grenze (60-220 bpm)
+#   repeats          — Wiederholungen (Standard: 1, max 50)
+#   notes            — Freitext-Notiz (max 500 Zeichen)
+#   exercise_name    — Uebungsname bei drills/strides (max 100 Zeichen)
+#
+# Verfuegbare Drill-Uebungen (exercise_name):
+#   Kniehebelauf, Anfersen, Skippings, Seitgalopp, Hopserlauf,
+#   Fussgelenksarbeit, Prellhopser, Sprunglauf, Steigerungslauf,
+#   Seitwaerts ueberkreuzen, Seitspruenge, Rueckwaertslaufen,
+#   B-Skip, High Kicks, Wechselspruenge, Vorderfussspruenge
+#
+# ============================================================
+# BEGINN DER VORLAGE
 # ============================================================
 
 # --- Plan-Grunddaten ---
@@ -38,14 +142,17 @@ weekly_structure:
   rest_days: [0, 6]                      # Ruhetage: 0=Montag, 6=Sonntag
 
 # --- Phasen ---
-# Jede Phase hat einen Typ: base | build | peak | taper | transition
-# Optional: weekly_template definiert das 7-Tage-Muster pro Phase.
-#   day: 0=Mo, 6=So | type: running|strength | run_type: easy|tempo|intervals|long_run|recovery
-#   rest: true fuer Ruhetage
+# Mindestens eine Phase ist erforderlich.
+# Phasen decken den Zeitraum von start_date bis end_date ab.
+# start_week/end_week sind 1-basiert (Woche 1 = erste Woche des Plans).
 
 phases:
+
+  # ──────────────────────────────────────
+  # PHASE 1: Grundlagenaufbau (base)
+  # ──────────────────────────────────────
   - name: "Grundlagenaufbau"
-    type: base                           # Phasentyp (alternativ: phase_type)
+    type: base
     start_week: 1
     end_week: 6
     focus:
@@ -54,25 +161,55 @@ phases:
     target_metrics:
       weekly_volume_min: 30              # km pro Woche (Minimum)
       weekly_volume_max: 45              # km pro Woche (Maximum)
-      quality_sessions_per_week: 1
+      quality_sessions_per_week: 1       # Qualitaetssessions (Intervall, Tempo etc.)
       strength_sessions_per_week: 2      # Kraft-Sessions pro Woche
-    weekly_template:
-      - day: 0
-        type: running
-        run_type: easy
-        run_details:                          # Optional: Konkrete Laufdetails
-          run_type: easy
-          target_duration_minutes: 45
-          target_pace_min: "5:40"             # Schnelleres Ende (M:SS)
-          target_pace_max: "6:10"             # Langsameres Ende (M:SS)
-      - { day: 1, type: strength }
-      - { day: 2, type: running, run_type: easy }
-      - { day: 3, type: running, run_type: easy }
-      - { day: 4, type: strength }
-      - { day: 5, type: running, run_type: long_run }
-      - { day: 6, rest: true }
     notes: "Langsamer Umfangaufbau, max. 10% Steigerung pro Woche."
 
+    # weekly_template: 7 Tage (day: 0=Mo bis 6=So)
+    # Jeder Tag ist entweder rest: true oder hat type + optionale Details.
+    weekly_template:
+
+      # Montag: Ruhetag
+      - day: 0
+        rest: true
+
+      # Dienstag: Einfacher Dauerlauf
+      - day: 1
+        type: running
+        run_type: easy
+        run_details:
+          run_type: easy
+          target_duration_minutes: 45
+          target_pace_min: "5:40"
+          target_pace_max: "6:10"
+
+      # Mittwoch: Krafttraining
+      - { day: 2, type: strength }
+
+      # Donnerstag: Lockerer Lauf
+      - { day: 3, type: running, run_type: easy }
+
+      # Freitag: Krafttraining
+      - { day: 4, type: strength }
+
+      # Samstag: Langer Lauf
+      - day: 5
+        type: running
+        run_type: long_run
+        run_details:
+          run_type: long_run
+          target_duration_minutes: 80
+          target_pace_min: "6:00"
+          target_pace_max: "6:30"
+          target_hr_min: 140
+          target_hr_max: 155
+
+      # Sonntag: Ruhetag
+      - { day: 6, rest: true }
+
+  # ──────────────────────────────────────
+  # PHASE 2: Spezifischer Aufbau (build)
+  # ──────────────────────────────────────
   - name: "Spezifischer Aufbau"
     type: build
     start_week: 7
@@ -85,6 +222,7 @@ phases:
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
+    notes: "Tempolaeufe und Schwellentraining einfuehren."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
       - { day: 1, type: strength }
@@ -93,8 +231,11 @@ phases:
       - { day: 4, type: running, run_type: easy }
       - { day: 5, type: running, run_type: long_run }
       - { day: 6, rest: true }
-    notes: "Tempolaeufe und Schwellentraining einfuehren."
 
+  # ──────────────────────────────────────
+  # PHASE 3: Wettkampfvorbereitung (peak)
+  # Beispiel mit strukturierten Intervallen
+  # ──────────────────────────────────────
   - name: "Wettkampfvorbereitung"
     type: peak
     start_week: 12
@@ -106,26 +247,77 @@ phases:
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
+    notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
+
+      # ── Beispiel: Intervall-Session mit intervals[] ──
       - day: 1
         type: running
         run_type: intervals
-        run_details:                          # Strukturierte Intervall-Session
+        run_details:
           run_type: intervals
           target_duration_minutes: 60
           intervals:
-            - { type: warmup, duration_minutes: 10, target_pace_min: "5:40", target_pace_max: "6:00", repeats: 1 }
-            - { type: work, duration_minutes: 3, target_pace_min: "4:20", target_pace_max: "4:35", repeats: 5 }
-            - { type: recovery_jog, duration_minutes: 2, target_pace_min: "6:00", target_pace_max: "6:30", repeats: 5 }
-            - { type: cooldown, duration_minutes: 10, target_pace_min: "5:40", target_pace_max: "6:00", repeats: 1 }
+            - type: warmup
+              duration_minutes: 10
+              target_pace_min: "5:40"
+              target_pace_max: "6:00"
+              repeats: 1
+            - type: work
+              duration_minutes: 3
+              target_pace_min: "4:20"
+              target_pace_max: "4:35"
+              target_hr_min: 170
+              target_hr_max: 185
+              repeats: 5
+              notes: "VO2max-Intervalle, Fokus auf gleichmaessiges Tempo"
+            - type: recovery_jog
+              duration_minutes: 2
+              target_pace_min: "6:00"
+              target_pace_max: "6:30"
+              repeats: 5
+            - type: cooldown
+              duration_minutes: 10
+              target_pace_min: "5:40"
+              target_pace_max: "6:00"
+              repeats: 1
+
       - { day: 2, type: running, run_type: easy }
-      - { day: 3, type: running, run_type: tempo }
+
+      # ── Beispiel: Distanz-basierte Intervalle (400m) ──
+      - day: 3
+        type: running
+        run_type: repetitions
+        run_details:
+          run_type: repetitions
+          target_duration_minutes: 50
+          intervals:
+            - type: warmup
+              duration_minutes: 10
+              target_pace_min: "5:40"
+              target_pace_max: "6:00"
+            - type: work
+              distance_km: 0.4
+              target_pace_min: "3:50"
+              target_pace_max: "4:00"
+              repeats: 8
+              notes: "400m Wiederholungen, volle Erholung dazwischen"
+            - type: recovery_jog
+              duration_minutes: 3
+              repeats: 8
+            - type: cooldown
+              duration_minutes: 10
+              target_pace_min: "6:00"
+              target_pace_max: "6:30"
+
       - { day: 4, type: strength }
       - { day: 5, type: running, run_type: long_run }
       - { day: 6, rest: true }
-    notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
 
+  # ──────────────────────────────────────
+  # PHASE 4: Tapering
+  # ──────────────────────────────────────
   - name: "Tapering"
     type: taper
     start_week: 15
@@ -137,12 +329,61 @@ phases:
       weekly_volume_max: 35
       quality_sessions_per_week: 1
       strength_sessions_per_week: 0
+    notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
-      - { day: 1, type: running, run_type: tempo }
+
+      # ── Beispiel: Steigerungslaeufe (strides) ──
+      - day: 1
+        type: running
+        run_type: easy
+        run_details:
+          run_type: easy
+          target_duration_minutes: 35
+          intervals:
+            - type: steady
+              duration_minutes: 25
+              target_pace_min: "5:40"
+              target_pace_max: "6:00"
+            - type: strides
+              distance_km: 0.1
+              repeats: 6
+              notes: "6x100m Steigerungen, locker beginnen, bis 90% steigern"
+
       - { day: 2, rest: true }
-      - { day: 3, type: running, run_type: easy }
+
+      # ── Beispiel: Lauf-ABC / Drills ──
+      - day: 3
+        type: running
+        run_type: easy
+        run_details:
+          run_type: easy
+          target_duration_minutes: 30
+          intervals:
+            - type: warmup
+              duration_minutes: 10
+              target_pace_min: "6:00"
+              target_pace_max: "6:30"
+            - type: drills
+              duration_minutes: 1
+              exercise_name: "Kniehebelauf"
+              notes: "Knie huefthoch, Vorderfuss-Aufsatz"
+              repeats: 2
+            - type: drills
+              duration_minutes: 1
+              exercise_name: "Anfersen"
+              notes: "Fersen zum Gesaess, Oberkörper aufrecht"
+              repeats: 2
+            - type: drills
+              duration_minutes: 1
+              exercise_name: "Skippings"
+              notes: "Maximale Frequenz, kurze Bodenkontaktzeit"
+              repeats: 2
+            - type: cooldown
+              duration_minutes: 10
+              target_pace_min: "6:00"
+              target_pace_max: "6:30"
+
       - { day: 4, rest: true }
       - { day: 5, type: running, run_type: easy }
       - { day: 6, rest: true }
-    notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."

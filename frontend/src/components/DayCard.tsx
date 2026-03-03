@@ -42,23 +42,29 @@ import { RunDetailsEditor } from './RunDetailsEditor';
 function intervalsToDisplaySegments(
   intervals: {
     type: string;
-    duration_minutes: number;
+    duration_minutes?: number | null;
+    distance_km?: number | null;
     target_pace_min: string | null;
     target_pace_max: string | null;
     target_hr_min: number | null;
     target_hr_max: number | null;
     repeats: number;
+    notes?: string | null;
+    exercise_name?: string | null;
   }[],
 ): Segment[] {
   return intervals.map((iv, i) =>
     createEmptySegment(i, {
       segment_type: iv.type as Segment['segment_type'],
-      target_duration_minutes: iv.duration_minutes,
+      target_duration_minutes: iv.duration_minutes ?? null,
+      target_distance_km: iv.distance_km ?? null,
       target_pace_min: iv.target_pace_min,
       target_pace_max: iv.target_pace_max,
       target_hr_min: iv.target_hr_min,
       target_hr_max: iv.target_hr_max,
       repeats: iv.repeats,
+      notes: iv.notes ?? null,
+      exercise_name: iv.exercise_name ?? null,
     }),
   );
 }

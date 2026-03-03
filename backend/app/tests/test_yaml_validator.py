@@ -692,3 +692,88 @@ class TestValidateYamlEndpoint:
         body = response.json()
         assert body["valid"] is True
         assert len(body["warnings"]) > 0
+
+
+class TestIntervalNewFieldsValidation:
+    """Tests for interval distance_km, notes, exercise_name validation (#141)."""
+
+    def test_interval_with_distance_km_valid(self) -> None:
+        data = _minimal_plan(
+            intervals=[
+                {"type": "work", "distance_km": 0.4, "repeats": 5},
+                {"type": "recovery_jog", "duration_minutes": 2, "repeats": 5},
+            ]
+        )
+        result = validate_yaml_plan(data)
+        assert result.valid is True
+        # No errors about missing duration/distance
+        assert not any(e.code == "interval_missing_target" for e in result.errors)
+
+    def test_interval_without_duration_or_distance_error(self) -> None:
+        data = _minimal_plan(
+            intervals=[
+                {"type": "work", "repeats": 5},  # no duration, no distance
+            ]
+        )
+        result = validate_yaml_plan(data)
+        assert result.valid is False
+        missing = [e for e in result.errors if e.code == "interval_missing_target"]
+        assert len(missing) == 1
+        assert "duration_minutes oder distance_km" in missing[0].message
+
+    def test_interval_with_notes_valid(self) -> None:
+        data = _minimal_plan(
+            intervals=[
+                {
+                    "type": "work",
+                    "duration_minutes": 3,
+                    "notes": "bergauf, Fokus Kniehub",
+                },
+            ]
+        )
+        result = validate_yaml_plan(data)
+        assert result.valid is True
+
+    def test_interval_with_exercise_name_valid(self) -> None:
+        data = _minimal_plan(
+            intervals=[
+                {
+                    "type": "drills",
+                    "duration_minutes": 1,
+                    "exercise_name": "Kniehebelauf",
+                    "notes": "locker",
+                },
+            ]
+        )
+        result = validate_yaml_plan(data)
+        assert result.valid is True
+
+
+def _minimal_plan(
+    intervals: list[dict],  # type: ignore[type-arg]
+) -> dict:  # type: ignore[type-arg]
+    """Helper: create a minimal valid plan dict with given intervals."""
+    return {
+        "name": "Test",
+        "start_date": "2026-04-06",
+        "end_date": "2026-07-26",
+        "phases": [
+            {
+                "name": "P1",
+                "type": "base",
+                "start_week": 1,
+                "end_week": 8,
+                "weekly_template": [
+                    {
+                        "day": 2,
+                        "type": "running",
+                        "run_type": "intervals",
+                        "run_details": {
+                            "run_type": "intervals",
+                            "intervals": intervals,
+                        },
+                    },
+                ],
+            },
+        ],
+    }

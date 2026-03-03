@@ -353,6 +353,7 @@ def _check_weekly_template(
             if isinstance(intervals, list):
                 for k, interval in enumerate(intervals):
                     if isinstance(interval, dict):
+                        iv_loc = f"{day_loc}.run_details.intervals[{k}]"
                         # Segment type check
                         seg_type = interval.get("type")
                         if seg_type:
@@ -367,9 +368,24 @@ def _check_weekly_template(
                             )
                         _check_pace_fields(
                             interval,
-                            f"{day_loc}.run_details.intervals[{k}]",
+                            iv_loc,
                             warnings,
                         )
+                        # Require at least duration_minutes or distance_km
+                        has_dur = interval.get("duration_minutes") is not None
+                        has_dist = interval.get("distance_km") is not None
+                        if not has_dur and not has_dist:
+                            errors.append(
+                                YamlValidationIssue(
+                                    code="interval_missing_target",
+                                    level="error",
+                                    message=(
+                                        f"Intervall {k} in Phase '{phase_name}' Tag {dow}: "
+                                        "duration_minutes oder distance_km muss gesetzt sein."
+                                    ),
+                                    location=iv_loc,
+                                )
+                            )
 
 
 def _check_type_value(
