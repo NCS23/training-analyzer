@@ -91,6 +91,7 @@ export interface TrainingPlan {
   status: PlanStatus;
   phases: TrainingPhase[];
   goal_summary: GoalSummary | null;
+  weekly_plan_week_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -102,6 +103,7 @@ export interface TrainingPlanSummary {
   start_date: string;
   end_date: string;
   phase_count: number;
+  weekly_plan_week_count: number;
   goal_title: string | null;
   created_at: string;
   updated_at: string;
@@ -199,8 +201,12 @@ export async function updateTrainingPlan(
   return response.data;
 }
 
-export async function deleteTrainingPlan(planId: number): Promise<void> {
-  await apiClient.delete(`/api/v1/training-plans/${planId}`);
+export async function deleteTrainingPlan(
+  planId: number,
+  includeWeeklyPlans = false,
+): Promise<void> {
+  const params = includeWeeklyPlans ? '?include_weekly_plans=true' : '';
+  await apiClient.delete(`/api/v1/training-plans/${planId}${params}`);
 }
 
 export async function importTrainingPlanYaml(file: File): Promise<TrainingPlan> {

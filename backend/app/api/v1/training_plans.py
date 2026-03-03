@@ -16,6 +16,7 @@ from app.infrastructure.database.models import (
     TrainingPhaseModel,
     TrainingPlanModel,
     WeeklyPlanDayModel,
+    WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
 from app.models.plan_changelog import (
@@ -140,6 +141,14 @@ async def _plan_to_response(
     if raw_ws:
         weekly_structure = WeeklyStructure(**raw_ws)
 
+    # Weekly plan week count
+    wp_result = await db.execute(
+        select(func.count(func.distinct(WeeklyPlanDayModel.week_start))).where(
+            WeeklyPlanDayModel.plan_id == plan.id
+        )
+    )
+    weekly_plan_week_count = wp_result.scalar() or 0
+
     return TrainingPlanResponse(
         id=int(plan.id),  # type: ignore[arg-type]
         name=str(plan.name),
@@ -152,6 +161,7 @@ async def _plan_to_response(
         status=str(plan.status),
         phases=phases,
         goal_summary=goal_summary,
+        weekly_plan_week_count=weekly_plan_week_count,
         created_at=plan.created_at.isoformat() if plan.created_at else "",  # type: ignore[union-attr]
         updated_at=plan.updated_at.isoformat() if plan.updated_at else "",  # type: ignore[union-attr]
     )
@@ -181,6 +191,14 @@ async def _plan_to_summary(
         if row:
             goal_title = str(row)
 
+    # Weekly plan week count
+    wp_result = await db.execute(
+        select(func.count(func.distinct(WeeklyPlanDayModel.week_start))).where(
+            WeeklyPlanDayModel.plan_id == plan.id
+        )
+    )
+    weekly_plan_week_count = wp_result.scalar() or 0
+
     return TrainingPlanSummary(
         id=int(plan.id),  # type: ignore[arg-type]
         name=str(plan.name),
@@ -188,6 +206,7 @@ async def _plan_to_summary(
         start_date=plan.start_date.isoformat() if plan.start_date else "",  # type: ignore[union-attr]
         end_date=plan.end_date.isoformat() if plan.end_date else "",  # type: ignore[union-attr]
         phase_count=phase_count,
+        weekly_plan_week_count=weekly_plan_week_count,
         goal_title=goal_title,
         created_at=plan.created_at.isoformat() if plan.created_at else "",  # type: ignore[union-attr]
         updated_at=plan.updated_at.isoformat() if plan.updated_at else "",  # type: ignore[union-attr]
@@ -940,9 +959,15 @@ async def update_plan(
 @router.delete("/{plan_id}", status_code=204)
 async def delete_plan(
     plan_id: int,
+    include_weekly_plans: bool = False,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a training plan and cascade-delete its phases."""
+    """Delete a training plan and cascade-delete its phases.
+
+    If include_weekly_plans=True, also deletes all linked weekly plan
+    days (and their planned sessions). Workout references are cleared.
+    Changelog entries are always cleaned up.
+    """
     result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
@@ -963,6 +988,37 @@ async def delete_plan(
     )
     for phase in phase_result.scalars().all():
         await db.delete(phase)
+
+    # Optionally delete linked weekly plan days + sessions
+    if include_weekly_plans:
+        weekly_days_result = await db.execute(
+            select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.plan_id == plan_id)
+        )
+        for day in weekly_days_result.scalars().all():
+            sessions_result = await db.execute(
+                select(PlannedSessionModel).where(PlannedSessionModel.day_id == day.id)
+            )
+            session_ids: list[int] = []
+            for session in sessions_result.scalars().all():
+                session_ids.append(int(session.id))  # type: ignore[arg-type]
+                await db.delete(session)
+            # Clear workout references to deleted sessions
+            if session_ids:
+                workout_result = await db.execute(
+                    select(WorkoutModel).where(
+                        WorkoutModel.planned_entry_id.in_(session_ids)  # type: ignore[union-attr]
+                    )
+                )
+                for workout in workout_result.scalars().all():
+                    workout.planned_entry_id = None  # type: ignore[assignment]
+            await db.delete(day)
+
+    # Always clean up changelog entries
+    changelog_result = await db.execute(
+        select(PlanChangeLogModel).where(PlanChangeLogModel.plan_id == plan_id)
+    )
+    for log_entry in changelog_result.scalars().all():
+        await db.delete(log_entry)
 
     await db.delete(plan)
     await db.commit()

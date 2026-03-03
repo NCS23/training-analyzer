@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
+  Checkbox,
 } from '@nordlig/components';
 import { Save, ArrowLeft, ChevronRight, Plus, Trash2, CalendarPlus } from 'lucide-react';
 import {
@@ -111,6 +112,8 @@ export function TrainingPlanEditorPage() {
   const [goals, setGoals] = useState<RaceGoal[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteWeeklyPlans, setDeleteWeeklyPlans] = useState(false);
+  const [weeklyPlanWeekCount, setWeeklyPlanWeekCount] = useState(0);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<GenerationPreviewResponse | null>(null);
@@ -144,6 +147,7 @@ export function TrainingPlanEditorPage() {
       if (plan.target_event_date) setTargetEventDate(new Date(plan.target_event_date));
       setStatus(plan.status);
       if (plan.goal_id) setGoalId(plan.goal_id);
+      setWeeklyPlanWeekCount(plan.weekly_plan_week_count ?? 0);
       setPhases(
         plan.phases.map((p) => ({
           id: p.id,
@@ -255,7 +259,7 @@ export function TrainingPlanEditorPage() {
     if (!planId) return;
     setDeleting(true);
     try {
-      await deleteTrainingPlan(parseInt(planId, 10));
+      await deleteTrainingPlan(parseInt(planId, 10), deleteWeeklyPlans);
       toast({ title: 'Trainingsplan gelöscht', variant: 'success' });
       navigate('/settings/plans');
     } catch {
@@ -263,6 +267,7 @@ export function TrainingPlanEditorPage() {
     } finally {
       setDeleting(false);
       setShowDeleteDialog(false);
+      setDeleteWeeklyPlans(false);
     }
   };
 
@@ -422,6 +427,21 @@ export function TrainingPlanEditorPage() {
               „{name}" und alle Phasen werden unwiderruflich gelöscht.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {weeklyPlanWeekCount > 0 && (
+            <div className="px-[var(--spacing-md)]">
+              <label className="inline-flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <Checkbox
+                  checked={deleteWeeklyPlans}
+                  onCheckedChange={(checked) => setDeleteWeeklyPlans(checked === true)}
+                />
+                <span className="text-sm text-[var(--color-text-base)]">
+                  {weeklyPlanWeekCount} Wochenpläne ebenfalls löschen
+                </span>
+              </label>
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting}>

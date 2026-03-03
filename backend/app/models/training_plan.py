@@ -187,6 +187,7 @@ class TrainingPlanResponse(BaseModel):
     status: str
     phases: list[TrainingPhaseResponse] = Field(default_factory=list)
     goal_summary: Optional[GoalSummary] = None
+    weekly_plan_week_count: int = 0
     created_at: str
     updated_at: str
 
@@ -200,6 +201,7 @@ class TrainingPlanSummary(BaseModel):
     start_date: str
     end_date: str
     phase_count: int = 0
+    weekly_plan_week_count: int = 0
     goal_title: Optional[str] = None
     created_at: str
     updated_at: str

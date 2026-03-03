@@ -25,6 +25,7 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
+  Checkbox,
 } from '@nordlig/components';
 import {
   Plus,
@@ -81,6 +82,10 @@ export function TrainingPlansPage() {
   const [validationResult, setValidationResult] = useState<YamlValidationResult | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingPlan, setDeletingPlan] = useState<TrainingPlanSummary | null>(null);
+  const [deleteWeeklyPlans, setDeleteWeeklyPlans] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -98,13 +103,25 @@ export function TrainingPlansPage() {
     loadPlans();
   }, [loadPlans]);
 
-  const handleDelete = async (planId: number, name: string) => {
+  const openDeleteDialog = (plan: TrainingPlanSummary) => {
+    setDeletingPlan(plan);
+    setDeleteWeeklyPlans(false);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingPlan) return;
+    setDeleting(true);
     try {
-      await deleteTrainingPlan(planId);
-      toast({ title: `„${name}" gelöscht`, variant: 'success' });
+      await deleteTrainingPlan(deletingPlan.id, deleteWeeklyPlans);
+      toast({ title: `„${deletingPlan.name}" gelöscht`, variant: 'success' });
       await loadPlans();
     } catch {
       toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+      setDeletingPlan(null);
     }
   };
 
@@ -325,7 +342,7 @@ export function TrainingPlansPage() {
                       )}
                       <DropdownMenuItem
                         icon={<Trash2 />}
-                        onSelect={() => handleDelete(plan.id, plan.name)}
+                        onSelect={() => openDeleteDialog(plan)}
                         className="text-[var(--color-text-error)]"
                       >
                         Löschen
@@ -390,6 +407,39 @@ export function TrainingPlansPage() {
               disabled={generating}
             >
               {generating ? <Spinner size="sm" /> : 'Generieren'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Trainingsplan löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              „{deletingPlan?.name}" und alle Phasen werden unwiderruflich gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {deletingPlan && deletingPlan.weekly_plan_week_count > 0 && (
+            <div className="px-[var(--spacing-md)]">
+              <label className="inline-flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <Checkbox
+                  checked={deleteWeeklyPlans}
+                  onCheckedChange={(checked) => setDeleteWeeklyPlans(checked === true)}
+                />
+                <span className="text-sm text-[var(--color-text-base)]">
+                  {deletingPlan.weekly_plan_week_count} Wochenpläne ebenfalls löschen
+                </span>
+              </label>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+              {deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

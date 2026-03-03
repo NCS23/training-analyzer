@@ -1148,3 +1148,99 @@ async def test_changelog_reason_404(client: AsyncClient) -> None:
         json={"reason": "test"},
     )
     assert patch_resp.status_code == 404
+
+
+# --- Delete with weekly plans ---
+
+
+@pytest.mark.anyio
+async def test_delete_plan_without_weekly_flag_keeps_entries(client: AsyncClient) -> None:
+    """DELETE without include_weekly_plans should leave weekly plan days."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Del-Keep", "2026-11-16", "2026-11-29"
+    )
+
+    # Verify entries exist
+    wp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
+    entries = wp.json()["entries"]
+    has_sessions = any(len(e["sessions"]) > 0 for e in entries)
+    assert has_sessions
+
+    await client.delete(f"/api/v1/training-plans/{plan_id}")
+
+    # Plan is gone
+    assert (await client.get(f"/api/v1/training-plans/{plan_id}")).status_code == 404
+
+    # Weekly plan days should still exist (orphaned)
+    wp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
+    entries2 = wp2.json()["entries"]
+    has_sessions2 = any(len(e["sessions"]) > 0 for e in entries2)
+    assert has_sessions2
+
+
+@pytest.mark.anyio
+async def test_delete_plan_with_weekly_flag_removes_entries(client: AsyncClient) -> None:
+    """DELETE with include_weekly_plans=true should remove weekly plan days."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Del-Remove", "2026-11-30", "2026-12-13"
+    )
+
+    await client.delete(
+        f"/api/v1/training-plans/{plan_id}",
+        params={"include_weekly_plans": "true"},
+    )
+
+    # Plan is gone
+    assert (await client.get(f"/api/v1/training-plans/{plan_id}")).status_code == 404
+
+    # Weekly plan days should be gone too
+    wp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-30"})
+    entries = wp.json()["entries"]
+    has_sessions = any(len(e["sessions"]) > 0 for e in entries)
+    assert not has_sessions
+
+
+@pytest.mark.anyio
+async def test_delete_plan_always_cleans_changelog(client: AsyncClient) -> None:
+    """Changelog entries should always be deleted when plan is deleted."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "Del-Log", "2026-12-14", "2026-12-27"
+    )
+
+    # Verify changelog exists (generation creates an entry)
+    log = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    assert log.status_code == 200
+    assert log.json()["total"] >= 1
+
+    await client.delete(f"/api/v1/training-plans/{plan_id}")
+
+    # Changelog endpoint should 404 since plan is gone
+    log2 = await client.get(f"/api/v1/training-plans/{plan_id}/changelog")
+    assert log2.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_plan_summary_includes_weekly_plan_count(client: AsyncClient) -> None:
+    """TrainingPlanSummary should include weekly_plan_week_count."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "WP-Count", "2026-12-28", "2027-01-10"
+    )
+
+    resp = await client.get("/api/v1/training-plans")
+    assert resp.status_code == 200
+    plans = resp.json()["plans"]
+    plan_summary = next((p for p in plans if p["id"] == plan_id), None)
+    assert plan_summary is not None
+    assert plan_summary["weekly_plan_week_count"] == 2
+
+
+@pytest.mark.anyio
+async def test_plan_detail_includes_weekly_plan_count(client: AsyncClient) -> None:
+    """TrainingPlanResponse should include weekly_plan_week_count."""
+    plan_id = await _create_plan_with_generated_entries(
+        client, "WP-Count-Detail", "2027-01-11", "2027-01-24"
+    )
+
+    resp = await client.get(f"/api/v1/training-plans/{plan_id}")
+    assert resp.status_code == 200
+    assert resp.json()["weekly_plan_week_count"] == 2
