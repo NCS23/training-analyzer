@@ -18,7 +18,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@nordlig/components": "file:packages/nordlig-components-1.0.0.tgz",
+    "@nordlig/components": "file:packages/nordlig-components-1.0.1.tgz",
     "@nordlig/styles": "file:packages/nordlig-styles-1.0.0.tgz",
     "@nordlig/tokens": "file:packages/nordlig-tokens-1.0.0.tgz",
     "@tanstack/react-query": "^5.20.0",
