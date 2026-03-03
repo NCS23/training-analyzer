@@ -24,6 +24,7 @@ export interface StrengthSessionCreateParams {
   notes?: string;
   rpe?: number;
   trainingFile?: File;
+  plannedEntryId?: number;
 }
 
 export interface StrengthSessionCreateResponse {
@@ -71,6 +72,9 @@ export async function createStrengthSession(
   }
   if (params.trainingFile) {
     formData.append('training_file', params.trainingFile);
+  }
+  if (params.plannedEntryId != null) {
+    formData.append('planned_entry_id', String(params.plannedEntryId));
   }
 
   const response = await apiClient.post<StrengthSessionCreateResponse>(

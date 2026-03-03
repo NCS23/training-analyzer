@@ -244,6 +244,7 @@ async def upload_csv(
     rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
+    planned_entry_id: Optional[int] = Form(None, description="Manuelle Zuordnung zu geplanter Session"),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload Apple Watch CSV und speichere als Session."""
@@ -311,12 +312,17 @@ async def upload_csv(
         rpe=rpe,
     )
 
+    # Manual planned entry link takes precedence
+    if planned_entry_id is not None:
+        workout.planned_entry_id = planned_entry_id  # type: ignore[assignment]
+
     db.add(workout)
     await db.commit()
     await db.refresh(workout)
 
-    # S10: Auto-match to planned entry
-    await _auto_match_planned_entry(db, workout)
+    # S10: Auto-match to planned entry (only if not manually linked)
+    if planned_entry_id is None:
+        await _auto_match_planned_entry(db, workout)
 
     return SessionUploadResponse(
         success=True,
@@ -350,6 +356,7 @@ async def upload_fit(
     rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
+    planned_entry_id: Optional[int] = Form(None, description="Manuelle Zuordnung zu geplanter Session"),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload FIT file und speichere als Session."""
@@ -417,12 +424,17 @@ async def upload_fit(
         rpe=rpe,
     )
 
+    # Manual planned entry link takes precedence
+    if planned_entry_id is not None:
+        workout.planned_entry_id = planned_entry_id  # type: ignore[assignment]
+
     db.add(workout)
     await db.commit()
     await db.refresh(workout)
 
-    # S10: Auto-match to planned entry
-    await _auto_match_planned_entry(db, workout)
+    # S10: Auto-match to planned entry (only if not manually linked)
+    if planned_entry_id is None:
+        await _auto_match_planned_entry(db, workout)
 
     return SessionUploadResponse(
         success=True,

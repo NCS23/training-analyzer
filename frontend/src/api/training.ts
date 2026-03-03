@@ -10,6 +10,7 @@ export interface TrainingUploadParams {
   rpe?: number;
   lapOverrides?: Record<number, string>;
   trainingTypeOverride?: string;
+  plannedEntryId?: number;
 }
 
 function isFitFile(file: File): boolean {
@@ -163,6 +164,9 @@ export async function uploadTraining(
   }
   if (params.trainingTypeOverride) {
     formData.append('training_type_override', params.trainingTypeOverride);
+  }
+  if (params.plannedEntryId != null) {
+    formData.append('planned_entry_id', String(params.plannedEntryId));
   }
 
   const response = await apiClient.post<TrainingUploadResponse>(

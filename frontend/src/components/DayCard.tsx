@@ -14,13 +14,17 @@ import {
   DropdownMenuItem,
 } from '@nordlig/components';
 import {
+  ArrowRightLeft,
   BookmarkPlus,
   Check,
+  CircleCheck,
+  CircleSlash,
   Clock,
   Dumbbell,
   EllipsisVertical,
   Footprints,
   Gauge,
+  GripVertical,
   Heart,
   LayoutTemplate,
   Layers,
@@ -29,6 +33,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import type {
   PlannedSession,
   RunDetails,
@@ -39,6 +44,7 @@ import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
 import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
+import { MoveSessionDialog } from './MoveSessionDialog';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
@@ -167,6 +173,7 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
   const typeKey = getSessionTypeKey(session);
   const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
   const rd = session.run_details;
+  const isSkipped = session.status === 'skipped';
 
   const label =
     session.training_type === 'strength'
@@ -214,12 +221,22 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
         'rounded-[var(--radius-component-sm)] px-1 -mx-1 py-0.5',
         'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-100 motion-reduce:transition-none',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
+        isSkipped ? 'opacity-50' : '',
       ].join(' ')}
-      aria-label={`${label} Details`}
+      aria-label={`${label} Details${isSkipped ? ' (übersprungen)' : ''}`}
     >
       <div className="flex items-center gap-1.5">
         <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
-        <span className="text-xs font-medium text-[var(--color-text-base)] truncate">{label}</span>
+        <span
+          className={[
+            'text-xs font-medium truncate',
+            isSkipped
+              ? 'text-[var(--color-text-muted)] line-through'
+              : 'text-[var(--color-text-base)]',
+          ].join(' ')}
+        >
+          {label}
+        </span>
       </div>
       {details.length > 0 && (
         <span className="text-[10px] text-[var(--color-text-muted)] truncate pl-5">
@@ -227,6 +244,55 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
         </span>
       )}
     </button>
+  );
+}
+
+// --- DraggableSessionRow (wraps SessionCardRow with drag handle) ---
+
+function DraggableSessionRow({
+  session,
+  onClick,
+  dayOfWeek,
+  sessionIdx,
+}: {
+  session: PlannedSession;
+  onClick: () => void;
+  dayOfWeek: number;
+  sessionIdx: number;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `session-${dayOfWeek}-${sessionIdx}`,
+    data: { dayOfWeek, sessionIdx },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={[
+        'flex items-start gap-0.5',
+        isDragging ? 'opacity-30' : '',
+        'transition-opacity duration-150 motion-reduce:transition-none',
+      ].join(' ')}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className={[
+          'mt-0.5 p-1 touch-none cursor-grab shrink-0',
+          'text-[var(--color-text-disabled)] hover:text-[var(--color-text-muted)]',
+          'transition-colors duration-100 motion-reduce:transition-none',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
+          'rounded-[var(--radius-component-sm)]',
+        ].join(' ')}
+        aria-label="Ziehen zum Verschieben"
+      >
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <SessionCardRow session={session} onClick={onClick} />
+      </div>
+    </div>
   );
 }
 
@@ -282,9 +348,11 @@ interface SessionDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   session: PlannedSession;
   sessionIndex: number;
+  dayOfWeek: number;
   canRemove: boolean;
   onUpdate: (updated: PlannedSession) => void;
   onRemove: () => void;
+  onMoveSession?: (targetDay: number) => void;
 }
 
 function SessionDetailDialog({
@@ -292,14 +360,17 @@ function SessionDetailDialog({
   onOpenChange,
   session,
   sessionIndex,
+  dayOfWeek,
   canRemove,
   onUpdate,
   onRemove,
+  onMoveSession,
 }: SessionDetailDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [local, setLocal] = useState<PlannedSession>(session);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showAssignTemplate, setShowAssignTemplate] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>([]);
 
   // Sync when dialog opens
@@ -419,6 +490,25 @@ function SessionDetailDialog({
                   <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
                     Bearbeiten
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    icon={session.status === 'skipped' ? <CircleCheck /> : <CircleSlash />}
+                    onSelect={() =>
+                      onUpdate({
+                        ...session,
+                        status: session.status === 'skipped' ? 'active' : 'skipped',
+                      })
+                    }
+                  >
+                    {session.status === 'skipped' ? 'Wieder aktivieren' : 'Ausfallen lassen'}
+                  </DropdownMenuItem>
+                  {onMoveSession && (
+                    <DropdownMenuItem
+                      icon={<ArrowRightLeft />}
+                      onSelect={() => setShowMoveDialog(true)}
+                    >
+                      Verschieben
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     icon={<LayoutTemplate />}
                     onSelect={() => setShowAssignTemplate(true)}
@@ -631,6 +721,20 @@ function SessionDetailDialog({
         sessionType={session.training_type}
         onSelect={handleAssignTemplate}
       />
+
+      {onMoveSession && (
+        <MoveSessionDialog
+          open={showMoveDialog}
+          onOpenChange={setShowMoveDialog}
+          currentDay={dayOfWeek}
+          sessionLabel={sessionLabel}
+          onSelectDay={(targetDay) => {
+            setShowMoveDialog(false);
+            onOpenChange(false);
+            onMoveSession(targetDay);
+          }}
+        />
+      )}
     </Dialog>
   );
 }
@@ -755,6 +859,7 @@ interface DayCardProps {
   showCompliance: boolean;
   onUpdate: (updates: Partial<WeeklyPlanEntry>) => void;
   onNavigateSession: (sessionId: number) => void;
+  onMoveSession?: (sessionIdx: number, targetDay: number) => void;
 }
 
 export function DayCard({
@@ -765,7 +870,12 @@ export function DayCard({
   showCompliance,
   onUpdate,
   onNavigateSession,
+  onMoveSession,
 }: DayCardProps) {
+  const { setNodeRef: dropRef, isOver } = useDroppable({
+    id: `day-${entry.day_of_week}`,
+  });
+
   const primaryTypeKey = getEntryTypeKey(entry);
   const primaryIconColor = TYPE_ICON_COLORS[primaryTypeKey] ?? TYPE_ICON_COLORS.empty;
   const isPast = isDayInPast(weekStart, entry.day_of_week);
@@ -845,11 +955,16 @@ export function DayCard({
   return (
     <>
       <div
+        ref={dropRef}
         className={[
           'flex flex-col rounded-[var(--radius-component-md)]',
           'bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)]',
-          'transition-shadow duration-200 motion-reduce:transition-none',
-          isToday ? 'ring-2 ring-[var(--color-border-focus)]' : '',
+          'transition-all duration-200 motion-reduce:transition-none',
+          isOver
+            ? 'ring-2 ring-[var(--color-interactive-primary)] bg-[var(--color-bg-surface-hover)]'
+            : isToday
+              ? 'ring-2 ring-[var(--color-border-focus)]'
+              : '',
         ].join(' ')}
       >
         {/* Day label + date header */}
@@ -891,7 +1006,13 @@ export function DayCard({
             </button>
           ) : hasPlanSessions ? (
             entry.sessions.map((session, idx) => (
-              <SessionCardRow key={idx} session={session} onClick={() => setOpenSessionIdx(idx)} />
+              <DraggableSessionRow
+                key={idx}
+                session={session}
+                onClick={() => setOpenSessionIdx(idx)}
+                dayOfWeek={entry.day_of_week}
+                sessionIdx={idx}
+              />
             ))
           ) : (
             <span className="text-xs text-[var(--color-text-disabled)] px-1">—</span>
@@ -970,12 +1091,21 @@ export function DayCard({
           }}
           session={entry.sessions[openSessionIdx]}
           sessionIndex={openSessionIdx}
+          dayOfWeek={entry.day_of_week}
           canRemove={true}
           onUpdate={(updated) => updateSession(openSessionIdx, updated)}
           onRemove={() => {
             removeSession(openSessionIdx);
             setOpenSessionIdx(null);
           }}
+          onMoveSession={
+            onMoveSession
+              ? (targetDay) => {
+                  onMoveSession(openSessionIdx, targetDay);
+                  setOpenSessionIdx(null);
+                }
+              : undefined
+          }
         />
       )}
 

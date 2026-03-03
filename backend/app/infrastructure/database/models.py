@@ -201,6 +201,7 @@ class PlannedSessionModel(Base):
     template_id = Column(Integer, nullable=True)  # FK to session_templates
     run_details_json = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="active")  # 'active' | 'skipped'
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

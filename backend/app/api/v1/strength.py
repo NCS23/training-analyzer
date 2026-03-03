@@ -65,6 +65,7 @@ async def create_strength_session(
     notes: Optional[str] = Form(None, description="Notizen"),
     rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE"),
     training_file: Optional[UploadFile] = File(None, description="Optional: CSV/FIT Datei"),
+    planned_entry_id: Optional[int] = Form(None, description="Manuelle Zuordnung zu geplanter Session"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Erstellt eine neue Krafttraining-Session.
@@ -144,6 +145,7 @@ async def create_strength_session(
         athlete_max_hr=max_hr,
         notes=combined_notes,
         rpe=rpe,
+        planned_entry_id=planned_entry_id,
     )
 
     db.add(workout)

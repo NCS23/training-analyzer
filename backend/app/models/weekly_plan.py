@@ -74,6 +74,7 @@ class PlannedSession(BaseModel):
     template_name: Optional[str] = None  # response only
     notes: Optional[str] = Field(default=None, max_length=500)
     run_details: Optional[RunDetails] = None
+    status: str = Field(default="active", pattern="^(active|skipped)$")
 
 
 class WeeklyPlanEntry(BaseModel):
@@ -99,6 +100,16 @@ class WeeklyPlanSaveRequest(BaseModel):
 
     week_start: date
     entries: list[WeeklyPlanEntry] = Field(..., min_length=1, max_length=7)
+
+
+class PlannedSessionOption(BaseModel):
+    """Lightweight planned session info for upload linking."""
+
+    id: int
+    training_type: str
+    run_type: Optional[str] = None
+    template_name: Optional[str] = None
+    position: int
 
 
 class ActualSession(BaseModel):
