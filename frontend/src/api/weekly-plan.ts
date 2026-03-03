@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { Segment } from './segment';
 
 // --- Types ---
 
@@ -29,6 +30,7 @@ export interface RunDetails {
   target_hr_min: number | null;
   target_hr_max: number | null;
   intervals: RunInterval[] | null;
+  segments?: Segment[] | null;
 }
 
 export interface PlannedSession {

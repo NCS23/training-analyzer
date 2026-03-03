@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.segment import Segment
+
 if TYPE_CHECKING:
     from app.infrastructure.database.models import WorkoutModel
 
@@ -92,6 +94,7 @@ class SessionResponse(BaseModel):
     notes: Optional[str] = None
     rpe: Optional[int] = None
     laps: Optional[list[LapResponse]] = None
+    segments: Optional[list[Segment]] = None  # Unified segment model (#133)
     hr_zones: Optional[dict] = None
     exercises: Optional[list] = None
     has_gps: bool = False

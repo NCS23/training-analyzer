@@ -1,10 +1,13 @@
 """Pydantic schemas for Weekly Plan (Issue #26, #27, E17-S02)."""
 
+from __future__ import annotations
+
 from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.segment import Segment
 from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
 
 
@@ -13,11 +16,11 @@ class RunInterval(BaseModel):
 
     type: str = Field(..., pattern=SEGMENT_TYPE_REGEX)
     duration_minutes: float = Field(..., gt=0, le=180)
-    target_pace_min: Optional[str] = Field(None, max_length=10)  # e.g. "5:30"
-    target_pace_max: Optional[str] = Field(None, max_length=10)  # e.g. "6:00"
-    target_hr_min: Optional[int] = Field(None, ge=60, le=220)
-    target_hr_max: Optional[int] = Field(None, ge=60, le=220)
-    repeats: int = Field(1, ge=1, le=50)
+    target_pace_min: Optional[str] = Field(default=None, max_length=10)  # e.g. "5:30"
+    target_pace_max: Optional[str] = Field(default=None, max_length=10)  # e.g. "6:00"
+    target_hr_min: Optional[int] = Field(default=None, ge=60, le=220)
+    target_hr_max: Optional[int] = Field(default=None, ge=60, le=220)
+    repeats: int = Field(default=1, ge=1, le=50)
 
 
 class RunDetails(BaseModel):
@@ -27,12 +30,13 @@ class RunDetails(BaseModel):
         ...,
         pattern=SESSION_TYPE_REGEX,
     )
-    target_duration_minutes: Optional[int] = Field(None, ge=5, le=360)
-    target_pace_min: Optional[str] = Field(None, max_length=10)
-    target_pace_max: Optional[str] = Field(None, max_length=10)
-    target_hr_min: Optional[int] = Field(None, ge=60, le=220)
-    target_hr_max: Optional[int] = Field(None, ge=60, le=220)
+    target_duration_minutes: Optional[int] = Field(default=None, ge=5, le=360)
+    target_pace_min: Optional[str] = Field(default=None, max_length=10)
+    target_pace_max: Optional[str] = Field(default=None, max_length=10)
+    target_hr_min: Optional[int] = Field(default=None, ge=60, le=220)
+    target_hr_max: Optional[int] = Field(default=None, ge=60, le=220)
     intervals: Optional[list[RunInterval]] = None
+    segments: Optional[list[Segment]] = None  # Unified segment model (#133)
 
 
 class PlannedSession(BaseModel):

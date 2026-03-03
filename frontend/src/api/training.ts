@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { Segment } from './segment';
 
 export interface TrainingUploadParams {
   csvFile: File; // Kept for backwards compat, supports CSV and FIT
@@ -244,6 +245,7 @@ export interface SessionDetail {
   notes: string | null;
   rpe: number | null;
   laps: LapDetail[] | null;
+  segments?: Segment[] | null;
   hr_zones: Record<string, HRZone> | null;
   exercises: Array<{
     name: string;
