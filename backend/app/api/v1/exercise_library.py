@@ -91,12 +91,14 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
 # Inline enrichment for drills (not in free-exercise-db)
 _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
     "Kniehebelauf": {
-        "instructions_json": json.dumps([
-            "Laufe auf der Stelle oder in langsamer Vorwärtsbewegung und ziehe die Knie abwechselnd aktiv bis auf Hüfthöhe hoch.",
-            "Der Fußaufsatz erfolgt auf dem Vorderfuß, der Oberkörper bleibt aufrecht.",
-            "Achte auf eine aktive Armarbeit gegengleich zu den Beinen.",
-            "Beginne langsam und steigere die Frequenz nach Gefühl.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Laufe auf der Stelle oder in langsamer Vorwärtsbewegung und ziehe die Knie abwechselnd aktiv bis auf Hüfthöhe hoch.",
+                "Der Fußaufsatz erfolgt auf dem Vorderfuß, der Oberkörper bleibt aufrecht.",
+                "Achte auf eine aktive Armarbeit gegengleich zu den Beinen.",
+                "Beginne langsam und steigere die Frequenz nach Gefühl.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Hüftbeuger", "Quadrizeps"]),
         "secondary_muscles_json": json.dumps(["Waden", "Rumpf"]),
         "level": "beginner",
@@ -107,12 +109,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Anfersen": {
-        "instructions_json": json.dumps([
-            "Laufe locker vorwärts und ziehe die Fersen abwechselnd aktiv zum Gesäß.",
-            "Der Oberkörper bleibt aufrecht, die Hüfte leicht nach vorne geschoben.",
-            "Die Knie bleiben unter dem Körper — die Bewegung kommt aus der Beinrückseite.",
-            "Halte eine gleichmäßige Frequenz und achte auf lockere Schultern.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Laufe locker vorwärts und ziehe die Fersen abwechselnd aktiv zum Gesäß.",
+                "Der Oberkörper bleibt aufrecht, die Hüfte leicht nach vorne geschoben.",
+                "Die Knie bleiben unter dem Körper — die Bewegung kommt aus der Beinrückseite.",
+                "Halte eine gleichmäßige Frequenz und achte auf lockere Schultern.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Hamstrings", "Waden"]),
         "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger"]),
         "level": "beginner",
@@ -123,12 +127,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Skippings": {
-        "instructions_json": json.dumps([
-            "Führe schnelle, kurze Kniehebeläufe mit maximaler Frequenz aus.",
-            "Die Kontaktzeit am Boden soll minimal sein — Vorderfuß-Aufsatz.",
-            "Die Arme arbeiten aktiv und gegengleich im Rhythmus mit.",
-            "Halte den Rumpf stabil und den Blick nach vorne gerichtet.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Führe schnelle, kurze Kniehebeläufe mit maximaler Frequenz aus.",
+                "Die Kontaktzeit am Boden soll minimal sein — Vorderfuß-Aufsatz.",
+                "Die Arme arbeiten aktiv und gegengleich im Rhythmus mit.",
+                "Halte den Rumpf stabil und den Blick nach vorne gerichtet.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Waden", "Hüftbeuger"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Schienbeinmuskel"]),
         "level": "intermediate",
@@ -139,12 +145,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Seitgalopp": {
-        "instructions_json": json.dumps([
-            "Bewege dich seitlich in Galoppschritten — ein Bein führt, das andere schließt an.",
-            "Bleibe auf den Fußballen und federe leicht bei jedem Schritt.",
-            "Der Oberkörper bleibt aufrecht, die Arme schwingen locker mit.",
-            "Wechsle nach der Hälfte der Strecke die Seite.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Bewege dich seitlich in Galoppschritten — ein Bein führt, das andere schließt an.",
+                "Bleibe auf den Fußballen und federe leicht bei jedem Schritt.",
+                "Der Oberkörper bleibt aufrecht, die Arme schwingen locker mit.",
+                "Wechsle nach der Hälfte der Strecke die Seite.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Adduktoren", "Abduktoren"]),
         "secondary_muscles_json": json.dumps(["Waden", "Quadrizeps"]),
         "level": "beginner",
@@ -155,12 +163,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Hopserlauf": {
-        "instructions_json": json.dumps([
-            "Springe bei jedem Schritt aktiv nach oben ab, indem du das Schwungbein-Knie hochziehst.",
-            "Drücke dich kräftig über den Vorderfuß ab und nutze den Armschwung für Höhe.",
-            "Lande weich auf dem Vorderfuß und gehe direkt in den nächsten Sprung.",
-            "Achte auf eine aufrechte Haltung und schaue geradeaus.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Springe bei jedem Schritt aktiv nach oben ab, indem du das Schwungbein-Knie hochziehst.",
+                "Drücke dich kräftig über den Vorderfuß ab und nutze den Armschwung für Höhe.",
+                "Lande weich auf dem Vorderfuß und gehe direkt in den nächsten Sprung.",
+                "Achte auf eine aufrechte Haltung und schaue geradeaus.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Waden", "Quadrizeps", "Gesäß"]),
         "secondary_muscles_json": json.dumps(["Hüftbeuger", "Rumpf"]),
         "level": "intermediate",
@@ -171,12 +181,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Fußgelenksarbeit": {
-        "instructions_json": json.dumps([
-            "Laufe in kleinen, schnellen Schritten vorwärts — der Fuß setzt nur mit dem Ballen auf.",
-            "Die Fußgelenke federn bei jedem Schritt aktiv ab, die Knie bleiben fast gestreckt.",
-            "Halte den Bodenkontakt so kurz wie möglich.",
-            "Arme locker angewinkelt mitschwingen, Oberkörper aufrecht.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Laufe in kleinen, schnellen Schritten vorwärts — der Fuß setzt nur mit dem Ballen auf.",
+                "Die Fußgelenke federn bei jedem Schritt aktiv ab, die Knie bleiben fast gestreckt.",
+                "Halte den Bodenkontakt so kurz wie möglich.",
+                "Arme locker angewinkelt mitschwingen, Oberkörper aufrecht.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
         "secondary_muscles_json": json.dumps(["Schienbeinmuskel", "Quadrizeps"]),
         "level": "beginner",
@@ -187,12 +199,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Prellhopser": {
-        "instructions_json": json.dumps([
-            "Springe beidbeinig oder einbeinig aus dem Fußgelenk ab — möglichst steif, ohne die Knie stark zu beugen.",
-            "Der Abdruck kommt primär aus der Wade und dem Fußgelenk.",
-            "Halte die Bodenkontaktzeit kurz und reaktiv.",
-            "Arme können seitlich oder angewinkelt unterstützen.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Springe beidbeinig oder einbeinig aus dem Fußgelenk ab — möglichst steif, ohne die Knie stark zu beugen.",
+                "Der Abdruck kommt primär aus der Wade und dem Fußgelenk.",
+                "Halte die Bodenkontaktzeit kurz und reaktiv.",
+                "Arme können seitlich oder angewinkelt unterstützen.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Schienbeinmuskel"]),
         "level": "intermediate",
@@ -203,12 +217,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Sprunglauf": {
-        "instructions_json": json.dumps([
-            "Laufe mit übertrieben langen, federnden Schritten — wie in Zeitlupe durch die Luft.",
-            "Drücke dich kräftig vom Vorderfuß ab und bringe das Schwungbein-Knie weit nach oben.",
-            "Ziel ist maximale Flugphase bei jedem Schritt.",
-            "Lande weich und kontrolliert, der Oberkörper bleibt stabil und aufrecht.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Laufe mit übertrieben langen, federnden Schritten — wie in Zeitlupe durch die Luft.",
+                "Drücke dich kräftig vom Vorderfuß ab und bringe das Schwungbein-Knie weit nach oben.",
+                "Ziel ist maximale Flugphase bei jedem Schritt.",
+                "Lande weich und kontrolliert, der Oberkörper bleibt stabil und aufrecht.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Gesäß", "Quadrizeps", "Waden"]),
         "secondary_muscles_json": json.dumps(["Hüftbeuger", "Hamstrings", "Rumpf"]),
         "level": "intermediate",
@@ -219,12 +235,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Steigerungslauf": {
-        "instructions_json": json.dumps([
-            "Beginne im lockeren Trab und steigere das Tempo gleichmäßig über 80-100 Meter bis zum Sprinttempo.",
-            "Fokussiere dich auf eine saubere Lauftechnik: hohe Knie, aktiver Armschwung, Vorderfuß-Aufsatz.",
-            "Am Ende der Strecke solltest du bei etwa 95% deiner Maximalgeschwindigkeit sein.",
-            "Laufe locker aus — kein abruptes Stoppen.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Beginne im lockeren Trab und steigere das Tempo gleichmäßig über 80-100 Meter bis zum Sprinttempo.",
+                "Fokussiere dich auf eine saubere Lauftechnik: hohe Knie, aktiver Armschwung, Vorderfuß-Aufsatz.",
+                "Am Ende der Strecke solltest du bei etwa 95% deiner Maximalgeschwindigkeit sein.",
+                "Laufe locker aus — kein abruptes Stoppen.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
         "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
         "level": "beginner",
@@ -235,12 +253,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Seitwärts überkreuzen": {
-        "instructions_json": json.dumps([
-            "Bewege dich seitlich und kreuze das hintere Bein abwechselnd vor und hinter dem Standbein.",
-            "Die Hüfte rotiert dabei aktiv mit — der Oberkörper bleibt möglichst stabil nach vorne gerichtet.",
-            "Bleibe auf den Fußballen und halte einen gleichmäßigen Rhythmus.",
-            "Wechsle nach der Hälfte der Strecke die Laufrichtung.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Bewege dich seitlich und kreuze das hintere Bein abwechselnd vor und hinter dem Standbein.",
+                "Die Hüfte rotiert dabei aktiv mit — der Oberkörper bleibt möglichst stabil nach vorne gerichtet.",
+                "Bleibe auf den Fußballen und halte einen gleichmäßigen Rhythmus.",
+                "Wechsle nach der Hälfte der Strecke die Laufrichtung.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Hüftrotatoren", "Adduktoren", "Abduktoren"]),
         "secondary_muscles_json": json.dumps(["Waden", "Rumpf", "Obliques"]),
         "level": "intermediate",
@@ -251,12 +271,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Seitsprünge": {
-        "instructions_json": json.dumps([
-            "Springe beidbeinig von einer Seite zur anderen, etwa schulterbreit.",
-            "Lande weich auf den Fußballen mit leicht gebeugten Knien.",
-            "Die Bewegung kommt aus Fußgelenk und Knie — Oberkörper bleibt stabil.",
-            "Halte einen gleichmäßigen Rhythmus und achte auf eine aktive Stabilisierung.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Springe beidbeinig von einer Seite zur anderen, etwa schulterbreit.",
+                "Lande weich auf den Fußballen mit leicht gebeugten Knien.",
+                "Die Bewegung kommt aus Fußgelenk und Knie — Oberkörper bleibt stabil.",
+                "Halte einen gleichmäßigen Rhythmus und achte auf eine aktive Stabilisierung.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Adduktoren", "Abduktoren", "Waden"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Gesäß", "Rumpf"]),
         "level": "intermediate",
@@ -267,12 +289,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Rückwärtslaufen": {
-        "instructions_json": json.dumps([
-            "Laufe in moderatem Tempo rückwärts — Aufsatz über den Vorderfuß, dann Ferse absenken.",
-            "Halte den Rumpf aufrecht und schaue über die Schulter oder drehe den Kopf regelmäßig.",
-            "Die Schritte sind kürzer als beim Vorwärtslaufen.",
-            "Diese Übung stärkt die vordere Oberschenkel- und Schienbeinmuskulatur.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Laufe in moderatem Tempo rückwärts — Aufsatz über den Vorderfuß, dann Ferse absenken.",
+                "Halte den Rumpf aufrecht und schaue über die Schulter oder drehe den Kopf regelmäßig.",
+                "Die Schritte sind kürzer als beim Vorwärtslaufen.",
+                "Diese Übung stärkt die vordere Oberschenkel- und Schienbeinmuskulatur.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Quadrizeps", "Schienbeinmuskel"]),
         "secondary_muscles_json": json.dumps(["Waden", "Gesäß", "Rumpf"]),
         "level": "beginner",
@@ -283,12 +307,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "B-Skip": {
-        "instructions_json": json.dumps([
-            "Ziehe das Knie wie beim Kniehebelauf hoch und strecke den Unterschenkel dann aktiv nach vorne aus.",
-            "Ziehe den Fuß anschließend kratzig unter den Körper zurück — wie eine Scharrbewegung am Boden.",
-            "Die Arme arbeiten kräftig und gegengleich mit.",
-            "Achte auf einen aufrechten Oberkörper und aktiven Fußaufsatz unter dem Schwerpunkt.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Ziehe das Knie wie beim Kniehebelauf hoch und strecke den Unterschenkel dann aktiv nach vorne aus.",
+                "Ziehe den Fuß anschließend kratzig unter den Körper zurück — wie eine Scharrbewegung am Boden.",
+                "Die Arme arbeiten kräftig und gegengleich mit.",
+                "Achte auf einen aufrechten Oberkörper und aktiven Fußaufsatz unter dem Schwerpunkt.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Hamstrings", "Hüftbeuger", "Gesäß"]),
         "secondary_muscles_json": json.dumps(["Waden", "Quadrizeps", "Rumpf"]),
         "level": "intermediate",
@@ -299,12 +325,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "High Kicks": {
-        "instructions_json": json.dumps([
-            "Schwinge im Gehen oder leichtem Lauf das gestreckte Bein nach vorne oben.",
-            "Versuche mit der Hand die Fußspitze auf Hüfthöhe oder höher zu berühren.",
-            "Die Bewegung soll kontrolliert und fließend sein — nicht ruckartig.",
-            "Halte den Rumpf aufrecht und vermeide ein Zurücklehnen.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Schwinge im Gehen oder leichtem Lauf das gestreckte Bein nach vorne oben.",
+                "Versuche mit der Hand die Fußspitze auf Hüfthöhe oder höher zu berühren.",
+                "Die Bewegung soll kontrolliert und fließend sein — nicht ruckartig.",
+                "Halte den Rumpf aufrecht und vermeide ein Zurücklehnen.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Hamstrings", "Hüftbeuger"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Waden", "Rumpf"]),
         "level": "beginner",
@@ -315,12 +343,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Wechselsprünge": {
-        "instructions_json": json.dumps([
-            "Springe aus einer leichten Schrittstellung explosiv nach oben und wechsle die Beine in der Luft.",
-            "Lande weich in der entgegengesetzten Schrittstellung und springe sofort wieder ab.",
-            "Die Arme arbeiten aktiv gegengleich mit — wie beim Sprint.",
-            "Achte auf eine aufrechte Haltung und aktiven Vorderfuß-Aufsatz.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Springe aus einer leichten Schrittstellung explosiv nach oben und wechsle die Beine in der Luft.",
+                "Lande weich in der entgegengesetzten Schrittstellung und springe sofort wieder ab.",
+                "Die Arme arbeiten aktiv gegengleich mit — wie beim Sprint.",
+                "Achte auf eine aufrechte Haltung und aktiven Vorderfuß-Aufsatz.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Quadrizeps", "Gesäß", "Waden"]),
         "secondary_muscles_json": json.dumps(["Hamstrings", "Hüftbeuger", "Rumpf"]),
         "level": "intermediate",
@@ -331,12 +361,14 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "exercise_db_id": None,
     },
     "Vorderfußsprünge": {
-        "instructions_json": json.dumps([
-            "Springe beidbeinig vorwärts ab — ausschließlich über die Vorderfüße, die Fersen berühren den Boden nicht.",
-            "Halte die Knie leicht gebeugt und den Rumpf stabil.",
-            "Die Sprünge sind kurz und schnell — Fokus auf reaktive Fußarbeit.",
-            "Halte die Arme angewinkelt und nutze sie für Schwung und Balance.",
-        ]),
+        "instructions_json": json.dumps(
+            [
+                "Springe beidbeinig vorwärts ab — ausschließlich über die Vorderfüße, die Fersen berühren den Boden nicht.",
+                "Halte die Knie leicht gebeugt und den Rumpf stabil.",
+                "Die Sprünge sind kurz und schnell — Fokus auf reaktive Fußarbeit.",
+                "Halte die Arme angewinkelt und nutze sie für Schwung und Balance.",
+            ]
+        ),
         "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Schienbeinmuskel", "Rumpf"]),
         "level": "beginner",
@@ -370,9 +402,7 @@ async def _ensure_seed_data(db: AsyncSession) -> None:
     if count_result.scalar_one_or_none() is None:
         # Fresh seed with enrichment
         for ex in DEFAULT_EXERCISES:
-            enrichment = enrich_exercise_model(ex["name"]) or _DRILL_ENRICHMENT.get(
-                ex["name"]
-            )
+            enrichment = enrich_exercise_model(ex["name"]) or _DRILL_ENRICHMENT.get(ex["name"])
             model = ExerciseModel(
                 name=ex["name"],
                 category=ex["category"],
@@ -392,9 +422,7 @@ async def _ensure_seed_data(db: AsyncSession) -> None:
     existing_names = {str(n) for n in existing_names_result.scalars().all()}
     for ex in DEFAULT_EXERCISES:
         if ex["name"] not in existing_names:
-            enrichment = enrich_exercise_model(ex["name"]) or _DRILL_ENRICHMENT.get(
-                ex["name"]
-            )
+            enrichment = enrich_exercise_model(ex["name"]) or _DRILL_ENRICHMENT.get(ex["name"])
             model = ExerciseModel(
                 name=ex["name"],
                 category=ex["category"],
@@ -427,9 +455,9 @@ async def _ensure_seed_data(db: AsyncSession) -> None:
     un_enriched = result.scalars().all()
 
     for exercise in un_enriched:
-        enrichment = enrich_exercise_model(
+        enrichment = enrich_exercise_model(str(exercise.name)) or _DRILL_ENRICHMENT.get(
             str(exercise.name)
-        ) or _DRILL_ENRICHMENT.get(str(exercise.name))
+        )
         if enrichment:
             _apply_enrichment(exercise, enrichment)
             changed = True
