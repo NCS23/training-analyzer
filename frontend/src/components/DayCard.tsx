@@ -225,11 +225,11 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
       ].join(' ')}
       aria-label={`${label} Details${isSkipped ? ' (übersprungen)' : ''}`}
     >
-      <div className="flex items-center gap-1.5">
-        <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+      <div className="flex items-start gap-1.5">
+        <Icon className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${iconColor}`} />
         <span
           className={[
-            'text-xs font-medium truncate',
+            'text-xs font-medium break-words',
             isSkipped
               ? 'text-[var(--color-text-muted)] line-through'
               : 'text-[var(--color-text-base)]',
@@ -280,7 +280,7 @@ function DraggableSessionRow({
         {...listeners}
         className={[
           'mt-0.5 p-1 touch-none cursor-grab shrink-0',
-          'hidden lg:block',
+          'block',
           'text-[var(--color-text-disabled)] hover:text-[var(--color-text-muted)]',
           'transition-colors duration-100 motion-reduce:transition-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
@@ -328,7 +328,7 @@ function DraggableRestDay({
         {...listeners}
         className={[
           'mt-0.5 p-1 touch-none cursor-grab shrink-0',
-          'hidden lg:block',
+          'block',
           'text-[var(--color-text-disabled)] hover:text-[var(--color-text-muted)]',
           'transition-colors duration-100 motion-reduce:transition-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
@@ -1051,7 +1051,7 @@ export function DayCard({
       <div
         ref={dropRef}
         className={[
-          'flex flex-col rounded-[var(--radius-component-md)]',
+          'flex flex-col min-w-[120px] rounded-[var(--radius-component-md)]',
           'bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)]',
           'transition-all duration-200 motion-reduce:transition-none',
           isOver

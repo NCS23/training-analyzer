@@ -514,7 +514,7 @@ export function WeeklyPlanPage() {
           ) : (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
               <div
-                className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-[var(--spacing-xs)]"
+                className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-[var(--spacing-xs)]"
                 role="grid"
                 aria-label="Wochenplan"
               >
