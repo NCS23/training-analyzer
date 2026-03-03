@@ -62,7 +62,7 @@ class WorkoutModel(Base):
     ai_analysis = Column(Text)
 
     # Soll/Ist-Link (S10)
-    planned_entry_id = Column(Integer, nullable=True)  # FK to weekly_plan_entries
+    planned_entry_id = Column(Integer, nullable=True)  # FK to planned_sessions
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -175,23 +175,38 @@ class TrainingPhaseModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
-class WeeklyPlanEntryModel(Base):
-    __tablename__ = "weekly_plan_entries"
-    __table_args__ = (UniqueConstraint("week_start", "day_of_week", name="uq_week_day"),)
+class WeeklyPlanDayModel(Base):
+    __tablename__ = "weekly_plan_days"
+    __table_args__ = (
+        UniqueConstraint("week_start", "day_of_week", name="uq_day_week_day"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     plan_id = Column(Integer, nullable=True, index=True)  # FK to training_plans (NULL = manual)
     week_start = Column(Date, nullable=False, index=True)
     day_of_week = Column(Integer, nullable=False)  # 0=Mon, 6=Sun
-    training_type = Column(String(30), nullable=True)  # 'strength', 'running', or None
-    template_id = Column(Integer, nullable=True)  # optional FK to session_templates
     is_rest_day = Column(Boolean, default=False, nullable=False, server_default="false")
     notes = Column(Text, nullable=True)
-    run_details_json = Column(Text, nullable=True)  # JSON for run planning details
     edited = Column(Boolean, default=False, nullable=False, server_default="false")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class PlannedSessionModel(Base):
+    __tablename__ = "planned_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    day_id = Column(Integer, nullable=False, index=True)  # FK to weekly_plan_days
+    position = Column(Integer, nullable=False, server_default="0")
+    training_type = Column(String(30), nullable=False)  # 'strength', 'running'
+    template_id = Column(Integer, nullable=True)  # FK to session_templates
+    run_details_json = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
 
 
 class PlanChangeLogModel(Base):
