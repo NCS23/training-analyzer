@@ -62,7 +62,7 @@ describe('DayCard compact card', () => {
       ],
     };
     render(<DayCard entry={runEntry} {...defaultProps} />);
-    expect(screen.getByText('Easy')).toBeDefined();
+    expect(screen.getByText('Lockerer Lauf')).toBeDefined();
     expect(screen.getByText(/45′/)).toBeDefined();
   });
 
@@ -87,7 +87,7 @@ describe('DayCard compact card', () => {
       ],
     };
     render(<DayCard entry={multiEntry} {...defaultProps} />);
-    expect(screen.getByText('Easy')).toBeDefined();
+    expect(screen.getByText('Lockerer Lauf')).toBeDefined();
     expect(screen.getByText('Kraft')).toBeDefined();
   });
 
@@ -142,8 +142,8 @@ describe('DayCard per-session detail dialog', () => {
       ],
     };
     render(<DayCard entry={runEntry} {...defaultProps} />);
-    await user.click(screen.getByLabelText('Tempo Details'));
-    // "Tempolauf" appears in dialog title and read-only body
+    await user.click(screen.getByLabelText('Tempolauf Details'));
+    // "Tempolauf" appears on card row and in dialog title
     expect(screen.getAllByText(/Tempolauf/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('40 min')).toBeDefined();
     expect(screen.getAllByText(/4:30/).length).toBeGreaterThanOrEqual(1);
@@ -208,7 +208,7 @@ describe('DayCard per-session detail dialog', () => {
       ],
     };
     render(<DayCard entry={segEntry} {...defaultProps} />);
-    await user.click(screen.getByLabelText('Int. Details'));
+    await user.click(screen.getByLabelText('Intervalle Details'));
     expect(screen.getByText('Warm-up')).toBeDefined();
     expect(screen.getByText('Arbeit')).toBeDefined();
     expect(screen.getByText('Trab')).toBeDefined();
@@ -258,9 +258,9 @@ describe('DayCard per-session detail dialog', () => {
     render(<DayCard entry={multiEntry} {...defaultProps} />);
 
     // Click first session
-    await user.click(screen.getByLabelText('Easy Details'));
+    await user.click(screen.getByLabelText('Lockerer Lauf Details'));
     expect(screen.getByText(/Session 1/)).toBeDefined();
-    // "Lockerer Lauf" appears in dialog title and read-only body
+    // "Lockerer Lauf" appears on card row and in dialog title
     expect(screen.getAllByText(/Lockerer Lauf/).length).toBeGreaterThanOrEqual(1);
   });
 

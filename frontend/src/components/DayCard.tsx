@@ -41,18 +41,6 @@ import { RunDetailsEditor } from './RunDetailsEditor';
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-const RUN_TYPE_SHORT: Record<string, string> = {
-  recovery: 'Rec.',
-  easy: 'Easy',
-  long_run: 'Long',
-  progression: 'Prog.',
-  tempo: 'Tempo',
-  intervals: 'Int.',
-  repetitions: 'Reps',
-  fartlek: 'Fartl.',
-  race: 'Race',
-};
-
 const RUN_TYPE_LABELS: Record<string, string> = {
   recovery: 'Regeneration',
   easy: 'Lockerer Lauf',
@@ -143,11 +131,11 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
   const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
   const rd = session.run_details;
 
-  const shortLabel =
+  const label =
     session.training_type === 'strength'
       ? 'Kraft'
       : rd?.run_type
-        ? (RUN_TYPE_SHORT[rd.run_type] ?? rd.run_type)
+        ? (RUN_TYPE_LABELS[rd.run_type] ?? rd.run_type)
         : 'Laufen';
 
   const details: string[] = [];
@@ -175,19 +163,19 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
       type="button"
       onClick={onClick}
       className={[
-        'flex items-center gap-1.5 min-w-0 w-full text-left min-h-[22px]',
-        'rounded-[var(--radius-component-sm)] px-1 -mx-1',
+        'flex flex-col min-w-0 w-full text-left min-h-[22px]',
+        'rounded-[var(--radius-component-sm)] px-1 -mx-1 py-0.5',
         'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-100 motion-reduce:transition-none',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
       ].join(' ')}
-      aria-label={`${shortLabel} Details`}
+      aria-label={`${label} Details`}
     >
-      <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
-      <span className="text-xs font-medium text-[var(--color-text-base)] truncate">
-        {shortLabel}
-      </span>
+      <div className="flex items-center gap-1.5">
+        <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+        <span className="text-xs font-medium text-[var(--color-text-base)] truncate">{label}</span>
+      </div>
       {details.length > 0 && (
-        <span className="text-[10px] text-[var(--color-text-muted)] truncate">
+        <span className="text-[10px] text-[var(--color-text-muted)] truncate pl-5">
           {details.join(' · ')}
         </span>
       )}
@@ -259,9 +247,6 @@ function SessionDetailDialog({
 
   const rd = isEditing ? (local.run_details ?? null) : (session.run_details ?? null);
   const current = isEditing ? local : session;
-  const typeKey = getSessionTypeKey(current);
-  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.easy;
-
   const handleTypeChange = (val: string) => {
     if (val === 'running') {
       setLocal({ ...local, training_type: 'running', run_details: null });
@@ -345,30 +330,13 @@ function SessionDetailDialog({
           {/* --- READ-ONLY --- */}
           {!isEditing && (
             <>
-              {current.training_type === 'strength' && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <Dumbbell className={`w-4 h-4 ${iconColor}`} />
-                    <span className="text-sm font-medium text-[var(--color-text-base)]">Kraft</span>
-                  </div>
-                  {current.notes && (
-                    <p className="text-xs text-[var(--color-text-muted)] italic pl-5.5">
-                      {current.notes}
-                    </p>
-                  )}
-                </div>
+              {current.training_type === 'strength' && current.notes && (
+                <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>
               )}
 
               {current.training_type === 'running' && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Footprints className={`w-4 h-4 ${iconColor}`} />
-                    <span className="text-sm font-medium text-[var(--color-text-base)]">
-                      {RUN_TYPE_LABELS[rd?.run_type ?? 'easy'] ?? rd?.run_type ?? 'Laufen'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 pl-5.5 text-xs">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
                     <span className="flex items-center gap-1 text-[var(--color-text-muted)]">
                       <Clock className="w-3 h-3" />
                       Dauer
@@ -399,7 +367,7 @@ function SessionDetailDialog({
                   </div>
 
                   {rd?.intervals && rd.intervals.length > 0 && (
-                    <div className="pl-5.5 space-y-1">
+                    <div className="space-y-1">
                       <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                         <Layers className="w-3 h-3" />
                         <span>Segmente</span>
@@ -413,9 +381,7 @@ function SessionDetailDialog({
                   )}
 
                   {current.notes && (
-                    <p className="text-xs text-[var(--color-text-muted)] italic pl-5.5">
-                      {current.notes}
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>
                   )}
                 </div>
               )}
