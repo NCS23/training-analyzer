@@ -95,7 +95,10 @@ export function formatSegmentSummary(segments: Segment[]): string | null {
   const first = workSegs[0];
   let target = '';
   if (first.target_distance_km) {
-    target = first.target_distance_km >= 1 ? `${first.target_distance_km} km` : `${first.target_distance_km * 1000}m`;
+    target =
+      first.target_distance_km >= 1
+        ? `${first.target_distance_km} km`
+        : `${first.target_distance_km * 1000}m`;
   } else if (first.target_duration_minutes) {
     target = `${first.target_duration_minutes}′`;
   }
