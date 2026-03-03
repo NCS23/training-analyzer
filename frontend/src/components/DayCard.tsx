@@ -141,13 +141,15 @@ function SessionSummary({ session }: { session: PlannedSession }) {
 
   if (session.training_type === 'strength') {
     return (
-      <div className="flex items-center gap-1.5">
-        <Dumbbell className="w-3.5 h-3.5 text-[var(--color-secondary-1-500)]" />
-        <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <Dumbbell className="w-3.5 h-3.5 text-[var(--color-secondary-1-500)]" />
+          <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
+        </div>
         {session.notes && (
-          <span className="text-[10px] text-[var(--color-text-muted)] truncate ml-1">
-            — {session.notes}
-          </span>
+          <p className="text-[10px] text-[var(--color-text-muted)] italic pl-5 truncate">
+            {session.notes}
+          </p>
         )}
       </div>
     );
@@ -156,47 +158,58 @@ function SessionSummary({ session }: { session: PlannedSession }) {
   if (session.training_type === 'running') {
     const typeKey = rd?.run_type ?? 'easy';
     const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.easy;
-    const hasDetails =
-      rd?.target_duration_minutes || rd?.target_pace_min || rd?.target_hr_min || rd?.target_hr_max;
     const segmentCount = rd?.intervals?.length ?? 0;
 
     return (
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         <div className="flex items-center gap-1.5">
           <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
           <span className="text-xs font-medium text-[var(--color-text-base)]">
             {RUN_TYPE_LABELS[typeKey] ?? typeKey}
           </span>
         </div>
-        {(hasDetails || segmentCount > 0) && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-5">
-            {rd?.target_duration_minutes && (
-              <span className="flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)]">
-                <Clock className="w-2.5 h-2.5" />
-                {rd.target_duration_minutes} min
-              </span>
-            )}
-            {rd?.target_pace_min && (
-              <span className="flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)]">
-                <Gauge className="w-2.5 h-2.5" />
-                {rd.target_pace_min}
-                {rd.target_pace_max ? `–${rd.target_pace_max}` : ''}/km
-              </span>
-            )}
-            {(rd?.target_hr_min || rd?.target_hr_max) && (
-              <span className="flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)]">
-                <Heart className="w-2.5 h-2.5" />
-                {[rd?.target_hr_min, rd?.target_hr_max].filter(Boolean).join('–')} bpm
-              </span>
-            )}
-            {segmentCount > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-[var(--color-text-muted)]">
+
+        {/* Always show detail rows — use "—" for missing values */}
+        <div className="grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-0.5 pl-5 text-[10px]">
+          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
+            <Clock className="w-2.5 h-2.5" />
+            Dauer
+          </span>
+          <span className="text-[var(--color-text-base)]">
+            {rd?.target_duration_minutes ? `${rd.target_duration_minutes} min` : '—'}
+          </span>
+
+          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
+            <Gauge className="w-2.5 h-2.5" />
+            Pace
+          </span>
+          <span className="text-[var(--color-text-base)]">
+            {rd?.target_pace_min
+              ? `${rd.target_pace_min}${rd.target_pace_max ? `–${rd.target_pace_max}` : ''}/km`
+              : '—'}
+          </span>
+
+          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
+            <Heart className="w-2.5 h-2.5" />
+            HF
+          </span>
+          <span className="text-[var(--color-text-base)]">
+            {rd?.target_hr_min || rd?.target_hr_max
+              ? `${[rd?.target_hr_min, rd?.target_hr_max].filter(Boolean).join('–')} bpm`
+              : '—'}
+          </span>
+
+          {segmentCount > 0 && (
+            <>
+              <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
                 <Layers className="w-2.5 h-2.5" />
-                {segmentCount} Seg.
+                Seg.
               </span>
-            )}
-          </div>
-        )}
+              <span className="text-[var(--color-text-base)]">{segmentCount} Segmente</span>
+            </>
+          )}
+        </div>
+
         {session.notes && (
           <p className="text-[10px] text-[var(--color-text-muted)] italic pl-5 truncate">
             {session.notes}

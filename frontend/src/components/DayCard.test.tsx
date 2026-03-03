@@ -124,11 +124,13 @@ describe('DayCard expanded view', () => {
     render(<DayCard entry={runEntry} {...defaultProps} isExpanded={true} />);
     // Expanded summary shows full run type label
     expect(screen.getByText('Tempolauf')).toBeDefined();
-    // Details appear in both collapsed header and expanded summary
+    // Detail grid rows with labels
+    expect(screen.getByText('Dauer')).toBeDefined();
     expect(screen.getAllByText('40 min').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/4:30/).length).toBeGreaterThanOrEqual(1);
-    // HR only in expanded summary
-    expect(screen.getByText(/160–175 bpm/)).toBeDefined();
+    expect(screen.getByText('Pace')).toBeDefined();
+    expect(screen.getByText(/4:30–5:00\/km/)).toBeDefined();
+    expect(screen.getByText('HF')).toBeDefined();
+    expect(screen.getByText('160–175 bpm')).toBeDefined();
   });
 
   it('shows empty state for unplanned day', () => {
@@ -158,6 +160,15 @@ describe('DayCard expanded view', () => {
     };
     render(<DayCard entry={noteEntry} {...defaultProps} isExpanded={true} />);
     expect(screen.getByText('Locker bleiben')).toBeDefined();
+  });
+
+  it('shows dash placeholders when no run details set', () => {
+    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
+    expect(screen.getByText('Dauer')).toBeDefined();
+    expect(screen.getByText('Pace')).toBeDefined();
+    expect(screen.getByText('HF')).toBeDefined();
+    // All values should be "—"
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
   });
 
   it('shows segment count in summary', () => {
@@ -199,7 +210,7 @@ describe('DayCard expanded view', () => {
       ],
     };
     render(<DayCard entry={segEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('2 Seg.')).toBeDefined();
+    expect(screen.getByText('2 Segmente')).toBeDefined();
   });
 });
 
