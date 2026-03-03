@@ -350,7 +350,7 @@ function DraggableRestDay({
           ].join(' ')}
           aria-label="Ruhetag ändern"
         >
-          <Moon className={`w-4 h-4 ${iconColor}`} />
+          <Moon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
           <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
         </button>
       </div>
