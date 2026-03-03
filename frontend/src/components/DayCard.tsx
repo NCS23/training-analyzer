@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
 } from '@nordlig/components';
 import {
+  BookmarkPlus,
   Check,
   Clock,
   Dumbbell,
@@ -36,7 +37,10 @@ import type {
 import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
+import { getSessionTemplate } from '@/api/session-templates';
 import { RunDetailsEditor } from './RunDetailsEditor';
+import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
+import { TemplatePickerDialog } from './TemplatePickerDialog';
 
 /** Convert RunInterval[] to Segment[] for display (fallback for old data without segments). */
 function intervalsToDisplaySegments(
@@ -293,6 +297,7 @@ function SessionDetailDialog({
 }: SessionDetailDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [local, setLocal] = useState<PlannedSession>(session);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
 
   // Sync when dialog opens
   const [prevOpen, setPrevOpen] = useState(false);
@@ -373,6 +378,14 @@ function SessionDetailDialog({
                   <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
                     Bearbeiten
                   </DropdownMenuItem>
+                  {session.training_type === 'running' && session.run_details && (
+                    <DropdownMenuItem
+                      icon={<BookmarkPlus />}
+                      onSelect={() => setShowSaveAsTemplate(true)}
+                    >
+                      Als Vorlage speichern
+                    </DropdownMenuItem>
+                  )}
                   {canRemove && (
                     <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
                       Entfernen
@@ -511,6 +524,15 @@ function SessionDetailDialog({
           </DialogFooter>
         )}
       </DialogContent>
+
+      {session.run_details && (
+        <SaveAsTemplateDialog
+          open={showSaveAsTemplate}
+          onOpenChange={setShowSaveAsTemplate}
+          runDetails={session.run_details}
+          defaultName={RUN_TYPE_LABELS[session.run_details.run_type] ?? 'Laufen'}
+        />
+      )}
     </Dialog>
   );
 }
@@ -656,6 +678,7 @@ export function DayCard({
   const hasPlanSessions = entry.sessions.length > 0;
   const [openSessionIdx, setOpenSessionIdx] = useState<number | null>(null);
   const [showRestDayDialog, setShowRestDayDialog] = useState(false);
+  const [pendingSessionType, setPendingSessionType] = useState<string | null>(null);
 
   // --- Session mutation helpers ---
   const updateSession = (idx: number, updated: PlannedSession) => {
@@ -674,11 +697,46 @@ export function DayCard({
     if (type === 'rest') {
       onUpdate({ sessions: [], is_rest_day: true });
     } else if (type === 'running' || type === 'strength') {
+      // Open template picker — user can pick a template or "Ohne Vorlage"
+      setPendingSessionType(type);
+    }
+  };
+
+  const addEmptySession = (type: string) => {
+    const newSession: PlannedSession = {
+      position: entry.sessions.length,
+      training_type: type,
+    };
+    onUpdate({ sessions: [...entry.sessions, newSession], is_rest_day: false });
+  };
+
+  const handleTemplatePicked = async (
+    template: import('@/api/session-templates').SessionTemplateSummary | null,
+  ) => {
+    const type = pendingSessionType;
+    setPendingSessionType(null);
+    if (!type) return;
+
+    if (!template) {
+      addEmptySession(type);
+      return;
+    }
+
+    // Load full template to get run_details
+    try {
+      const full = await getSessionTemplate(template.id);
       const newSession: PlannedSession = {
         position: entry.sessions.length,
         training_type: type,
+        template_id: full.id,
+        template_name: full.name,
+        run_details: type === 'running' ? (full.run_details ?? null) : undefined,
+        notes: type === 'strength' ? (full.description ?? null) : undefined,
       };
       onUpdate({ sessions: [...entry.sessions, newSession], is_rest_day: false });
+    } catch {
+      // Fallback: create empty session if template load fails
+      addEmptySession(type);
     }
   };
 
@@ -831,6 +889,18 @@ export function DayCard({
         onSaveNotes={(notes) => onUpdate({ notes })}
         onRemoveRestDay={clearDay}
       />
+
+      {/* Template picker dialog */}
+      {pendingSessionType && (
+        <TemplatePickerDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setPendingSessionType(null);
+          }}
+          sessionType={pendingSessionType}
+          onSelect={handleTemplatePicked}
+        />
+      )}
     </>
   );
 }
