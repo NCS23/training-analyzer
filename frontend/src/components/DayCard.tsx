@@ -30,12 +30,38 @@ import {
 import type {
   PlannedSession,
   RunDetails,
-  RunInterval,
   WeeklyPlanEntry,
   ComplianceDayEntry,
 } from '@/api/weekly-plan';
+import type { Segment } from '@/api/segment';
+import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
 import { RunDetailsEditor } from './RunDetailsEditor';
+
+/** Convert RunInterval[] to Segment[] for display (fallback for old data without segments). */
+function intervalsToDisplaySegments(
+  intervals: {
+    type: string;
+    duration_minutes: number;
+    target_pace_min: string | null;
+    target_pace_max: string | null;
+    target_hr_min: number | null;
+    target_hr_max: number | null;
+    repeats: number;
+  }[],
+): Segment[] {
+  return intervals.map((iv, i) =>
+    createEmptySegment(i, {
+      segment_type: iv.type as Segment['segment_type'],
+      target_duration_minutes: iv.duration_minutes,
+      target_pace_min: iv.target_pace_min,
+      target_pace_max: iv.target_pace_max,
+      target_hr_min: iv.target_hr_min,
+      target_hr_max: iv.target_hr_max,
+      repeats: iv.repeats,
+    }),
+  );
+}
 
 // --- Constants ---
 
@@ -146,11 +172,21 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
         rd.target_pace_max ? `${rd.target_pace_min}–${rd.target_pace_max}` : rd.target_pace_min,
       );
     }
-    if (rd?.intervals && rd.intervals.length > 0) {
-      const workSegs = rd.intervals.filter((s) => s.type === 'work');
+    const segs = rd?.segments ?? rd?.intervals;
+    if (segs && segs.length > 0) {
+      const workSegs = segs.filter((s) =>
+        'segment_type' in s ? s.segment_type === 'work' : s.type === 'work',
+      );
       if (workSegs.length > 0) {
         const first = workSegs[0];
-        const dur = first.duration_minutes ? `${first.duration_minutes}′` : '';
+        const dur =
+          'target_duration_minutes' in first
+            ? first.target_duration_minutes
+              ? `${first.target_duration_minutes}′`
+              : ''
+            : first.duration_minutes
+              ? `${first.duration_minutes}′`
+              : '';
         details.push(`${workSegs.length}×${dur}`);
       }
     }
@@ -185,10 +221,10 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
 
 // --- SegmentRow ---
 
-function SegmentRow({ segment }: { segment: RunInterval }) {
-  const label = lapTypeLabels[segment.type] ?? segment.type;
+function SegmentRow({ segment }: { segment: Segment }) {
+  const label = lapTypeLabels[segment.segment_type] ?? segment.segment_type;
   const parts: string[] = [];
-  if (segment.duration_minutes) parts.push(`${segment.duration_minutes} min`);
+  if (segment.target_duration_minutes) parts.push(`${segment.target_duration_minutes} min`);
   if (segment.target_pace_min) {
     parts.push(
       segment.target_pace_max
@@ -267,6 +303,7 @@ function SessionDetailDialog({
         target_hr_min: existingRd?.target_hr_min ?? null,
         target_hr_max: existingRd?.target_hr_max ?? null,
         intervals: existingRd?.intervals ?? null,
+        segments: existingRd?.segments,
       },
     });
   };
@@ -366,19 +403,27 @@ function SessionDetailDialog({
                     </span>
                   </div>
 
-                  {rd?.intervals && rd.intervals.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-                        <Layers className="w-3 h-3" />
-                        <span>Segmente</span>
+                  {(() => {
+                    const displaySegs =
+                      rd?.segments && rd.segments.length > 0
+                        ? rd.segments
+                        : rd?.intervals && rd.intervals.length > 0
+                          ? intervalsToDisplaySegments(rd.intervals)
+                          : null;
+                    return displaySegs ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                          <Layers className="w-3 h-3" />
+                          <span>Segmente</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {displaySegs.map((seg, i) => (
+                            <SegmentRow key={i} segment={seg} />
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-0.5">
-                        {rd.intervals.map((seg, i) => (
-                          <SegmentRow key={i} segment={seg} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    ) : null;
+                  })()}
 
                   {current.notes && (
                     <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>

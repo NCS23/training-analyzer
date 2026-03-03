@@ -1,6 +1,8 @@
 import { Input, Select, Button, Label } from '@nordlig/components';
 import { Plus, Trash2 } from 'lucide-react';
-import type { RunDetails, RunInterval } from '@/api/weekly-plan';
+import type { RunDetails } from '@/api/weekly-plan';
+import type { Segment, SegmentType } from '@/api/segment';
+import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
 import { SEGMENT_TYPES } from '@/constants/taxonomy';
 
@@ -14,30 +16,18 @@ const SEGMENT_OPTIONS = SEGMENT_TYPES.map((key) => ({
 /** Types that show the interval builder. */
 const INTERVAL_RUN_TYPES = new Set(['intervals', 'repetitions', 'fartlek']);
 
-function emptyInterval(): RunInterval {
-  return {
-    type: 'work',
-    duration_minutes: 3,
-    target_pace_min: null,
-    target_pace_max: null,
-    target_hr_min: null,
-    target_hr_max: null,
-    repeats: 1,
-  };
-}
-
 // --- Sub-Components ---
 
-interface IntervalRowProps {
-  interval: RunInterval;
+interface SegmentEditorRowProps {
+  segment: Segment;
   index: number;
-  onChange: (index: number, updated: RunInterval) => void;
+  onChange: (index: number, updated: Segment) => void;
   onRemove: (index: number) => void;
 }
 
-function IntervalRow({ interval, index, onChange, onRemove }: IntervalRowProps) {
-  const update = (partial: Partial<RunInterval>) => {
-    onChange(index, { ...interval, ...partial });
+function SegmentEditorRow({ segment, index, onChange, onRemove }: SegmentEditorRowProps) {
+  const update = (partial: Partial<Segment>) => {
+    onChange(index, { ...segment, ...partial });
   };
 
   return (
@@ -45,9 +35,9 @@ function IntervalRow({ interval, index, onChange, onRemove }: IntervalRowProps) 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 flex-1">
         <Select
           options={SEGMENT_OPTIONS}
-          value={interval.type}
+          value={segment.segment_type}
           onChange={(val) => {
-            if (val) update({ type: val as RunInterval['type'] });
+            if (val) update({ segment_type: val as SegmentType });
           }}
           inputSize="sm"
           aria-label={`Segment ${index + 1} Typ`}
@@ -57,15 +47,15 @@ function IntervalRow({ interval, index, onChange, onRemove }: IntervalRowProps) 
           min={0.5}
           max={180}
           step={0.5}
-          value={interval.duration_minutes}
-          onChange={(e) => update({ duration_minutes: Number(e.target.value) || 1 })}
+          value={segment.target_duration_minutes ?? ''}
+          onChange={(e) => update({ target_duration_minutes: Number(e.target.value) || 1 })}
           inputSize="sm"
           placeholder="Min"
           aria-label={`Segment ${index + 1} Dauer`}
         />
         <Input
           type="text"
-          value={interval.target_pace_min ?? ''}
+          value={segment.target_pace_min ?? ''}
           onChange={(e) => update({ target_pace_min: e.target.value || null })}
           inputSize="sm"
           placeholder="Pace M:SS"
@@ -75,7 +65,7 @@ function IntervalRow({ interval, index, onChange, onRemove }: IntervalRowProps) 
           type="number"
           min={1}
           max={50}
-          value={interval.repeats}
+          value={segment.repeats}
           onChange={(e) => update({ repeats: Number(e.target.value) || 1 })}
           inputSize="sm"
           placeholder="Wdh."
@@ -126,20 +116,26 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
     onChange({ ...details, ...partial });
   };
 
-  const handleIntervalChange = (index: number, updated: RunInterval) => {
-    const intervals = [...(details.intervals ?? [])];
-    intervals[index] = updated;
-    update({ intervals });
+  const handleSegmentChange = (index: number, updated: Segment) => {
+    const segments = [...(details.segments ?? [])];
+    segments[index] = updated;
+    update({ segments, intervals: null });
   };
 
-  const handleIntervalRemove = (index: number) => {
-    const intervals = (details.intervals ?? []).filter((_, i) => i !== index);
-    update({ intervals: intervals.length > 0 ? intervals : null });
+  const handleSegmentRemove = (index: number) => {
+    const segments = (details.segments ?? [])
+      .filter((_, i) => i !== index)
+      .map((s, i) => ({ ...s, position: i }));
+    update({ segments: segments.length > 0 ? segments : null, intervals: null });
   };
 
-  const handleIntervalAdd = () => {
-    const intervals = [...(details.intervals ?? []), emptyInterval()];
-    update({ intervals });
+  const handleSegmentAdd = () => {
+    const pos = (details.segments ?? []).length;
+    const segments = [
+      ...(details.segments ?? []),
+      createEmptySegment(pos, { target_duration_minutes: 3 }),
+    ];
+    update({ segments, intervals: null });
   };
 
   return (
@@ -223,26 +219,26 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
         <div className="space-y-2">
           <Label className="text-xs">Segmente</Label>
 
-          {(details.intervals ?? []).length === 0 && (
+          {(details.segments ?? []).length === 0 && (
             <p className="text-xs text-[var(--color-text-muted)] italic">
               Keine Segmente — wird automatisch berechnet
             </p>
           )}
 
-          {(details.intervals ?? []).map((interval, i) => (
-            <IntervalRow
+          {(details.segments ?? []).map((segment, i) => (
+            <SegmentEditorRow
               key={i}
-              interval={interval}
+              segment={segment}
               index={i}
-              onChange={handleIntervalChange}
-              onRemove={handleIntervalRemove}
+              onChange={handleSegmentChange}
+              onRemove={handleSegmentRemove}
             />
           ))}
 
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleIntervalAdd}
+            onClick={handleSegmentAdd}
             type="button"
             className="min-h-[44px]"
           >

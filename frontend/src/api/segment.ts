@@ -48,6 +48,48 @@ export interface Segment {
 }
 
 /**
+ * Create an empty Segment with all Ist fields set to null.
+ * Used by the segment editor to create new segments.
+ */
+export function createEmptySegment(position: number = 0, overrides?: Partial<Segment>): Segment {
+  return {
+    position,
+    segment_type: 'work',
+    target_duration_minutes: null,
+    target_pace_min: null,
+    target_pace_max: null,
+    target_hr_min: null,
+    target_hr_max: null,
+    repeats: 1,
+    actual_duration_seconds: null,
+    actual_distance_km: null,
+    actual_pace_formatted: null,
+    actual_hr_avg: null,
+    actual_hr_max: null,
+    actual_hr_min: null,
+    actual_cadence_spm: null,
+    start_seconds: null,
+    end_seconds: null,
+    suggested_type: null,
+    confidence: null,
+    user_override: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Format a compact summary of work segments (e.g., "4×3′").
+ * Returns null if no work segments found.
+ */
+export function formatSegmentSummary(segments: Segment[]): string | null {
+  const workSegs = segments.filter((s) => s.segment_type === 'work');
+  if (workSegs.length === 0) return null;
+  const first = workSegs[0];
+  const dur = first.target_duration_minutes ? `${first.target_duration_minutes}′` : '';
+  return `${workSegs.length}×${dur}`;
+}
+
+/**
  * Expand a segment with repeats > 1 into individual segments.
  * E.g., 4×3min work → 4 work + 3 recovery_jog = 7 segments.
  */
