@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.segment import Segment
+from app.models.segment import Segment, laps_to_segments
 
 if TYPE_CHECKING:
     from app.infrastructure.database.models import WorkoutModel
@@ -148,6 +148,9 @@ class SessionResponse(BaseModel):
                 effective=override_type or auto_type,
             )
 
+        # Convert laps to unified segments (#133)
+        segments = laps_to_segments(laps) if laps else None
+
         return cls(
             id=int(model.id),  # type: ignore[arg-type]
             date=session_date,
@@ -164,6 +167,7 @@ class SessionResponse(BaseModel):
             notes=str(model.notes) if model.notes else None,
             rpe=int(model.rpe) if model.rpe else None,  # type: ignore[arg-type]
             laps=laps,
+            segments=segments,
             hr_zones=hr_zones,
             exercises=exercises,
             has_gps=bool(model.has_gps),

@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from app.models.segment import Segment
+from app.models.segment import Segment, intervals_to_segments
 from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
 
 
@@ -37,6 +37,13 @@ class RunDetails(BaseModel):
     target_hr_max: Optional[int] = Field(default=None, ge=60, le=220)
     intervals: Optional[list[RunInterval]] = None
     segments: Optional[list[Segment]] = None  # Unified segment model (#133)
+
+    @model_validator(mode="after")
+    def _populate_segments(self) -> RunDetails:
+        """Auto-populate segments from intervals if not explicitly set."""
+        if self.segments is None and self.intervals:
+            self.segments = intervals_to_segments(self.intervals)
+        return self
 
 
 class PlannedSession(BaseModel):
