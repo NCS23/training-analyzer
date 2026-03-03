@@ -748,7 +748,7 @@ export function DayCard({
           }}
           session={entry.sessions[openSessionIdx]}
           sessionIndex={openSessionIdx}
-          canRemove={entry.sessions.length > 1}
+          canRemove={true}
           onUpdate={(updated) => updateSession(openSessionIdx, updated)}
           onRemove={() => {
             removeSession(openSessionIdx);
