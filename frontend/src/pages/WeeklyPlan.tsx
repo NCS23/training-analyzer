@@ -83,7 +83,6 @@ export function WeeklyPlanPage() {
   const [dirty, setDirty] = useState(false);
 
   const [compliance, setCompliance] = useState<ComplianceResponse | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSyncBar, setShowSyncBar] = useState(false);
@@ -93,7 +92,6 @@ export function WeeklyPlanPage() {
     async (ws: string) => {
       setLoading(true);
       setError(null);
-      setSelectedDay(null);
       setShowSyncBar(false);
       try {
         const [planResult, complianceResult] = await Promise.all([
@@ -396,12 +394,8 @@ export function WeeklyPlanPage() {
                     entry={entry}
                     weekStart={weekStart}
                     isToday={isToday}
-                    isExpanded={selectedDay === entry.day_of_week}
                     compliance={dayCompliance}
                     showCompliance={hasContent}
-                    onToggleExpand={() =>
-                      setSelectedDay(selectedDay === entry.day_of_week ? null : entry.day_of_week)
-                    }
                     onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
                     onNavigateSession={(id) => navigate(`/sessions/${id}`)}
                   />

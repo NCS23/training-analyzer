@@ -8,12 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '@nordlig/components';
 import {
   Check,
-  ChevronDown,
   Clock,
   Dumbbell,
+  EllipsisVertical,
   Footprints,
   Gauge,
   Heart,
@@ -26,9 +30,11 @@ import {
 import type {
   PlannedSession,
   RunDetails,
+  RunInterval,
   WeeklyPlanEntry,
   ComplianceDayEntry,
 } from '@/api/weekly-plan';
+import { lapTypeLabels } from '@/constants/training';
 import { RunDetailsEditor } from './RunDetailsEditor';
 
 // --- Constants ---
@@ -45,6 +51,18 @@ const RUN_TYPE_SHORT: Record<string, string> = {
   repetitions: 'Reps',
   fartlek: 'Fartl.',
   race: 'Race',
+};
+
+const RUN_TYPE_LABELS: Record<string, string> = {
+  recovery: 'Regeneration',
+  easy: 'Lockerer Lauf',
+  long_run: 'Langer Lauf',
+  progression: 'Steigerungslauf',
+  tempo: 'Tempolauf',
+  intervals: 'Intervalle',
+  repetitions: 'Repetitions',
+  fartlek: 'Fahrtspiel',
+  race: 'Wettkampf',
 };
 
 const RUN_TYPE_OPTIONS = [
@@ -122,98 +140,51 @@ function isDayInPast(weekStart: string, dayOfWeek: number): boolean {
   return d < new Date();
 }
 
-// --- SessionSummary (read-only, compact) ---
+// --- Card-level session row (compact, for the card itself) ---
 
-const RUN_TYPE_LABELS: Record<string, string> = {
-  recovery: 'Regeneration',
-  easy: 'Lockerer Lauf',
-  long_run: 'Langer Lauf',
-  progression: 'Steigerungslauf',
-  tempo: 'Tempolauf',
-  intervals: 'Intervalle',
-  repetitions: 'Repetitions',
-  fartlek: 'Fahrtspiel',
-  race: 'Wettkampf',
-};
-
-function SessionSummary({ session }: { session: PlannedSession }) {
+function SessionCardRow({ session }: { session: PlannedSession }) {
+  const typeKey = getSessionTypeKey(session);
+  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
   const rd = session.run_details;
 
   if (session.training_type === 'strength') {
     return (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Dumbbell className="w-3.5 h-3.5 text-[var(--color-secondary-1-500)]" />
-          <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
-        </div>
-        {session.notes && (
-          <p className="text-[10px] text-[var(--color-text-muted)] italic pl-5 truncate">
-            {session.notes}
-          </p>
-        )}
+      <div className="flex items-center gap-1.5">
+        <Dumbbell className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+        <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
       </div>
     );
   }
 
   if (session.training_type === 'running') {
-    const typeKey = rd?.run_type ?? 'easy';
-    const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.easy;
-    const segmentCount = rd?.intervals?.length ?? 0;
+    const shortLabel = rd?.run_type ? (RUN_TYPE_SHORT[rd.run_type] ?? rd.run_type) : 'Laufen';
+    const details: string[] = [];
+    if (rd?.target_duration_minutes) details.push(`${rd.target_duration_minutes}′`);
+    if (rd?.target_pace_min) {
+      details.push(
+        rd.target_pace_max ? `${rd.target_pace_min}–${rd.target_pace_max}` : rd.target_pace_min,
+      );
+    }
+    // For intervals/reps/fartlek, show compact segment info
+    if (rd?.intervals && rd.intervals.length > 0) {
+      const workSegs = rd.intervals.filter((s) => s.type === 'work');
+      if (workSegs.length > 0) {
+        const first = workSegs[0];
+        const dur = first.duration_minutes ? `${first.duration_minutes}′` : '';
+        details.push(`${workSegs.length}×${dur}`);
+      }
+    }
 
     return (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
-          <span className="text-xs font-medium text-[var(--color-text-base)]">
-            {RUN_TYPE_LABELS[typeKey] ?? typeKey}
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Footprints className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+        <span className="text-xs font-medium text-[var(--color-text-base)] truncate">
+          {shortLabel}
+        </span>
+        {details.length > 0 && (
+          <span className="text-[10px] text-[var(--color-text-muted)] truncate">
+            {details.join(' · ')}
           </span>
-        </div>
-
-        {/* Always show detail rows — use "—" for missing values */}
-        <div className="grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-0.5 pl-5 text-[10px]">
-          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
-            <Clock className="w-2.5 h-2.5" />
-            Dauer
-          </span>
-          <span className="text-[var(--color-text-base)]">
-            {rd?.target_duration_minutes ? `${rd.target_duration_minutes} min` : '—'}
-          </span>
-
-          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
-            <Gauge className="w-2.5 h-2.5" />
-            Pace
-          </span>
-          <span className="text-[var(--color-text-base)]">
-            {rd?.target_pace_min
-              ? `${rd.target_pace_min}${rd.target_pace_max ? `–${rd.target_pace_max}` : ''}/km`
-              : '—'}
-          </span>
-
-          <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
-            <Heart className="w-2.5 h-2.5" />
-            HF
-          </span>
-          <span className="text-[var(--color-text-base)]">
-            {rd?.target_hr_min || rd?.target_hr_max
-              ? `${[rd?.target_hr_min, rd?.target_hr_max].filter(Boolean).join('–')} bpm`
-              : '—'}
-          </span>
-
-          {segmentCount > 0 && (
-            <>
-              <span className="flex items-center gap-0.5 text-[var(--color-text-muted)]">
-                <Layers className="w-2.5 h-2.5" />
-                Seg.
-              </span>
-              <span className="text-[var(--color-text-base)]">{segmentCount} Segmente</span>
-            </>
-          )}
-        </div>
-
-        {session.notes && (
-          <p className="text-[10px] text-[var(--color-text-muted)] italic pl-5 truncate">
-            {session.notes}
-          </p>
         )}
       </div>
     );
@@ -222,34 +193,158 @@ function SessionSummary({ session }: { session: PlannedSession }) {
   return null;
 }
 
-// --- SessionEditDialog ---
+// --- Read-only detail view (for the dialog) ---
 
-interface SessionEditDialogProps {
+function SessionDetailView({
+  session,
+  index,
+  total,
+}: {
+  session: PlannedSession;
+  index: number;
+  total: number;
+}) {
+  const rd = session.run_details;
+  const typeKey = getSessionTypeKey(session);
+  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.easy;
+
+  return (
+    <div className="space-y-2">
+      {/* Session label when multiple */}
+      {total > 1 && (
+        <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+          Session {index + 1}
+        </span>
+      )}
+
+      {session.training_type === 'strength' && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <Dumbbell className={`w-4 h-4 ${iconColor}`} />
+            <span className="text-sm font-medium text-[var(--color-text-base)]">Kraft</span>
+          </div>
+          {session.notes && (
+            <p className="text-xs text-[var(--color-text-muted)] italic pl-5.5">{session.notes}</p>
+          )}
+        </div>
+      )}
+
+      {session.training_type === 'running' && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Footprints className={`w-4 h-4 ${iconColor}`} />
+            <span className="text-sm font-medium text-[var(--color-text-base)]">
+              {RUN_TYPE_LABELS[rd?.run_type ?? 'easy'] ?? rd?.run_type ?? 'Laufen'}
+            </span>
+          </div>
+
+          {/* Detail grid */}
+          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 pl-5.5 text-xs">
+            <span className="flex items-center gap-1 text-[var(--color-text-muted)]">
+              <Clock className="w-3 h-3" />
+              Dauer
+            </span>
+            <span className="text-[var(--color-text-base)]">
+              {rd?.target_duration_minutes ? `${rd.target_duration_minutes} min` : '—'}
+            </span>
+
+            <span className="flex items-center gap-1 text-[var(--color-text-muted)]">
+              <Gauge className="w-3 h-3" />
+              Pace
+            </span>
+            <span className="text-[var(--color-text-base)]">
+              {rd?.target_pace_min
+                ? `${rd.target_pace_min}${rd.target_pace_max ? ` – ${rd.target_pace_max}` : ''} /km`
+                : '—'}
+            </span>
+
+            <span className="flex items-center gap-1 text-[var(--color-text-muted)]">
+              <Heart className="w-3 h-3" />
+              HF
+            </span>
+            <span className="text-[var(--color-text-base)]">
+              {rd?.target_hr_min || rd?.target_hr_max
+                ? `${[rd?.target_hr_min, rd?.target_hr_max].filter(Boolean).join(' – ')} bpm`
+                : '—'}
+            </span>
+          </div>
+
+          {/* Segments */}
+          {rd?.intervals && rd.intervals.length > 0 && (
+            <div className="pl-5.5 space-y-1">
+              <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                <Layers className="w-3 h-3" />
+                <span>Segmente</span>
+              </div>
+              <div className="space-y-0.5">
+                {rd.intervals.map((seg, i) => (
+                  <SegmentRow key={i} segment={seg} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {session.notes && (
+            <p className="text-xs text-[var(--color-text-muted)] italic pl-5.5">{session.notes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SegmentRow({ segment }: { segment: RunInterval }) {
+  const label = lapTypeLabels[segment.type] ?? segment.type;
+  const parts: string[] = [];
+  if (segment.duration_minutes) parts.push(`${segment.duration_minutes} min`);
+  if (segment.target_pace_min) {
+    parts.push(
+      segment.target_pace_max
+        ? `${segment.target_pace_min}–${segment.target_pace_max}/km`
+        : `${segment.target_pace_min}/km`,
+    );
+  }
+  if (segment.target_hr_min || segment.target_hr_max) {
+    parts.push(`${[segment.target_hr_min, segment.target_hr_max].filter(Boolean).join('–')} bpm`);
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-xs rounded-[var(--radius-component-sm)] bg-[var(--color-bg-muted)] px-2 py-1">
+      {segment.repeats > 1 && (
+        <span className="text-[var(--color-text-muted)] font-medium">{segment.repeats}×</span>
+      )}
+      <span className="font-medium text-[var(--color-text-base)]">{label}</span>
+      {parts.length > 0 && (
+        <span className="text-[var(--color-text-muted)]">{parts.join(' · ')}</span>
+      )}
+    </div>
+  );
+}
+
+// --- DayDetailDialog (read-only + edit mode via kebab) ---
+
+interface DayDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sessions: PlannedSession[];
-  isRestDay: boolean;
+  entry: WeeklyPlanEntry;
   dayLabel: string;
   onUpdate: (updates: Partial<WeeklyPlanEntry>) => void;
 }
 
-function SessionEditDialog({
-  open,
-  onOpenChange,
-  sessions,
-  isRestDay,
-  dayLabel,
-  onUpdate,
-}: SessionEditDialogProps) {
-  // Local copy for editing — commit on save
-  const [localSessions, setLocalSessions] = useState<PlannedSession[]>(sessions);
-  const [localIsRestDay, setLocalIsRestDay] = useState(isRestDay);
+function DayDetailDialog({ open, onOpenChange, entry, dayLabel, onUpdate }: DayDetailDialogProps) {
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Sync local state when dialog opens with new data
+  // Local copy for editing
+  const [localSessions, setLocalSessions] = useState<PlannedSession[]>(entry.sessions);
+  const [localIsRestDay, setLocalIsRestDay] = useState(entry.is_rest_day);
+
+  // Sync when dialog opens
   const [prevOpen, setPrevOpen] = useState(false);
   if (open && !prevOpen) {
-    setLocalSessions(sessions);
-    setLocalIsRestDay(isRestDay);
+    setLocalSessions(entry.sessions);
+    setLocalIsRestDay(entry.is_rest_day);
+    setIsEditing(false);
   }
   if (open !== prevOpen) setPrevOpen(open);
 
@@ -314,182 +409,199 @@ function SessionEditDialog({
 
   const handleSave = () => {
     onUpdate({ sessions: localSessions, is_rest_day: localIsRestDay });
+    setIsEditing(false);
     onOpenChange(false);
   };
 
-  const hasSessions = localSessions.length > 0;
+  const handleCancel = () => {
+    if (isEditing) {
+      // Reset to original and go back to read-only
+      setLocalSessions(entry.sessions);
+      setLocalIsRestDay(entry.is_rest_day);
+      setIsEditing(false);
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  const hasSessions = isEditing ? localSessions.length > 0 : entry.sessions.length > 0;
+  const sessions = isEditing ? localSessions : entry.sessions;
+  const isRestDay = isEditing ? localIsRestDay : entry.is_rest_day;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{dayLabel} — Training bearbeiten</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>{dayLabel}</DialogTitle>
+            {!isEditing && (
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button variant="ghost" size="sm" aria-label="Optionen">
+                    <EllipsisVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* No sessions and not rest day → initial type selector */}
-          {!hasSessions && !localIsRestDay && (
-            <Select
-              options={INITIAL_TYPE_OPTIONS}
-              value=""
-              onChange={(val) => handleInitialTypeChange(val ?? '')}
-              inputSize="sm"
-              aria-label="Trainingstyp"
-            />
-          )}
-
-          {/* Rest day → show selector to switch back */}
-          {localIsRestDay && (
-            <Select
-              options={INITIAL_TYPE_OPTIONS}
-              value="rest"
-              onChange={(val) => handleInitialTypeChange(val ?? '')}
-              inputSize="sm"
-              aria-label="Trainingstyp"
-            />
-          )}
-
-          {/* Sessions */}
-          {hasSessions &&
-            localSessions.map((session, idx) => {
-              const rd = session.run_details ?? null;
-              return (
-                <div
-                  key={idx}
-                  className="rounded-[var(--radius-component-sm)] bg-[var(--color-bg-muted)] p-[var(--spacing-sm)] space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                      Session {idx + 1}
-                    </span>
-                    {localSessions.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSession(idx)}
-                        aria-label="Session entfernen"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <Select
-                    options={SESSION_TYPE_OPTIONS}
-                    value={session.training_type}
-                    onChange={(val) => {
-                      if (val) handleTypeChange(idx, val);
-                    }}
-                    inputSize="sm"
-                    aria-label="Trainingstyp"
+          {/* --- READ-ONLY MODE --- */}
+          {!isEditing && (
+            <>
+              {hasSessions &&
+                sessions.map((session, idx) => (
+                  <SessionDetailView
+                    key={idx}
+                    session={session}
+                    index={idx}
+                    total={sessions.length}
                   />
+                ))}
 
-                  {session.training_type === 'running' && (
-                    <div className="space-y-2">
+              {isRestDay && (
+                <div className="flex items-center gap-2 py-2">
+                  <Moon className="w-4 h-4 text-[var(--color-text-muted)]" />
+                  <span className="text-sm text-[var(--color-text-muted)]">Ruhetag</span>
+                </div>
+              )}
+
+              {!hasSessions && !isRestDay && (
+                <p className="text-sm text-[var(--color-text-disabled)] italic py-2">
+                  Kein Training geplant
+                </p>
+              )}
+            </>
+          )}
+
+          {/* --- EDIT MODE --- */}
+          {isEditing && (
+            <>
+              {!hasSessions && !localIsRestDay && (
+                <Select
+                  options={INITIAL_TYPE_OPTIONS}
+                  value=""
+                  onChange={(val) => handleInitialTypeChange(val ?? '')}
+                  inputSize="sm"
+                  aria-label="Trainingstyp"
+                />
+              )}
+
+              {localIsRestDay && (
+                <Select
+                  options={INITIAL_TYPE_OPTIONS}
+                  value="rest"
+                  onChange={(val) => handleInitialTypeChange(val ?? '')}
+                  inputSize="sm"
+                  aria-label="Trainingstyp"
+                />
+              )}
+
+              {hasSessions &&
+                localSessions.map((session, idx) => {
+                  const rd = session.run_details ?? null;
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-[var(--radius-component-sm)] bg-[var(--color-bg-muted)] p-[var(--spacing-sm)] space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                          Session {idx + 1}
+                        </span>
+                        {localSessions.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSession(idx)}
+                            aria-label="Session entfernen"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+
                       <Select
-                        options={RUN_TYPE_OPTIONS}
-                        value={rd?.run_type ?? 'easy'}
+                        options={SESSION_TYPE_OPTIONS}
+                        value={session.training_type}
                         onChange={(val) => {
-                          if (val) handleRunTypeChange(idx, val);
+                          if (val) handleTypeChange(idx, val);
                         }}
                         inputSize="sm"
-                        aria-label="Lauftyp"
+                        aria-label="Trainingstyp"
                       />
-                      <RunDetailsEditor
-                        runDetails={rd}
-                        runType={rd?.run_type ?? 'easy'}
-                        onChange={(newRd) => {
-                          if (newRd) updateSession(idx, { ...session, run_details: newRd });
-                        }}
+
+                      {session.training_type === 'running' && (
+                        <div className="space-y-2">
+                          <Select
+                            options={RUN_TYPE_OPTIONS}
+                            value={rd?.run_type ?? 'easy'}
+                            onChange={(val) => {
+                              if (val) handleRunTypeChange(idx, val);
+                            }}
+                            inputSize="sm"
+                            aria-label="Lauftyp"
+                          />
+                          <RunDetailsEditor
+                            runDetails={rd}
+                            runType={rd?.run_type ?? 'easy'}
+                            onChange={(newRd) => {
+                              if (newRd) updateSession(idx, { ...session, run_details: newRd });
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <Input
+                        type="text"
+                        value={session.notes ?? ''}
+                        onChange={(e) =>
+                          updateSession(idx, { ...session, notes: e.target.value || null })
+                        }
+                        inputSize="sm"
+                        placeholder="Notizen"
+                        aria-label="Session Notizen"
                       />
                     </div>
-                  )}
+                  );
+                })}
 
-                  <Input
-                    type="text"
-                    value={session.notes ?? ''}
-                    onChange={(e) =>
-                      updateSession(idx, { ...session, notes: e.target.value || null })
-                    }
-                    inputSize="sm"
-                    placeholder="Notizen"
-                    aria-label="Session Notizen"
-                  />
-                </div>
-              );
-            })}
-
-          {/* Add session */}
-          {hasSessions && !localIsRestDay && localSessions.length < MAX_SESSIONS && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={addSession}
-              className="w-full"
-              aria-label="Session hinzufuegen"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Session
-            </Button>
+              {hasSessions && !localIsRestDay && localSessions.length < MAX_SESSIONS && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={addSession}
+                  className="w-full"
+                  aria-label="Session hinzufuegen"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Session
+                </Button>
+              )}
+            </>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Abbrechen
-          </Button>
-          <Button size="sm" onClick={handleSave}>
-            Speichern
-          </Button>
-        </DialogFooter>
+        {/* Footer only in edit mode */}
+        {isEditing && (
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
+              Abbrechen
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              Speichern
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
-}
-
-// --- SessionHeader (collapsed session display) ---
-
-function SessionHeaderRow({ session }: { session: PlannedSession }) {
-  const typeKey = getSessionTypeKey(session);
-  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
-  const runDetails = session.run_details ?? null;
-
-  if (session.training_type === 'strength') {
-    return (
-      <div className="flex items-center gap-1.5">
-        <Dumbbell className={`w-3.5 h-3.5 ${iconColor}`} />
-        <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
-      </div>
-    );
-  }
-
-  if (session.training_type === 'running') {
-    return (
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-1.5">
-          <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
-          <span className="text-xs font-medium text-[var(--color-text-base)]">
-            {runDetails?.run_type
-              ? (RUN_TYPE_SHORT[runDetails.run_type] ?? runDetails.run_type)
-              : 'Laufen'}
-          </span>
-        </div>
-        {runDetails?.target_duration_minutes && (
-          <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
-            {runDetails.target_duration_minutes} min
-          </span>
-        )}
-        {runDetails?.target_pace_min && (
-          <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
-            {runDetails.target_pace_min}
-            {runDetails.target_pace_max ? `–${runDetails.target_pace_max}` : ''} /km
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  return null;
 }
 
 // --- Component ---
@@ -498,10 +610,8 @@ interface DayCardProps {
   entry: WeeklyPlanEntry;
   weekStart: string;
   isToday: boolean;
-  isExpanded: boolean;
   compliance: ComplianceDayEntry | undefined;
   showCompliance: boolean;
-  onToggleExpand: () => void;
   onUpdate: (updates: Partial<WeeklyPlanEntry>) => void;
   onNavigateSession: (sessionId: number) => void;
 }
@@ -510,10 +620,8 @@ export function DayCard({
   entry,
   weekStart,
   isToday,
-  isExpanded,
   compliance,
   showCompliance,
-  onToggleExpand,
   onUpdate,
   onNavigateSession,
 }: DayCardProps) {
@@ -525,163 +633,107 @@ export function DayCard({
   const hasSessions = compliance?.actual_sessions && compliance.actual_sessions.length > 0;
 
   const hasPlanSessions = entry.sessions.length > 0;
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
   const dayLabel = `${DAY_LABELS[entry.day_of_week]} ${getDateStr(weekStart, entry.day_of_week)}.`;
 
   return (
-    <div
-      className={[
-        'flex flex-col rounded-[var(--radius-component-md)]',
-        'bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)]',
-        'transition-shadow duration-200 motion-reduce:transition-none',
-        isToday ? 'ring-2 ring-[var(--color-border-focus)]' : '',
-        isExpanded ? 'shadow-[var(--shadow-elevated)]' : '',
-      ].join(' ')}
-    >
-      {/* Compact header — always visible */}
-      <button
-        type="button"
-        onClick={onToggleExpand}
+    <>
+      <div
         className={[
-          'p-[var(--spacing-sm)] text-left w-full min-h-[44px]',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]',
-          'rounded-t-[var(--radius-component-md)]',
-          !isExpanded ? 'rounded-b-[var(--radius-component-md)]' : '',
-          'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-150 motion-reduce:transition-none',
+          'flex flex-col rounded-[var(--radius-component-md)]',
+          'bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)]',
+          'transition-shadow duration-200 motion-reduce:transition-none',
+          isToday ? 'ring-2 ring-[var(--color-border-focus)]' : '',
+          'cursor-pointer',
         ].join(' ')}
-        aria-expanded={isExpanded}
-        aria-label={`${DAY_LABELS[entry.day_of_week]} bearbeiten`}
       >
-        {/* Day label + date */}
-        <div className="flex items-baseline justify-between mb-1.5">
-          <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-            {DAY_LABELS[entry.day_of_week]}
-          </span>
-          <div className="flex items-center gap-1">
-            {entry.plan_id != null && entry.edited && (
-              <Pencil
-                className="w-2.5 h-2.5 text-[var(--color-text-muted)]"
-                aria-label="Manuell bearbeitet"
-              />
-            )}
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {getDateStr(weekStart, entry.day_of_week)}.
+        {/* Card body — click opens dialog */}
+        <button
+          type="button"
+          onClick={() => setShowDialog(true)}
+          className={[
+            'p-[var(--spacing-sm)] text-left w-full min-h-[44px]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]',
+            'rounded-[var(--radius-component-md)]',
+            'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-150 motion-reduce:transition-none',
+          ].join(' ')}
+          aria-label={`${DAY_LABELS[entry.day_of_week]} Details anzeigen`}
+        >
+          {/* Day label + date */}
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+              {DAY_LABELS[entry.day_of_week]}
             </span>
+            <div className="flex items-center gap-1">
+              {entry.plan_id != null && entry.edited && (
+                <Pencil
+                  className="w-2.5 h-2.5 text-[var(--color-text-muted)]"
+                  aria-label="Manuell bearbeitet"
+                />
+              )}
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {getDateStr(weekStart, entry.day_of_week)}.
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Training type — icon + label for all sessions */}
-        <div className="min-h-[28px] flex flex-col gap-1">
-          {entry.is_rest_day ? (
-            <div className="flex items-center gap-1.5">
-              <Moon className={`w-3.5 h-3.5 ${primaryIconColor}`} />
-              <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
-            </div>
-          ) : hasPlanSessions ? (
-            entry.sessions.map((session, idx) => <SessionHeaderRow key={idx} session={session} />)
-          ) : (
-            <span className="text-xs text-[var(--color-text-disabled)]">—</span>
-          )}
-        </div>
-
-        {/* Edit affordance */}
-        <div className="flex justify-center mt-1.5">
-          <ChevronDown
-            className={[
-              'w-3.5 h-3.5 text-[var(--color-text-disabled)]',
-              'transition-transform duration-150 motion-reduce:transition-none',
-              isExpanded ? 'rotate-180' : '',
-            ].join(' ')}
-          />
-        </div>
-      </button>
-
-      {/* Compliance — past days only, subtle (Hygge: nie bestrafend) */}
-      {showCompliance && isPast && compliance && compliance.status !== 'empty' && (
-        <div className="px-[var(--spacing-xs)] pb-1.5">
-          {isCompleted && (
-            <div className="flex items-center gap-1 mb-0.5">
-              <Check className="w-3 h-3 text-[var(--color-text-success)]" />
-              <span className="text-[10px] text-[var(--color-text-success)]">Erledigt</span>
-            </div>
-          )}
-          {isPartial && (
-            <div className="flex items-center gap-1 mb-0.5">
-              <Check className="w-3 h-3 text-[var(--color-text-warning)]" />
-              <span className="text-[10px] text-[var(--color-text-warning)]">Teilweise</span>
-            </div>
-          )}
-          {hasSessions &&
-            compliance.actual_sessions.map((s) => (
-              <button
-                key={s.session_id}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNavigateSession(s.session_id);
-                }}
-                className="block text-[10px] text-[var(--color-text-link)] hover:underline mt-0.5 min-h-[22px]"
-              >
-                {s.distance_km ? `${s.distance_km.toFixed(1)}km` : ''}
-                {s.pace ? ` ${s.pace}/km` : ''}
-              </button>
-            ))}
-        </div>
-      )}
-
-      {/* Expanded detail view (read-only) */}
-      {isExpanded && (
-        <div className="px-[var(--spacing-sm)] pb-[var(--spacing-sm)] pt-[var(--spacing-sm)] border-t border-[var(--color-border-muted)] space-y-2">
-          {/* Sessions read-only summary */}
-          {hasPlanSessions &&
-            entry.sessions.map((session, idx) => (
-              <div key={idx}>
-                {entry.sessions.length > 1 && (
-                  <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Session {idx + 1}
-                  </span>
-                )}
-                <SessionSummary session={session} />
+          {/* Session rows — compact */}
+          <div className="min-h-[28px] flex flex-col gap-1">
+            {entry.is_rest_day ? (
+              <div className="flex items-center gap-1.5">
+                <Moon className={`w-3.5 h-3.5 ${primaryIconColor}`} />
+                <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
               </div>
-            ))}
+            ) : hasPlanSessions ? (
+              entry.sessions.map((session, idx) => <SessionCardRow key={idx} session={session} />)
+            ) : (
+              <span className="text-xs text-[var(--color-text-disabled)]">—</span>
+            )}
+          </div>
+        </button>
 
-          {/* Rest day or empty — show current state */}
-          {!hasPlanSessions && entry.is_rest_day && (
-            <div className="flex items-center gap-1.5">
-              <Moon className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-              <span className="text-xs text-[var(--color-text-muted)]">Ruhetag</span>
-            </div>
-          )}
+        {/* Compliance — past days only */}
+        {showCompliance && isPast && compliance && compliance.status !== 'empty' && (
+          <div className="px-[var(--spacing-xs)] pb-1.5">
+            {isCompleted && (
+              <div className="flex items-center gap-1 mb-0.5">
+                <Check className="w-3 h-3 text-[var(--color-text-success)]" />
+                <span className="text-[10px] text-[var(--color-text-success)]">Erledigt</span>
+              </div>
+            )}
+            {isPartial && (
+              <div className="flex items-center gap-1 mb-0.5">
+                <Check className="w-3 h-3 text-[var(--color-text-warning)]" />
+                <span className="text-[10px] text-[var(--color-text-warning)]">Teilweise</span>
+              </div>
+            )}
+            {hasSessions &&
+              compliance.actual_sessions.map((s) => (
+                <button
+                  key={s.session_id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateSession(s.session_id);
+                  }}
+                  className="block text-[10px] text-[var(--color-text-link)] hover:underline mt-0.5 min-h-[22px]"
+                >
+                  {s.distance_km ? `${s.distance_km.toFixed(1)}km` : ''}
+                  {s.pace ? ` ${s.pace}/km` : ''}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
 
-          {!hasPlanSessions && !entry.is_rest_day && (
-            <p className="text-xs text-[var(--color-text-disabled)] italic">
-              Kein Training geplant
-            </p>
-          )}
-
-          {/* Edit button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowEditDialog(true)}
-            className="w-full"
-            aria-label="Training bearbeiten"
-          >
-            <Pencil className="w-3.5 h-3.5 mr-1" />
-            Bearbeiten
-          </Button>
-        </div>
-      )}
-
-      {/* Edit dialog */}
-      <SessionEditDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        sessions={entry.sessions}
-        isRestDay={entry.is_rest_day}
+      {/* Detail / Edit dialog */}
+      <DayDetailDialog
+        open={showDialog}
+        onOpenChange={setShowDialog}
+        entry={entry}
         dayLabel={dayLabel}
         onUpdate={onUpdate}
       />
-    </div>
+    </>
   );
 }

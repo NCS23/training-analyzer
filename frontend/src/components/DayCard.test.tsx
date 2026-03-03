@@ -18,10 +18,8 @@ const noop = () => {};
 const defaultProps = {
   weekStart: '2026-08-03',
   isToday: false,
-  isExpanded: false,
   compliance: undefined,
   showCompliance: false,
-  onToggleExpand: noop,
   onUpdate: noop,
   onNavigateSession: vi.fn(),
 };
@@ -43,8 +41,32 @@ describe('DayCard edited indicator', () => {
   });
 });
 
-describe('DayCard multi-session header', () => {
-  it('renders multiple session icons in collapsed header', () => {
+describe('DayCard compact card', () => {
+  it('renders session type on card', () => {
+    const runEntry: WeeklyPlanEntry = {
+      ...baseEntry,
+      sessions: [
+        {
+          position: 0,
+          training_type: 'running',
+          run_details: {
+            run_type: 'easy',
+            target_duration_minutes: 45,
+            target_pace_min: null,
+            target_pace_max: null,
+            target_hr_min: null,
+            target_hr_max: null,
+            intervals: null,
+          },
+        },
+      ],
+    };
+    render(<DayCard entry={runEntry} {...defaultProps} />);
+    expect(screen.getByText('Easy')).toBeDefined();
+    expect(screen.getByText(/45′/)).toBeDefined();
+  });
+
+  it('renders multiple sessions on card', () => {
     const multiEntry: WeeklyPlanEntry = {
       ...baseEntry,
       sessions: [
@@ -65,14 +87,8 @@ describe('DayCard multi-session header', () => {
       ],
     };
     render(<DayCard entry={multiEntry} {...defaultProps} />);
-    // Both session labels should be visible
     expect(screen.getByText('Easy')).toBeDefined();
     expect(screen.getByText('Kraft')).toBeDefined();
-  });
-
-  it('renders single session as before', () => {
-    render(<DayCard entry={baseEntry} {...defaultProps} />);
-    expect(screen.getByText('Laufen')).toBeDefined();
   });
 
   it('renders rest day', () => {
@@ -96,13 +112,17 @@ describe('DayCard multi-session header', () => {
   });
 });
 
-describe('DayCard expanded view', () => {
-  it('renders edit button in expanded state', () => {
-    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByLabelText('Training bearbeiten')).toBeDefined();
+describe('DayCard detail dialog', () => {
+  it('opens dialog when card is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DayCard entry={baseEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
+    // Dialog shows the day label
+    expect(screen.getByText(/Mo 3\./)).toBeDefined();
   });
 
-  it('renders read-only session summary in expanded state', () => {
+  it('shows full run details in dialog', async () => {
+    const user = userEvent.setup();
     const runEntry: WeeklyPlanEntry = {
       ...baseEntry,
       sessions: [
@@ -121,57 +141,17 @@ describe('DayCard expanded view', () => {
         },
       ],
     };
-    render(<DayCard entry={runEntry} {...defaultProps} isExpanded={true} />);
-    // Expanded summary shows full run type label
+    render(<DayCard entry={runEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
     expect(screen.getByText('Tempolauf')).toBeDefined();
-    // Detail grid rows with labels
-    expect(screen.getByText('Dauer')).toBeDefined();
-    expect(screen.getAllByText('40 min').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Pace')).toBeDefined();
-    expect(screen.getByText(/4:30–5:00\/km/)).toBeDefined();
-    expect(screen.getByText('HF')).toBeDefined();
-    expect(screen.getByText('160–175 bpm')).toBeDefined();
+    expect(screen.getByText('40 min')).toBeDefined();
+    // Pace appears on card and in dialog
+    expect(screen.getAllByText(/4:30/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/160 – 175 bpm/)).toBeDefined();
   });
 
-  it('shows empty state for unplanned day', () => {
-    const emptyEntry: WeeklyPlanEntry = {
-      ...baseEntry,
-      sessions: [],
-      is_rest_day: false,
-    };
-    render(<DayCard entry={emptyEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('Kein Training geplant')).toBeDefined();
-  });
-
-  it('shows rest day state in expanded view', () => {
-    const restEntry: WeeklyPlanEntry = {
-      ...baseEntry,
-      sessions: [],
-      is_rest_day: true,
-    };
-    render(<DayCard entry={restEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('Ruhetag')).toBeDefined();
-  });
-
-  it('shows session notes in read-only summary', () => {
-    const noteEntry: WeeklyPlanEntry = {
-      ...baseEntry,
-      sessions: [{ position: 0, training_type: 'running', notes: 'Locker bleiben' }],
-    };
-    render(<DayCard entry={noteEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('Locker bleiben')).toBeDefined();
-  });
-
-  it('shows dash placeholders when no run details set', () => {
-    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('Dauer')).toBeDefined();
-    expect(screen.getByText('Pace')).toBeDefined();
-    expect(screen.getByText('HF')).toBeDefined();
-    // All values should be "—"
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
-  });
-
-  it('shows segment count in summary', () => {
+  it('shows segments in dialog', async () => {
+    const user = userEvent.setup();
     const segEntry: WeeklyPlanEntry = {
       ...baseEntry,
       sessions: [
@@ -186,6 +166,15 @@ describe('DayCard expanded view', () => {
             target_hr_min: null,
             target_hr_max: null,
             intervals: [
+              {
+                type: 'warmup',
+                duration_minutes: 10,
+                target_pace_min: null,
+                target_pace_max: null,
+                target_hr_min: null,
+                target_hr_max: null,
+                repeats: 1,
+              },
               {
                 type: 'work',
                 duration_minutes: 3,
@@ -204,69 +193,51 @@ describe('DayCard expanded view', () => {
                 target_hr_max: null,
                 repeats: 1,
               },
+              {
+                type: 'cooldown',
+                duration_minutes: 5,
+                target_pace_min: null,
+                target_pace_max: null,
+                target_hr_min: null,
+                target_hr_max: null,
+                repeats: 1,
+              },
             ],
           },
         },
       ],
     };
-    render(<DayCard entry={segEntry} {...defaultProps} isExpanded={true} />);
-    expect(screen.getByText('2 Segmente')).toBeDefined();
+    render(<DayCard entry={segEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
+    expect(screen.getByText('Warm-up')).toBeDefined();
+    expect(screen.getByText('Arbeit')).toBeDefined();
+    expect(screen.getByText('Trab')).toBeDefined();
+    expect(screen.getByText('Cool-down')).toBeDefined();
   });
-});
 
-describe('DayCard edit dialog', () => {
-  it('opens edit dialog when edit button is clicked', async () => {
+  it('shows kebab menu with edit option', async () => {
     const user = userEvent.setup();
-    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
-    expect(screen.getByText(/Training bearbeiten/)).toBeDefined();
+    render(<DayCard entry={baseEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
+    // Click kebab menu
+    await user.click(screen.getByLabelText('Optionen'));
+    expect(screen.getByText('Bearbeiten')).toBeDefined();
   });
 
-  it('renders add session button in dialog', async () => {
+  it('switches to edit mode and shows editor fields', async () => {
     const user = userEvent.setup();
-    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
-    expect(screen.getByLabelText('Session hinzufuegen')).toBeDefined();
+    render(<DayCard entry={baseEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
+    await user.click(screen.getByLabelText('Optionen'));
+    await user.click(screen.getByText('Bearbeiten'));
+    // Edit mode shows save/cancel buttons
+    expect(screen.getByText('Speichern')).toBeDefined();
+    expect(screen.getByText('Abbrechen')).toBeDefined();
+    // Editor fields
+    expect(screen.getByLabelText('Session Notizen')).toBeDefined();
   });
 
-  it('does not render add session button at max sessions in dialog', async () => {
-    const user = userEvent.setup();
-    const maxEntry: WeeklyPlanEntry = {
-      ...baseEntry,
-      sessions: [
-        { position: 0, training_type: 'running' },
-        { position: 1, training_type: 'strength' },
-        { position: 2, training_type: 'running' },
-      ],
-    };
-    render(<DayCard entry={maxEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
-    expect(screen.queryByLabelText('Session hinzufuegen')).toBeNull();
-  });
-
-  it('renders remove button per session in dialog when multiple sessions', async () => {
-    const user = userEvent.setup();
-    const twoSessionEntry: WeeklyPlanEntry = {
-      ...baseEntry,
-      sessions: [
-        { position: 0, training_type: 'running' },
-        { position: 1, training_type: 'strength' },
-      ],
-    };
-    render(<DayCard entry={twoSessionEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
-    const removeButtons = screen.getAllByLabelText('Session entfernen');
-    expect(removeButtons).toHaveLength(2);
-  });
-
-  it('does not render remove button for single session in dialog', async () => {
-    const user = userEvent.setup();
-    render(<DayCard entry={baseEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
-    expect(screen.queryByLabelText('Session entfernen')).toBeNull();
-  });
-
-  it('renders per-session notes input in dialog', async () => {
+  it('renders per-session notes input in edit mode', async () => {
     const user = userEvent.setup();
     const twoSessionEntry: WeeklyPlanEntry = {
       ...baseEntry,
@@ -275,8 +246,10 @@ describe('DayCard edit dialog', () => {
         { position: 1, training_type: 'strength', notes: null },
       ],
     };
-    render(<DayCard entry={twoSessionEntry} {...defaultProps} isExpanded={true} />);
-    await user.click(screen.getByLabelText('Training bearbeiten'));
+    render(<DayCard entry={twoSessionEntry} {...defaultProps} />);
+    await user.click(screen.getByLabelText(/Details anzeigen/));
+    await user.click(screen.getByLabelText('Optionen'));
+    await user.click(screen.getByText('Bearbeiten'));
     const notesInputs = screen.getAllByLabelText('Session Notizen');
     expect(notesInputs).toHaveLength(2);
   });
