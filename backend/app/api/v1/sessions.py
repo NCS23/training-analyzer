@@ -21,6 +21,7 @@ from app.models.session import (
     LapOverrideResponse,
     LapResponse,
     NotesUpdateRequest,
+    PlannedEntryUpdateRequest,
     RecalculateZonesRequest,
     RpeUpdateRequest,
     SessionListResponse,
@@ -779,6 +780,38 @@ async def update_date(
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
     workout.date = body.date  # type: ignore[assignment]
+    await db.commit()
+    await db.refresh(workout)
+
+    return SessionResponse.from_db(workout)
+
+
+@router.patch("/{session_id}/planned-entry", response_model=SessionResponse)
+async def update_planned_entry(
+    session_id: int,
+    body: PlannedEntryUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Aktualisiert die Zuordnung zu einer geplanten Session."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    # Validate planned_entry_id exists if provided
+    if body.planned_entry_id is not None:
+        ps_query = select(PlannedSessionModel).where(
+            PlannedSessionModel.id == body.planned_entry_id
+        )
+        ps_result = await db.execute(ps_query)
+        if not ps_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=404, detail="Geplante Session nicht gefunden."
+            )
+
+    workout.planned_entry_id = body.planned_entry_id  # type: ignore[assignment]
     await db.commit()
     await db.refresh(workout)
 

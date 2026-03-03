@@ -262,7 +262,7 @@ function DraggableSessionRow({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `session-${dayOfWeek}-${sessionIdx}`,
-    data: { dayOfWeek, sessionIdx },
+    data: { type: 'session' as const, dayOfWeek, sessionIdx },
   });
 
   return (
@@ -280,6 +280,7 @@ function DraggableSessionRow({
         {...listeners}
         className={[
           'mt-0.5 p-1 touch-none cursor-grab shrink-0',
+          'hidden lg:block',
           'text-[var(--color-text-disabled)] hover:text-[var(--color-text-muted)]',
           'transition-colors duration-100 motion-reduce:transition-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
@@ -291,6 +292,67 @@ function DraggableSessionRow({
       </button>
       <div className="flex-1 min-w-0">
         <SessionCardRow session={session} onClick={onClick} />
+      </div>
+    </div>
+  );
+}
+
+// --- DraggableRestDay (wraps rest day button with drag handle) ---
+
+function DraggableRestDay({
+  onClick,
+  dayOfWeek,
+  iconColor,
+}: {
+  onClick: () => void;
+  dayOfWeek: number;
+  iconColor: string;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `rest-${dayOfWeek}`,
+    data: { type: 'rest' as const, dayOfWeek },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={[
+        'flex items-start gap-0.5',
+        isDragging ? 'opacity-30' : '',
+        'transition-opacity duration-150 motion-reduce:transition-none',
+      ].join(' ')}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className={[
+          'mt-0.5 p-1 touch-none cursor-grab shrink-0',
+          'hidden lg:block',
+          'text-[var(--color-text-disabled)] hover:text-[var(--color-text-muted)]',
+          'transition-colors duration-100 motion-reduce:transition-none',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
+          'rounded-[var(--radius-component-sm)]',
+        ].join(' ')}
+        aria-label="Ruhetag ziehen zum Verschieben"
+      >
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <button
+          type="button"
+          onClick={onClick}
+          className={[
+            'flex items-center gap-1.5 w-full text-left min-h-[22px]',
+            'rounded-[var(--radius-component-sm)] px-1 -mx-1',
+            'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-100 motion-reduce:transition-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
+          ].join(' ')}
+          aria-label="Ruhetag ändern"
+        >
+          <Moon className={`w-4 h-4 ${iconColor}`} />
+          <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
+        </button>
       </div>
     </div>
   );
@@ -745,19 +807,24 @@ interface RestDayDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notes: string | null;
+  dayOfWeek: number;
   onSaveNotes: (notes: string | null) => void;
   onRemoveRestDay: () => void;
+  onMoveRestDay?: (targetDay: number) => void;
 }
 
 function RestDayDialog({
   open,
   onOpenChange,
   notes,
+  dayOfWeek,
   onSaveNotes,
   onRemoveRestDay,
+  onMoveRestDay,
 }: RestDayDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [localNotes, setLocalNotes] = useState(notes ?? '');
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   const [prevOpen, setPrevOpen] = useState(false);
   if (open && !prevOpen) {
@@ -799,6 +866,17 @@ function RestDayDialog({
                   <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
                     Bearbeiten
                   </DropdownMenuItem>
+                  <DropdownMenuItem icon={<CircleSlash />} onSelect={handleRemove}>
+                    Ausfallen lassen
+                  </DropdownMenuItem>
+                  {onMoveRestDay && (
+                    <DropdownMenuItem
+                      icon={<ArrowRightLeft />}
+                      onSelect={() => setShowMoveDialog(true)}
+                    >
+                      Verschieben
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
                     Entfernen
                   </DropdownMenuItem>
@@ -845,6 +923,20 @@ function RestDayDialog({
           </DialogFooter>
         )}
       </DialogContent>
+
+      {onMoveRestDay && (
+        <MoveSessionDialog
+          open={showMoveDialog}
+          onOpenChange={setShowMoveDialog}
+          currentDay={dayOfWeek}
+          sessionLabel="Ruhetag"
+          onSelectDay={(targetDay) => {
+            setShowMoveDialog(false);
+            onOpenChange(false);
+            onMoveRestDay(targetDay);
+          }}
+        />
+      )}
     </Dialog>
   );
 }
@@ -860,6 +952,7 @@ interface DayCardProps {
   onUpdate: (updates: Partial<WeeklyPlanEntry>) => void;
   onNavigateSession: (sessionId: number) => void;
   onMoveSession?: (sessionIdx: number, targetDay: number) => void;
+  onMoveRestDay?: (targetDay: number) => void;
 }
 
 export function DayCard({
@@ -871,6 +964,7 @@ export function DayCard({
   onUpdate,
   onNavigateSession,
   onMoveSession,
+  onMoveRestDay,
 }: DayCardProps) {
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: `day-${entry.day_of_week}`,
@@ -990,20 +1084,11 @@ export function DayCard({
         {/* Session rows — each one clickable */}
         <div className="px-[var(--spacing-sm)] pb-[var(--spacing-xs)] flex flex-col gap-0.5">
           {entry.is_rest_day ? (
-            <button
-              type="button"
+            <DraggableRestDay
               onClick={() => setShowRestDayDialog(true)}
-              className={[
-                'flex items-center gap-1.5 w-full text-left min-h-[22px]',
-                'rounded-[var(--radius-component-sm)] px-1 -mx-1',
-                'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-100 motion-reduce:transition-none',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
-              ].join(' ')}
-              aria-label="Ruhetag ändern"
-            >
-              <Moon className={`w-3.5 h-3.5 ${primaryIconColor}`} />
-              <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
-            </button>
+              dayOfWeek={entry.day_of_week}
+              iconColor={primaryIconColor}
+            />
           ) : hasPlanSessions ? (
             entry.sessions.map((session, idx) => (
               <DraggableSessionRow
@@ -1114,8 +1199,17 @@ export function DayCard({
         open={showRestDayDialog}
         onOpenChange={setShowRestDayDialog}
         notes={entry.notes}
+        dayOfWeek={entry.day_of_week}
         onSaveNotes={(notes) => onUpdate({ notes })}
         onRemoveRestDay={clearDay}
+        onMoveRestDay={
+          onMoveRestDay
+            ? (targetDay) => {
+                setShowRestDayDialog(false);
+                onMoveRestDay(targetDay);
+              }
+            : undefined
+        }
       />
 
       {/* Template picker dialog */}

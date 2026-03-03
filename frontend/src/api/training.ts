@@ -311,6 +311,17 @@ export async function updateSessionRpe(
   return response.data;
 }
 
+export async function updatePlannedEntry(
+  sessionId: number,
+  plannedEntryId: number | null,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(
+    `/api/v1/sessions/${sessionId}/planned-entry`,
+    { planned_entry_id: plannedEntryId },
+  );
+  return response.data;
+}
+
 export interface GPSPoint {
   lat: number;
   lng: number;

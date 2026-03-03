@@ -320,6 +320,12 @@ class RpeUpdateRequest(BaseModel):
     rpe: Optional[int] = Field(None, ge=1, le=10)
 
 
+class PlannedEntryUpdateRequest(BaseModel):
+    """Request fuer planned_entry_id Update."""
+
+    planned_entry_id: Optional[int] = None
+
+
 class RecalculateZonesRequest(BaseModel):
     """Request fuer HF-Zonen Neuberechnung mit optionalen HR-Werten."""
 

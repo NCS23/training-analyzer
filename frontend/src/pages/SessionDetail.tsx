@@ -12,7 +12,10 @@ import {
   updateTrainingType,
   updateLapOverrides,
   updateSessionRpe,
+  updatePlannedEntry,
 } from '@/api/training';
+import { getPlannedSessionsForDate } from '@/api/weekly-plan';
+import type { PlannedSessionOption } from '@/api/weekly-plan';
 import type {
   SessionDetail,
   LapDetail,
@@ -178,6 +181,10 @@ export function SessionDetailPage() {
 
   // Date state
   const [savingDate, setSavingDate] = useState(false);
+
+  // Planned entry state
+  const [plannedSessions, setPlannedSessions] = useState<PlannedSessionOption[]>([]);
+  const [savingPlannedEntry, setSavingPlannedEntry] = useState(false);
 
   // GPS track state
   const [gpsTrack, setGpsTrack] = useState<GPSTrack | null>(null);
@@ -365,6 +372,31 @@ export function SessionDetailPage() {
       setError('Training Type konnte nicht gespeichert werden.');
     } finally {
       setSavingTrainingType(false);
+    }
+  };
+
+  // Load planned sessions for the session date when editing
+  useEffect(() => {
+    if (!isEditing || !session) return;
+    getPlannedSessionsForDate(session.date)
+      .then(setPlannedSessions)
+      .catch(() => setPlannedSessions([]));
+  }, [isEditing, session?.date]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Planned entry change
+  const handlePlannedEntryChange = async (val: string | undefined) => {
+    if (!sessionId || !session) return;
+    const newId = val ? parseInt(val) : null;
+    if (newId === session.planned_entry_id) return;
+    setSavingPlannedEntry(true);
+    try {
+      const result = await updatePlannedEntry(sessionId, newId);
+      setSession(result);
+      toast({ title: 'Zuordnung gespeichert', variant: 'success' });
+    } catch {
+      setError('Zuordnung konnte nicht gespeichert werden.');
+    } finally {
+      setSavingPlannedEntry(false);
     }
   };
 
@@ -926,6 +958,37 @@ export function SessionDetailPage() {
                 showValue
                 aria-label="Rate of Perceived Exertion"
               />
+            </div>
+            <div className="mt-4 space-y-1.5">
+              <Label>Geplante Session</Label>
+              {savingPlannedEntry ? (
+                <Spinner size="sm" />
+              ) : (
+                <Select
+                  options={[
+                    { value: '', label: 'Keine Zuordnung' },
+                    ...plannedSessions.map((ps) => ({
+                      value: String(ps.id),
+                      label: [
+                        ps.training_type === 'strength' ? 'Kraft' : 'Laufen',
+                        ps.run_type ? `— ${ps.run_type}` : '',
+                        ps.template_name ? `(${ps.template_name})` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' '),
+                    })),
+                  ]}
+                  value={session.planned_entry_id ? String(session.planned_entry_id) : ''}
+                  onChange={handlePlannedEntryChange}
+                  inputSize="sm"
+                  aria-label="Geplante Session zuordnen"
+                />
+              )}
+              {plannedSessions.length === 0 && (
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Keine geplanten Sessions für diesen Tag
+                </p>
+              )}
             </div>
           </CardBody>
         </Card>
