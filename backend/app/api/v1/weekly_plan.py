@@ -152,6 +152,62 @@ def _has_content_changed(
     return (old_rd or None) != (new_run_details_str or None)
 
 
+_FIELD_LABELS_DAY: dict[str, str] = {
+    "training_type": "Trainingstyp",
+    "is_rest_day": "Ruhetag",
+    "notes": "Notizen",
+    "template_id": "Vorlage",
+    "run_type": "Lauftyp",
+    "target_duration_minutes": "Dauer (Ziel)",
+    "target_pace_min": "Ziel-Pace (schnell)",
+    "target_pace_max": "Ziel-Pace (langsam)",
+    "target_hr_min": "Herzfrequenz (min)",
+    "target_hr_max": "Herzfrequenz (max)",
+}
+
+
+def _diff_day_entry(
+    old: WeeklyPlanEntryModel,
+    new_entry: WeeklyPlanEntry,
+    new_run_details_str: Optional[str],
+) -> list[dict[str, object]]:
+    """Return field-level diff between old DB entry and new request entry."""
+    changes: list[dict[str, object]] = []
+
+    def _add(field: str, from_val: object, to_val: object) -> None:
+        if from_val != to_val:
+            changes.append(
+                {
+                    "field": field,
+                    "from": from_val,
+                    "to": to_val,
+                    "label": _FIELD_LABELS_DAY.get(field, field),
+                }
+            )
+
+    _add("training_type", old.training_type or None, new_entry.training_type)
+    _add("is_rest_day", bool(old.is_rest_day), new_entry.is_rest_day)
+    _add("notes", old.notes or None, new_entry.notes)
+    _add("template_id", old.template_id or None, new_entry.template_id)
+
+    # RunDetails field-level diff
+    old_rd_str = str(old.run_details_json) if old.run_details_json else None
+    if (old_rd_str or None) != (new_run_details_str or None):
+        old_rd: dict[str, object] = json.loads(old_rd_str) if old_rd_str else {}
+        new_rd: dict[str, object] = json.loads(new_run_details_str) if new_run_details_str else {}
+        for field in (
+            "run_type",
+            "target_duration_minutes",
+            "target_pace_min",
+            "target_pace_max",
+            "target_hr_min",
+            "target_hr_max",
+        ):
+            _add(field, old_rd.get(field), new_rd.get(field))
+
+    return changes
+
+
 @router.put("", response_model=WeeklyPlanResponse)
 async def save_weekly_plan(
     data: WeeklyPlanSaveRequest,
@@ -211,19 +267,39 @@ async def save_weekly_plan(
         )
         db.add(db_entry)
 
-    # Log manual edits to plan-linked entries
-    edited_plan_ids: dict[int, int] = {}
+    # Log manual edits to plan-linked entries with day-level diffs
+    changed_plan_days: dict[int, list[dict[str, object]]] = {}
     for entry in data.entries:
+        run_details_str_log: Optional[str] = None
+        if entry.run_details is not None:
+            run_details_str_log = json.dumps(entry.run_details.model_dump())
         old = old_entries.get(entry.day_of_week)
-        if old and old.plan_id and _has_content_changed(old, entry, None):
+        if old and old.plan_id and _has_content_changed(old, entry, run_details_str_log):
             pid = int(old.plan_id)
-            edited_plan_ids[pid] = edited_plan_ids.get(pid, 0) + 1
-    for pid, count in edited_plan_ids.items():
+            day_changes = _diff_day_entry(old, entry, run_details_str_log)
+            if day_changes:
+                if pid not in changed_plan_days:
+                    changed_plan_days[pid] = []
+                changed_plan_days[pid].append(
+                    {
+                        "day_of_week": entry.day_of_week,
+                        "day_name": DAY_NAMES[entry.day_of_week],
+                        "field_changes": day_changes,
+                    }
+                )
+    for pid, changed_days in changed_plan_days.items():
+        count = len(changed_days)
         await log_plan_change(
             db,
             pid,
             "manual_edit",
             f"Wochenplan {week_start}: {count} Eintraege bearbeitet",
+            details={
+                "category": "content",
+                "source": "user",
+                "week_start": str(week_start),
+                "changed_days": changed_days,
+            },
         )
 
     await db.commit()
@@ -518,6 +594,15 @@ async def sync_to_plan(
         data.plan_id,
         "back_sync",
         f"Woche {week_start} in Phase '{phase.name}' synchronisiert",
+        details={
+            "category": "technical",
+            "source": "user",
+            "week_start": str(week_start),
+            "phase_name": str(phase.name),
+            "apply_to_all_weeks": data.apply_to_all_weeks,
+            "week_key": week_key,
+            "synced_days": synced_days,
+        },
     )
     await db.commit()
 

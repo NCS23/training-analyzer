@@ -18,6 +18,7 @@ const MOCK_ENTRIES = [
     id: 1,
     plan_id: 1,
     change_type: 'plan_created',
+    category: 'meta' as const,
     summary: "Trainingsplan 'HM Sub-2h' erstellt",
     details: null,
     reason: null,
@@ -28,6 +29,7 @@ const MOCK_ENTRIES = [
     id: 2,
     plan_id: 1,
     change_type: 'phase_added',
+    category: 'structure' as const,
     summary: "Phase 'Grundlage' hinzugefuegt (Woche 1-4)",
     details: { changed_fields: ['name'] },
     reason: 'Erste Phase',
@@ -139,6 +141,7 @@ describe('PlanChangeLog', () => {
             id: 3,
             plan_id: 1,
             change_type: 'plan_updated',
+            category: 'meta' as const,
             summary: 'Plan aktualisiert',
             details: null,
             reason: null,
@@ -164,7 +167,7 @@ describe('PlanChangeLog', () => {
     fireEvent.click(screen.getByText('Mehr laden'));
 
     await waitFor(() => {
-      expect(getChangelog).toHaveBeenCalledWith(1, 20, 2); // offset=2 (existing entries)
+      expect(getChangelog).toHaveBeenCalledWith(1, 20, 2, undefined); // offset=2 (existing entries)
     });
   });
 

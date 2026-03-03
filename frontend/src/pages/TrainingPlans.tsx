@@ -39,10 +39,16 @@ import {
   listTrainingPlans,
   deleteTrainingPlan,
   importTrainingPlanYaml,
+  validateTrainingPlanYaml,
   generateWeeklyPlans,
   getGenerationPreview,
 } from '@/api/training-plans';
-import type { TrainingPlanSummary, GenerationPreviewResponse } from '@/api/training-plans';
+import type {
+  TrainingPlanSummary,
+  GenerationPreviewResponse,
+  YamlValidationResult,
+} from '@/api/training-plans';
+import { YamlValidationResultPanel } from '@/components/YamlValidationResult';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Entwurf',
@@ -71,6 +77,10 @@ export function TrainingPlansPage() {
   const [genPreview, setGenPreview] = useState<GenerationPreviewResponse | null>(null);
   const [genStrategy, setGenStrategy] = useState<'all' | 'unedited_only'>('all');
   const [generating, setGenerating] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<YamlValidationResult | null>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -136,11 +146,7 @@ export function TrainingPlansPage() {
     }
   };
 
-  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
+  const doImport = async (file: File) => {
     setImporting(true);
     try {
       const plan = await importTrainingPlanYaml(file);
@@ -154,6 +160,42 @@ export function TrainingPlansPage() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setValidating(true);
+    try {
+      const result = await validateTrainingPlanYaml(file);
+      if (result.errors.length === 0 && result.warnings.length === 0) {
+        await doImport(file);
+      } else {
+        setPendingImportFile(file);
+        setValidationResult(result);
+        setShowValidationDialog(true);
+      }
+    } catch {
+      toast({ title: 'Validierung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleValidationConfirm = async () => {
+    if (!pendingImportFile) return;
+    setShowValidationDialog(false);
+    await doImport(pendingImportFile);
+    setPendingImportFile(null);
+    setValidationResult(null);
+  };
+
+  const handleValidationCancel = () => {
+    setShowValidationDialog(false);
+    setPendingImportFile(null);
+    setValidationResult(null);
   };
 
   const formatDate = (iso: string) =>
@@ -192,9 +234,9 @@ export function TrainingPlansPage() {
               variant="ghost"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
+              disabled={importing || validating}
             >
-              {importing ? (
+              {importing || validating ? (
                 <Spinner size="sm" aria-hidden="true" />
               ) : (
                 <>
@@ -348,6 +390,34 @@ export function TrainingPlansPage() {
               disabled={generating}
             >
               {generating ? <Spinner size="sm" /> : 'Generieren'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* YAML Validation Dialog */}
+      <AlertDialog open={showValidationDialog} onOpenChange={handleValidationCancel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>YAML-Validierung</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                {validationResult && pendingImportFile && (
+                  <YamlValidationResultPanel
+                    result={validationResult}
+                    filename={pendingImportFile.name}
+                  />
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleValidationConfirm}
+              disabled={!validationResult?.valid || importing}
+            >
+              {importing ? <Spinner size="sm" /> : 'Trotzdem importieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
