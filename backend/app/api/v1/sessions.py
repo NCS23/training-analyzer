@@ -245,7 +245,9 @@ async def upload_csv(
     rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
-    planned_entry_id: Optional[int] = Form(None, description="Manuelle Zuordnung zu geplanter Session"),
+    planned_entry_id: Optional[int] = Form(
+        None, description="Manuelle Zuordnung zu geplanter Session"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload Apple Watch CSV und speichere als Session."""
@@ -357,7 +359,9 @@ async def upload_fit(
     rpe: Optional[int] = Form(None, ge=1, le=10, description="RPE (1-10)"),
     lap_overrides_json: Optional[str] = Form(None, description="JSON: {lap_number: type}"),
     training_type_override: Optional[str] = Form(None, description="Manueller Training Type"),
-    planned_entry_id: Optional[int] = Form(None, description="Manuelle Zuordnung zu geplanter Session"),
+    planned_entry_id: Optional[int] = Form(
+        None, description="Manuelle Zuordnung zu geplanter Session"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload FIT file und speichere als Session."""
@@ -807,9 +811,7 @@ async def update_planned_entry(
         )
         ps_result = await db.execute(ps_query)
         if not ps_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=404, detail="Geplante Session nicht gefunden."
-            )
+            raise HTTPException(status_code=404, detail="Geplante Session nicht gefunden.")
 
     workout.planned_entry_id = body.planned_entry_id  # type: ignore[assignment]
     await db.commit()
