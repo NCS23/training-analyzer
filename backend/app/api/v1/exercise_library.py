@@ -75,6 +75,17 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
     {"name": "Skippings", "category": "drills"},
     {"name": "Seitgalopp", "category": "drills"},
     {"name": "Hopserlauf", "category": "drills"},
+    {"name": "Fußgelenksarbeit", "category": "drills"},
+    {"name": "Prellhopser", "category": "drills"},
+    {"name": "Sprunglauf", "category": "drills"},
+    {"name": "Steigerungslauf", "category": "drills"},
+    {"name": "Seitwärts überkreuzen", "category": "drills"},
+    {"name": "Seitsprünge", "category": "drills"},
+    {"name": "Rückwärtslaufen", "category": "drills"},
+    {"name": "B-Skip", "category": "drills"},
+    {"name": "High Kicks", "category": "drills"},
+    {"name": "Wechselsprünge", "category": "drills"},
+    {"name": "Vorderfußsprünge", "category": "drills"},
 ]
 
 
@@ -113,6 +124,23 @@ async def _ensure_seed_data(db: AsyncSession) -> None:
         return
 
     changed = False
+
+    # Seed missing default exercises (e.g. drills added in #140)
+    existing_names_result = await db.execute(select(ExerciseModel.name))
+    existing_names = {str(n) for n in existing_names_result.scalars().all()}
+    for ex in DEFAULT_EXERCISES:
+        if ex["name"] not in existing_names:
+            enrichment = enrich_exercise_model(ex["name"])
+            model = ExerciseModel(
+                name=ex["name"],
+                category=ex["category"],
+                is_custom=False,
+                is_favorite=False,
+            )
+            if enrichment:
+                _apply_enrichment(model, enrichment)
+            db.add(model)
+            changed = True
 
     # Migrate ASCII names → proper umlauts
     result_all = await db.execute(select(ExerciseModel).where(ExerciseModel.is_custom.is_(False)))
