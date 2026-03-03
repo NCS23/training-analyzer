@@ -5,7 +5,8 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
-from app.services.yaml_validator import validate_yaml_plan
+from app.services.exercise_enrichment import find_similar_exercises
+from app.services.yaml_validator import extract_exercise_names, validate_yaml_plan
 
 VALID_RAW: dict[str, Any] = {
     "name": "Test Plan",
@@ -777,3 +778,145 @@ def _minimal_plan(
             },
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# extract_exercise_names
+# ---------------------------------------------------------------------------
+
+
+class TestExtractExerciseNames:
+    def test_empty_plan(self) -> None:
+        assert extract_exercise_names({}) == []
+        assert extract_exercise_names({"phases": []}) == []
+
+    def test_no_exercise_names(self) -> None:
+        plan = _minimal_plan([{"type": "work", "duration_minutes": 5}])
+        assert extract_exercise_names(plan) == []
+
+    def test_extracts_exercise_names(self) -> None:
+        plan = _minimal_plan(
+            [
+                {"type": "drills", "duration_minutes": 1, "exercise_name": "Kniehebelauf"},
+                {"type": "drills", "duration_minutes": 1, "exercise_name": "Anfersen"},
+            ]
+        )
+        result = extract_exercise_names(plan)
+        assert len(result) == 2
+        assert result[0][0] == "Kniehebelauf"
+        assert result[1][0] == "Anfersen"
+        assert "phases[0]" in result[0][1]
+
+    def test_skips_none_and_empty(self) -> None:
+        plan = _minimal_plan(
+            [
+                {"type": "drills", "duration_minutes": 1, "exercise_name": None},
+                {"type": "drills", "duration_minutes": 1, "exercise_name": ""},
+                {"type": "drills", "duration_minutes": 1, "exercise_name": "  "},
+                {"type": "drills", "duration_minutes": 1, "exercise_name": "Valid"},
+            ]
+        )
+        result = extract_exercise_names(plan)
+        assert len(result) == 1
+        assert result[0][0] == "Valid"
+
+    def test_multiple_phases(self) -> None:
+        plan: dict[str, Any] = {
+            "name": "Multi",
+            "start_date": "2026-01-01",
+            "end_date": "2026-06-30",
+            "phases": [
+                {
+                    "name": "P1",
+                    "type": "base",
+                    "start_week": 1,
+                    "end_week": 4,
+                    "weekly_template": [
+                        {
+                            "day": 1,
+                            "type": "running",
+                            "run_details": {
+                                "intervals": [
+                                    {
+                                        "type": "drills",
+                                        "duration_minutes": 1,
+                                        "exercise_name": "A",
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                },
+                {
+                    "name": "P2",
+                    "type": "build",
+                    "start_week": 5,
+                    "end_week": 8,
+                    "weekly_template": [
+                        {
+                            "day": 2,
+                            "type": "running",
+                            "run_details": {
+                                "intervals": [
+                                    {
+                                        "type": "drills",
+                                        "duration_minutes": 1,
+                                        "exercise_name": "B",
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                },
+            ],
+        }
+        result = extract_exercise_names(plan)
+        assert len(result) == 2
+        names = [r[0] for r in result]
+        assert "A" in names
+        assert "B" in names
+
+
+# ---------------------------------------------------------------------------
+# find_similar_exercises
+# ---------------------------------------------------------------------------
+
+
+class TestFindSimilarExercises:
+    KNOWN = [
+        "Kniehebelauf",
+        "Anfersen",
+        "Skippings",
+        "Seitgalopp",
+        "Seitsprünge",
+        "Seitwärts überkreuzen",
+        "Steigerungslauf",
+    ]
+
+    def test_exact_match_excluded(self) -> None:
+        result = find_similar_exercises("Kniehebelauf", self.KNOWN)
+        assert "Kniehebelauf" not in result
+
+    def test_substring_match(self) -> None:
+        result = find_similar_exercises("Seit", self.KNOWN)
+        assert len(result) >= 2
+        names = set(result)
+        assert "Seitgalopp" in names
+        assert "Seitsprünge" in names
+
+    def test_word_overlap(self) -> None:
+        result = find_similar_exercises("Seitwärts laufen", self.KNOWN)
+        assert "Seitwärts überkreuzen" in result
+
+    def test_no_match(self) -> None:
+        result = find_similar_exercises("Bankdrücken", self.KNOWN)
+        assert result == []
+
+    def test_max_results(self) -> None:
+        result = find_similar_exercises("Seit", self.KNOWN, max_results=2)
+        assert len(result) <= 2
+
+    def test_case_insensitive(self) -> None:
+        result = find_similar_exercises("kniehebelauf", self.KNOWN)
+        # exact match (case-insensitive) should be excluded
+        assert "Kniehebelauf" not in result

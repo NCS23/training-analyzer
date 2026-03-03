@@ -602,3 +602,42 @@ def _check_phase_coverage(
                 location="phases",
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# Pure helper: extract exercise_name references from parsed YAML
+# ---------------------------------------------------------------------------
+
+
+def extract_exercise_names(raw: dict[str, object]) -> list[tuple[str, str]]:
+    """Extract all exercise_name values with their YAML locations.
+
+    Returns a list of (exercise_name, location_string) tuples.
+    Pure function — no DB access.
+    """
+    results: list[tuple[str, str]] = []
+    phases = raw.get("phases")
+    if not isinstance(phases, list):
+        return results
+    for i, phase in enumerate(phases):
+        if not isinstance(phase, dict):
+            continue
+        wt = phase.get("weekly_template")
+        if not isinstance(wt, list):
+            continue
+        for j, day_entry in enumerate(wt):
+            if not isinstance(day_entry, dict):
+                continue
+            rd = day_entry.get("run_details")
+            if not isinstance(rd, dict):
+                continue
+            intervals = rd.get("intervals")
+            if not isinstance(intervals, list):
+                continue
+            for k, interval in enumerate(intervals):
+                if isinstance(interval, dict):
+                    ex_name = interval.get("exercise_name")
+                    if ex_name and isinstance(ex_name, str) and ex_name.strip():
+                        loc = f"phases[{i}].weekly_template[{j}].intervals[{k}]"
+                        results.append((str(ex_name).strip(), loc))
+    return results

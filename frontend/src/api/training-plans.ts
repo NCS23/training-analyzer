@@ -209,9 +209,15 @@ export async function deleteTrainingPlan(
   await apiClient.delete(`/api/v1/training-plans/${planId}${params}`);
 }
 
-export async function importTrainingPlanYaml(file: File): Promise<TrainingPlan> {
+export async function importTrainingPlanYaml(
+  file: File,
+  exerciseReplacements?: Record<string, string>,
+): Promise<TrainingPlan> {
   const formData = new FormData();
   formData.append('yaml_file', file);
+  if (exerciseReplacements && Object.keys(exerciseReplacements).length > 0) {
+    formData.append('exercise_replacements', JSON.stringify(exerciseReplacements));
+  }
   const response = await apiClient.post<TrainingPlan>('/api/v1/training-plans/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
@@ -227,10 +233,17 @@ export interface YamlValidationIssue {
   location: string | null;
 }
 
+export interface ExerciseCheck {
+  exercise_name: string;
+  locations: string[];
+  suggestions: string[];
+}
+
 export interface YamlValidationResult {
   valid: boolean;
   errors: YamlValidationIssue[];
   warnings: YamlValidationIssue[];
+  unknown_exercises: ExerciseCheck[];
 }
 
 export async function validateTrainingPlanYaml(file: File): Promise<YamlValidationResult> {

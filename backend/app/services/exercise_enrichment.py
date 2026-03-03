@@ -296,6 +296,32 @@ def translate_search_query(query: str) -> list[str]:
     return translations
 
 
+def find_similar_exercises(
+    name: str,
+    known_names: list[str],
+    max_results: int = 5,
+) -> list[str]:
+    """Find exercise names similar to *name* from a list of known names.
+
+    Uses case-insensitive substring matching and word-overlap ranking.
+    Returns up to *max_results* suggestions (excluding exact matches).
+    """
+    name_lower = name.lower()
+    scored: list[tuple[str, int]] = []
+    for known in known_names:
+        known_lower = known.lower()
+        if known_lower == name_lower:
+            continue  # exact match → it IS known, skip
+        # Substring match (higher priority)
+        if name_lower in known_lower or known_lower in name_lower:
+            scored.append((known, 1))
+        # Word overlap
+        elif set(name_lower.split()) & set(known_lower.split()):
+            scored.append((known, 2))
+    scored.sort(key=lambda x: (x[1], x[0]))
+    return [s[0] for s in scored[:max_results]]
+
+
 def find_exercise_db_match(exercise_name: str) -> Optional[str]:
     """Try to find a free-exercise-db match for an exercise name.
 

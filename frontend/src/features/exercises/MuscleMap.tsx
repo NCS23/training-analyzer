@@ -19,7 +19,7 @@ interface MuscleMapProps {
   className?: string;
 }
 
-/** Maps exercise-db muscle names to library slug + German label */
+/** Maps exercise-db muscle names (English) to library slug + German label */
 const MUSCLE_MAP: Record<string, { slug: string; label: string }> = {
   chest: { slug: 'chest', label: 'Brust' },
   shoulders: { slug: 'deltoids', label: 'Schultern' },
@@ -40,8 +40,34 @@ const MUSCLE_MAP: Record<string, { slug: string; label: string }> = {
   hamstrings: { slug: 'hamstring', label: 'Beinbeuger' },
 };
 
+/**
+ * Maps German muscle names (used in Lauf-ABC drill enrichment) to
+ * their English MUSCLE_MAP keys so the SVG body map can highlight them.
+ */
+const GERMAN_TO_ENGLISH: Record<string, string> = {
+  Quadrizeps: 'quadriceps',
+  Waden: 'calves',
+  Hamstrings: 'hamstrings',
+  Beinbeuger: 'hamstrings',
+  Gesäß: 'glutes',
+  Adduktoren: 'adductors',
+  Abduktoren: 'glutes', // no separate SVG region — closest match
+  Rumpf: 'abdominals',
+  Obliques: 'obliques',
+  Hüftbeuger: 'quadriceps', // hip flexor — closest visual match
+  Hüftrotatoren: 'glutes', // deep hip — closest visual match
+  Schienbeinmuskel: 'calves', // tibialis — closest visual match
+  Fußgelenke: 'calves', // ankle complex — closest visual match
+};
+
+/** Normalise a muscle name to an English MUSCLE_MAP key. */
+function normaliseMuscleKey(name: string): string {
+  return GERMAN_TO_ENGLISH[name] ?? name;
+}
+
 function getPathsForView(muscleName: string, view: 'front' | 'back'): string[] {
-  const mapping = MUSCLE_MAP[muscleName];
+  const key = normaliseMuscleKey(muscleName);
+  const mapping = MUSCLE_MAP[key];
   if (!mapping) return [];
   const pathMap = view === 'front' ? FRONT_PATHS : BACK_PATHS;
   return pathMap[mapping.slug] ?? [];
@@ -151,7 +177,8 @@ function BodyView({
 export function MuscleMap({ primaryMuscles, secondaryMuscles, className }: MuscleMapProps) {
   const [hoveredMuscle, setHoveredMuscle] = useState<string | null>(null);
 
-  const hoveredLabel = hoveredMuscle ? MUSCLE_MAP[hoveredMuscle]?.label : null;
+  const hoveredNorm = hoveredMuscle ? normaliseMuscleKey(hoveredMuscle) : null;
+  const hoveredLabel = hoveredNorm ? MUSCLE_MAP[hoveredNorm]?.label : null;
   const isPrimaryHover = hoveredMuscle ? primaryMuscles.includes(hoveredMuscle) : false;
 
   const allMuscles = [...primaryMuscles, ...secondaryMuscles];

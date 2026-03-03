@@ -82,6 +82,7 @@ export function TrainingPlansPage() {
   const [validationResult, setValidationResult] = useState<YamlValidationResult | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [exerciseReplacements, setExerciseReplacements] = useState<Record<string, string>>({});
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingPlan, setDeletingPlan] = useState<TrainingPlanSummary | null>(null);
   const [deleteWeeklyPlans, setDeleteWeeklyPlans] = useState(false);
@@ -167,7 +168,23 @@ export function TrainingPlansPage() {
   const doImport = async (file: File) => {
     setImporting(true);
     try {
-      const plan = await importTrainingPlanYaml(file);
+      // Filter out empty replacements (user chose "Neu erstellen")
+      const activeReplacements = Object.fromEntries(
+        Object.entries(exerciseReplacements).filter(([, v]) => v.length > 0),
+      );
+      const plan = await importTrainingPlanYaml(file, activeReplacements);
+
+      // Show toast for auto-created exercises
+      const unknowns = validationResult?.unknown_exercises ?? [];
+      const created = unknowns.filter((ex) => !activeReplacements[ex.exercise_name]);
+      if (created.length > 0) {
+        toast({
+          title: `${created.length} neue Uebung${created.length > 1 ? 'en' : ''} erstellt`,
+          description: created.map((ex) => ex.exercise_name).join(', '),
+          variant: 'info',
+        });
+      }
+
       toast({ title: `„${plan.name}" importiert`, variant: 'success' });
       navigate(`/settings/plans/${plan.id}`);
     } catch (err: unknown) {
@@ -185,10 +202,15 @@ export function TrainingPlansPage() {
     if (!file) return;
     e.target.value = '';
 
+    setExerciseReplacements({});
     setValidating(true);
     try {
       const result = await validateTrainingPlanYaml(file);
-      if (result.errors.length === 0 && result.warnings.length === 0) {
+      const hasIssues =
+        result.errors.length > 0 ||
+        result.warnings.length > 0 ||
+        result.unknown_exercises.length > 0;
+      if (!hasIssues) {
         await doImport(file);
       } else {
         setPendingImportFile(file);
@@ -214,6 +236,7 @@ export function TrainingPlansPage() {
     setShowValidationDialog(false);
     setPendingImportFile(null);
     setValidationResult(null);
+    setExerciseReplacements({});
   };
 
   const formatDate = (iso: string) =>
@@ -457,6 +480,13 @@ export function TrainingPlansPage() {
                   <YamlValidationResultPanel
                     result={validationResult}
                     filename={pendingImportFile.name}
+                    exerciseReplacements={exerciseReplacements}
+                    onExerciseReplacementChange={(original, replacement) =>
+                      setExerciseReplacements((prev) => ({
+                        ...prev,
+                        [original]: replacement,
+                      }))
+                    }
                   />
                 )}
               </div>

@@ -1,16 +1,18 @@
 """API routes for Training Plans and Training Phases (S07, S08, S09)."""
 
+import contextlib
 import json
 from datetime import datetime
 from typing import Optional
 
 import yaml
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
+    ExerciseModel,
     PlanChangeLogModel,
     PlannedSessionModel,
     RaceGoalModel,
@@ -44,9 +46,10 @@ from app.models.training_plan import (
     TrainingPlanUpdate,
     WeeklyStructure,
 )
-from app.models.yaml_validation import YamlValidationIssue, YamlValidationResult
+from app.models.yaml_validation import ExerciseCheck, YamlValidationIssue, YamlValidationResult
+from app.services.exercise_enrichment import find_similar_exercises
 from app.services.plan_generator import generate_weekly_plans
-from app.services.yaml_validator import validate_yaml_plan
+from app.services.yaml_validator import extract_exercise_names, validate_yaml_plan
 
 router = APIRouter(prefix="/training-plans")
 
@@ -488,6 +491,128 @@ def _format_pydantic_errors(exc: ValidationError) -> str:
     return "\n".join(f"• {m}" for m in messages)
 
 
+async def _check_unknown_exercises(
+    raw: dict[str, object],
+    result: YamlValidationResult,
+    db: AsyncSession,
+) -> YamlValidationResult:
+    """Check exercise_name values in YAML against the Exercise Library.
+
+    Adds ``unknown_exercises`` entries + warnings for each unknown name.
+    Does NOT block import (``valid`` remains unchanged).
+    """
+    from collections import defaultdict
+
+    exercise_refs = extract_exercise_names(raw)
+    if not exercise_refs:
+        return result
+
+    db_result = await db.execute(select(ExerciseModel.name))
+    known_names = [str(n) for n in db_result.scalars().all()]
+    known_set = {n.lower() for n in known_names}
+
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for name, loc in exercise_refs:
+        if name.lower() not in known_set:
+            grouped[name].append(loc)
+
+    if not grouped:
+        return result
+
+    unknown_exercises: list[ExerciseCheck] = []
+    new_warnings: list[YamlValidationIssue] = list(result.warnings)
+    for name, locs in grouped.items():
+        suggestions = find_similar_exercises(name, known_names)
+        unknown_exercises.append(
+            ExerciseCheck(
+                exercise_name=name,
+                locations=locs,
+                suggestions=suggestions,
+            )
+        )
+        new_warnings.append(
+            YamlValidationIssue(
+                code="unknown_exercise_name",
+                level="warning",
+                message=(
+                    f"Uebung '{name}' existiert nicht in der Bibliothek "
+                    "und wird beim Import neu erstellt."
+                ),
+                location=locs[0],
+            )
+        )
+
+    return YamlValidationResult(
+        valid=result.valid,
+        errors=result.errors,
+        warnings=new_warnings,
+        unknown_exercises=unknown_exercises,
+    )
+
+
+async def _auto_create_unknown_exercises(
+    raw: dict[str, object],
+    db: AsyncSession,
+) -> list[str]:
+    """Create ExerciseModel entries for any unknown exercise_name values.
+
+    Returns the list of newly created exercise names.
+    """
+    exercise_refs = extract_exercise_names(raw)
+    if not exercise_refs:
+        return []
+
+    db_result = await db.execute(select(ExerciseModel.name))
+    known_set = {str(n).lower() for n in db_result.scalars().all()}
+
+    created: list[str] = []
+    for name, _ in exercise_refs:
+        if name.lower() not in known_set:
+            exercise = ExerciseModel(
+                name=name,
+                category="drills",
+                is_custom=True,
+                is_favorite=False,
+            )
+            db.add(exercise)
+            known_set.add(name.lower())
+            created.append(name)
+
+    if created:
+        await db.flush()
+    return created
+
+
+def _apply_exercise_replacements(
+    raw: dict[str, object],
+    replacements: dict[str, str],
+) -> None:
+    """Replace exercise_name values in a parsed YAML dict (in-place)."""
+    phases = raw.get("phases")
+    if not isinstance(phases, list):
+        return
+    for phase in phases:
+        if not isinstance(phase, dict):
+            continue
+        wt = phase.get("weekly_template")
+        if not isinstance(wt, list):
+            continue
+        for day_entry in wt:
+            if not isinstance(day_entry, dict):
+                continue
+            rd = day_entry.get("run_details")
+            if not isinstance(rd, dict):
+                continue
+            intervals = rd.get("intervals")
+            if not isinstance(intervals, list):
+                continue
+            for interval in intervals:
+                if isinstance(interval, dict):
+                    ex_name = interval.get("exercise_name")
+                    if ex_name and str(ex_name) in replacements:
+                        interval["exercise_name"] = replacements[str(ex_name)]
+
+
 def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
@@ -564,6 +689,7 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
 @router.post("/validate-yaml", response_model=YamlValidationResult)
 async def validate_yaml_endpoint(
     yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
+    db: AsyncSession = Depends(get_db),
 ) -> YamlValidationResult:
     """Validate a YAML training plan file and return structured errors/warnings."""
     if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
@@ -621,12 +747,22 @@ async def validate_yaml_endpoint(
             warnings=[],
         )
 
-    return validate_yaml_plan(raw)
+    result = validate_yaml_plan(raw)
+
+    # DB-aware exercise name check (only if basic validation passed)
+    if result.valid:
+        result = await _check_unknown_exercises(raw, result, db)
+
+    return result
 
 
 @router.post("/import", response_model=TrainingPlanResponse, status_code=201)
 async def import_plan_from_yaml(
     yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
+    exercise_replacements: Optional[str] = Form(
+        None,
+        description='JSON mapping {"OldName": "ExistingName"} for exercise name substitutions',
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> TrainingPlanResponse:
     """Import a training plan from a YAML file."""
@@ -662,6 +798,17 @@ async def import_plan_from_yaml(
             status_code=422,
             detail=f"Validierungsfehler: {messages}",
         )
+
+    # Apply exercise name replacements from the validation UI
+    replacements: dict[str, str] = {}
+    if exercise_replacements:
+        with contextlib.suppress(json.JSONDecodeError, ValueError):
+            replacements = json.loads(exercise_replacements)
+    if replacements:
+        _apply_exercise_replacements(raw, replacements)
+
+    # Auto-create unknown exercises in the library
+    await _auto_create_unknown_exercises(raw, db)
 
     # Resolve goal_title -> goal_id (backward compat, lookup only)
     goal_title = raw.get("goal_title")
