@@ -110,8 +110,8 @@ export function YamlValidationResultPanel({
                   <Dumbbell className="w-3.5 h-3.5 text-[var(--color-text-warning)] shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-[var(--color-text-base)]">
-                      <span className="font-medium">&bdquo;{ex.exercise_name}&ldquo;</span> nicht
-                      in der Bibliothek
+                      <span className="font-medium">&bdquo;{ex.exercise_name}&ldquo;</span> nicht in
+                      der Bibliothek
                     </p>
                     <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                       {ex.locations.length === 1
