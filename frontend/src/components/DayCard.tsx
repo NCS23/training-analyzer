@@ -1,4 +1,4 @@
-import { Button, Input, Select, Separator } from '@nordlig/components';
+import { Button, Input, Select } from '@nordlig/components';
 import { Check, ChevronDown, Dumbbell, Footprints, Minus, Moon, Pencil, Plus } from 'lucide-react';
 import type {
   PlannedSession,
@@ -139,6 +139,7 @@ function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditor
 
   return (
     <div className="space-y-2">
+      {/* Session header: label + type + remove */}
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <Select
@@ -165,7 +166,7 @@ function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditor
       </div>
 
       {session.training_type === 'running' && (
-        <>
+        <div className="space-y-2">
           <Select
             options={RUN_TYPE_OPTIONS}
             value={runDetails?.run_type ?? 'easy'}
@@ -221,7 +222,7 @@ function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditor
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -477,8 +478,13 @@ export function DayCard({
           {/* Sessions list */}
           {hasPlanSessions &&
             entry.sessions.map((session, idx) => (
-              <div key={idx}>
-                {idx > 0 && <Separator className="my-3" />}
+              <div
+                key={idx}
+                className="rounded-[var(--radius-component-sm)] bg-[var(--color-bg-muted)] p-[var(--spacing-xs)] space-y-2"
+              >
+                <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Session {idx + 1}
+                </span>
                 <SessionEditor
                   session={session}
                   canRemove={entry.sessions.length > 1}

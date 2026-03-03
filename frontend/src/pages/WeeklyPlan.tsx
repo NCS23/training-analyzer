@@ -309,25 +309,45 @@ export function WeeklyPlanPage() {
             </div>
           )}
 
-          {/* Compliance bar */}
-          {compliance && compliance.planned_count > 0 && (
-            <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-[var(--color-text-muted)]">Umsetzung</p>
-                <p className="text-xs font-medium text-[var(--color-text-base)]">
-                  {compliance.completed_count}/{compliance.planned_count}
-                </p>
-              </div>
-              <div className="mt-1.5 h-2 rounded-full bg-[var(--color-border-muted)] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[var(--color-interactive-primary)] transition-all duration-500 motion-reduce:transition-none"
-                  style={{
-                    width: `${Math.round((compliance.completed_count / compliance.planned_count) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
+          {/* Compliance bar — session-level progress */}
+          {compliance &&
+            (() => {
+              let planned = 0;
+              let completed = 0;
+              for (const ce of compliance.entries) {
+                if (ce.is_rest_day) {
+                  planned++;
+                  if (ce.status === 'rest_ok') completed++;
+                } else {
+                  const types = ce.planned_types;
+                  planned += types.length;
+                  for (const pt of types) {
+                    if (ce.actual_sessions.some((a) => a.workout_type === pt)) {
+                      completed++;
+                    }
+                  }
+                }
+              }
+              if (planned === 0) return null;
+              return (
+                <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-[var(--color-text-muted)]">Umsetzung</p>
+                    <p className="text-xs font-medium text-[var(--color-text-base)]">
+                      {completed}/{planned}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-2 rounded-full bg-[var(--color-border-muted)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-interactive-primary)] transition-all duration-500 motion-reduce:transition-none"
+                      style={{
+                        width: `${Math.round((completed / planned) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
         </CardBody>
       </Card>
 
