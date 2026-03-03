@@ -50,6 +50,7 @@ const categoryLabels: Record<string, string> = {
   legs: 'Beine',
   core: 'Core',
   cardio: 'Cardio',
+  drills: 'Lauf-ABC',
 };
 
 const categoryOptions = [
@@ -58,6 +59,7 @@ const categoryOptions = [
   { value: 'legs', label: 'Beine' },
   { value: 'core', label: 'Core' },
   { value: 'cardio', label: 'Cardio' },
+  { value: 'drills', label: 'Lauf-ABC' },
 ];
 
 const equipmentLabels: Record<string, string> = {

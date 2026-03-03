@@ -4,7 +4,7 @@ import type { RunDetails } from './weekly-plan';
 // --- Types ---
 
 export type ExerciseType = 'kraft' | 'mobilitaet' | 'dehnung';
-export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio';
+export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio' | 'drills';
 
 export interface TemplateExercise {
   name: string;

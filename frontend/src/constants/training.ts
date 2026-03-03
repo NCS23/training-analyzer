@@ -38,6 +38,7 @@ export const categoryBadgeVariant: Record<string, BadgeVariant> = {
   legs: 'primary-bold',
   core: 'accent',
   cardio: 'neutral',
+  drills: 'accent',
 };
 
 export const lapTypeLabels: Record<string, string> = {

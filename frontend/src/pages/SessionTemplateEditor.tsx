@@ -68,6 +68,7 @@ const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
   { value: 'legs', label: 'Beine' },
   { value: 'core', label: 'Core' },
   { value: 'cardio', label: 'Cardio' },
+  { value: 'drills', label: 'Lauf-ABC' },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -76,6 +77,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   legs: 'Beine',
   core: 'Core',
   cardio: 'Cardio',
+  drills: 'Lauf-ABC',
 };
 
 const EXERCISE_TYPE_OPTIONS: { value: ExerciseType; label: string }[] = [

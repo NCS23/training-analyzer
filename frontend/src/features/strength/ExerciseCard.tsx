@@ -12,6 +12,7 @@ const categoryOptions = [
   { value: 'legs', label: 'Beine' },
   { value: 'core', label: 'Core' },
   { value: 'cardio', label: 'Cardio' },
+  { value: 'drills', label: 'Lauf-ABC' },
 ];
 
 const defaultSet: SetInput = { reps: 8, weight_kg: 0, status: 'completed' };

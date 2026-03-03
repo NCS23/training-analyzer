@@ -36,6 +36,7 @@ const categoryOptions = [
   { value: 'legs', label: 'Beine' },
   { value: 'core', label: 'Core' },
   { value: 'cardio', label: 'Cardio' },
+  { value: 'drills', label: 'Lauf-ABC' },
 ];
 
 const createCategoryOptions = categoryOptions.filter((o) => o.value !== '');
@@ -46,6 +47,7 @@ const categoryLabels: Record<string, string> = {
   legs: 'Beine',
   core: 'Core',
   cardio: 'Cardio',
+  drills: 'Lauf-ABC',
 };
 
 export function ExerciseLibraryPage() {

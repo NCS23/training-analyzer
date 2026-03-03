@@ -22,11 +22,16 @@ export interface Segment {
 
   // Planning (Soll) — filled for templates + weekly plan
   target_duration_minutes: number | null;
+  target_distance_km: number | null;
   target_pace_min: string | null;
   target_pace_max: string | null;
   target_hr_min: number | null;
   target_hr_max: number | null;
   repeats: number;
+
+  // Enrichment — free-text notes and optional exercise reference
+  notes: string | null;
+  exercise_name: string | null;
 
   // Actual (Ist) — filled after session upload
   actual_duration_seconds: number | null;
@@ -56,11 +61,14 @@ export function createEmptySegment(position: number = 0, overrides?: Partial<Seg
     position,
     segment_type: 'work',
     target_duration_minutes: null,
+    target_distance_km: null,
     target_pace_min: null,
     target_pace_max: null,
     target_hr_min: null,
     target_hr_max: null,
     repeats: 1,
+    notes: null,
+    exercise_name: null,
     actual_duration_seconds: null,
     actual_distance_km: null,
     actual_pace_formatted: null,
@@ -85,8 +93,13 @@ export function formatSegmentSummary(segments: Segment[]): string | null {
   const workSegs = segments.filter((s) => s.segment_type === 'work');
   if (workSegs.length === 0) return null;
   const first = workSegs[0];
-  const dur = first.target_duration_minutes ? `${first.target_duration_minutes}′` : '';
-  return `${workSegs.length}×${dur}`;
+  let target = '';
+  if (first.target_distance_km) {
+    target = first.target_distance_km >= 1 ? `${first.target_distance_km} km` : `${first.target_distance_km * 1000}m`;
+  } else if (first.target_duration_minutes) {
+    target = `${first.target_duration_minutes}′`;
+  }
+  return `${workSegs.length}×${target}`;
 }
 
 /**
@@ -106,28 +119,9 @@ export function expandSegments(segments: Segment[]): Segment[] {
           repeats: 1,
         });
         if (i < seg.repeats - 1) {
-          result.push({
-            position: seg.position + i * 2 + 1,
-            segment_type: 'recovery_jog',
-            target_duration_minutes: null,
-            target_pace_min: null,
-            target_pace_max: null,
-            target_hr_min: null,
-            target_hr_max: null,
-            repeats: 1,
-            actual_duration_seconds: null,
-            actual_distance_km: null,
-            actual_pace_formatted: null,
-            actual_hr_avg: null,
-            actual_hr_max: null,
-            actual_hr_min: null,
-            actual_cadence_spm: null,
-            start_seconds: null,
-            end_seconds: null,
-            suggested_type: null,
-            confidence: null,
-            user_override: null,
-          });
+          result.push(
+            createEmptySegment(seg.position + i * 2 + 1, { segment_type: 'recovery_jog' }),
+          );
         }
       }
     }

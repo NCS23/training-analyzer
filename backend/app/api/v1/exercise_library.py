@@ -29,7 +29,7 @@ from app.services.exercise_enrichment import (
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
 # Valid exercise categories (matching strength.ExerciseCategory)
-VALID_CATEGORIES = {"push", "pull", "legs", "core", "cardio"}
+VALID_CATEGORIES = {"push", "pull", "legs", "core", "cardio", "drills"}
 
 # Default exercises (seeded on first access)
 DEFAULT_EXERCISES: list[dict[str, str]] = [
@@ -69,6 +69,12 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
     # Cardio
     {"name": "Rudern Ergometer", "category": "cardio"},
     {"name": "Seilspringen", "category": "cardio"},
+    # Drills (Lauf-ABC)
+    {"name": "Kniehebelauf", "category": "drills"},
+    {"name": "Anfersen", "category": "drills"},
+    {"name": "Skippings", "category": "drills"},
+    {"name": "Seitgalopp", "category": "drills"},
+    {"name": "Hopserlauf", "category": "drills"},
 ]
 
 

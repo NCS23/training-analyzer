@@ -538,3 +538,141 @@ class TestRunDetailsValidators:
         rd = RunDetails(run_type="easy")
         assert rd.intervals is None
         assert rd.segments is None
+
+
+class TestNewSegmentFields:
+    """Test notes, exercise_name, target_distance_km fields (#140)."""
+
+    # --- Defaults ---
+
+    def test_new_fields_default_to_none(self) -> None:
+        seg = Segment(position=0, segment_type="work")
+        assert seg.notes is None
+        assert seg.exercise_name is None
+        assert seg.target_distance_km is None
+
+    # --- notes ---
+
+    def test_notes_valid(self) -> None:
+        seg = Segment(position=0, segment_type="drills", notes="Knie hoch, Oberkörper aufrecht")
+        assert seg.notes == "Knie hoch, Oberkörper aufrecht"
+
+    def test_notes_max_length(self) -> None:
+        seg = Segment(position=0, segment_type="work", notes="x" * 500)
+        assert seg.notes is not None
+        assert len(seg.notes) == 500
+
+    def test_notes_too_long_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            Segment(position=0, segment_type="work", notes="x" * 501)
+
+    # --- exercise_name ---
+
+    def test_exercise_name_valid(self) -> None:
+        seg = Segment(position=0, segment_type="drills", exercise_name="Kniehebelauf")
+        assert seg.exercise_name == "Kniehebelauf"
+
+    def test_exercise_name_max_length(self) -> None:
+        seg = Segment(position=0, segment_type="work", exercise_name="A" * 100)
+        assert seg.exercise_name is not None
+        assert len(seg.exercise_name) == 100
+
+    def test_exercise_name_too_long_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            Segment(position=0, segment_type="work", exercise_name="A" * 101)
+
+    # --- target_distance_km ---
+
+    def test_target_distance_km_valid(self) -> None:
+        seg = Segment(position=0, segment_type="work", target_distance_km=0.4)
+        assert seg.target_distance_km == 0.4
+
+    def test_target_distance_km_zero_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            Segment(position=0, segment_type="work", target_distance_km=0)
+
+    def test_target_distance_km_negative_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            Segment(position=0, segment_type="work", target_distance_km=-1.0)
+
+    def test_target_distance_km_above_100_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            Segment(position=0, segment_type="work", target_distance_km=101)
+
+    def test_target_distance_km_max_boundary(self) -> None:
+        seg = Segment(position=0, segment_type="steady", target_distance_km=100.0)
+        assert seg.target_distance_km == 100.0
+
+    # --- Combined fields ---
+
+    def test_all_new_fields_together(self) -> None:
+        seg = Segment(
+            position=0,
+            segment_type="drills",
+            target_duration_minutes=2.0,
+            target_distance_km=0.2,
+            notes="Bergauf, dynamisch",
+            exercise_name="Skippings",
+        )
+        assert seg.notes == "Bergauf, dynamisch"
+        assert seg.exercise_name == "Skippings"
+        assert seg.target_distance_km == 0.2
+        assert seg.target_duration_minutes == 2.0
+
+
+class TestLapsToTemplateSegmentsDistance:
+    """Test that laps_to_template_segments derives target_distance_km (#140)."""
+
+    def test_derives_target_distance_from_actual(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=180,
+                duration_formatted="3:00",
+                distance_km=0.85,
+                pace_formatted="3:32",
+                suggested_type="work",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        seg = segments[0]
+        assert seg.target_distance_km == 0.85
+        assert seg.target_duration_minutes == 3.0
+
+    def test_no_distance_no_target_distance(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=300,
+                duration_formatted="5:00",
+                suggested_type="steady",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_distance_km is None
+
+    def test_zero_distance_no_target_distance(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=300,
+                duration_formatted="5:00",
+                distance_km=0.0,
+                suggested_type="rest",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_distance_km is None
+
+    def test_over_100km_no_target_distance(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=36000,
+                duration_formatted="600:00",
+                distance_km=101.0,
+                suggested_type="steady",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_distance_km is None

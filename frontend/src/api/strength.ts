@@ -2,7 +2,7 @@ import { apiClient } from './client';
 
 // --- Types ---
 
-export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio';
+export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio' | 'drills';
 export type SetStatus = 'completed' | 'reduced' | 'skipped';
 
 export interface SetInput {

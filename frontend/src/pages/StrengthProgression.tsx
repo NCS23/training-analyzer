@@ -53,6 +53,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   legs: 'Beine',
   core: 'Core',
   cardio: 'Cardio',
+  drills: 'Lauf-ABC',
 };
 
 const PR_TYPE_LABELS: Record<string, string> = {

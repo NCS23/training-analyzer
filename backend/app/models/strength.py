@@ -15,6 +15,7 @@ class ExerciseCategory(str, Enum):
     LEGS = "legs"
     CORE = "core"
     CARDIO = "cardio"
+    DRILLS = "drills"
 
 
 class SetStatus(str, Enum):

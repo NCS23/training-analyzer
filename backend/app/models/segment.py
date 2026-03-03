@@ -33,11 +33,16 @@ class Segment(BaseModel):
 
     # Planung (Soll) — gefuellt bei Templates + Wochenplan
     target_duration_minutes: Optional[float] = Field(default=None, gt=0, le=180)
+    target_distance_km: Optional[float] = Field(default=None, gt=0, le=100)
     target_pace_min: Optional[str] = Field(default=None, max_length=10)
     target_pace_max: Optional[str] = Field(default=None, max_length=10)
     target_hr_min: Optional[int] = Field(default=None, ge=60, le=220)
     target_hr_max: Optional[int] = Field(default=None, ge=60, le=220)
     repeats: int = Field(default=1, ge=1, le=50)
+
+    # Anreicherung — Freitext-Notizen und optionale Uebungsreferenz
+    notes: Optional[str] = Field(default=None, max_length=500)
+    exercise_name: Optional[str] = Field(default=None, max_length=100)
 
     # Ist-Daten — gefuellt nach Session-Upload
     actual_duration_seconds: Optional[float] = None
@@ -220,6 +225,8 @@ def laps_to_template_segments(laps: list[LapResponse]) -> list[Segment]:
         updates: dict[str, object] = {}
         if seg.actual_duration_seconds and 0 < seg.actual_duration_seconds / 60 <= 180:
             updates["target_duration_minutes"] = round(seg.actual_duration_seconds / 60, 1)
+        if seg.actual_distance_km and 0 < seg.actual_distance_km <= 100:
+            updates["target_distance_km"] = round(seg.actual_distance_km, 2)
         if seg.actual_pace_formatted:
             updates["target_pace_min"] = seg.actual_pace_formatted
         result.append(seg.model_copy(update=updates) if updates else seg)
