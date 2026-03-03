@@ -438,7 +438,9 @@ def _format_field_path(loc: tuple[str | int, ...]) -> str:
             i += 2
         elif segment == "days" and isinstance(next_val, int):
             day_name = _DOW_NAMES_DE[next_val] if 0 <= next_val <= 6 else str(next_val)
-            parts.append(f"Tag {next_val} ({day_name})" if 0 <= next_val <= 6 else f"Tag {next_val}")
+            parts.append(
+                f"Tag {next_val} ({day_name})" if 0 <= next_val <= 6 else f"Tag {next_val}"
+            )
             i += 2
         elif segment == "intervals" and isinstance(next_val, int):
             parts.append(f"Intervall {next_val + 1}")
