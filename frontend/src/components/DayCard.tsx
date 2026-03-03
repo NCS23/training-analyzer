@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Input,
@@ -38,7 +38,7 @@ import type {
 import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
-import { getSessionTemplate } from '@/api/session-templates';
+import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
@@ -300,6 +300,7 @@ function SessionDetailDialog({
   const [local, setLocal] = useState<PlannedSession>(session);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showAssignTemplate, setShowAssignTemplate] = useState(false);
+  const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>([]);
 
   // Sync when dialog opens
   const [prevOpen, setPrevOpen] = useState(false);
@@ -308,6 +309,17 @@ function SessionDetailDialog({
     setIsEditing(false);
   }
   if (open !== prevOpen) setPrevOpen(open);
+
+  // Fetch template exercises when a strength session has a template_id
+  useEffect(() => {
+    if (!open || !session.template_id || session.training_type !== 'strength') {
+      setTemplateExercises([]);
+      return;
+    }
+    getSessionTemplate(session.template_id)
+      .then((t) => setTemplateExercises(t.exercises))
+      .catch(() => setTemplateExercises([]));
+  }, [open, session.template_id, session.training_type]);
 
   const rd = isEditing ? (local.run_details ?? null) : (session.run_details ?? null);
   const current = isEditing ? local : session;
@@ -436,8 +448,52 @@ function SessionDetailDialog({
           {/* --- READ-ONLY --- */}
           {!isEditing && (
             <>
-              {current.training_type === 'strength' && current.notes && (
-                <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>
+              {current.training_type === 'strength' && (
+                <div className="space-y-3">
+                  {current.template_name && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Vorlage:{' '}
+                      <span className="font-medium text-[var(--color-text-base)]">
+                        {current.template_name}
+                      </span>
+                    </p>
+                  )}
+
+                  {templateExercises.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                        <Dumbbell className="w-3 h-3" />
+                        <span>Übungen</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {templateExercises.map((ex, i) => (
+                          <div
+                            key={i}
+                            className="flex items-baseline justify-between text-xs px-2 py-1 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-surface)]"
+                          >
+                            <span className="text-[var(--color-text-base)] font-medium truncate mr-2">
+                              {ex.name}
+                            </span>
+                            <span className="text-[var(--color-text-muted)] whitespace-nowrap">
+                              {ex.sets}×{ex.reps}
+                              {ex.weight_kg != null && ` · ${ex.weight_kg}kg`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!current.template_id && !current.notes && (
+                    <p className="text-xs text-[var(--color-text-disabled)] italic">
+                      Keine Vorlage verknüpft
+                    </p>
+                  )}
+
+                  {current.notes && (
+                    <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>
+                  )}
+                </div>
               )}
 
               {current.training_type === 'running' && (
