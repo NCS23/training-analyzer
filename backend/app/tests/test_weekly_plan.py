@@ -619,6 +619,105 @@ async def test_compliance_run_type_in_response(
     assert monday["actual_sessions"][0]["training_type_effective"] == "tempo"
 
 
+# --- Multi-Session Compliance Tests (E17-S07) ---
+
+
+@pytest.mark.anyio
+async def test_compliance_multi_session_completed(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Plan running + strength on Monday, both done → 'completed'."""
+    plan_data = {
+        "week_start": "2026-08-03",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "sessions": [
+                    {"training_type": "running", "position": 0},
+                    {"training_type": "strength", "position": 1},
+                ],
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    await _create_workout(db_session, "2026-08-03T08:00:00", "running", "easy")
+    await _create_workout(db_session, "2026-08-03T17:00:00", "strength", "strength")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-08-03"}
+    )
+    body = response.json()
+    monday = body["entries"][0]
+    assert monday["status"] == "completed"
+    assert monday["planned_types"] == ["running", "strength"]
+    assert len(monday["actual_sessions"]) == 2
+    assert body["completed_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_compliance_multi_session_partial(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Plan running + strength on Monday, only running done → 'partial'."""
+    plan_data = {
+        "week_start": "2026-08-10",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "sessions": [
+                    {"training_type": "running", "position": 0},
+                    {"training_type": "strength", "position": 1},
+                ],
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    await _create_workout(db_session, "2026-08-10T08:00:00", "running", "easy")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-08-10"}
+    )
+    body = response.json()
+    monday = body["entries"][0]
+    assert monday["status"] == "partial"
+    assert monday["planned_types"] == ["running", "strength"]
+    assert len(monday["actual_sessions"]) == 1
+    assert body["completed_count"] == 0
+
+
+@pytest.mark.anyio
+async def test_compliance_multi_session_off_target(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Plan running + strength on Monday, only swimming done → 'off_target'."""
+    plan_data = {
+        "week_start": "2026-08-17",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "sessions": [
+                    {"training_type": "running", "position": 0},
+                    {"training_type": "strength", "position": 1},
+                ],
+            },
+        ],
+    }
+    await client.put("/api/v1/weekly-plan", json=plan_data)
+
+    # swimming doesn't match running or strength
+    await _create_workout(db_session, "2026-08-17T08:00:00", "swimming", "swimming")
+
+    response = await client.get(
+        "/api/v1/weekly-plan/compliance", params={"week_start": "2026-08-17"}
+    )
+    body = response.json()
+    monday = body["entries"][0]
+    assert monday["status"] == "off_target"
+    assert body["completed_count"] == 0
+
+
 # --- plan_id / edited Tests (E16-S03) ---
 
 
@@ -908,7 +1007,51 @@ async def test_sync_to_plan_all_weeks(client: AsyncClient, db_session: AsyncSess
     phase = plan_resp.json()["phases"][0]
     assert phase["weekly_template"] is not None
     monday = phase["weekly_template"]["days"][0]
-    assert monday["training_type"] == "strength"
+    assert monday["sessions"][0]["training_type"] == "strength"
+
+
+@pytest.mark.anyio
+async def test_sync_to_plan_multi_session(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Sync a day with multiple sessions → all sessions appear in template."""
+    plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-12-07")
+
+    # Save a day with 2 sessions: running + strength
+    save_data = {
+        "week_start": "2026-12-07",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {"run_type": "easy"},
+                    },
+                    {"training_type": "strength", "position": 1},
+                ],
+            },
+        ],
+    }
+    put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
+    assert put_resp.status_code == 200
+
+    sync_resp = await client.post(
+        "/api/v1/weekly-plan/sync-to-plan",
+        json={"week_start": "2026-12-07", "plan_id": plan_id, "apply_to_all_weeks": False},
+    )
+    assert sync_resp.status_code == 200
+
+    plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
+    phase = plan_resp.json()["phases"][0]
+    week_template = phase["weekly_templates"]["weeks"]["1"]
+    monday = week_template["days"][0]
+    assert len(monday["sessions"]) == 2
+    assert monday["sessions"][0]["training_type"] == "running"
+    assert monday["sessions"][0]["run_type"] == "easy"
+    assert monday["sessions"][1]["training_type"] == "strength"
+    assert monday["sessions"][1]["position"] == 1
 
 
 @pytest.mark.anyio

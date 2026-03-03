@@ -136,19 +136,21 @@ def _has_explicit_run_details(rd: RunDetails) -> bool:
 
 
 def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]:
-    """Convert a PhaseWeeklyTemplate into 7 WeeklyPlanEntry objects."""
+    """Convert a PhaseWeeklyTemplate into 7 WeeklyPlanEntry objects.
+
+    Reads from day_entry.sessions (populated natively or via backwards-compat
+    validator from legacy flat fields).
+    """
     entries: list[WeeklyPlanEntry] = []
     for day_entry in template.days:
         sessions: list[PlannedSession] = []
-        if day_entry.training_type and not day_entry.is_rest_day:
+        for ts in day_entry.sessions:
             run_details: Optional[RunDetails] = None
-            if day_entry.run_details is not None:
-                # Template provides explicit RunDetails — use directly
-                run_details = day_entry.run_details
-            elif day_entry.training_type == "running" and day_entry.run_type:
-                # Skeleton RunDetails (only run_type, rest None)
+            if ts.run_details is not None:
+                run_details = ts.run_details
+            elif ts.training_type == "running" and ts.run_type:
                 run_details = RunDetails(
-                    run_type=day_entry.run_type,
+                    run_type=ts.run_type,
                     target_duration_minutes=None,
                     target_pace_min=None,
                     target_pace_max=None,
@@ -158,9 +160,9 @@ def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]
                 )
             sessions.append(
                 PlannedSession(
-                    position=0,
-                    training_type=day_entry.training_type,
-                    template_id=day_entry.template_id,
+                    position=ts.position,
+                    training_type=ts.training_type,
+                    template_id=ts.template_id,
                     run_details=run_details,
                 )
             )

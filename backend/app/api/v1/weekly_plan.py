@@ -21,6 +21,7 @@ from app.infrastructure.database.session import get_db
 from app.models.training_plan import (
     PhaseWeeklyTemplate,
     PhaseWeeklyTemplateDayEntry,
+    PhaseWeeklyTemplateSessionEntry,
 )
 from app.models.weekly_plan import (
     ActualSession,
@@ -457,7 +458,14 @@ def _determine_status(
     is_rest_day: bool,
     sessions: list[WorkoutModel],
 ) -> str:
-    """Determine compliance status for a day."""
+    """Determine compliance status for a day.
+
+    Multi-session logic (E17-S07):
+    - completed: every planned training_type has at least one matching workout
+    - partial: at least one planned type matched, but not all
+    - off_target: plan exists + sessions exist but no type matches
+    - missed: plan exists but no sessions
+    """
     has_plan = len(planned_types) > 0 or is_rest_day
     has_sessions = len(sessions) > 0
 
@@ -473,13 +481,18 @@ def _determine_status(
     if has_plan and not has_sessions:
         return "missed"
 
-    # Both plan and sessions exist — check type match
+    # Both plan and sessions exist — check per-type match
     type_map = {"strength": "strength", "running": "running"}
+    matched = 0
     for pt in planned_types:
         expected = type_map.get(pt, pt)
         if any(str(s.workout_type) == expected for s in sessions):
-            return "completed"
+            matched += 1
 
+    if matched == len(planned_types):
+        return "completed"
+    if matched > 0:
+        return "partial"
     return "off_target"
 
 
@@ -631,44 +644,36 @@ async def sync_to_plan(
     # Load weekly plan days + sessions
     days_data = await _load_days_with_sessions(db, week_start)
 
-    # Build PhaseWeeklyTemplate from weekly plan
-    # Note: PhaseWeeklyTemplateDayEntry is still flat (S03 will update to multi-session)
-    # For now, use the first session's data per day
+    # Build PhaseWeeklyTemplate from weekly plan (multi-session)
     template_days: list[PhaseWeeklyTemplateDayEntry] = []
     synced_days = 0
     for dow in range(7):
         if dow in days_data:
             db_day, db_sessions = days_data[dow]
             if db_sessions or db_day.is_rest_day:
-                first_session = db_sessions[0] if db_sessions else None
-                training_type: Optional[str] = None
-                run_type: Optional[str] = None
-                template_id: Optional[int] = None
-                run_details: Optional[RunDetails] = None
-
-                if first_session:
-                    training_type = str(first_session.training_type)
-                    template_id = (
-                        int(first_session.template_id)
-                        if first_session.template_id
-                        else None
+                template_sessions: list[PhaseWeeklyTemplateSessionEntry] = []
+                for s in db_sessions:
+                    rd = _parse_run_details(
+                        str(s.run_details_json) if s.run_details_json else None
                     )
-                    run_details = _parse_run_details(
-                        str(first_session.run_details_json)
-                        if first_session.run_details_json
-                        else None
+                    template_sessions.append(
+                        PhaseWeeklyTemplateSessionEntry(
+                            position=int(s.position),
+                            training_type=str(s.training_type),
+                            run_type=rd.run_type if rd else None,
+                            template_id=(
+                                int(s.template_id) if s.template_id else None
+                            ),
+                            run_details=rd,
+                        )
                     )
-                    run_type = run_details.run_type if run_details else None
 
                 template_days.append(
                     PhaseWeeklyTemplateDayEntry(
                         day_of_week=dow,
-                        training_type=training_type,
+                        sessions=template_sessions,
                         is_rest_day=bool(db_day.is_rest_day),
-                        run_type=run_type,
-                        template_id=template_id,
                         notes=str(db_day.notes) if db_day.notes else None,
-                        run_details=run_details,
                     )
                 )
                 synced_days += 1
@@ -677,10 +682,7 @@ async def sync_to_plan(
         template_days.append(
             PhaseWeeklyTemplateDayEntry(
                 day_of_week=dow,
-                training_type=None,
                 is_rest_day=False,
-                run_type=None,
-                notes=None,
             )
         )
     template = PhaseWeeklyTemplate(days=template_days)

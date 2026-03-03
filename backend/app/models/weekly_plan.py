@@ -94,7 +94,7 @@ class ComplianceDayEntry(BaseModel):
     is_rest_day: bool = False
     status: str = Field(
         ...,
-        pattern="^(completed|off_target|missed|rest_ok|unplanned|empty)$",
+        pattern="^(completed|partial|off_target|missed|rest_ok|unplanned|empty)$",
     )
     actual_sessions: list[ActualSession] = Field(default_factory=list)
 

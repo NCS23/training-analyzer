@@ -1,6 +1,6 @@
-import { Select, Input } from '@nordlig/components';
-import { Check, ChevronDown, Dumbbell, Footprints, Moon, Pencil } from 'lucide-react';
-import type { RunDetails, WeeklyPlanEntry, ComplianceDayEntry } from '@/api/weekly-plan';
+import { Button, Input, Select, Separator } from '@nordlig/components';
+import { Check, ChevronDown, Dumbbell, Footprints, Minus, Moon, Pencil, Plus } from 'lucide-react';
+import type { PlannedSession, RunDetails, WeeklyPlanEntry, ComplianceDayEntry } from '@/api/weekly-plan';
 
 // --- Constants ---
 
@@ -30,12 +30,19 @@ const RUN_TYPE_OPTIONS = [
   { value: 'race', label: 'Wettkampf' },
 ];
 
-const TYPE_OPTIONS = [
+const INITIAL_TYPE_OPTIONS = [
   { value: '', label: 'Leer' },
   { value: 'running', label: 'Laufen' },
   { value: 'strength', label: 'Kraft' },
   { value: 'rest', label: 'Ruhetag' },
 ];
+
+const SESSION_TYPE_OPTIONS = [
+  { value: 'running', label: 'Laufen' },
+  { value: 'strength', label: 'Kraft' },
+];
+
+const MAX_SESSIONS = 3;
 
 /**
  * Icon colors per training type.
@@ -58,14 +65,19 @@ const TYPE_ICON_COLORS: Record<string, string> = {
 
 // --- Helpers ---
 
-function getTypeKey(entry: WeeklyPlanEntry): string {
-  if (entry.is_rest_day) return 'rest';
-  if (entry.training_type === 'strength') return 'strength';
-  if (entry.training_type === 'running' && entry.run_details?.run_type) {
-    return entry.run_details.run_type;
+function getSessionTypeKey(session: PlannedSession): string {
+  if (session.training_type === 'strength') return 'strength';
+  if (session.training_type === 'running' && session.run_details?.run_type) {
+    return session.run_details.run_type;
   }
-  if (entry.training_type === 'running') return 'easy';
+  if (session.training_type === 'running') return 'easy';
   return 'empty';
+}
+
+function getEntryTypeKey(entry: WeeklyPlanEntry): string {
+  if (entry.is_rest_day) return 'rest';
+  if (entry.sessions.length === 0) return 'empty';
+  return getSessionTypeKey(entry.sessions[0]);
 }
 
 function getDateStr(weekStart: string, dayOfWeek: number): string {
@@ -79,6 +91,183 @@ function isDayInPast(weekStart: string, dayOfWeek: number): boolean {
   d.setDate(d.getDate() + dayOfWeek);
   d.setHours(23, 59, 59, 999);
   return d < new Date();
+}
+
+// --- SessionEditor (inline) ---
+
+interface SessionEditorProps {
+  session: PlannedSession;
+  canRemove: boolean;
+  onUpdate: (updated: PlannedSession) => void;
+  onRemove: () => void;
+}
+
+function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditorProps) {
+  const runDetails = session.run_details ?? null;
+
+  const handleTypeChange = (val: string) => {
+    if (val === 'running') {
+      onUpdate({ ...session, training_type: 'running', run_details: null });
+    } else {
+      onUpdate({ ...session, training_type: 'strength', run_details: undefined });
+    }
+  };
+
+  const handleRunTypeChange = (runType: string) => {
+    onUpdate({
+      ...session,
+      run_details: {
+        run_type: runType as RunDetails['run_type'],
+        target_duration_minutes: runDetails?.target_duration_minutes ?? null,
+        target_pace_min: runDetails?.target_pace_min ?? null,
+        target_pace_max: runDetails?.target_pace_max ?? null,
+        target_hr_min: runDetails?.target_hr_min ?? null,
+        target_hr_max: runDetails?.target_hr_max ?? null,
+        intervals: runDetails?.intervals ?? null,
+      },
+    });
+  };
+
+  const updateRunDetails = (rd: RunDetails) => {
+    onUpdate({ ...session, run_details: rd });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <Select
+            options={SESSION_TYPE_OPTIONS}
+            value={session.training_type}
+            onChange={(val) => {
+              if (val) handleTypeChange(val);
+            }}
+            inputSize="sm"
+            aria-label="Trainingstyp"
+          />
+        </div>
+        {canRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            aria-label="Session entfernen"
+            className="shrink-0"
+          >
+            <Minus className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {session.training_type === 'running' && (
+        <>
+          <Select
+            options={RUN_TYPE_OPTIONS}
+            value={runDetails?.run_type ?? 'easy'}
+            onChange={(val) => {
+              if (val) handleRunTypeChange(val);
+            }}
+            inputSize="sm"
+            aria-label="Lauftyp"
+          />
+
+          {runDetails?.run_type && (
+            <div className="grid grid-cols-1 gap-2.5">
+              <Input
+                type="number"
+                min={5}
+                max={360}
+                value={runDetails.target_duration_minutes ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : null;
+                  updateRunDetails({ ...runDetails, target_duration_minutes: val });
+                }}
+                inputSize="sm"
+                placeholder="Dauer (min)"
+                aria-label="Dauer in Minuten"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="text"
+                  value={runDetails.target_pace_min ?? ''}
+                  onChange={(e) =>
+                    updateRunDetails({
+                      ...runDetails,
+                      target_pace_min: e.target.value || null,
+                    })
+                  }
+                  inputSize="sm"
+                  placeholder="Pace von"
+                  aria-label="Pace von"
+                />
+                <Input
+                  type="text"
+                  value={runDetails.target_pace_max ?? ''}
+                  onChange={(e) =>
+                    updateRunDetails({
+                      ...runDetails,
+                      target_pace_max: e.target.value || null,
+                    })
+                  }
+                  inputSize="sm"
+                  placeholder="Pace bis"
+                  aria-label="Pace bis"
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// --- SessionHeader (collapsed session display) ---
+
+function SessionHeaderRow({ session }: { session: PlannedSession }) {
+  const typeKey = getSessionTypeKey(session);
+  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
+  const runDetails = session.run_details ?? null;
+
+  if (session.training_type === 'strength') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Dumbbell className={`w-3.5 h-3.5 ${iconColor}`} />
+        <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
+      </div>
+    );
+  }
+
+  if (session.training_type === 'running') {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
+          <span className="text-xs font-medium text-[var(--color-text-base)]">
+            {runDetails?.run_type
+              ? (RUN_TYPE_SHORT[runDetails.run_type] ?? runDetails.run_type)
+              : 'Laufen'}
+          </span>
+        </div>
+        {runDetails?.target_duration_minutes && (
+          <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
+            {runDetails.target_duration_minutes} min
+          </span>
+        )}
+        {runDetails?.target_pace_min && (
+          <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
+            {runDetails.target_pace_min}
+            {runDetails.target_pace_max
+              ? `–${runDetails.target_pace_max}`
+              : ''}{' '}
+            /km
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // --- Component ---
@@ -106,50 +295,55 @@ export function DayCard({
   onUpdate,
   onNavigateSession,
 }: DayCardProps) {
-  const typeKey = getTypeKey(entry);
-  const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
+  const primaryTypeKey = getEntryTypeKey(entry);
+  const primaryIconColor = TYPE_ICON_COLORS[primaryTypeKey] ?? TYPE_ICON_COLORS.empty;
   const isPast = isDayInPast(weekStart, entry.day_of_week);
   const isCompleted = compliance?.status === 'completed' || compliance?.status === 'rest_ok';
+  const isPartial = compliance?.status === 'partial';
   const hasSessions = compliance?.actual_sessions && compliance.actual_sessions.length > 0;
 
-  const handleTypeChange = (val: string) => {
-    if (val === 'rest') {
-      onUpdate({
-        training_type: null,
-        is_rest_day: true,
-        template_id: null,
-        template_name: null,
-        run_details: null,
-      });
-    } else if (val === 'strength') {
-      onUpdate({ training_type: 'strength', is_rest_day: false, run_details: null });
-    } else if (val === 'running') {
-      onUpdate({ training_type: 'running', is_rest_day: false });
-    } else {
-      onUpdate({
-        training_type: null,
-        is_rest_day: false,
-        template_id: null,
-        template_name: null,
-        notes: null,
-        run_details: null,
-      });
-    }
+  const hasPlanSessions = entry.sessions.length > 0;
+
+  // --- Session mutation helpers ---
+
+  const updateSession = (idx: number, updated: PlannedSession) => {
+    const newSessions = entry.sessions.map((s, i) => (i === idx ? updated : s));
+    onUpdate({ sessions: newSessions });
   };
 
-  const handleRunTypeChange = (runType: string) => {
-    const current = entry.run_details;
-    onUpdate({
-      run_details: {
-        run_type: runType as RunDetails['run_type'],
-        target_duration_minutes: current?.target_duration_minutes ?? null,
-        target_pace_min: current?.target_pace_min ?? null,
-        target_pace_max: current?.target_pace_max ?? null,
-        target_hr_min: current?.target_hr_min ?? null,
-        target_hr_max: current?.target_hr_max ?? null,
-        intervals: current?.intervals ?? null,
-      },
-    });
+  const removeSession = (idx: number) => {
+    const newSessions = entry.sessions
+      .filter((_, i) => i !== idx)
+      .map((s, i) => ({ ...s, position: i }));
+    onUpdate({ sessions: newSessions });
+  };
+
+  const addSession = () => {
+    const newSession: PlannedSession = {
+      position: entry.sessions.length,
+      training_type: 'running',
+    };
+    onUpdate({ sessions: [...entry.sessions, newSession] });
+  };
+
+  // --- Initial type select (when no sessions) ---
+
+  const handleInitialTypeChange = (val: string) => {
+    if (val === 'rest') {
+      onUpdate({ sessions: [], is_rest_day: true });
+    } else if (val === 'strength') {
+      onUpdate({
+        sessions: [{ position: 0, training_type: 'strength' }],
+        is_rest_day: false,
+      });
+    } else if (val === 'running') {
+      onUpdate({
+        sessions: [{ position: 0, training_type: 'running' }],
+        is_rest_day: false,
+      });
+    } else {
+      onUpdate({ sessions: [], is_rest_day: false, notes: null });
+    }
   };
 
   return (
@@ -194,43 +388,17 @@ export function DayCard({
           </div>
         </div>
 
-        {/* Training type — icon + label */}
-        <div className="min-h-[28px] flex items-center">
+        {/* Training type — icon + label for all sessions */}
+        <div className="min-h-[28px] flex flex-col gap-1">
           {entry.is_rest_day ? (
             <div className="flex items-center gap-1.5">
-              <Moon className={`w-3.5 h-3.5 ${iconColor}`} />
+              <Moon className={`w-3.5 h-3.5 ${primaryIconColor}`} />
               <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
             </div>
-          ) : entry.training_type === 'strength' ? (
-            <div className="flex items-center gap-1.5">
-              <Dumbbell className={`w-3.5 h-3.5 ${iconColor}`} />
-              <span className="text-xs font-medium text-[var(--color-text-base)]">Kraft</span>
-            </div>
-          ) : entry.training_type === 'running' ? (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1.5">
-                <Footprints className={`w-3.5 h-3.5 ${iconColor}`} />
-                <span className="text-xs font-medium text-[var(--color-text-base)]">
-                  {entry.run_details?.run_type
-                    ? (RUN_TYPE_SHORT[entry.run_details.run_type] ?? entry.run_details.run_type)
-                    : 'Laufen'}
-                </span>
-              </div>
-              {entry.run_details?.target_duration_minutes && (
-                <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
-                  {entry.run_details.target_duration_minutes} min
-                </span>
-              )}
-              {entry.run_details?.target_pace_min && (
-                <span className="text-[10px] text-[var(--color-text-muted)] pl-5">
-                  {entry.run_details.target_pace_min}
-                  {entry.run_details.target_pace_max
-                    ? `–${entry.run_details.target_pace_max}`
-                    : ''}{' '}
-                  /km
-                </span>
-              )}
-            </div>
+          ) : hasPlanSessions ? (
+            entry.sessions.map((session, idx) => (
+              <SessionHeaderRow key={idx} session={session} />
+            ))
           ) : (
             <span className="text-xs text-[var(--color-text-disabled)]">—</span>
           )}
@@ -257,6 +425,12 @@ export function DayCard({
               <span className="text-[10px] text-[var(--color-text-success)]">Erledigt</span>
             </div>
           )}
+          {isPartial && (
+            <div className="flex items-center gap-1 mb-0.5">
+              <Check className="w-3 h-3 text-[var(--color-text-warning)]" />
+              <span className="text-[10px] text-[var(--color-text-warning)]">Teilweise</span>
+            </div>
+          )}
           {hasSessions &&
             compliance.actual_sessions.map((s) => (
               <button
@@ -278,80 +452,57 @@ export function DayCard({
       {/* Expanded editor */}
       {isExpanded && (
         <div className="px-[var(--spacing-sm)] pb-[var(--spacing-sm)] pt-[var(--spacing-sm)] border-t border-[var(--color-border-muted)] space-y-3">
-          <Select
-            options={TYPE_OPTIONS}
-            value={entry.is_rest_day ? 'rest' : (entry.training_type ?? '')}
-            onChange={(val) => handleTypeChange(val ?? '')}
-            inputSize="sm"
-            aria-label="Trainingstyp"
-          />
-
-          {entry.training_type === 'running' && (
-            <>
-              <Select
-                options={RUN_TYPE_OPTIONS}
-                value={entry.run_details?.run_type ?? 'easy'}
-                onChange={(val) => {
-                  if (val) handleRunTypeChange(val);
-                }}
-                inputSize="sm"
-                aria-label="Lauftyp"
-              />
-
-              {entry.run_details?.run_type && (
-                <div className="grid grid-cols-1 gap-2.5">
-                  <Input
-                    type="number"
-                    min={5}
-                    max={360}
-                    value={entry.run_details.target_duration_minutes ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : null;
-                      onUpdate({
-                        run_details: { ...entry.run_details!, target_duration_minutes: val },
-                      });
-                    }}
-                    inputSize="sm"
-                    placeholder="Dauer (min)"
-                    aria-label="Dauer in Minuten"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="text"
-                      value={entry.run_details.target_pace_min ?? ''}
-                      onChange={(e) =>
-                        onUpdate({
-                          run_details: {
-                            ...entry.run_details!,
-                            target_pace_min: e.target.value || null,
-                          },
-                        })
-                      }
-                      inputSize="sm"
-                      placeholder="Pace von"
-                      aria-label="Pace von"
-                    />
-                    <Input
-                      type="text"
-                      value={entry.run_details.target_pace_max ?? ''}
-                      onChange={(e) =>
-                        onUpdate({
-                          run_details: {
-                            ...entry.run_details!,
-                            target_pace_max: e.target.value || null,
-                          },
-                        })
-                      }
-                      inputSize="sm"
-                      placeholder="Pace bis"
-                      aria-label="Pace bis"
-                    />
-                  </div>
-                </div>
-              )}
-            </>
+          {/* No sessions and not rest day → initial type selector */}
+          {!hasPlanSessions && !entry.is_rest_day && (
+            <Select
+              options={INITIAL_TYPE_OPTIONS}
+              value=""
+              onChange={(val) => handleInitialTypeChange(val ?? '')}
+              inputSize="sm"
+              aria-label="Trainingstyp"
+            />
           )}
 
+          {/* Rest day → show selector to switch back */}
+          {entry.is_rest_day && (
+            <Select
+              options={INITIAL_TYPE_OPTIONS}
+              value="rest"
+              onChange={(val) => handleInitialTypeChange(val ?? '')}
+              inputSize="sm"
+              aria-label="Trainingstyp"
+            />
+          )}
+
+          {/* Sessions list */}
+          {hasPlanSessions &&
+            entry.sessions.map((session, idx) => (
+              <div key={idx}>
+                {idx > 0 && <Separator className="my-3" />}
+                <SessionEditor
+                  session={session}
+                  canRemove={entry.sessions.length > 1}
+                  onUpdate={(updated) => updateSession(idx, updated)}
+                  onRemove={() => removeSession(idx)}
+                />
+              </div>
+            ))}
+
+          {/* Add Session button */}
+          {hasPlanSessions && !entry.is_rest_day && entry.sessions.length < MAX_SESSIONS && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addSession}
+              className="w-full"
+              aria-label="Session hinzufuegen"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Session
+            </Button>
+          )}
+
+          {/* Notes */}
           <Input
             type="text"
             value={entry.notes ?? ''}
