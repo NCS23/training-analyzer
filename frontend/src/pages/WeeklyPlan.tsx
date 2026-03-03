@@ -138,7 +138,7 @@ export function WeeklyPlanPage() {
     setError(null);
     try {
       const nonEmptyEntries = entries.filter(
-        (e) => e.training_type != null || e.is_rest_day || e.notes,
+        (e) => e.sessions.length > 0 || e.is_rest_day || e.notes,
       );
       if (nonEmptyEntries.length === 0) {
         toast({ title: 'Keine Einträge zum Speichern', variant: 'warning' });
@@ -149,11 +149,9 @@ export function WeeklyPlanPage() {
         week_start: weekStart,
         entries: nonEmptyEntries.map((e) => ({
           day_of_week: e.day_of_week,
-          training_type: e.training_type,
-          template_id: e.template_id,
           is_rest_day: e.is_rest_day,
           notes: e.notes,
-          run_details: e.run_details,
+          sessions: e.sessions,
         })),
       });
       setEntries(result.entries);
@@ -192,12 +190,17 @@ export function WeeklyPlanPage() {
     let rest = 0;
     let totalMinutes = 0;
     for (const e of entries) {
-      if (e.is_rest_day) rest++;
-      else if (e.training_type === 'strength') strength++;
-      else if (e.training_type === 'running') {
-        running++;
-        if (e.run_details?.target_duration_minutes) {
-          totalMinutes += e.run_details.target_duration_minutes;
+      if (e.is_rest_day) {
+        rest++;
+      } else {
+        for (const s of e.sessions) {
+          if (s.training_type === 'strength') strength++;
+          else if (s.training_type === 'running') {
+            running++;
+            if (s.run_details?.target_duration_minutes) {
+              totalMinutes += s.run_details.target_duration_minutes;
+            }
+          }
         }
       }
     }
@@ -205,7 +208,7 @@ export function WeeklyPlanPage() {
   }, [entries]);
 
   const isCurrentWeek = weekStart === getMondayOfWeek(new Date());
-  const hasContent = entries.some((e) => e.training_type != null || e.is_rest_day);
+  const hasContent = entries.some((e) => e.sessions.length > 0 || e.is_rest_day);
   const linkedPlanId = entries.find((e) => e.plan_id != null)?.plan_id ?? null;
   const editedPlanCount = entries.filter((e) => e.plan_id != null && e.edited).length;
 

@@ -565,32 +565,37 @@ async def test_import_yaml_with_run_details(client: AsyncClient) -> None:
     wt = phase["weekly_template"]
     assert wt is not None
 
-    # Day 0: easy with explicit run_details
+    # Day 0: easy with explicit run_details (via sessions[])
     day0 = wt["days"][0]
-    assert day0["run_type"] == "easy"
-    assert day0["run_details"] is not None
-    assert day0["run_details"]["target_duration_minutes"] == 45
-    assert day0["run_details"]["target_pace_min"] == "5:40"
-    assert day0["run_details"]["target_pace_max"] == "6:10"
+    assert len(day0["sessions"]) == 1
+    s0 = day0["sessions"][0]
+    assert s0["run_type"] == "easy"
+    assert s0["run_details"] is not None
+    assert s0["run_details"]["target_duration_minutes"] == 45
+    assert s0["run_details"]["target_pace_min"] == "5:40"
+    assert s0["run_details"]["target_pace_max"] == "6:10"
 
     # Day 4: intervals with intervals list
     day4 = wt["days"][4]
-    assert day4["run_type"] == "intervals"
-    assert day4["run_details"] is not None
-    assert day4["run_details"]["run_type"] == "intervals"
-    assert len(day4["run_details"]["intervals"]) == 4
-    assert day4["run_details"]["intervals"][1]["type"] == "work"
-    assert day4["run_details"]["intervals"][1]["repeats"] == 5
+    s4 = day4["sessions"][0]
+    assert s4["run_type"] == "intervals"
+    assert s4["run_details"] is not None
+    assert s4["run_details"]["run_type"] == "intervals"
+    assert len(s4["run_details"]["intervals"]) == 4
+    assert s4["run_details"]["intervals"][1]["type"] == "work"
+    assert s4["run_details"]["intervals"][1]["repeats"] == 5
 
-    # Day 2: no run_details → should be None
+    # Day 2: no run_details → session has run_type but no run_details
     day2 = wt["days"][2]
-    assert day2["run_type"] == "easy"
-    assert day2["run_details"] is None
+    s2 = day2["sessions"][0]
+    assert s2["run_type"] == "easy"
+    assert s2["run_details"] is None
 
     # Day 5: long_run without run_details
     day5 = wt["days"][5]
-    assert day5["run_type"] == "long_run"
-    assert day5["run_details"] is None
+    s5 = day5["sessions"][0]
+    assert s5["run_type"] == "long_run"
+    assert s5["run_details"] is None
 
 
 @pytest.mark.anyio

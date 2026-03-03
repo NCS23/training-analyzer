@@ -29,14 +29,20 @@ export type RunType =
   | 'fartlek'
   | 'race';
 
-export interface PhaseWeeklyTemplateDayEntry {
-  day_of_week: number;
-  training_type: 'strength' | 'running' | null;
-  is_rest_day: boolean;
+export interface PhaseWeeklyTemplateSessionEntry {
+  position: number;
+  training_type: 'strength' | 'running';
   run_type: RunType | null;
   template_id: number | null;
   notes: string | null;
   run_details?: RunDetails | null;
+}
+
+export interface PhaseWeeklyTemplateDayEntry {
+  day_of_week: number;
+  sessions: PhaseWeeklyTemplateSessionEntry[];
+  is_rest_day: boolean;
+  notes: string | null;
 }
 
 export type { RunDetails } from './weekly-plan';

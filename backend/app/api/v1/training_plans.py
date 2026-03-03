@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
+    PlannedSessionModel,
     RaceGoalModel,
     TrainingPhaseModel,
     TrainingPlanModel,
-    WeeklyPlanEntryModel,
+    WeeklyPlanDayModel,
 )
 from app.infrastructure.database.session import get_db
 from app.models.plan_changelog import (
@@ -601,15 +602,15 @@ async def get_generation_preview(
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 
-    entries_result = await db.execute(
-        select(WeeklyPlanEntryModel)
-        .where(WeeklyPlanEntryModel.plan_id == plan_id)
-        .order_by(WeeklyPlanEntryModel.week_start)
+    days_result = await db.execute(
+        select(WeeklyPlanDayModel)
+        .where(WeeklyPlanDayModel.plan_id == plan_id)
+        .order_by(WeeklyPlanDayModel.week_start)
     )
-    entries = list(entries_result.scalars().all())
+    days = list(days_result.scalars().all())
 
-    weeks: dict[str, list[WeeklyPlanEntryModel]] = {}
-    for e in entries:
+    weeks: dict[str, list[WeeklyPlanDayModel]] = {}
+    for e in days:
         ws_key = str(e.week_start)
         if ws_key not in weeks:
             weeks[ws_key] = []
@@ -696,23 +697,29 @@ async def generate_plan_weeks(
     edited_weeks: set[date_type] = set()
     if strategy == "unedited_only":
         edited_result = await db.execute(
-            select(WeeklyPlanEntryModel.week_start)
+            select(WeeklyPlanDayModel.week_start)
             .where(
-                WeeklyPlanEntryModel.plan_id == plan_id,
-                WeeklyPlanEntryModel.edited.is_(True),
+                WeeklyPlanDayModel.plan_id == plan_id,
+                WeeklyPlanDayModel.edited.is_(True),
             )
             .distinct()
         )
         edited_weeks = {row[0] for row in edited_result.all()}
 
-    # Delete old entries by plan_id (skip edited weeks if strategy=unedited_only)
+    # Delete old days + sessions by plan_id (skip edited weeks if strategy=unedited_only)
     old_by_plan = await db.execute(
-        select(WeeklyPlanEntryModel).where(WeeklyPlanEntryModel.plan_id == plan_id)
+        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.plan_id == plan_id)
     )
-    for old_entry in old_by_plan.scalars().all():
-        if strategy == "unedited_only" and old_entry.week_start in edited_weeks:
+    for old_day in old_by_plan.scalars().all():
+        if strategy == "unedited_only" and old_day.week_start in edited_weeks:
             continue
-        await db.delete(old_entry)
+        # Delete associated sessions first
+        old_sessions = await db.execute(
+            select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
+        )
+        for old_sess in old_sessions.scalars().all():
+            await db.delete(old_sess)
+        await db.delete(old_day)
 
     # Delete manual entries for weeks that will be regenerated
     weeks_to_generate = (
@@ -723,40 +730,56 @@ async def generate_plan_weeks(
 
     if weeks_to_generate:
         old_by_week = await db.execute(
-            select(WeeklyPlanEntryModel).where(
-                WeeklyPlanEntryModel.week_start.in_(weeks_to_generate),
-                WeeklyPlanEntryModel.plan_id.is_(None),
+            select(WeeklyPlanDayModel).where(
+                WeeklyPlanDayModel.week_start.in_(weeks_to_generate),
+                WeeklyPlanDayModel.plan_id.is_(None),
             )
         )
-        for old_entry in old_by_week.scalars().all():
-            await db.delete(old_entry)
+        for old_day in old_by_week.scalars().all():
+            old_sessions = await db.execute(
+                select(PlannedSessionModel).where(PlannedSessionModel.day_id == old_day.id)
+            )
+            for old_sess in old_sessions.scalars().all():
+                await db.delete(old_sess)
+            await db.delete(old_day)
 
     await db.flush()
 
-    # Insert new entries (skip edited weeks if strategy=unedited_only)
+    # Insert new days + sessions (skip edited weeks if strategy=unedited_only)
     weeks_generated = 0
     for week_start, entries in weekly_plans:
         if strategy == "unedited_only" and week_start in edited_weeks:
             continue
 
         for plan_entry in entries:
-            run_details_str: Optional[str] = None
-            if plan_entry.run_details is not None:
-                run_details_str = json.dumps(plan_entry.run_details.model_dump())
-
-            db_entry = WeeklyPlanEntryModel(
+            db_day = WeeklyPlanDayModel(
                 plan_id=plan_id,
                 week_start=week_start,
                 day_of_week=plan_entry.day_of_week,
-                training_type=plan_entry.training_type,
                 is_rest_day=plan_entry.is_rest_day,
                 notes=plan_entry.notes,
-                run_details_json=run_details_str,
                 edited=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
-            db.add(db_entry)
+            db.add(db_day)
+            await db.flush()  # get db_day.id
+
+            for sess in plan_entry.sessions:
+                run_details_str: Optional[str] = None
+                if sess.run_details is not None:
+                    run_details_str = json.dumps(sess.run_details.model_dump())
+                db_sess = PlannedSessionModel(
+                    day_id=db_day.id,
+                    position=sess.position,
+                    training_type=sess.training_type,
+                    template_id=sess.template_id,
+                    run_details_json=run_details_str,
+                    notes=sess.notes,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(db_sess)
         weeks_generated += 1
 
     await log_plan_change(

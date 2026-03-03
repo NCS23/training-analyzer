@@ -29,6 +29,20 @@ from app.services.plan_generator import (
 # --- Helpers ---
 
 
+def _first_run_details(entry):  # type: ignore[no-untyped-def]
+    """Get run_details from the first session of an entry (or None)."""
+    if entry.sessions:
+        return entry.sessions[0].run_details
+    return None
+
+
+def _first_training_type(entry):  # type: ignore[no-untyped-def]
+    """Get training_type from the first session of an entry (or None)."""
+    if entry.sessions:
+        return entry.sessions[0].training_type
+    return None
+
+
 def _make_plan(
     db: AsyncSession,
     start: str = "2026-04-06",
@@ -143,10 +157,14 @@ class TestHelpers:
     def test_distribute_days_places_long_run_weekend(self) -> None:
         entries = _distribute_days(["easy", "easy", "easy", "long_run"], 0, [6])
         running_entries = [
-            e for e in entries if e.training_type == "running" and e.run_details is not None
+            e
+            for e in entries
+            if _first_training_type(e) == "running" and _first_run_details(e) is not None
         ]
         long_runs = [
-            e for e in running_entries if e.run_details and e.run_details.run_type == "long_run"
+            e
+            for e in running_entries
+            if _first_run_details(e) and _first_run_details(e).run_type == "long_run"
         ]
         assert len(long_runs) == 1
         assert long_runs[0].day_of_week == 5  # Saturday
@@ -192,7 +210,9 @@ class TestTemplateToEntries:
     def test_template_preserves_run_types(self) -> None:
         entries = _template_to_entries(SAMPLE_TEMPLATE)
         run_types = {
-            e.day_of_week: e.run_details.run_type for e in entries if e.run_details is not None
+            e.day_of_week: _first_run_details(e).run_type
+            for e in entries
+            if _first_run_details(e) is not None
         }
         assert run_types[0] == "easy"
         assert run_types[2] == "tempo"
@@ -201,13 +221,13 @@ class TestTemplateToEntries:
 
     def test_template_preserves_strength(self) -> None:
         entries = _template_to_entries(SAMPLE_TEMPLATE)
-        assert entries[1].training_type == "strength"
-        assert entries[1].run_details is None
+        assert _first_training_type(entries[1]) == "strength"
+        assert _first_run_details(entries[1]) is None
 
     def test_template_preserves_rest_day(self) -> None:
         entries = _template_to_entries(SAMPLE_TEMPLATE)
         assert entries[6].is_rest_day is True
-        assert entries[6].training_type is None
+        assert len(entries[6].sessions) == 0
 
     def test_template_with_explicit_run_details(self) -> None:
         """Template RunDetails are passed through 1:1."""
@@ -234,7 +254,7 @@ class TestTemplateToEntries:
             ]
         )
         entries = _template_to_entries(template)
-        rd = entries[0].run_details
+        rd = _first_run_details(entries[0])
         assert rd is not None
         assert rd.target_duration_minutes == 45
         assert rd.target_pace_min == "5:40"
@@ -303,7 +323,7 @@ class TestTemplateToEntries:
             ]
         )
         entries = _template_to_entries(template)
-        rd = entries[0].run_details
+        rd = _first_run_details(entries[0])
         assert rd is not None
         assert rd.run_type == "intervals"
         assert rd.intervals is not None
@@ -320,7 +340,7 @@ class TestTemplateToEntries:
             ]
         )
         entries = _template_to_entries(template)
-        rd = entries[0].run_details
+        rd = _first_run_details(entries[0])
         assert rd is not None
         assert rd.run_type == "easy"
         assert rd.target_duration_minutes is None
@@ -479,11 +499,12 @@ async def test_generate_with_goal_pace(db_session: AsyncSession) -> None:
     result = generate_weekly_plans(plan, phases, [6], goal)
     assert len(result) > 0
 
-    # At least one running entry should have pace
+    # At least one running session should have pace
     has_pace = False
     for _, entries in result:
         for e in entries:
-            if e.run_details and e.run_details.target_pace_min:
+            rd = _first_run_details(e)
+            if rd and rd.target_pace_min:
                 has_pace = True
                 break
     assert has_pace, "Expected at least one entry with pace range"
@@ -525,9 +546,10 @@ async def test_generate_without_goal(db_session: AsyncSession) -> None:
 
     for _, entries in result:
         for e in entries:
-            if e.run_details:
-                assert e.run_details.target_pace_min is None
-                assert e.run_details.target_pace_max is None
+            rd = _first_run_details(e)
+            if rd:
+                assert rd.target_pace_min is None
+                assert rd.target_pace_max is None
 
 
 @pytest.mark.anyio
@@ -568,8 +590,9 @@ async def test_generate_volume_progression(db_session: AsyncSession) -> None:
     def week_total_duration(entries: list) -> int:
         total = 0
         for e in entries:
-            if e.run_details and e.run_details.target_duration_minutes:
-                total += e.run_details.target_duration_minutes
+            rd = _first_run_details(e)
+            if rd and rd.target_duration_minutes:
+                total += rd.target_duration_minutes
         return total
 
     first_week_dur = week_total_duration(result[0][1])
@@ -616,7 +639,9 @@ async def test_generate_phase_type_sessions(db_session: AsyncSession) -> None:
 
     # Check first week has interval and tempo sessions
     _, entries = result[0]
-    run_types = {e.run_details.run_type for e in entries if e.run_details is not None}
+    run_types = {
+        _first_run_details(e).run_type for e in entries if _first_run_details(e) is not None
+    }
     assert "intervals" in run_types, f"Expected intervals in peak phase, got {run_types}"
     assert "tempo" in run_types, f"Expected tempo in peak phase, got {run_types}"
 
@@ -676,12 +701,12 @@ async def test_generate_with_template(db_session: AsyncSession) -> None:
     assert len(entries) == 7
 
     # Verify template structure is preserved
-    assert entries[0].training_type == "running"
-    assert entries[0].run_details is not None
-    assert entries[0].run_details.run_type == "easy"
-    assert entries[1].training_type == "strength"
-    assert entries[2].run_details is not None
-    assert entries[2].run_details.run_type == "tempo"
+    assert _first_training_type(entries[0]) == "running"
+    assert _first_run_details(entries[0]) is not None
+    assert _first_run_details(entries[0]).run_type == "easy"
+    assert _first_training_type(entries[1]) == "strength"
+    assert _first_run_details(entries[2]) is not None
+    assert _first_run_details(entries[2]).run_type == "tempo"
     assert entries[6].is_rest_day is True
 
 
@@ -724,13 +749,17 @@ async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
     assert len(result) > 0
 
     _, entries = result[0]
-    # Running entries should have duration and pace filled
+    # Running sessions should have duration and pace filled
     running_with_details = [
-        e for e in entries if e.run_details and e.run_details.target_duration_minutes
+        e
+        for e in entries
+        if _first_run_details(e) and _first_run_details(e).target_duration_minutes
     ]
     assert len(running_with_details) > 0
     # At least one should have pace (because goal is set)
-    has_pace = any(e.run_details.target_pace_min for e in running_with_details if e.run_details)
+    has_pace = any(
+        _first_run_details(e).target_pace_min for e in running_with_details if _first_run_details(e)
+    )
     assert has_pace
 
 
@@ -786,13 +815,15 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
 
     # Week 1 (template phase): should match template
     _, week1_entries = result[0]
-    assert week1_entries[1].training_type == "strength"  # day 1 = strength from template
+    assert _first_training_type(week1_entries[1]) == "strength"  # day 1 = strength from template
 
     # Week 7 (defaults phase): should have entries generated from defaults
     _, week7_entries = result[6]
     assert len(week7_entries) == 7
     # build phase defaults have progression run
-    run_types = {e.run_details.run_type for e in week7_entries if e.run_details is not None}
+    run_types = {
+        _first_run_details(e).run_type for e in week7_entries if _first_run_details(e) is not None
+    }
     assert "progression" in run_types
 
 
@@ -878,7 +909,7 @@ async def test_generate_replaces_previous(client: AsyncClient) -> None:
     week_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-04-06"})
     assert week_resp.status_code == 200
     entries = week_resp.json()["entries"]
-    has_content = any(e["training_type"] is not None or e["is_rest_day"] for e in entries)
+    has_content = any(len(e["sessions"]) > 0 or e["is_rest_day"] for e in entries)
     assert has_content
 
 
@@ -960,16 +991,18 @@ async def test_generate_preserves_template_run_details(db_session: AsyncSession)
     _, entries = result[0]
     # Day 0: had explicit run_details → must be preserved
     day0 = next(e for e in entries if e.day_of_week == 0)
-    assert day0.run_details is not None
-    assert day0.run_details.target_duration_minutes == 45
-    assert day0.run_details.target_pace_min == "5:40"
-    assert day0.run_details.target_pace_max == "6:10"
+    rd0 = _first_run_details(day0)
+    assert rd0 is not None
+    assert rd0.target_duration_minutes == 45
+    assert rd0.target_pace_min == "5:40"
+    assert rd0.target_pace_max == "6:10"
 
     # Day 1: had skeleton → should be filled by volume distribution
     day1 = next(e for e in entries if e.day_of_week == 1)
-    assert day1.run_details is not None
-    assert day1.run_details.target_duration_minutes is not None
-    assert day1.run_details.target_duration_minutes != 45  # different from template
+    rd1 = _first_run_details(day1)
+    assert rd1 is not None
+    assert rd1.target_duration_minutes is not None
+    assert rd1.target_duration_minutes != 45  # different from template
 
 
 @pytest.mark.anyio
@@ -1018,13 +1051,14 @@ async def test_generate_fills_skeleton_run_details(db_session: AsyncSession) -> 
     assert len(result) > 0
     _, entries = result[0]
 
-    running = [e for e in entries if e.run_details is not None]
+    running = [e for e in entries if _first_run_details(e) is not None]
     assert len(running) >= 4
     # All skeleton entries should now have duration and pace filled
     for e in running:
-        assert e.run_details is not None
-        assert e.run_details.target_duration_minutes is not None
-        assert e.run_details.target_pace_min is not None
+        rd = _first_run_details(e)
+        assert rd is not None
+        assert rd.target_duration_minutes is not None
+        assert rd.target_pace_min is not None
 
 
 @pytest.mark.anyio
@@ -1035,7 +1069,13 @@ async def test_generate_cleans_legacy_entries(client: AsyncClient) -> None:
         "/api/v1/weekly-plan",
         json={
             "week_start": "2026-04-06",
-            "entries": [{"day_of_week": 0, "training_type": "strength", "is_rest_day": False}],
+            "entries": [
+                {
+                    "day_of_week": 0,
+                    "is_rest_day": False,
+                    "sessions": [{"training_type": "strength", "position": 0}],
+                }
+            ],
         },
     )
     assert manual_resp.status_code == 200

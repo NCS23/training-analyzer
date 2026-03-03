@@ -31,14 +31,21 @@ export interface RunDetails {
   intervals: RunInterval[] | null;
 }
 
+export interface PlannedSession {
+  id?: number;
+  position: number;
+  training_type: string; // 'strength' | 'running'
+  template_id?: number | null;
+  template_name?: string | null;
+  notes?: string | null;
+  run_details?: RunDetails | null;
+}
+
 export interface WeeklyPlanEntry {
   day_of_week: number; // 0=Mon, 6=Sun
-  training_type: string | null; // 'strength' | 'running' | null
-  template_id: number | null;
-  template_name: string | null;
+  sessions: PlannedSession[];
   is_rest_day: boolean;
   notes: string | null;
-  run_details: RunDetails | null;
   plan_id: number | null;
   edited: boolean;
 }
@@ -50,11 +57,9 @@ export interface WeeklyPlanResponse {
 
 export interface WeeklyPlanSaveEntry {
   day_of_week: number;
-  training_type?: string | null;
-  template_id?: number | null;
   is_rest_day: boolean;
   notes?: string | null;
-  run_details?: RunDetails | null;
+  sessions: PlannedSession[];
 }
 
 export interface WeeklyPlanSaveRequest {
@@ -76,10 +81,10 @@ export interface ActualSession {
 export interface ComplianceDayEntry {
   day_of_week: number;
   date: string;
-  planned_type: string | null;
+  planned_types: string[];
   planned_run_type: string | null;
   is_rest_day: boolean;
-  status: 'completed' | 'off_target' | 'missed' | 'rest_ok' | 'unplanned' | 'empty';
+  status: 'completed' | 'partial' | 'off_target' | 'missed' | 'rest_ok' | 'unplanned' | 'empty';
   actual_sessions: ActualSession[];
 }
 

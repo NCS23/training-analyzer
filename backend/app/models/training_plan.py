@@ -1,9 +1,9 @@
-"""Pydantic schemas for Training Plans and Training Phases (S07, S08)."""
+"""Pydantic schemas for Training Plans and Training Phases (S07, S08, E17)."""
 
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.taxonomy import SESSION_TYPE_REGEX
 from app.models.weekly_plan import RunDetails
@@ -25,16 +25,45 @@ class PhaseTargetMetrics(BaseModel):
     strength_sessions_per_week: Optional[int] = None
 
 
+class PhaseWeeklyTemplateSessionEntry(BaseModel):
+    """A single session within a phase template day (E17)."""
+
+    position: int = 0
+    training_type: str = Field(..., pattern="^(strength|running)$")
+    run_type: Optional[str] = Field(default=None, pattern=SESSION_TYPE_REGEX)
+    template_id: Optional[int] = None
+    notes: Optional[str] = Field(default=None, max_length=200)
+    run_details: Optional[RunDetails] = None
+
+
 class PhaseWeeklyTemplateDayEntry(BaseModel):
-    """A single day slot in a phase's weekly template."""
+    """A single day slot in a phase's weekly template (E17: multi-session)."""
 
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
-    training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
+    sessions: list[PhaseWeeklyTemplateSessionEntry] = Field(default_factory=list)
     is_rest_day: bool = False
-    run_type: Optional[str] = Field(None, pattern=SESSION_TYPE_REGEX)
-    template_id: Optional[int] = None
-    notes: Optional[str] = Field(None, max_length=200)
-    run_details: Optional[RunDetails] = None
+    notes: Optional[str] = Field(default=None, max_length=200)
+
+    # Legacy flat fields (backwards-compat for old JSON, excluded from serialization)
+    training_type: Optional[str] = Field(default=None, pattern="^(strength|running)$", exclude=True)
+    run_type: Optional[str] = Field(default=None, pattern=SESSION_TYPE_REGEX, exclude=True)
+    template_id: Optional[int] = Field(default=None, exclude=True)
+    run_details: Optional[RunDetails] = Field(default=None, exclude=True)
+
+    @model_validator(mode="after")
+    def _migrate_flat_to_sessions(self) -> "PhaseWeeklyTemplateDayEntry":
+        """Auto-convert old flat format to sessions[]."""
+        if not self.sessions and self.training_type:
+            self.sessions = [
+                PhaseWeeklyTemplateSessionEntry(
+                    position=0,
+                    training_type=self.training_type,
+                    run_type=self.run_type,
+                    template_id=self.template_id,
+                    run_details=self.run_details,
+                )
+            ]
+        return self
 
 
 class PhaseWeeklyTemplate(BaseModel):

@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
     AthleteModel,
-    WeeklyPlanEntryModel,
+    PlannedSessionModel,
+    WeeklyPlanDayModel,
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
@@ -46,9 +47,10 @@ async def _auto_match_planned_entry(
     db: AsyncSession,
     workout: WorkoutModel,
 ) -> None:
-    """Auto-match a workout to a planned weekly plan entry (S10).
+    """Auto-match a workout to a planned session (E17/S10).
 
     Matches by date + workout_type. Only sets planned_entry_id if unset.
+    Now links to planned_sessions instead of weekly_plan_entries.
     """
     if workout.planned_entry_id is not None:
         return  # Already linked
@@ -61,22 +63,30 @@ async def _auto_match_planned_entry(
     week_start = workout_date - timedelta(days=workout_date.weekday())
     day_of_week = workout_date.weekday()  # 0=Mon, 6=Sun
 
-    result = await db.execute(
-        select(WeeklyPlanEntryModel).where(
-            WeeklyPlanEntryModel.week_start == week_start,
-            WeeklyPlanEntryModel.day_of_week == day_of_week,
+    # Find the day entry
+    day_result = await db.execute(
+        select(WeeklyPlanDayModel).where(
+            WeeklyPlanDayModel.week_start == week_start,
+            WeeklyPlanDayModel.day_of_week == day_of_week,
         )
     )
-    entry = result.scalar_one_or_none()
-    if not entry or not entry.training_type:
+    day = day_result.scalar_one_or_none()
+    if not day:
         return
 
-    # Check type match
+    # Find matching planned session by type
     type_map = {"strength": "strength", "running": "running"}
-    expected_workout_type = type_map.get(str(entry.training_type), str(entry.training_type))
-    if str(workout.workout_type) == expected_workout_type:
-        workout.planned_entry_id = entry.id  # type: ignore[assignment]
-        await db.commit()
+    session_result = await db.execute(
+        select(PlannedSessionModel)
+        .where(PlannedSessionModel.day_id == day.id)
+        .order_by(PlannedSessionModel.position)
+    )
+    for session in session_result.scalars().all():
+        expected = type_map.get(str(session.training_type), str(session.training_type))
+        if str(workout.workout_type) == expected:
+            workout.planned_entry_id = session.id  # type: ignore[assignment]
+            await db.commit()
+            return
 
 
 async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:

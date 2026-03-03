@@ -1,4 +1,4 @@
-"""Pydantic schemas for Weekly Plan (Issue #26, #27)."""
+"""Pydantic schemas for Weekly Plan (Issue #26, #27, E17-S02)."""
 
 from datetime import date
 from typing import Optional
@@ -35,16 +35,25 @@ class RunDetails(BaseModel):
     intervals: Optional[list[RunInterval]] = None
 
 
+class PlannedSession(BaseModel):
+    """A single planned session within a day (E17)."""
+
+    id: Optional[int] = None  # response only (DB id)
+    position: int = 0
+    training_type: str = Field(..., pattern="^(strength|running)$")
+    template_id: Optional[int] = None
+    template_name: Optional[str] = None  # response only
+    notes: Optional[str] = Field(default=None, max_length=500)
+    run_details: Optional[RunDetails] = None
+
+
 class WeeklyPlanEntry(BaseModel):
-    """A single day entry in the weekly plan."""
+    """A single day entry in the weekly plan (E17: with sessions[])."""
 
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
-    training_type: Optional[str] = Field(None, pattern="^(strength|running)$")
-    template_id: Optional[int] = None
-    template_name: Optional[str] = None  # returned in response only
     is_rest_day: bool = False
-    notes: Optional[str] = Field(None, max_length=500)
-    run_details: Optional[RunDetails] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
+    sessions: list[PlannedSession] = Field(default_factory=list)
     plan_id: Optional[int] = None  # returned in response only
     edited: bool = False  # returned in response only
 
@@ -72,7 +81,7 @@ class ActualSession(BaseModel):
     duration_sec: Optional[int] = None
     distance_km: Optional[float] = None
     pace: Optional[str] = None
-    planned_entry_id: Optional[int] = None  # S10: Soll/Ist-Link
+    planned_entry_id: Optional[int] = None  # S10: FK to planned_sessions
 
 
 class ComplianceDayEntry(BaseModel):
@@ -80,12 +89,12 @@ class ComplianceDayEntry(BaseModel):
 
     day_of_week: int = Field(..., ge=0, le=6)
     date: date
-    planned_type: Optional[str] = None  # 'strength', 'running', or None
-    planned_run_type: Optional[str] = None  # run_details.run_type
+    planned_types: list[str] = Field(default_factory=list)
+    planned_run_type: Optional[str] = None  # first running session's run_type
     is_rest_day: bool = False
     status: str = Field(
         ...,
-        pattern="^(completed|off_target|missed|rest_ok|unplanned|empty)$",
+        pattern="^(completed|partial|off_target|missed|rest_ok|unplanned|empty)$",
     )
     actual_sessions: list[ActualSession] = Field(default_factory=list)
 
