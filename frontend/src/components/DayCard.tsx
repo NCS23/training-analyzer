@@ -22,6 +22,7 @@ import {
   Footprints,
   Gauge,
   Heart,
+  LayoutTemplate,
   Layers,
   Moon,
   Pencil,
@@ -298,6 +299,7 @@ function SessionDetailDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [local, setLocal] = useState<PlannedSession>(session);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [showAssignTemplate, setShowAssignTemplate] = useState(false);
 
   // Sync when dialog opens
   const [prevOpen, setPrevOpen] = useState(false);
@@ -354,6 +356,33 @@ function SessionDetailDialog({
     onOpenChange(false);
   };
 
+  const handleAssignTemplate = async (
+    template: import('@/api/session-templates').SessionTemplateSummary | null,
+  ) => {
+    setShowAssignTemplate(false);
+    if (!template) return;
+
+    try {
+      const full = await getSessionTemplate(template.id);
+      const updated: PlannedSession = {
+        ...session,
+        template_id: full.id,
+        template_name: full.name,
+        run_details:
+          session.training_type === 'running'
+            ? (full.run_details ?? session.run_details)
+            : session.run_details,
+        notes:
+          session.training_type === 'strength'
+            ? (full.description ?? session.notes)
+            : session.notes,
+      };
+      onUpdate(updated);
+    } catch {
+      // Silently fail — session stays unchanged
+    }
+  };
+
   const sessionLabel =
     current.training_type === 'strength'
       ? 'Kraft'
@@ -377,6 +406,12 @@ function SessionDetailDialog({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
                     Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    icon={<LayoutTemplate />}
+                    onSelect={() => setShowAssignTemplate(true)}
+                  >
+                    Vorlage zuweisen
                   </DropdownMenuItem>
                   {session.training_type === 'running' && session.run_details && (
                     <DropdownMenuItem
@@ -533,6 +568,13 @@ function SessionDetailDialog({
           defaultName={RUN_TYPE_LABELS[session.run_details.run_type] ?? 'Laufen'}
         />
       )}
+
+      <TemplatePickerDialog
+        open={showAssignTemplate}
+        onOpenChange={setShowAssignTemplate}
+        sessionType={session.training_type}
+        onSelect={handleAssignTemplate}
+      />
     </Dialog>
   );
 }
