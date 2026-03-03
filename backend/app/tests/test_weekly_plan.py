@@ -1,4 +1,4 @@
-"""Tests for Weekly Plan (Issue #26, #28, E16-S03)."""
+"""Tests for Weekly Plan (Issue #26, #28, E16-S03, E17-S02)."""
 
 from datetime import date, datetime, timedelta
 
@@ -33,10 +33,9 @@ async def test_get_empty_week(client: AsyncClient) -> None:
     body = response.json()
     assert body["week_start"] == "2026-03-02"
     assert len(body["entries"]) == 7
-    # All days should be empty
     for i, entry in enumerate(body["entries"]):
         assert entry["day_of_week"] == i
-        assert entry["training_type"] is None
+        assert entry["sessions"] == []
         assert entry["is_rest_day"] is False
 
 
@@ -57,22 +56,29 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
     data = {
         "week_start": "2026-03-02",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
-            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
+            {
+                "day_of_week": 1,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
             {"day_of_week": 2, "is_rest_day": True},
             {
                 "day_of_week": 3,
-                "training_type": "strength",
-                "is_rest_day": False,
                 "notes": "Beintraining",
+                "sessions": [{"training_type": "strength", "position": 0}],
             },
-            {"day_of_week": 4, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 4,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
             {"day_of_week": 5, "is_rest_day": True},
             {
                 "day_of_week": 6,
-                "training_type": "running",
-                "is_rest_day": False,
                 "notes": "Langer Lauf",
+                "sessions": [{"training_type": "running", "position": 0}],
             },
         ],
     }
@@ -81,10 +87,10 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert len(body["entries"]) == 7
-    assert body["entries"][0]["training_type"] == "strength"
-    assert body["entries"][1]["training_type"] == "running"
+    assert body["entries"][0]["sessions"][0]["training_type"] == "strength"
+    assert body["entries"][1]["sessions"][0]["training_type"] == "running"
     assert body["entries"][2]["is_rest_day"] is True
-    assert body["entries"][2]["training_type"] is None
+    assert body["entries"][2]["sessions"] == []
     assert body["entries"][3]["notes"] == "Beintraining"
     assert body["entries"][6]["notes"] == "Langer Lauf"
 
@@ -92,13 +98,12 @@ async def test_save_and_get_weekly_plan(client: AsyncClient) -> None:
     get_response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-03-02"})
     assert get_response.status_code == 200
     get_body = get_response.json()
-    assert get_body["entries"][0]["training_type"] == "strength"
+    assert get_body["entries"][0]["sessions"][0]["training_type"] == "strength"
 
 
 @pytest.mark.anyio
 async def test_save_weekly_plan_with_template_id(client: AsyncClient) -> None:
     """Save a plan entry referencing a session template."""
-    # Create a session template first
     template_response = await client.post("/api/v1/session-templates", json=PLAN_DATA)
     assert template_response.status_code == 201
     template_id = template_response.json()["id"]
@@ -108,9 +113,13 @@ async def test_save_weekly_plan_with_template_id(client: AsyncClient) -> None:
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "strength",
-                "template_id": template_id,
-                "is_rest_day": False,
+                "sessions": [
+                    {
+                        "training_type": "strength",
+                        "template_id": template_id,
+                        "position": 0,
+                    },
+                ],
             },
         ],
     }
@@ -118,9 +127,8 @@ async def test_save_weekly_plan_with_template_id(client: AsyncClient) -> None:
     response = await client.put("/api/v1/weekly-plan", json=data)
     assert response.status_code == 200
     body = response.json()
-    # Monday should have the template
-    assert body["entries"][0]["template_id"] == template_id
-    assert body["entries"][0]["template_name"] == "Test Plan"
+    assert body["entries"][0]["sessions"][0]["template_id"] == template_id
+    assert body["entries"][0]["sessions"][0]["template_name"] == "Test Plan"
 
 
 @pytest.mark.anyio
@@ -129,28 +137,36 @@ async def test_save_replaces_existing(client: AsyncClient) -> None:
     first_data = {
         "week_start": "2026-03-16",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
-            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
+            {
+                "day_of_week": 1,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=first_data)
 
-    # Now save a different plan for the same week
     second_data = {
         "week_start": "2026-03-16",
         "entries": [
             {"day_of_week": 0, "is_rest_day": True},
-            {"day_of_week": 2, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 2,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     response = await client.put("/api/v1/weekly-plan", json=second_data)
     assert response.status_code == 200
     body = response.json()
     assert body["entries"][0]["is_rest_day"] is True
-    assert body["entries"][0]["training_type"] is None
-    assert body["entries"][2]["training_type"] == "running"
+    assert body["entries"][0]["sessions"] == []
+    assert body["entries"][2]["sessions"][0]["training_type"] == "running"
     # Tuesday (1) should now be empty
-    assert body["entries"][1]["training_type"] is None
+    assert body["entries"][1]["sessions"] == []
     assert body["entries"][1]["is_rest_day"] is False
 
 
@@ -160,8 +176,14 @@ async def test_duplicate_day_rejected(client: AsyncClient) -> None:
     data = {
         "week_start": "2026-03-02",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
-            {"day_of_week": 0, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     response = await client.put("/api/v1/weekly-plan", json=data)
@@ -171,25 +193,25 @@ async def test_duplicate_day_rejected(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_clear_weekly_plan(client: AsyncClient) -> None:
     """Clearing a week should remove all entries."""
-    # First save
     data = {
         "week_start": "2026-03-23",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=data)
 
-    # Clear
     response = await client.delete("/api/v1/weekly-plan", params={"week_start": "2026-03-23"})
     assert response.status_code == 200
     assert response.json()["success"] is True
 
-    # Verify empty
     get_response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-03-23"})
     assert get_response.status_code == 200
     for entry in get_response.json()["entries"]:
-        assert entry["training_type"] is None
+        assert entry["sessions"] == []
         assert entry["is_rest_day"] is False
 
 
@@ -199,8 +221,14 @@ async def test_partial_week_save(client: AsyncClient) -> None:
     data = {
         "week_start": "2026-03-30",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False},
-            {"day_of_week": 3, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
+            {
+                "day_of_week": 3,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
             {"day_of_week": 6, "is_rest_day": True},
         ],
     }
@@ -208,9 +236,9 @@ async def test_partial_week_save(client: AsyncClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert len(body["entries"]) == 7
-    assert body["entries"][0]["training_type"] == "strength"
-    assert body["entries"][1]["training_type"] is None  # empty day
-    assert body["entries"][3]["training_type"] == "running"
+    assert body["entries"][0]["sessions"][0]["training_type"] == "strength"
+    assert body["entries"][1]["sessions"] == []  # empty day
+    assert body["entries"][3]["sessions"][0]["training_type"] == "running"
     assert body["entries"][6]["is_rest_day"] is True
 
 
@@ -222,14 +250,18 @@ async def test_save_with_run_details(client: AsyncClient) -> None:
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
-                "run_details": {
-                    "run_type": "easy",
-                    "target_duration_minutes": 45,
-                    "target_pace_min": "5:30",
-                    "target_pace_max": "6:00",
-                },
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {
+                            "run_type": "easy",
+                            "target_duration_minutes": 45,
+                            "target_pace_min": "5:30",
+                            "target_pace_max": "6:00",
+                        },
+                    },
+                ],
             },
         ],
     }
@@ -237,13 +269,13 @@ async def test_save_with_run_details(client: AsyncClient) -> None:
     response = await client.put("/api/v1/weekly-plan", json=data)
     assert response.status_code == 200
     body = response.json()
-    entry = body["entries"][0]
-    assert entry["training_type"] == "running"
-    assert entry["run_details"] is not None
-    assert entry["run_details"]["run_type"] == "easy"
-    assert entry["run_details"]["target_duration_minutes"] == 45
-    assert entry["run_details"]["target_pace_min"] == "5:30"
-    assert entry["run_details"]["target_pace_max"] == "6:00"
+    session = body["entries"][0]["sessions"][0]
+    assert session["training_type"] == "running"
+    assert session["run_details"] is not None
+    assert session["run_details"]["run_type"] == "easy"
+    assert session["run_details"]["target_duration_minutes"] == 45
+    assert session["run_details"]["target_pace_min"] == "5:30"
+    assert session["run_details"]["target_pace_max"] == "6:00"
 
 
 @pytest.mark.anyio
@@ -254,42 +286,46 @@ async def test_save_with_intervals(client: AsyncClient) -> None:
         "entries": [
             {
                 "day_of_week": 2,
-                "training_type": "running",
-                "is_rest_day": False,
-                "run_details": {
-                    "run_type": "intervals",
-                    "target_duration_minutes": 60,
-                    "intervals": [
-                        {
-                            "type": "warmup",
-                            "duration_minutes": 10,
-                            "target_pace_min": "6:00",
-                            "target_pace_max": "6:30",
-                            "repeats": 1,
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {
+                            "run_type": "intervals",
+                            "target_duration_minutes": 60,
+                            "intervals": [
+                                {
+                                    "type": "warmup",
+                                    "duration_minutes": 10,
+                                    "target_pace_min": "6:00",
+                                    "target_pace_max": "6:30",
+                                    "repeats": 1,
+                                },
+                                {
+                                    "type": "work",
+                                    "duration_minutes": 3,
+                                    "target_pace_min": "4:30",
+                                    "target_pace_max": "4:50",
+                                    "repeats": 5,
+                                },
+                                {
+                                    "type": "rest",
+                                    "duration_minutes": 2,
+                                    "target_pace_min": "6:00",
+                                    "target_pace_max": "7:00",
+                                    "repeats": 5,
+                                },
+                                {
+                                    "type": "cooldown",
+                                    "duration_minutes": 10,
+                                    "target_pace_min": "6:00",
+                                    "target_pace_max": "6:30",
+                                    "repeats": 1,
+                                },
+                            ],
                         },
-                        {
-                            "type": "work",
-                            "duration_minutes": 3,
-                            "target_pace_min": "4:30",
-                            "target_pace_max": "4:50",
-                            "repeats": 5,
-                        },
-                        {
-                            "type": "rest",
-                            "duration_minutes": 2,
-                            "target_pace_min": "6:00",
-                            "target_pace_max": "7:00",
-                            "repeats": 5,
-                        },
-                        {
-                            "type": "cooldown",
-                            "duration_minutes": 10,
-                            "target_pace_min": "6:00",
-                            "target_pace_max": "6:30",
-                            "repeats": 1,
-                        },
-                    ],
-                },
+                    },
+                ],
             },
         ],
     }
@@ -297,50 +333,96 @@ async def test_save_with_intervals(client: AsyncClient) -> None:
     response = await client.put("/api/v1/weekly-plan", json=data)
     assert response.status_code == 200
     body = response.json()
-    entry = body["entries"][2]
-    assert entry["run_details"]["run_type"] == "intervals"
-    assert len(entry["run_details"]["intervals"]) == 4
-    work = entry["run_details"]["intervals"][1]
+    session = body["entries"][2]["sessions"][0]
+    assert session["run_details"]["run_type"] == "intervals"
+    assert len(session["run_details"]["intervals"]) == 4
+    work = session["run_details"]["intervals"][1]
     assert work["type"] == "work"
     assert work["duration_minutes"] == 3
     assert work["repeats"] == 5
 
 
 @pytest.mark.anyio
-async def test_run_details_with_hr_targets(client: AsyncClient) -> None:
+async def test_save_with_hr_targets(client: AsyncClient) -> None:
     """Save a running day with heart rate targets."""
     data = {
         "week_start": "2026-04-13",
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
-                "run_details": {
-                    "run_type": "tempo",
-                    "target_duration_minutes": 40,
-                    "target_hr_min": 155,
-                    "target_hr_max": 170,
-                },
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {
+                            "run_type": "tempo",
+                            "target_duration_minutes": 40,
+                            "target_hr_min": 155,
+                            "target_hr_max": 170,
+                        },
+                    },
+                ],
             },
         ],
     }
 
     response = await client.put("/api/v1/weekly-plan", json=data)
     assert response.status_code == 200
-    entry = response.json()["entries"][0]
-    assert entry["run_details"]["run_type"] == "tempo"
-    assert entry["run_details"]["target_hr_min"] == 155
-    assert entry["run_details"]["target_hr_max"] == 170
+    session = response.json()["entries"][0]["sessions"][0]
+    assert session["run_details"]["run_type"] == "tempo"
+    assert session["run_details"]["target_hr_min"] == 155
+    assert session["run_details"]["target_hr_max"] == 170
 
 
 @pytest.mark.anyio
-async def test_empty_entries_have_no_run_details(client: AsyncClient) -> None:
-    """Empty and non-running entries should not have run_details."""
+async def test_empty_entries_have_no_sessions(client: AsyncClient) -> None:
+    """Empty entries should have empty sessions list."""
     response = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-05-01"})
     assert response.status_code == 200
     for entry in response.json()["entries"]:
-        assert entry["run_details"] is None
+        assert entry["sessions"] == []
+
+
+@pytest.mark.anyio
+async def test_multi_session_per_day(client: AsyncClient) -> None:
+    """E17: Multiple sessions per day (morning run + evening strength)."""
+    data = {
+        "week_start": "2026-04-20",
+        "entries": [
+            {
+                "day_of_week": 0,
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {
+                            "run_type": "easy",
+                            "target_duration_minutes": 45,
+                        },
+                    },
+                    {
+                        "training_type": "strength",
+                        "position": 1,
+                    },
+                ],
+            },
+        ],
+    }
+
+    response = await client.put("/api/v1/weekly-plan", json=data)
+    assert response.status_code == 200
+    body = response.json()
+    sessions = body["entries"][0]["sessions"]
+    assert len(sessions) == 2
+    assert sessions[0]["training_type"] == "running"
+    assert sessions[0]["position"] == 0
+    assert sessions[1]["training_type"] == "strength"
+    assert sessions[1]["position"] == 1
+
+    # Verify with GET
+    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-04-20"})
+    get_sessions = get_resp.json()["entries"][0]["sessions"]
+    assert len(get_sessions) == 2
 
 
 # --- Compliance Tracking Tests (Issue #28) ---
@@ -387,16 +469,17 @@ async def test_compliance_empty_week(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_compliance_completed(client: AsyncClient, db_session: AsyncSession) -> None:
     """Plan running on Monday, actual running on Monday → 'completed'."""
-    # Week of 2026-06-08 (Monday)
     plan_data = {
         "week_start": "2026-06-08",
         "entries": [
-            {"day_of_week": 0, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 0,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=plan_data)
 
-    # Create actual running session on Monday
     await _create_workout(db_session, "2026-06-08T08:00:00", "running", "easy")
 
     response = await client.get(
@@ -406,7 +489,7 @@ async def test_compliance_completed(client: AsyncClient, db_session: AsyncSessio
     body = response.json()
     monday = body["entries"][0]
     assert monday["status"] == "completed"
-    assert monday["planned_type"] == "running"
+    assert monday["planned_types"] == ["running"]
     assert len(monday["actual_sessions"]) == 1
     assert monday["actual_sessions"][0]["workout_type"] == "running"
     assert body["completed_count"] == 1
@@ -419,7 +502,10 @@ async def test_compliance_missed(client: AsyncClient) -> None:
     plan_data = {
         "week_start": "2026-06-15",
         "entries": [
-            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 1,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=plan_data)
@@ -430,7 +516,7 @@ async def test_compliance_missed(client: AsyncClient) -> None:
     body = response.json()
     tuesday = body["entries"][1]
     assert tuesday["status"] == "missed"
-    assert tuesday["planned_type"] == "running"
+    assert tuesday["planned_types"] == ["running"]
     assert body["completed_count"] == 0
     assert body["planned_count"] == 1
 
@@ -441,12 +527,14 @@ async def test_compliance_off_target(client: AsyncClient, db_session: AsyncSessi
     plan_data = {
         "week_start": "2026-06-22",
         "entries": [
-            {"day_of_week": 2, "training_type": "strength", "is_rest_day": False},
+            {
+                "day_of_week": 2,
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=plan_data)
 
-    # Create running session on Wednesday (instead of strength)
     await _create_workout(db_session, "2026-06-24T09:00:00", "running", "easy")
 
     response = await client.get(
@@ -455,7 +543,7 @@ async def test_compliance_off_target(client: AsyncClient, db_session: AsyncSessi
     body = response.json()
     wednesday = body["entries"][2]
     assert wednesday["status"] == "off_target"
-    assert wednesday["planned_type"] == "strength"
+    assert wednesday["planned_types"] == ["strength"]
     assert len(wednesday["actual_sessions"]) == 1
     assert wednesday["actual_sessions"][0]["workout_type"] == "running"
 
@@ -485,7 +573,6 @@ async def test_compliance_rest_ok(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_compliance_unplanned(client: AsyncClient, db_session: AsyncSession) -> None:
     """No plan, but session exists → 'unplanned'."""
-    # Create a session on Thursday 2026-07-09 (week of 2026-07-06)
     await _create_workout(db_session, "2026-07-09T07:00:00", "strength")
 
     response = await client.get(
@@ -508,9 +595,13 @@ async def test_compliance_run_type_in_response(
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
-                "run_details": {"run_type": "tempo", "target_duration_minutes": 40},
+                "sessions": [
+                    {
+                        "training_type": "running",
+                        "position": 0,
+                        "run_details": {"run_type": "tempo", "target_duration_minutes": 40},
+                    },
+                ],
             },
         ],
     }
@@ -577,33 +668,39 @@ async def test_save_preserves_plan_id(client: AsyncClient, db_session: AsyncSess
     """PUT /weekly-plan should preserve plan_id from generated entries."""
     plan_id = await _generate_plan_entries(client, db_session, "2026-08-03")
 
-    # Verify entries have plan_id
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-03"})
     entries = get_resp.json()["entries"]
     assert entries[0]["plan_id"] == plan_id
 
-    # Save same content via PUT
+    # Save same content via PUT (preserve sessions structure)
     save_data = {
         "week_start": "2026-08-03",
         "entries": [
             {
                 "day_of_week": e["day_of_week"],
-                "training_type": e["training_type"],
                 "is_rest_day": e["is_rest_day"],
                 "notes": e["notes"],
-                "run_details": e["run_details"],
+                "sessions": [
+                    {
+                        "training_type": s["training_type"],
+                        "position": s["position"],
+                        "template_id": s.get("template_id"),
+                        "notes": s.get("notes"),
+                        "run_details": s.get("run_details"),
+                    }
+                    for s in e["sessions"]
+                ],
             }
             for e in entries
-            if e["training_type"] or e["is_rest_day"]
+            if e["sessions"] or e["is_rest_day"]
         ],
     }
     put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
     assert put_resp.status_code == 200
 
-    # plan_id should still be there
     get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-03"})
     for e in get_resp2.json()["entries"]:
-        if e["training_type"] or e["is_rest_day"]:
+        if e["sessions"] or e["is_rest_day"]:
             assert e["plan_id"] == plan_id
 
 
@@ -620,11 +717,13 @@ async def test_save_sets_edited_on_content_change(
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
                 "notes": "Manuell geaendert",
+                "sessions": [{"training_type": "running", "position": 0}],
             },
-            {"day_of_week": 1, "training_type": "running", "is_rest_day": False},
+            {
+                "day_of_week": 1,
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
@@ -648,19 +747,26 @@ async def test_save_preserves_edited_false_on_no_change(
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-17"})
     entries = get_resp.json()["entries"]
 
-    # Save identical content
     save_data = {
         "week_start": "2026-08-17",
         "entries": [
             {
                 "day_of_week": e["day_of_week"],
-                "training_type": e["training_type"],
                 "is_rest_day": e["is_rest_day"],
                 "notes": e["notes"],
-                "run_details": e["run_details"],
+                "sessions": [
+                    {
+                        "training_type": s["training_type"],
+                        "position": s["position"],
+                        "template_id": s.get("template_id"),
+                        "notes": s.get("notes"),
+                        "run_details": s.get("run_details"),
+                    }
+                    for s in e["sessions"]
+                ],
             }
             for e in entries
-            if e["training_type"] or e["is_rest_day"]
+            if e["sessions"] or e["is_rest_day"]
         ],
     }
     put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
@@ -681,9 +787,8 @@ async def test_edited_and_plan_id_in_get_response(
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-24"})
     entries = get_resp.json()["entries"]
 
-    # Generated entries should have plan_id and edited=False
     for e in entries:
-        if e["training_type"] or e["is_rest_day"]:
+        if e["sessions"] or e["is_rest_day"]:
             assert e["plan_id"] == plan_id
             assert e["edited"] is False
         else:
@@ -744,22 +849,19 @@ async def test_sync_to_plan_per_week_override(
     """Sync should create per-week override in phase.weekly_templates_json."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-09-07")
 
-    # Edit Monday of week 1 (add notes)
     save_data = {
         "week_start": "2026-09-07",
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
                 "notes": "Sync-Test-Edit",
+                "sessions": [{"training_type": "running", "position": 0}],
             },
         ],
     }
     put_resp = await client.put("/api/v1/weekly-plan", json=save_data)
     assert put_resp.status_code == 200
 
-    # Sync per-week (default)
     sync_resp = await client.post(
         "/api/v1/weekly-plan/sync-to-plan",
         json={"week_start": "2026-09-07", "plan_id": plan_id, "apply_to_all_weeks": False},
@@ -771,7 +873,6 @@ async def test_sync_to_plan_per_week_override(
     assert body["apply_to_all_weeks"] is False
     assert body["synced_days"] >= 1
 
-    # Verify phase has per-week override
     plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
     phase = plan_resp.json()["phases"][0]
     assert phase["weekly_templates"] is not None
@@ -783,21 +884,18 @@ async def test_sync_to_plan_all_weeks(client: AsyncClient, db_session: AsyncSess
     """Sync with apply_to_all_weeks should update shared template."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-09-28")
 
-    # Edit Monday
     save_data = {
         "week_start": "2026-09-28",
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "strength",
-                "is_rest_day": False,
                 "notes": "Changed to strength",
+                "sessions": [{"training_type": "strength", "position": 0}],
             },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=save_data)
 
-    # Sync to all weeks
     sync_resp = await client.post(
         "/api/v1/weekly-plan/sync-to-plan",
         json={"week_start": "2026-09-28", "plan_id": plan_id, "apply_to_all_weeks": True},
@@ -806,7 +904,6 @@ async def test_sync_to_plan_all_weeks(client: AsyncClient, db_session: AsyncSess
     body = sync_resp.json()
     assert body["apply_to_all_weeks"] is True
 
-    # Verify shared template was updated
     plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
     phase = plan_resp.json()["phases"][0]
     assert phase["weekly_template"] is not None
@@ -831,7 +928,6 @@ async def test_sync_to_plan_week_outside_phase(
     """Sync a week that falls outside any phase should return 404."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-10-12", num_weeks=1)
 
-    # Try to sync week 2 (outside the 1-week phase)
     week2_start = "2026-10-19"
     sync_resp = await client.post(
         "/api/v1/weekly-plan/sync-to-plan",
@@ -847,11 +943,14 @@ async def test_sync_to_plan_preserves_existing_overrides(
     """Syncing week 2 should not overwrite existing override for week 1."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-10-26", num_weeks=3)
 
-    # Sync week 1
     save1 = {
         "week_start": "2026-10-26",
         "entries": [
-            {"day_of_week": 0, "training_type": "running", "is_rest_day": False, "notes": "W1"},
+            {
+                "day_of_week": 0,
+                "notes": "W1",
+                "sessions": [{"training_type": "running", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=save1)
@@ -860,11 +959,14 @@ async def test_sync_to_plan_preserves_existing_overrides(
         json={"week_start": "2026-10-26", "plan_id": plan_id, "apply_to_all_weeks": False},
     )
 
-    # Sync week 2
     save2 = {
         "week_start": "2026-11-02",
         "entries": [
-            {"day_of_week": 0, "training_type": "strength", "is_rest_day": False, "notes": "W2"},
+            {
+                "day_of_week": 0,
+                "notes": "W2",
+                "sessions": [{"training_type": "strength", "position": 0}],
+            },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=save2)
@@ -873,7 +975,6 @@ async def test_sync_to_plan_preserves_existing_overrides(
         json={"week_start": "2026-11-02", "plan_id": plan_id, "apply_to_all_weeks": False},
     )
 
-    # Both overrides should exist
     plan_resp = await client.get(f"/api/v1/training-plans/{plan_id}")
     phase = plan_resp.json()["phases"][0]
     weeks = phase["weekly_templates"]["weeks"]
@@ -888,30 +989,25 @@ async def test_sync_to_plan_resets_edited_flag(
     """After sync, edited flag should be reset to False."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-11-16", num_weeks=1)
 
-    # Edit an entry
     save_data = {
         "week_start": "2026-11-16",
         "entries": [
             {
                 "day_of_week": 0,
-                "training_type": "running",
-                "is_rest_day": False,
                 "notes": "Edited!",
+                "sessions": [{"training_type": "running", "position": 0}],
             },
         ],
     }
     await client.put("/api/v1/weekly-plan", json=save_data)
 
-    # Verify edited=True
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
     assert get_resp.json()["entries"][0]["edited"] is True
 
-    # Sync
     await client.post(
         "/api/v1/weekly-plan/sync-to-plan",
         json={"week_start": "2026-11-16", "plan_id": plan_id, "apply_to_all_weeks": False},
     )
 
-    # Verify edited=False after sync
     get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
     assert get_resp2.json()["entries"][0]["edited"] is False
