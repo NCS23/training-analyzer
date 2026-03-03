@@ -141,4 +141,17 @@ describe('DayCard expanded editor', () => {
     render(<DayCard entry={emptyEntry} {...defaultProps} isExpanded={true} />);
     expect(screen.getByLabelText('Trainingstyp')).toBeDefined();
   });
+
+  it('renders per-session notes input', () => {
+    const twoSessionEntry: WeeklyPlanEntry = {
+      ...baseEntry,
+      sessions: [
+        { position: 0, training_type: 'running', notes: 'Locker bleiben' },
+        { position: 1, training_type: 'strength', notes: null },
+      ],
+    };
+    render(<DayCard entry={twoSessionEntry} {...defaultProps} isExpanded={true} />);
+    const notesInputs = screen.getAllByLabelText('Session Notizen');
+    expect(notesInputs).toHaveLength(2);
+  });
 });

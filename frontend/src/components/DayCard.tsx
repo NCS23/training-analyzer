@@ -224,6 +224,16 @@ function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditor
           )}
         </div>
       )}
+
+      {/* Session notes */}
+      <Input
+        type="text"
+        value={session.notes ?? ''}
+        onChange={(e) => onUpdate({ ...session, notes: e.target.value || null })}
+        inputSize="sm"
+        placeholder="Notizen"
+        aria-label="Session Notizen"
+      />
     </div>
   );
 }
@@ -508,15 +518,6 @@ export function DayCard({
             </Button>
           )}
 
-          {/* Notes */}
-          <Input
-            type="text"
-            value={entry.notes ?? ''}
-            onChange={(e) => onUpdate({ notes: e.target.value || null })}
-            inputSize="sm"
-            placeholder="Notizen"
-            aria-label="Notizen"
-          />
         </div>
       )}
     </div>
