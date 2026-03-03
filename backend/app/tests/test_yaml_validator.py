@@ -433,6 +433,166 @@ class TestPaceValidation:
         assert _has_code(result.warnings, "invalid_pace_format")
 
 
+def _plan_with_interval(interval_type: str) -> dict[str, Any]:
+    """Build a minimal plan with one interval entry."""
+    return {
+        **VALID_RAW,
+        "phases": [
+            {
+                "name": "Aufbau",
+                "type": "build",
+                "start_week": 1,
+                "end_week": 4,
+                "weekly_template": [
+                    {
+                        "day": 2,
+                        "type": "running",
+                        "run_type": "intervals",
+                        "run_details": {
+                            "run_type": "intervals",
+                            "intervals": [
+                                {"type": "warmup", "duration_minutes": 10},
+                                {"type": interval_type, "duration_minutes": 3, "repeats": 5},
+                                {"type": "cooldown", "duration_minutes": 10},
+                            ],
+                        },
+                    },
+                    {"day": 0, "rest": True},
+                    {"day": 1, "rest": True},
+                    {"day": 3, "rest": True},
+                    {"day": 4, "rest": True},
+                    {"day": 5, "rest": True},
+                    {"day": 6, "rest": True},
+                ],
+            }
+        ],
+    }
+
+
+def _plan_with_run_type(run_type: str) -> dict[str, Any]:
+    """Build a minimal plan with a specific run_type."""
+    return {
+        **VALID_RAW,
+        "phases": [
+            {
+                "name": "Basis",
+                "type": "base",
+                "start_week": 1,
+                "end_week": 4,
+                "weekly_template": [
+                    {"day": 0, "type": "running", "run_type": run_type},
+                    {"day": 1, "rest": True},
+                    {"day": 2, "rest": True},
+                    {"day": 3, "rest": True},
+                    {"day": 4, "rest": True},
+                    {"day": 5, "rest": True},
+                    {"day": 6, "rest": True},
+                ],
+            }
+        ],
+    }
+
+
+class TestSegmentTypeValidation:
+    def test_valid_segment_type_passes(self) -> None:
+        result = validate_yaml_plan(_plan_with_interval("work"))
+        assert result.valid is True
+        assert not _has_code(result.errors, "invalid_segment_type")
+        assert not _has_code(result.warnings, "legacy_segment_type")
+
+    def test_invalid_segment_type_blocks(self) -> None:
+        result = validate_yaml_plan(_plan_with_interval("banana"))
+        assert result.valid is False
+        assert _has_code(result.errors, "invalid_segment_type")
+        err = next(e for e in result.errors if e.code == "invalid_segment_type")
+        assert "'banana'" in err.message
+        assert "Erlaubt:" in err.message
+        assert "Tag 2 (Mi)" in err.message
+
+    def test_legacy_segment_type_warns(self) -> None:
+        result = validate_yaml_plan(_plan_with_interval("recovery"))
+        assert result.valid is True  # Warnings don't block
+        assert _has_code(result.warnings, "legacy_segment_type")
+        warn = next(w for w in result.warnings if w.code == "legacy_segment_type")
+        assert "'recovery'" in warn.message
+        assert "'recovery_jog'" in warn.message
+
+
+class TestRunTypeValidation:
+    def test_valid_run_type_passes(self) -> None:
+        result = validate_yaml_plan(_plan_with_run_type("easy"))
+        assert result.valid is True
+        assert not _has_code(result.errors, "invalid_run_type")
+
+    def test_invalid_run_type_blocks(self) -> None:
+        result = validate_yaml_plan(_plan_with_run_type("hill_sprint"))
+        assert result.valid is False
+        assert _has_code(result.errors, "invalid_run_type")
+        err = next(e for e in result.errors if e.code == "invalid_run_type")
+        assert "'hill_sprint'" in err.message
+        assert "Tag 0 (Mo)" in err.message
+
+    def test_legacy_run_type_warns(self) -> None:
+        result = validate_yaml_plan(_plan_with_run_type("hill_repeats"))
+        assert result.valid is True
+        assert _has_code(result.warnings, "legacy_run_type")
+        warn = next(w for w in result.warnings if w.code == "legacy_run_type")
+        assert "'hill_repeats'" in warn.message
+        assert "'repetitions'" in warn.message
+
+
+class TestTrainingTypeValidation:
+    def test_invalid_training_type_blocks(self) -> None:
+        raw = {
+            **VALID_RAW,
+            "phases": [
+                {
+                    "name": "P1",
+                    "type": "base",
+                    "start_week": 1,
+                    "end_week": 4,
+                    "weekly_template": [
+                        {"day": 0, "type": "yoga"},
+                        {"day": 1, "rest": True},
+                        {"day": 2, "rest": True},
+                        {"day": 3, "rest": True},
+                        {"day": 4, "rest": True},
+                        {"day": 5, "rest": True},
+                        {"day": 6, "rest": True},
+                    ],
+                }
+            ],
+        }
+        result = validate_yaml_plan(raw)
+        assert result.valid is False
+        assert _has_code(result.errors, "invalid_training_type")
+
+    def test_valid_training_types_pass(self) -> None:
+        raw = {
+            **VALID_RAW,
+            "phases": [
+                {
+                    "name": "P1",
+                    "type": "base",
+                    "start_week": 1,
+                    "end_week": 4,
+                    "weekly_template": [
+                        {"day": 0, "type": "running", "run_type": "easy"},
+                        {"day": 1, "type": "strength"},
+                        {"day": 2, "rest": True},
+                        {"day": 3, "rest": True},
+                        {"day": 4, "rest": True},
+                        {"day": 5, "rest": True},
+                        {"day": 6, "rest": True},
+                    ],
+                }
+            ],
+        }
+        result = validate_yaml_plan(raw)
+        assert result.valid is True
+        assert not _has_code(result.errors, "invalid_training_type")
+
+
 class TestMetricsValidation:
     def test_inverted_volume_range(self) -> None:
         raw = {

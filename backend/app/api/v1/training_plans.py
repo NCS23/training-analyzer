@@ -6,6 +6,7 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +25,7 @@ from app.models.plan_changelog import (
     PlanChangeLogReasonUpdate,
     PlanChangeLogResponse,
 )
+from app.models.taxonomy import SEGMENT_TYPE_MIGRATION, SESSION_TYPE_MIGRATION
 from app.models.training_plan import (
     GenerateWeeklyPlansResponse,
     GenerationPreviewResponse,
@@ -420,6 +422,70 @@ def _parse_time_to_seconds(time_str: str) -> int:
     return int(time_str)
 
 
+_DOW_NAMES_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def _format_field_path(loc: tuple[str | int, ...]) -> str:
+    """Convert Pydantic field path to human-readable German string."""
+    parts: list[str] = []
+    i = 0
+    loc_list = list(loc)
+    while i < len(loc_list):
+        segment = loc_list[i]
+        if segment == "phases" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
+            parts.append(f"Phase {loc_list[i + 1] + 1}")
+            i += 2
+        elif segment == "days" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
+            dow_idx = loc_list[i + 1]
+            day_name = _DOW_NAMES_DE[dow_idx] if isinstance(dow_idx, int) and 0 <= dow_idx <= 6 else str(dow_idx)
+            parts.append(f"Tag {dow_idx} ({day_name})" if isinstance(dow_idx, int) and 0 <= dow_idx <= 6 else f"Tag {dow_idx}")
+            i += 2
+        elif segment == "intervals" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
+            parts.append(f"Intervall {loc_list[i + 1] + 1}")
+            i += 2
+        elif segment == "sessions" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
+            parts.append(f"Session {loc_list[i + 1] + 1}")
+            i += 2
+        elif isinstance(segment, int):
+            parts.append(f"#{segment + 1}")
+            i += 1
+        elif segment in ("weekly_template", "weekly_templates", "run_details", "body"):
+            i += 1  # skip structural nesting
+        else:
+            parts.append(str(segment))
+            i += 1
+    return " → ".join(parts) if parts else "Unbekanntes Feld"
+
+
+def _format_pydantic_errors(exc: ValidationError) -> str:
+    """Convert Pydantic ValidationError to human-readable German message."""
+    messages: list[str] = []
+    for err in exc.errors():
+        loc = err.get("loc", ())
+        loc_str = _format_field_path(loc)
+        input_val = err.get("input", "")
+        err_type = err.get("type", "")
+
+        if err_type == "string_pattern_mismatch":
+            messages.append(f"{loc_str}: Wert '{input_val}' ist ungueltig.")
+        elif err_type == "greater_than":
+            ctx = err.get("ctx", {})
+            messages.append(
+                f"{loc_str}: Wert muss groesser als {ctx.get('gt', '?')} sein (ist: {input_val})."
+            )
+        elif err_type == "less_than_equal":
+            ctx = err.get("ctx", {})
+            messages.append(
+                f"{loc_str}: Wert darf maximal {ctx.get('le', '?')} sein (ist: {input_val})."
+            )
+        elif err_type == "missing":
+            messages.append(f"{loc_str}: Pflichtfeld fehlt.")
+        else:
+            messages.append(f"{loc_str}: {err.get('msg', str(err))}")
+
+    return "\n".join(f"• {m}" for m in messages)
+
+
 def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
@@ -450,6 +516,29 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
                     is_rest = day_entry.get("rest", False)
                     training_type = day_entry.get("type") if not is_rest else None
                     run_type = day_entry.get("run_type") if training_type == "running" else None
+
+                    # Auto-migrate legacy run_type
+                    if run_type and str(run_type) in SESSION_TYPE_MIGRATION:
+                        run_type = SESSION_TYPE_MIGRATION[str(run_type)]
+
+                    # Auto-migrate run_details
+                    rd = day_entry.get("run_details")
+                    if isinstance(rd, dict):
+                        rd = dict(rd)
+                        if rd.get("run_type") and str(rd["run_type"]) in SESSION_TYPE_MIGRATION:
+                            rd["run_type"] = SESSION_TYPE_MIGRATION[str(rd["run_type"])]
+                        intervals = rd.get("intervals")
+                        if isinstance(intervals, list):
+                            migrated: list[dict] = []  # type: ignore[type-arg]
+                            for iv in intervals:
+                                if isinstance(iv, dict) and iv.get("type"):
+                                    seg_t = str(iv["type"])
+                                    if seg_t in SEGMENT_TYPE_MIGRATION:
+                                        iv = dict(iv)
+                                        iv["type"] = SEGMENT_TYPE_MIGRATION[seg_t]
+                                migrated.append(iv)
+                            rd["intervals"] = migrated
+
                     days.append(
                         {
                             "day_of_week": day_of_week,
@@ -458,7 +547,7 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
                             "run_type": run_type,
                             "template_id": None,
                             "notes": day_entry.get("notes"),
-                            "run_details": day_entry.get("run_details"),
+                            "run_details": rd if isinstance(rd, dict) else day_entry.get("run_details"),
                         }
                     )
                 mapped["weekly_template"] = {"days": days}
@@ -584,6 +673,11 @@ async def import_plan_from_yaml(
 
     try:
         plan_data = TrainingPlanCreate(**mapped)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Validierungsfehler:\n{_format_pydantic_errors(exc)}",
+        ) from None
     except Exception as exc:
         raise HTTPException(
             status_code=422,

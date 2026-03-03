@@ -8,21 +8,25 @@ import math
 import re
 from datetime import date
 
+from app.models.taxonomy import (
+    SEGMENT_TYPE_MIGRATION,
+    SEGMENT_TYPES,
+    SESSION_TYPE_MIGRATION,
+    SESSION_TYPES,
+)
 from app.models.yaml_validation import YamlValidationIssue, YamlValidationResult
 
 _VALID_PHASE_TYPES = {"base", "build", "peak", "taper", "transition"}
-_VALID_SESSION_TYPES = {
-    "easy",
-    "fartlek",
-    "intervals",
-    "long_run",
-    "progression",
-    "race",
-    "recovery",
-    "repetitions",
-    "tempo",
-}
+_VALID_TRAINING_TYPES = {"strength", "running"}
 _PACE_REGEX = re.compile(r"^\d{1,2}:\d{2}$")
+_DOW_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def _dow_name(dow: object) -> str:
+    """Return short German day name for a day_of_week int, e.g. '2 (Mi)'."""
+    if isinstance(dow, int) and 0 <= dow <= 6:
+        return f"{dow} ({_DOW_NAMES[dow]})"
+    return str(dow) if dow is not None else "?"
 
 
 def validate_yaml_plan(raw: dict[str, object]) -> YamlValidationResult:
@@ -230,7 +234,7 @@ def _check_phases(
         # weekly_template checks
         wt = phase.get("weekly_template")
         if isinstance(wt, list):
-            _check_weekly_template(wt, name, loc, warnings)
+            _check_weekly_template(wt, name, loc, errors, warnings)
 
         # target_metrics checks
         tm = phase.get("target_metrics")
@@ -249,6 +253,7 @@ def _check_weekly_template(
     days: list[object],
     phase_name: str,
     phase_loc: str,
+    errors: list[YamlValidationIssue],
     warnings: list[YamlValidationIssue],
 ) -> None:
     """Validate a weekly_template day list."""
@@ -270,9 +275,34 @@ def _check_weekly_template(
                 )
             seen_days[dow] = j
 
-        # run_type consistency
+        # training_type check
+        training_type = day_entry.get("type")
+        if training_type and not day_entry.get("rest") and str(training_type) not in _VALID_TRAINING_TYPES:
+            errors.append(
+                YamlValidationIssue(
+                    code="invalid_training_type",
+                    level="error",
+                    message=(
+                        f"In '{phase_name}', Tag {_dow_name(dow)}: "
+                        f"Trainingstyp '{training_type}' ist ungueltig. "
+                        f"Erlaubt: {', '.join(sorted(_VALID_TRAINING_TYPES))}."
+                    ),
+                    location=f"{day_loc}.type",
+                )
+            )
+
+        # run_type check (outer)
         outer_run_type = day_entry.get("run_type")
+        if outer_run_type:
+            _check_type_value(
+                str(outer_run_type), SESSION_TYPES, SESSION_TYPE_MIGRATION,
+                "run_type", "invalid_run_type", "legacy_run_type",
+                phase_name, dow, day_loc, errors, warnings,
+            )
+
         rd = day_entry.get("run_details")
+
+        # run_type consistency
         if isinstance(rd, dict) and outer_run_type:
             inner_run_type = rd.get("run_type")
             if inner_run_type and str(outer_run_type) != str(inner_run_type):
@@ -280,25 +310,127 @@ def _check_weekly_template(
                     YamlValidationIssue(
                         code="run_type_mismatch",
                         level="warning",
-                        message=f"In '{phase_name}', Tag {dow}: run_type '{outer_run_type}' widerspricht run_details.run_type '{inner_run_type}'.",
+                        message=f"In '{phase_name}', Tag {_dow_name(dow)}: run_type '{outer_run_type}' widerspricht run_details.run_type '{inner_run_type}'.",
                         location=f"{day_loc}.run_type",
                     )
                 )
 
-        # Pace format checks
+        # run_details checks
         if isinstance(rd, dict):
+            # run_details.run_type check
+            inner_rt = rd.get("run_type")
+            if inner_rt:
+                _check_type_value(
+                    str(inner_rt), SESSION_TYPES, SESSION_TYPE_MIGRATION,
+                    "run_details.run_type", "invalid_run_type", "legacy_run_type",
+                    phase_name, dow, day_loc, errors, warnings,
+                )
+
             _check_pace_fields(rd, f"{day_loc}.run_details", warnings)
 
-            # Interval pace checks
+            # Interval checks
             intervals = rd.get("intervals")
             if isinstance(intervals, list):
                 for k, interval in enumerate(intervals):
                     if isinstance(interval, dict):
+                        # Segment type check
+                        seg_type = interval.get("type")
+                        if seg_type:
+                            _check_segment_type(
+                                str(seg_type), phase_name, dow, k,
+                                day_loc, errors, warnings,
+                            )
                         _check_pace_fields(
                             interval,
                             f"{day_loc}.run_details.intervals[{k}]",
                             warnings,
                         )
+
+
+def _check_type_value(
+    value: str,
+    valid_set: frozenset[str],
+    migration_map: dict[str, str],
+    field_name: str,
+    error_code: str,
+    legacy_code: str,
+    phase_name: str,
+    dow: object,
+    day_loc: str,
+    errors: list[YamlValidationIssue],
+    warnings: list[YamlValidationIssue],
+) -> None:
+    """Check a type value against a canonical set and legacy migration map."""
+    if value in valid_set:
+        return
+    migration = migration_map.get(value)
+    if migration:
+        warnings.append(
+            YamlValidationIssue(
+                code=legacy_code,
+                level="warning",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}: "
+                    f"{field_name} '{value}' wird automatisch zu '{migration}' migriert."
+                ),
+                location=f"{day_loc}.{field_name}",
+            )
+        )
+    else:
+        errors.append(
+            YamlValidationIssue(
+                code=error_code,
+                level="error",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}: "
+                    f"{field_name} '{value}' ist ungueltig. "
+                    f"Erlaubt: {', '.join(sorted(valid_set))}."
+                ),
+                location=f"{day_loc}.{field_name}",
+            )
+        )
+
+
+def _check_segment_type(
+    value: str,
+    phase_name: str,
+    dow: object,
+    interval_idx: int,
+    day_loc: str,
+    errors: list[YamlValidationIssue],
+    warnings: list[YamlValidationIssue],
+) -> None:
+    """Check an interval segment type against SEGMENT_TYPES + migration map."""
+    if value in SEGMENT_TYPES:
+        return
+    migration = SEGMENT_TYPE_MIGRATION.get(value)
+    loc = f"{day_loc}.run_details.intervals[{interval_idx}].type"
+    if migration:
+        warnings.append(
+            YamlValidationIssue(
+                code="legacy_segment_type",
+                level="warning",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}, "
+                    f"Intervall {interval_idx + 1}: Typ '{value}' "
+                    f"wird automatisch zu '{migration}' migriert."
+                ),
+                location=loc,
+            )
+        )
+    else:
+        errors.append(
+            YamlValidationIssue(
+                code="invalid_segment_type",
+                level="error",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}, "
+                    f"Intervall {interval_idx + 1}: Typ '{value}' ist ungueltig. "
+                    f"Erlaubt: {', '.join(sorted(SEGMENT_TYPES))}."
+                ),
+                location=loc,
+            )
+        )
 
 
 def _check_pace_fields(

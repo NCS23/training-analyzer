@@ -248,8 +248,10 @@ export function TrainingPlanEditorPage() {
         toast({ title: 'Trainingsplan erstellt', variant: 'success' });
       }
       navigate('/settings/plans');
-    } catch {
-      setError('Speichern fehlgeschlagen');
+    } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail ?? 'Speichern fehlgeschlagen');
     } finally {
       setSaving(false);
     }
