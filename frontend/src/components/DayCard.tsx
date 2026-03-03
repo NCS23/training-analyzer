@@ -510,7 +510,7 @@ function RestDayDialog({
                     Bearbeiten
                   </DropdownMenuItem>
                   <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
-                    Ruhetag entfernen
+                    Entfernen
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
