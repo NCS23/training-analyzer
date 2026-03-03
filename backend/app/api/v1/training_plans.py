@@ -437,8 +437,16 @@ def _format_field_path(loc: tuple[str | int, ...]) -> str:
             i += 2
         elif segment == "days" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
             dow_idx = loc_list[i + 1]
-            day_name = _DOW_NAMES_DE[dow_idx] if isinstance(dow_idx, int) and 0 <= dow_idx <= 6 else str(dow_idx)
-            parts.append(f"Tag {dow_idx} ({day_name})" if isinstance(dow_idx, int) and 0 <= dow_idx <= 6 else f"Tag {dow_idx}")
+            day_name = (
+                _DOW_NAMES_DE[dow_idx]
+                if isinstance(dow_idx, int) and 0 <= dow_idx <= 6
+                else str(dow_idx)
+            )
+            parts.append(
+                f"Tag {dow_idx} ({day_name})"
+                if isinstance(dow_idx, int) and 0 <= dow_idx <= 6
+                else f"Tag {dow_idx}"
+            )
             i += 2
         elif segment == "intervals" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
             parts.append(f"Intervall {loc_list[i + 1] + 1}")
@@ -547,7 +555,9 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
                             "run_type": run_type,
                             "template_id": None,
                             "notes": day_entry.get("notes"),
-                            "run_details": rd if isinstance(rd, dict) else day_entry.get("run_details"),
+                            "run_details": rd
+                            if isinstance(rd, dict)
+                            else day_entry.get("run_details"),
                         }
                     )
                 mapped["weekly_template"] = {"days": days}

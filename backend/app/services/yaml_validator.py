@@ -277,7 +277,11 @@ def _check_weekly_template(
 
         # training_type check
         training_type = day_entry.get("type")
-        if training_type and not day_entry.get("rest") and str(training_type) not in _VALID_TRAINING_TYPES:
+        if (
+            training_type
+            and not day_entry.get("rest")
+            and str(training_type) not in _VALID_TRAINING_TYPES
+        ):
             errors.append(
                 YamlValidationIssue(
                     code="invalid_training_type",
@@ -295,9 +299,17 @@ def _check_weekly_template(
         outer_run_type = day_entry.get("run_type")
         if outer_run_type:
             _check_type_value(
-                str(outer_run_type), SESSION_TYPES, SESSION_TYPE_MIGRATION,
-                "run_type", "invalid_run_type", "legacy_run_type",
-                phase_name, dow, day_loc, errors, warnings,
+                str(outer_run_type),
+                SESSION_TYPES,
+                SESSION_TYPE_MIGRATION,
+                "run_type",
+                "invalid_run_type",
+                "legacy_run_type",
+                phase_name,
+                dow,
+                day_loc,
+                errors,
+                warnings,
             )
 
         rd = day_entry.get("run_details")
@@ -321,9 +333,17 @@ def _check_weekly_template(
             inner_rt = rd.get("run_type")
             if inner_rt:
                 _check_type_value(
-                    str(inner_rt), SESSION_TYPES, SESSION_TYPE_MIGRATION,
-                    "run_details.run_type", "invalid_run_type", "legacy_run_type",
-                    phase_name, dow, day_loc, errors, warnings,
+                    str(inner_rt),
+                    SESSION_TYPES,
+                    SESSION_TYPE_MIGRATION,
+                    "run_details.run_type",
+                    "invalid_run_type",
+                    "legacy_run_type",
+                    phase_name,
+                    dow,
+                    day_loc,
+                    errors,
+                    warnings,
                 )
 
             _check_pace_fields(rd, f"{day_loc}.run_details", warnings)
@@ -337,8 +357,13 @@ def _check_weekly_template(
                         seg_type = interval.get("type")
                         if seg_type:
                             _check_segment_type(
-                                str(seg_type), phase_name, dow, k,
-                                day_loc, errors, warnings,
+                                str(seg_type),
+                                phase_name,
+                                dow,
+                                k,
+                                day_loc,
+                                errors,
+                                warnings,
                             )
                         _check_pace_fields(
                             interval,

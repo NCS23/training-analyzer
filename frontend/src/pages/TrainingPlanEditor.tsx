@@ -249,8 +249,7 @@ export function TrainingPlanEditorPage() {
       }
       navigate('/settings/plans');
     } catch (err: unknown) {
-      const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(detail ?? 'Speichern fehlgeschlagen');
     } finally {
       setSaving(false);
