@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@nordlig/components';
-import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Settings, Zap } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Settings } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 const navItems = [
@@ -19,9 +19,7 @@ function Sidebar() {
     <nav className="fixed top-0 bottom-0 left-0 z-[100] hidden w-[224px] flex-col overflow-y-auto border-r border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-sm)] lg:flex">
       {/* Logo */}
       <div className="flex items-center gap-[9px] px-5 pt-5 pb-[22px] text-[14px] font-semibold tracking-tight text-[var(--color-text-base)]">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-bg-primary)]">
-          <Zap className="h-4 w-4 text-[var(--color-text-on-primary)]" />
-        </div>
+        <img src="/logo.svg" alt="Training Analyzer" className="h-7 w-7 shrink-0" />
         Training Analyzer
       </div>
 
@@ -76,9 +74,7 @@ function MobileTopBar() {
   return (
     <div className="fixed top-0 right-0 left-0 z-[90] flex h-[64px] items-center justify-between border-b border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-5 shadow-[var(--shadow-xs)] lg:hidden">
       <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-base)]">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-bg-primary)]">
-          <Zap className="h-4 w-4 text-[var(--color-text-on-primary)]" />
-        </div>
+        <img src="/logo.svg" alt="Training Analyzer" className="h-7 w-7 shrink-0" />
         Training Analyzer
       </div>
     </div>
