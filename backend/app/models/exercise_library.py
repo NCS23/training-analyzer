@@ -28,6 +28,8 @@ class ExerciseUpdate(BaseModel):
     instructions: Optional[list[str]] = None
     primary_muscles: Optional[list[str]] = None
     secondary_muscles: Optional[list[str]] = None
+    level: Optional[str] = None
+    equipment: Optional[str] = None
 
 
 class ExerciseResponse(BaseModel):
