@@ -7,11 +7,13 @@ from app.models.segment import (
     intervals_to_segments,
     lap_to_segment,
     laps_to_segments,
+    laps_to_template_segments,
     run_interval_to_segment,
     segment_to_lap_response,
+    segments_to_intervals,
 )
 from app.models.session import LapResponse
-from app.models.weekly_plan import RunInterval
+from app.models.weekly_plan import RunDetails, RunInterval
 
 
 class TestSegmentModel:
@@ -329,3 +331,210 @@ class TestBatchConversions:
     def test_empty_lists(self) -> None:
         assert intervals_to_segments([]) == []
         assert laps_to_segments([]) == []
+
+
+class TestSegmentsToIntervals:
+    """Test Segment → RunInterval conversion (backward-compat)."""
+
+    def test_soll_segment_uses_target_duration(self) -> None:
+        seg = Segment(
+            position=0,
+            segment_type="work",
+            target_duration_minutes=3.0,
+            target_pace_min="4:30",
+            target_pace_max="4:45",
+            target_hr_min=160,
+            target_hr_max=175,
+            repeats=4,
+        )
+        intervals = segments_to_intervals([seg])
+        assert len(intervals) == 1
+        iv = intervals[0]
+        assert iv.type == "work"
+        assert iv.duration_minutes == 3.0
+        assert iv.target_pace_min == "4:30"
+        assert iv.target_pace_max == "4:45"
+        assert iv.target_hr_min == 160
+        assert iv.target_hr_max == 175
+        assert iv.repeats == 4
+
+    def test_ist_segment_uses_actual_duration(self) -> None:
+        seg = Segment(
+            position=0,
+            segment_type="steady",
+            actual_duration_seconds=600.0,
+            actual_pace_formatted="5:24",
+        )
+        intervals = segments_to_intervals([seg])
+        assert len(intervals) == 1
+        assert intervals[0].duration_minutes == 10.0  # 600s / 60
+
+    def test_no_duration_fallback(self) -> None:
+        seg = Segment(position=0, segment_type="recovery_jog")
+        intervals = segments_to_intervals([seg])
+        assert intervals[0].duration_minutes == 1.0  # fallback
+
+    def test_duration_capped_at_180(self) -> None:
+        seg = Segment(
+            position=0,
+            segment_type="steady",
+            actual_duration_seconds=12000.0,  # 200 minutes
+        )
+        intervals = segments_to_intervals([seg])
+        assert intervals[0].duration_minutes == 180.0
+
+    def test_empty_list(self) -> None:
+        assert segments_to_intervals([]) == []
+
+    def test_multiple_segments(self) -> None:
+        segments = [
+            Segment(position=0, segment_type="warmup", target_duration_minutes=10.0),
+            Segment(position=1, segment_type="work", target_duration_minutes=3.0, repeats=4),
+            Segment(position=2, segment_type="cooldown", target_duration_minutes=10.0),
+        ]
+        intervals = segments_to_intervals(segments)
+        assert len(intervals) == 3
+        assert intervals[0].type == "warmup"
+        assert intervals[1].type == "work"
+        assert intervals[1].repeats == 4
+        assert intervals[2].type == "cooldown"
+
+
+class TestLapsToTemplateSegments:
+    """Test Laps → Template Segments with Ist→Soll derivation."""
+
+    def test_derives_target_from_actual(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=600,
+                duration_formatted="10:00",
+                pace_formatted="5:30",
+                suggested_type="warmup",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert len(segments) == 1
+        seg = segments[0]
+        # Ist-Daten vorhanden
+        assert seg.actual_duration_seconds == 600.0
+        assert seg.actual_pace_formatted == "5:30"
+        # Soll-Daten aus Ist abgeleitet
+        assert seg.target_duration_minutes == 10.0  # 600s / 60
+        assert seg.target_pace_min == "5:30"
+
+    def test_zero_duration_no_target(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=0,
+                duration_formatted="0:00",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_duration_minutes is None  # 0/60 = 0 → not > 0
+
+    def test_long_duration_no_target(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=11000,  # ~183 min > 180
+                duration_formatted="183:20",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_duration_minutes is None  # > 180 → excluded
+
+    def test_no_pace_no_target_pace(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=1,
+                duration_seconds=300,
+                duration_formatted="5:00",
+                suggested_type="steady",
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        assert segments[0].target_pace_min is None
+
+    def test_preserves_ist_data(self) -> None:
+        laps = [
+            LapResponse(
+                lap_number=2,
+                duration_seconds=180,
+                duration_formatted="3:00",
+                distance_km=0.85,
+                pace_formatted="3:32",
+                avg_hr_bpm=172,
+                max_hr_bpm=178,
+                min_hr_bpm=165,
+                avg_cadence_spm=184,
+                suggested_type="work",
+                confidence="high",
+                start_seconds=600.0,
+                end_seconds=780.0,
+            ),
+        ]
+        segments = laps_to_template_segments(laps)
+        seg = segments[0]
+        assert seg.actual_duration_seconds == 180.0
+        assert seg.actual_distance_km == 0.85
+        assert seg.actual_hr_avg == 172
+        assert seg.suggested_type == "work"
+        assert seg.confidence == "high"
+
+
+class TestRunDetailsValidators:
+    """Test RunDetails model validators for segments↔intervals sync."""
+
+    def test_only_intervals_populates_segments(self) -> None:
+        rd = RunDetails(
+            run_type="easy",
+            intervals=[
+                RunInterval(type="warmup", duration_minutes=10.0),
+                RunInterval(type="steady", duration_minutes=30.0),
+            ],
+        )
+        assert rd.segments is not None
+        assert len(rd.segments) == 2
+        assert rd.segments[0].segment_type == "warmup"
+        assert rd.segments[1].segment_type == "steady"
+
+    def test_only_segments_populates_intervals(self) -> None:
+        rd = RunDetails(
+            run_type="tempo",
+            segments=[
+                Segment(position=0, segment_type="warmup", target_duration_minutes=10.0),
+                Segment(
+                    position=1,
+                    segment_type="work",
+                    target_duration_minutes=20.0,
+                    target_pace_min="4:30",
+                ),
+            ],
+        )
+        assert rd.intervals is not None
+        assert len(rd.intervals) == 2
+        assert rd.intervals[0].type == "warmup"
+        assert rd.intervals[0].duration_minutes == 10.0
+        assert rd.intervals[1].type == "work"
+        assert rd.intervals[1].target_pace_min == "4:30"
+
+    def test_both_present_no_override(self) -> None:
+        intervals = [RunInterval(type="warmup", duration_minutes=10.0)]
+        segments = [Segment(position=0, segment_type="steady", target_duration_minutes=5.0)]
+        rd = RunDetails(
+            run_type="easy",
+            intervals=intervals,
+            segments=segments,
+        )
+        # Neither overridden
+        assert rd.intervals is not None
+        assert rd.segments is not None
+        assert rd.intervals[0].type == "warmup"
+        assert rd.segments[0].segment_type == "steady"
+
+    def test_neither_present_no_error(self) -> None:
+        rd = RunDetails(run_type="easy")
+        assert rd.intervals is None
+        assert rd.segments is None

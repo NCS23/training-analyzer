@@ -313,6 +313,23 @@ async def create_from_session(
         if session.duration_sec:
             duration_min = round(int(session.duration_sec) / 60)
 
+        # Convert laps to template segments (Ist→Soll derivation) (#133)
+        segments_data: Optional[list[dict[str, object]]] = None
+        if session.laps_json:
+            from app.models.segment import laps_to_template_segments
+            from app.models.session import LapResponse as LapResponseCls
+
+            laps_raw = json.loads(str(session.laps_json))
+            elapsed = 0.0
+            for lap_dict in laps_raw:
+                dur = lap_dict.get("duration_seconds", 0)
+                lap_dict["start_seconds"] = elapsed
+                lap_dict["end_seconds"] = elapsed + dur
+                elapsed += dur
+            laps = [LapResponseCls(**lap) for lap in laps_raw]
+            template_segments = laps_to_template_segments(laps)
+            segments_data = [s.model_dump() for s in template_segments]
+
         run_details = {
             "run_type": run_type,
             "target_duration_minutes": duration_min,
@@ -321,6 +338,7 @@ async def create_from_session(
             "target_hr_min": None,
             "target_hr_max": None,
             "intervals": None,
+            "segments": segments_data,
         }
 
         tmpl = SessionTemplateModel(

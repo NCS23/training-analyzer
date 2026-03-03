@@ -175,3 +175,52 @@ def intervals_to_segments(intervals: list[RunInterval]) -> list[Segment]:
 def laps_to_segments(laps: list[LapResponse]) -> list[Segment]:
     """Konvertiert eine Liste von LapResponses zu Segments."""
     return [lap_to_segment(lap) for lap in laps]
+
+
+def segments_to_intervals(segments: list[Segment]) -> list[RunInterval]:
+    """Konvertiert Segments zurueck zu RunIntervals (Backward-Compat).
+
+    Bestimmt duration_minutes aus target_duration_minutes (Soll) oder
+    actual_duration_seconds (Ist), mit Fallback auf 1.0 Minute.
+    """
+    from app.models.weekly_plan import RunInterval as RunIntervalCls
+
+    result = []
+    for seg in segments:
+        duration_min = seg.target_duration_minutes
+        if duration_min is None and seg.actual_duration_seconds:
+            duration_min = round(seg.actual_duration_seconds / 60, 1)
+        if duration_min is None or duration_min <= 0:
+            duration_min = 1.0
+        duration_min = min(duration_min, 180.0)
+
+        result.append(
+            RunIntervalCls(
+                type=seg.segment_type,
+                duration_minutes=duration_min,
+                target_pace_min=seg.target_pace_min,
+                target_pace_max=seg.target_pace_max,
+                target_hr_min=seg.target_hr_min,
+                target_hr_max=seg.target_hr_max,
+                repeats=seg.repeats,
+            )
+        )
+    return result
+
+
+def laps_to_template_segments(laps: list[LapResponse]) -> list[Segment]:
+    """Konvertiert Laps zu Template-Segmenten mit Ist-als-Soll-Ableitung.
+
+    Wird beim Erstellen von Templates aus Sessions verwendet.
+    Ist-Daten (actual_*) werden als Soll-Referenz (target_*) uebernommen.
+    """
+    segments = laps_to_segments(laps)
+    result: list[Segment] = []
+    for seg in segments:
+        updates: dict[str, object] = {}
+        if seg.actual_duration_seconds and 0 < seg.actual_duration_seconds / 60 <= 180:
+            updates["target_duration_minutes"] = round(seg.actual_duration_seconds / 60, 1)
+        if seg.actual_pace_formatted:
+            updates["target_pace_min"] = seg.actual_pace_formatted
+        result.append(seg.model_copy(update=updates) if updates else seg)
+    return result

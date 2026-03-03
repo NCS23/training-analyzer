@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.segment import Segment, intervals_to_segments
+from app.models.segment import Segment, intervals_to_segments, segments_to_intervals
 from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
 
 
@@ -43,6 +43,13 @@ class RunDetails(BaseModel):
         """Auto-populate segments from intervals if not explicitly set."""
         if self.segments is None and self.intervals:
             self.segments = intervals_to_segments(self.intervals)
+        return self
+
+    @model_validator(mode="after")
+    def _populate_intervals(self) -> RunDetails:
+        """Auto-derive intervals from segments when only segments provided."""
+        if self.intervals is None and self.segments:
+            self.intervals = segments_to_intervals(self.segments)
         return self
 
 
