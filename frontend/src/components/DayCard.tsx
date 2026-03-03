@@ -517,7 +517,6 @@ export function DayCard({
               Session
             </Button>
           )}
-
         </div>
       )}
     </div>
