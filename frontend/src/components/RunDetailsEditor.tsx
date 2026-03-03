@@ -106,41 +106,39 @@ function SegmentEditorRow({
             aria-label={`Segment ${index + 1} Wiederholungen`}
           />
         </div>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => onRemove(index)}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-error)] transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] rounded-[var(--radius-component-sm)]"
+          type="button"
+          className="min-h-[44px] min-w-[44px] shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-error)]"
           aria-label={`Segment ${index + 1} entfernen`}
         >
           <Trash2 className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Row 2: Duration/Distance toggle + value */}
       <div>
         <div className="flex items-center gap-1.5 mb-0.5">
-          <button
-            type="button"
+          <Button
+            variant={targetMode === 'duration' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => handleTargetModeSwitch('duration')}
-            className={`text-[10px] px-1.5 py-0.5 rounded-[var(--radius-component-sm)] transition-colors motion-reduce:transition-none ${
-              targetMode === 'duration'
-                ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-text-primary)] font-medium'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
-            }`}
+            type="button"
+            className="text-[10px] h-6 px-2"
           >
             Dauer
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={targetMode === 'distance' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => handleTargetModeSwitch('distance')}
-            className={`text-[10px] px-1.5 py-0.5 rounded-[var(--radius-component-sm)] transition-colors motion-reduce:transition-none ${
-              targetMode === 'distance'
-                ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-text-primary)] font-medium'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
-            }`}
+            type="button"
+            className="text-[10px] h-6 px-2"
           >
             Distanz
-          </button>
+          </Button>
         </div>
         {targetMode === 'duration' ? (
           <Input
