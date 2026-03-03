@@ -634,7 +634,7 @@ export function PhaseWeeklyTemplateEditor({
                 size="sm"
                 onClick={() => addDaySession(expandedDay)}
                 className="w-full"
-                aria-label="Session hinzufuegen"
+                aria-label="Session hinzufügen"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Session

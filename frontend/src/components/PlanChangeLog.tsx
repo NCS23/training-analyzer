@@ -248,7 +248,7 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
           className="w-full flex items-center justify-between -m-1 p-1"
         >
           <span className="text-sm font-semibold text-[var(--color-text-base)]">
-            Aenderungshistorie{total > 0 && ` (${total})`}
+            Änderungshistorie{total > 0 && ` (${total})`}
           </span>
           {isOpen ? (
             <ChevronUp className="w-4 h-4 text-[var(--color-text-muted)]" />
@@ -286,11 +286,11 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
           ) : entries.length === 0 ? (
             <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
               {categoryFilter === 'all'
-                ? 'Noch keine Aenderungen protokolliert.'
+                ? 'Noch keine Änderungen protokolliert.'
                 : 'Keine Eintraege in dieser Kategorie.'}
             </p>
           ) : (
-            <div className="space-y-1" role="list" aria-label="Aenderungshistorie">
+            <div className="space-y-1" role="list" aria-label="Änderungshistorie">
               {entries.map((entry) => {
                 const isExpanded = expandedId === entry.id;
                 const isEditingReason = editingReasonId === entry.id;
@@ -373,7 +373,7 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
                               className="text-xs"
                             >
                               <MessageSquarePlus className="w-3 h-3 mr-1" />
-                              Grund hinzufuegen
+                              Grund hinzufügen
                             </Button>
                           )
                         )}

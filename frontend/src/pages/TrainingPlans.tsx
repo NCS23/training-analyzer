@@ -179,7 +179,7 @@ export function TrainingPlansPage() {
       const created = unknowns.filter((ex) => !activeReplacements[ex.exercise_name]);
       if (created.length > 0) {
         toast({
-          title: `${created.length} neue Uebung${created.length > 1 ? 'en' : ''} erstellt`,
+          title: `${created.length} neue Übung${created.length > 1 ? 'en' : ''} erstellt`,
           description: created.map((ex) => ex.exercise_name).join(', '),
           variant: 'info',
         });

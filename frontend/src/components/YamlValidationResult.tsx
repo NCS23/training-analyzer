@@ -41,9 +41,9 @@ export function YamlValidationResultPanel({
           <p className="text-sm font-medium text-[var(--color-text-base)]">{filename}</p>
           <p className="text-xs text-[var(--color-text-muted)]">
             {hasErrors
-              ? `${result.errors.length} Fehler gefunden — Import nicht moeglich.`
+              ? `${result.errors.length} Fehler gefunden — Import nicht möglich.`
               : hasAnyWarning
-                ? 'Hinweise vorhanden — Import trotzdem moeglich.'
+                ? 'Hinweise vorhanden — Import trotzdem möglich.'
                 : 'Keine Probleme gefunden.'}
           </p>
         </div>
@@ -92,7 +92,7 @@ export function YamlValidationResultPanel({
       {hasUnknownExercises && (
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-[var(--color-text-warning)]">
-            Unbekannte Uebungen
+            Unbekannte Übungen
           </p>
           {result.unknown_exercises.map((ex) => {
             const selectedValue = exerciseReplacements?.[ex.exercise_name] ?? CREATE_NEW;

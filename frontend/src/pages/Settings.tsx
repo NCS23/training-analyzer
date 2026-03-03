@@ -18,7 +18,7 @@ const tiles = [
   },
   {
     title: 'Session-Templates',
-    description: 'Vorlagen fuer Kraft- und Lauftraining erstellen und verwalten',
+    description: 'Vorlagen für Kraft- und Lauftraining erstellen und verwalten',
     icon: ClipboardList,
     route: '/settings/templates',
   },

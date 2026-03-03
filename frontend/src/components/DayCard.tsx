@@ -828,7 +828,7 @@ export function DayCard({
                 'hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-100 motion-reduce:transition-none',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
               ].join(' ')}
-              aria-label="Ruhetag aendern"
+              aria-label="Ruhetag ändern"
             >
               <Moon className={`w-3.5 h-3.5 ${primaryIconColor}`} />
               <span className="text-xs text-[var(--color-text-muted)]">Ruhe</span>
@@ -855,7 +855,7 @@ export function DayCard({
                     'transition-colors duration-100 motion-reduce:transition-none',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]',
                   ].join(' ')}
-                  aria-label="Session hinzufuegen"
+                  aria-label="Session hinzufügen"
                 >
                   <Plus className="w-3 h-3" />
                 </button>

@@ -53,9 +53,9 @@ describe('PlanChangeLog', () => {
 
     // Open the collapsible
     await waitFor(() => {
-      expect(screen.getByText(/Aenderungshistorie/)).toBeDefined();
+      expect(screen.getByText(/Änderungshistorie/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Aenderungshistorie/));
+    fireEvent.click(screen.getByText(/Änderungshistorie/));
 
     await waitFor(() => {
       expect(screen.getByText(/HM Sub-2h/)).toBeDefined();
@@ -73,9 +73,9 @@ describe('PlanChangeLog', () => {
 
     // Open collapsible
     await waitFor(() => {
-      expect(screen.getByText(/Aenderungshistorie/)).toBeDefined();
+      expect(screen.getByText(/Änderungshistorie/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Aenderungshistorie/));
+    fireEvent.click(screen.getByText(/Änderungshistorie/));
 
     // Click on entry with details
     await waitFor(() => {
@@ -89,7 +89,7 @@ describe('PlanChangeLog', () => {
     });
   });
 
-  it('"Grund hinzufuegen" opens input and saves on Enter', async () => {
+  it('"Grund hinzufügen" opens input and saves on Enter', async () => {
     vi.mocked(getChangelog).mockResolvedValueOnce({
       entries: [MOCK_ENTRIES[0]], // Entry without reason
       total: 1,
@@ -103,9 +103,9 @@ describe('PlanChangeLog', () => {
 
     // Open collapsible
     await waitFor(() => {
-      expect(screen.getByText(/Aenderungshistorie/)).toBeDefined();
+      expect(screen.getByText(/Änderungshistorie/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Aenderungshistorie/));
+    fireEvent.click(screen.getByText(/Änderungshistorie/));
 
     // Click on entry
     await waitFor(() => {
@@ -113,11 +113,11 @@ describe('PlanChangeLog', () => {
     });
     fireEvent.click(screen.getByText(/HM Sub-2h/));
 
-    // Click "Grund hinzufuegen"
+    // Click "Grund hinzufügen"
     await waitFor(() => {
-      expect(screen.getByText(/Grund hinzufuegen/)).toBeDefined();
+      expect(screen.getByText(/Grund hinzufügen/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Grund hinzufuegen/));
+    fireEvent.click(screen.getByText(/Grund hinzufügen/));
 
     // Type reason and press Enter
     const input = screen.getByPlaceholderText('Grund eingeben...');
@@ -156,9 +156,9 @@ describe('PlanChangeLog', () => {
 
     // Open collapsible
     await waitFor(() => {
-      expect(screen.getByText(/Aenderungshistorie/)).toBeDefined();
+      expect(screen.getByText(/Änderungshistorie/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Aenderungshistorie/));
+    fireEvent.click(screen.getByText(/Änderungshistorie/));
 
     // Click "Mehr laden"
     await waitFor(() => {
@@ -181,12 +181,12 @@ describe('PlanChangeLog', () => {
 
     // Open collapsible
     await waitFor(() => {
-      expect(screen.getByText(/Aenderungshistorie/)).toBeDefined();
+      expect(screen.getByText(/Änderungshistorie/)).toBeDefined();
     });
-    fireEvent.click(screen.getByText(/Aenderungshistorie/));
+    fireEvent.click(screen.getByText(/Änderungshistorie/));
 
     await waitFor(() => {
-      expect(screen.getByText(/Noch keine Aenderungen/)).toBeDefined();
+      expect(screen.getByText(/Noch keine Änderungen/)).toBeDefined();
     });
   });
 });

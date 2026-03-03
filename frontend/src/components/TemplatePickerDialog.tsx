@@ -54,7 +54,7 @@ export function TemplatePickerDialog({
         <DialogHeader>
           <DialogTitle>
             <TypeIcon className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
-            {typeLabel}-Vorlage waehlen
+            {typeLabel}-Vorlage wählen
           </DialogTitle>
         </DialogHeader>
 
@@ -93,7 +93,7 @@ export function TemplatePickerDialog({
                     {sessionType === 'running' && t.run_type
                       ? (RUN_TYPE_LABELS[t.run_type] ?? t.run_type)
                       : sessionType === 'strength'
-                        ? `${t.exercise_count} Uebungen · ${t.total_sets} Saetze`
+                        ? `${t.exercise_count} Übungen · ${t.total_sets} Sätze`
                         : ''}
                   </p>
                 </div>
