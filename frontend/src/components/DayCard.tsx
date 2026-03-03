@@ -449,6 +449,116 @@ function SessionDetailDialog({
   );
 }
 
+// --- RestDayDialog ---
+
+interface RestDayDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  notes: string | null;
+  onSaveNotes: (notes: string | null) => void;
+  onRemoveRestDay: () => void;
+}
+
+function RestDayDialog({
+  open,
+  onOpenChange,
+  notes,
+  onSaveNotes,
+  onRemoveRestDay,
+}: RestDayDialogProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [localNotes, setLocalNotes] = useState(notes ?? '');
+
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open && !prevOpen) {
+    setLocalNotes(notes ?? '');
+    setIsEditing(false);
+  }
+  if (open !== prevOpen) setPrevOpen(open);
+
+  const handleSave = () => {
+    onSaveNotes(localNotes.trim() || null);
+    setIsEditing(false);
+    onOpenChange(false);
+  };
+
+  const handleRemove = () => {
+    onRemoveRestDay();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              <span className="flex items-center gap-2">
+                <Moon className="w-4 h-4 text-[var(--color-text-muted)]" />
+                Ruhetag
+              </span>
+            </DialogTitle>
+            {!isEditing && (
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button variant="ghost" size="sm" aria-label="Ruhetag Optionen">
+                    <EllipsisVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem icon={<Pencil />} onSelect={() => setIsEditing(true)}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
+                    Ruhetag entfernen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {!isEditing && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {notes ? notes : 'Keine Notizen.'}
+            </p>
+          )}
+
+          {isEditing && (
+            <Input
+              type="text"
+              value={localNotes}
+              onChange={(e) => setLocalNotes(e.target.value)}
+              inputSize="sm"
+              placeholder="Notizen (z.B. Regeneration, Stretching)"
+              aria-label="Ruhetag Notizen"
+            />
+          )}
+        </div>
+
+        {isEditing && (
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLocalNotes(notes ?? '');
+                setIsEditing(false);
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              Speichern
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- DayCard Component ---
 
 interface DayCardProps {
@@ -479,6 +589,7 @@ export function DayCard({
 
   const hasPlanSessions = entry.sessions.length > 0;
   const [openSessionIdx, setOpenSessionIdx] = useState<number | null>(null);
+  const [showRestDayDialog, setShowRestDayDialog] = useState(false);
 
   // --- Session mutation helpers ---
   const updateSession = (idx: number, updated: PlannedSession) => {
@@ -544,7 +655,7 @@ export function DayCard({
           {entry.is_rest_day ? (
             <button
               type="button"
-              onClick={clearDay}
+              onClick={() => setShowRestDayDialog(true)}
               className={[
                 'flex items-center gap-1.5 w-full text-left min-h-[22px]',
                 'rounded-[var(--radius-component-sm)] px-1 -mx-1',
@@ -645,6 +756,15 @@ export function DayCard({
           }}
         />
       )}
+
+      {/* Rest day dialog */}
+      <RestDayDialog
+        open={showRestDayDialog}
+        onOpenChange={setShowRestDayDialog}
+        notes={entry.notes}
+        onSaveNotes={(notes) => onUpdate({ notes })}
+        onRemoveRestDay={clearDay}
+      />
     </>
   );
 }
