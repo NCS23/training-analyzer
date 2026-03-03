@@ -432,27 +432,19 @@ def _format_field_path(loc: tuple[str | int, ...]) -> str:
     loc_list = list(loc)
     while i < len(loc_list):
         segment = loc_list[i]
-        if segment == "phases" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
-            parts.append(f"Phase {loc_list[i + 1] + 1}")
+        next_val = loc_list[i + 1] if i + 1 < len(loc_list) else None
+        if segment == "phases" and isinstance(next_val, int):
+            parts.append(f"Phase {next_val + 1}")
             i += 2
-        elif segment == "days" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
-            dow_idx = loc_list[i + 1]
-            day_name = (
-                _DOW_NAMES_DE[dow_idx]
-                if isinstance(dow_idx, int) and 0 <= dow_idx <= 6
-                else str(dow_idx)
-            )
-            parts.append(
-                f"Tag {dow_idx} ({day_name})"
-                if isinstance(dow_idx, int) and 0 <= dow_idx <= 6
-                else f"Tag {dow_idx}"
-            )
+        elif segment == "days" and isinstance(next_val, int):
+            day_name = _DOW_NAMES_DE[next_val] if 0 <= next_val <= 6 else str(next_val)
+            parts.append(f"Tag {next_val} ({day_name})" if 0 <= next_val <= 6 else f"Tag {next_val}")
             i += 2
-        elif segment == "intervals" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
-            parts.append(f"Intervall {loc_list[i + 1] + 1}")
+        elif segment == "intervals" and isinstance(next_val, int):
+            parts.append(f"Intervall {next_val + 1}")
             i += 2
-        elif segment == "sessions" and i + 1 < len(loc_list) and isinstance(loc_list[i + 1], int):
-            parts.append(f"Session {loc_list[i + 1] + 1}")
+        elif segment == "sessions" and isinstance(next_val, int):
+            parts.append(f"Session {next_val + 1}")
             i += 2
         elif isinstance(segment, int):
             parts.append(f"#{segment + 1}")
