@@ -133,9 +133,7 @@ class TestPhaseValidation:
     def test_invalid_phase_type(self) -> None:
         raw = {
             **VALID_RAW,
-            "phases": [
-                {"name": "Bad", "type": "marathon", "start_week": 1, "end_week": 4}
-            ],
+            "phases": [{"name": "Bad", "type": "marathon", "start_week": 1, "end_week": 4}],
         }
         result = validate_yaml_plan(raw)
         assert result.valid is False
@@ -144,9 +142,7 @@ class TestPhaseValidation:
     def test_end_before_start(self) -> None:
         raw = {
             **VALID_RAW,
-            "phases": [
-                {"name": "Bad", "type": "base", "start_week": 10, "end_week": 3}
-            ],
+            "phases": [{"name": "Bad", "type": "base", "start_week": 10, "end_week": 3}],
         }
         result = validate_yaml_plan(raw)
         assert result.valid is False
@@ -184,9 +180,7 @@ class TestPhaseValidation:
             **VALID_RAW,
             "start_date": "2026-04-06",
             "end_date": "2026-06-01",  # ~8 weeks
-            "phases": [
-                {"name": "P1", "type": "base", "start_week": 1, "end_week": 20}
-            ],
+            "phases": [{"name": "P1", "type": "base", "start_week": 1, "end_week": 20}],
         }
         result = validate_yaml_plan(raw)
         assert result.valid is True
@@ -523,9 +517,7 @@ class TestValidateYamlEndpoint:
         assert any(e["code"] == "yaml_syntax_error" for e in body["errors"])
 
     @pytest.mark.anyio
-    async def test_validate_with_warnings_only(
-        self, client: "AsyncClient"
-    ) -> None:
+    async def test_validate_with_warnings_only(self, client: "AsyncClient") -> None:
         yaml_content = (
             b"name: Test\nstart_date: 2026-04-06\nend_date: 2026-07-26\n"
             b"phases:\n"

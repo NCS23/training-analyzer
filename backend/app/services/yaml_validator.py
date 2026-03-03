@@ -343,11 +343,7 @@ def _check_pace_fields(
     # HR range check
     hr_min = obj.get("target_hr_min")
     hr_max = obj.get("target_hr_max")
-    if (
-        isinstance(hr_min, int | float)
-        and isinstance(hr_max, int | float)
-        and hr_min > hr_max
-    ):
+    if isinstance(hr_min, int | float) and isinstance(hr_max, int | float) and hr_min > hr_max:
         warnings.append(
             YamlValidationIssue(
                 code="inverted_range",
@@ -373,11 +369,7 @@ def _check_metrics(
     """Check target_metrics for inverted ranges."""
     vol_min = metrics.get("weekly_volume_min")
     vol_max = metrics.get("weekly_volume_max")
-    if (
-        isinstance(vol_min, int | float)
-        and isinstance(vol_max, int | float)
-        and vol_min > vol_max
-    ):
+    if isinstance(vol_min, int | float) and isinstance(vol_max, int | float) and vol_min > vol_max:
         warnings.append(
             YamlValidationIssue(
                 code="inverted_range",
@@ -426,7 +418,9 @@ def _check_phase_coverage(
         if len(uncovered) <= 5:
             week_str = ", ".join(str(w) for w in uncovered)
         else:
-            week_str = ", ".join(str(w) for w in uncovered[:5]) + f" (und {len(uncovered) - 5} weitere)"
+            week_str = (
+                ", ".join(str(w) for w in uncovered[:5]) + f" (und {len(uncovered) - 5} weitere)"
+            )
         warnings.append(
             YamlValidationIssue(
                 code="phase_coverage_gap",

@@ -815,7 +815,13 @@ async def update_plan(
         "weekly_structure": "Wochenstruktur",
     }
     _META_FIELDS = {"name", "description", "status"}
-    _STRUCTURE_FIELDS = {"start_date", "end_date", "target_event_date", "weekly_structure", "goal_id"}
+    _STRUCTURE_FIELDS = {
+        "start_date",
+        "end_date",
+        "target_event_date",
+        "weekly_structure",
+        "goal_id",
+    }
 
     field_changes: list[dict[str, object]] = []
     changed_meta = False
@@ -823,12 +829,14 @@ async def update_plan(
 
     def _track(field: str, old_val: object, new_val: object) -> None:
         nonlocal changed_meta, changed_structure
-        field_changes.append({
-            "field": field,
-            "from": str(old_val) if old_val is not None else None,
-            "to": str(new_val) if new_val is not None else None,
-            "label": _FIELD_LABELS.get(field, field),
-        })
+        field_changes.append(
+            {
+                "field": field,
+                "from": str(old_val) if old_val is not None else None,
+                "to": str(new_val) if new_val is not None else None,
+                "label": _FIELD_LABELS.get(field, field),
+            }
+        )
         if field in _META_FIELDS:
             changed_meta = True
         if field in _STRUCTURE_FIELDS:
@@ -850,7 +858,11 @@ async def update_plan(
         _track("target_event_date", plan.target_event_date, data.target_event_date)
         plan.target_event_date = data.target_event_date  # type: ignore[assignment]
     if data.weekly_structure is not None:
-        _track("weekly_structure", plan.weekly_structure_json, json.dumps(data.weekly_structure.model_dump()))
+        _track(
+            "weekly_structure",
+            plan.weekly_structure_json,
+            json.dumps(data.weekly_structure.model_dump()),
+        )
         plan.weekly_structure_json = json.dumps(data.weekly_structure.model_dump())  # type: ignore[assignment]
     if data.status is not None:
         _track("status", plan.status, data.status)
@@ -892,7 +904,9 @@ async def update_plan(
             "category": category,
             "source": "user",
             "field_changes": field_changes,
-        } if field_changes else None,
+        }
+        if field_changes
+        else None,
         category=category,
     )
     await db.commit()
@@ -1035,19 +1049,47 @@ async def update_phase(
     has_content_change = False
 
     if data.name is not None:
-        phase_changes.append({"field": "name", "from": str(phase.name), "to": data.name, "label": _PHASE_LABELS["name"]})
+        phase_changes.append(
+            {
+                "field": "name",
+                "from": str(phase.name),
+                "to": data.name,
+                "label": _PHASE_LABELS["name"],
+            }
+        )
         has_structure_change = True
         phase.name = data.name  # type: ignore[assignment]
     if data.phase_type is not None:
-        phase_changes.append({"field": "phase_type", "from": str(phase.phase_type), "to": data.phase_type, "label": _PHASE_LABELS["phase_type"]})
+        phase_changes.append(
+            {
+                "field": "phase_type",
+                "from": str(phase.phase_type),
+                "to": data.phase_type,
+                "label": _PHASE_LABELS["phase_type"],
+            }
+        )
         has_structure_change = True
         phase.phase_type = data.phase_type  # type: ignore[assignment]
     if data.start_week is not None:
-        phase_changes.append({"field": "start_week", "from": int(phase.start_week), "to": data.start_week, "label": _PHASE_LABELS["start_week"]})  # type: ignore[arg-type]
+        phase_changes.append(
+            {
+                "field": "start_week",
+                "from": int(phase.start_week),
+                "to": data.start_week,
+                "label": _PHASE_LABELS["start_week"],
+            }
+        )  # type: ignore[arg-type]
         has_structure_change = True
         phase.start_week = data.start_week  # type: ignore[assignment]
     if data.end_week is not None:
-        phase_changes.append({"field": "end_week", "from": int(phase.end_week), "to": data.end_week, "label": _PHASE_LABELS["end_week"]})  # type: ignore[arg-type]
+        phase_changes.append(
+            {
+                "field": "end_week",
+                "from": int(phase.end_week),
+                "to": data.end_week,
+                "label": _PHASE_LABELS["end_week"],
+            }
+        )  # type: ignore[arg-type]
         has_structure_change = True
         phase.end_week = data.end_week  # type: ignore[assignment]
     if data.focus is not None:
@@ -1063,10 +1105,19 @@ async def update_phase(
         has_content_change = True
         phase.weekly_templates_json = json.dumps(data.weekly_templates.model_dump())  # type: ignore[assignment]
     if data.notes is not None:
-        phase_changes.append({"field": "notes", "from": str(phase.notes) if phase.notes else None, "to": data.notes, "label": _PHASE_LABELS["notes"]})
+        phase_changes.append(
+            {
+                "field": "notes",
+                "from": str(phase.notes) if phase.notes else None,
+                "to": data.notes,
+                "label": _PHASE_LABELS["notes"],
+            }
+        )
         phase.notes = data.notes  # type: ignore[assignment]
 
-    phase_category = "structure" if has_structure_change else "content" if has_content_change else "meta"
+    phase_category = (
+        "structure" if has_structure_change else "content" if has_content_change else "meta"
+    )
 
     await log_plan_change(
         db,
@@ -1077,7 +1128,9 @@ async def update_phase(
             "category": phase_category,
             "source": "user",
             "field_changes": phase_changes,
-        } if phase_changes or has_content_change else None,
+        }
+        if phase_changes or has_content_change
+        else None,
         category=phase_category,
     )
     await db.commit()
@@ -1143,9 +1196,7 @@ async def get_changelog(
         base_filter = base_filter & (PlanChangeLogModel.category == category)  # type: ignore[assignment]
 
     # Total count
-    count_result = await db.execute(
-        select(func.count(PlanChangeLogModel.id)).where(base_filter)
-    )
+    count_result = await db.execute(select(func.count(PlanChangeLogModel.id)).where(base_filter))
     total = count_result.scalar() or 0
 
     # Fetch entries

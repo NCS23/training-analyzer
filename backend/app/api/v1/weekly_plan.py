@@ -176,12 +176,14 @@ def _diff_day_entry(
 
     def _add(field: str, from_val: object, to_val: object) -> None:
         if from_val != to_val:
-            changes.append({
-                "field": field,
-                "from": from_val,
-                "to": to_val,
-                "label": _FIELD_LABELS_DAY.get(field, field),
-            })
+            changes.append(
+                {
+                    "field": field,
+                    "from": from_val,
+                    "to": to_val,
+                    "label": _FIELD_LABELS_DAY.get(field, field),
+                }
+            )
 
     _add("training_type", old.training_type or None, new_entry.training_type)
     _add("is_rest_day", bool(old.is_rest_day), new_entry.is_rest_day)
@@ -193,8 +195,14 @@ def _diff_day_entry(
     if (old_rd_str or None) != (new_run_details_str or None):
         old_rd: dict[str, object] = json.loads(old_rd_str) if old_rd_str else {}
         new_rd: dict[str, object] = json.loads(new_run_details_str) if new_run_details_str else {}
-        for field in ("run_type", "target_duration_minutes", "target_pace_min",
-                       "target_pace_max", "target_hr_min", "target_hr_max"):
+        for field in (
+            "run_type",
+            "target_duration_minutes",
+            "target_pace_min",
+            "target_pace_max",
+            "target_hr_min",
+            "target_hr_max",
+        ):
             _add(field, old_rd.get(field), new_rd.get(field))
 
     return changes
@@ -272,11 +280,13 @@ async def save_weekly_plan(
             if day_changes:
                 if pid not in changed_plan_days:
                     changed_plan_days[pid] = []
-                changed_plan_days[pid].append({
-                    "day_of_week": entry.day_of_week,
-                    "day_name": DAY_NAMES[entry.day_of_week],
-                    "field_changes": day_changes,
-                })
+                changed_plan_days[pid].append(
+                    {
+                        "day_of_week": entry.day_of_week,
+                        "day_name": DAY_NAMES[entry.day_of_week],
+                        "field_changes": day_changes,
+                    }
+                )
     for pid, changed_days in changed_plan_days.items():
         count = len(changed_days)
         await log_plan_change(

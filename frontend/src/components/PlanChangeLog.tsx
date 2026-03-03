@@ -133,7 +133,9 @@ function ChangelogDetailsPanel({ entry }: { entry: PlanChangeLogEntry }) {
       {showSourceIndicator && (
         <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
           {SOURCE_ICONS[source]}
-          <span className="capitalize">{source === 'ai_suggestion' ? 'KI-Vorschlag' : source === 'system' ? 'System' : source}</span>
+          <span className="capitalize">
+            {source === 'ai_suggestion' ? 'KI-Vorschlag' : source === 'system' ? 'System' : source}
+          </span>
         </div>
       )}
 
@@ -325,7 +327,9 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
                       <div className="pl-8 pr-2 pb-2 space-y-2">
                         {entry.reason && !isEditingReason && (
                           <p className="text-xs text-[var(--color-text-muted)]">
-                            <span className="font-medium text-[var(--color-text-base)]">Grund:</span>{' '}
+                            <span className="font-medium text-[var(--color-text-base)]">
+                              Grund:
+                            </span>{' '}
                             {entry.reason}
                           </p>
                         )}
