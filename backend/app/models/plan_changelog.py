@@ -7,6 +7,7 @@ class PlanChangeLogEntry(BaseModel):
     id: int
     plan_id: int
     change_type: str
+    category: str | None = None
     summary: str
     details: dict[str, object] | None = None
     reason: str | None = None

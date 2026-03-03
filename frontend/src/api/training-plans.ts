@@ -206,6 +206,32 @@ export async function importTrainingPlanYaml(file: File): Promise<TrainingPlan> 
   return response.data;
 }
 
+// --- YAML Validation ---
+
+export interface YamlValidationIssue {
+  code: string;
+  level: 'error' | 'warning';
+  message: string;
+  location: string | null;
+}
+
+export interface YamlValidationResult {
+  valid: boolean;
+  errors: YamlValidationIssue[];
+  warnings: YamlValidationIssue[];
+}
+
+export async function validateTrainingPlanYaml(file: File): Promise<YamlValidationResult> {
+  const formData = new FormData();
+  formData.append('yaml_file', file);
+  const response = await apiClient.post<YamlValidationResult>(
+    '/api/v1/training-plans/validate-yaml',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+}
+
 // --- Phase API Functions ---
 
 export async function listPhases(planId: number): Promise<TrainingPhase[]> {
@@ -274,12 +300,47 @@ export async function generateWeeklyPlans(
 
 // --- Change Log ---
 
+export type ChangelogCategory = 'content' | 'structure' | 'technical' | 'meta';
+
+export interface FieldChange {
+  field: string;
+  from: unknown;
+  to: unknown;
+  label: string;
+}
+
+export interface DayChange {
+  day_of_week: number;
+  day_name: string;
+  field_changes: FieldChange[];
+}
+
+export interface ChangelogDetails {
+  source?: string;
+  category?: string;
+  field_changes?: FieldChange[];
+  changed_days?: DayChange[];
+  phase_name?: string;
+  phase_type?: string;
+  phase_count?: number;
+  weeks_generated?: number;
+  strategy?: string;
+  filename?: string;
+  week_start?: string;
+  apply_to_all_weeks?: boolean;
+  synced_days?: number;
+  /** Legacy: flat list of changed field names */
+  changed_fields?: string[];
+  [key: string]: unknown;
+}
+
 export interface PlanChangeLogEntry {
   id: number;
   plan_id: number;
   change_type: string;
+  category: ChangelogCategory | null;
   summary: string;
-  details: Record<string, unknown> | null;
+  details: ChangelogDetails | null;
   reason: string | null;
   created_by: string | null;
   created_at: string;
@@ -294,9 +355,14 @@ export async function getChangelog(
   planId: number,
   limit = 50,
   offset = 0,
+  category?: ChangelogCategory,
 ): Promise<PlanChangeLogResponse> {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  if (category) params.set('category', category);
   const response = await apiClient.get<PlanChangeLogResponse>(
-    `/api/v1/training-plans/${planId}/changelog?limit=${limit}&offset=${offset}`,
+    `/api/v1/training-plans/${planId}/changelog?${params.toString()}`,
   );
   return response.data;
 }

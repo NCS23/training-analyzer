@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardBody, Button, Spinner, Input, useToast } from '@nordlig/components';
+import { Card, CardBody, Button, Badge, Spinner, Input, useToast } from '@nordlig/components';
 import {
   FilePlus,
   Pencil,
@@ -14,9 +14,17 @@ import {
   ChevronDown,
   ChevronUp,
   MessageSquarePlus,
+  ArrowRight,
+  Bot,
+  Monitor,
 } from 'lucide-react';
 import { getChangelog, updateChangelogReason } from '@/api/training-plans';
-import type { PlanChangeLogEntry } from '@/api/training-plans';
+import type {
+  PlanChangeLogEntry,
+  ChangelogCategory,
+  FieldChange,
+  DayChange,
+} from '@/api/training-plans';
 
 const PAGE_SIZE = 20;
 
@@ -33,6 +41,36 @@ const CHANGE_TYPE_ICONS: Record<string, React.ReactNode> = {
   session_configured: <Dumbbell className="w-3.5 h-3.5" />,
 };
 
+type CategoryFilter = ChangelogCategory | 'all';
+
+const CATEGORY_TABS: { key: CategoryFilter; label: string }[] = [
+  { key: 'all', label: 'Alle' },
+  { key: 'content', label: 'Inhaltlich' },
+  { key: 'structure', label: 'Struktur' },
+  { key: 'technical', label: 'Technisch' },
+  { key: 'meta', label: 'Meta' },
+];
+
+const CATEGORY_BADGE_VARIANT: Record<string, 'primary' | 'accent' | 'info' | 'neutral'> = {
+  content: 'primary',
+  structure: 'accent',
+  technical: 'info',
+  meta: 'neutral',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  content: 'Inhaltlich',
+  structure: 'Struktur',
+  technical: 'Technisch',
+  meta: 'Meta',
+};
+
+const SOURCE_ICONS: Record<string, React.ReactNode> = {
+  system: <Monitor className="w-3 h-3" />,
+  ai_suggestion: <Bot className="w-3 h-3" />,
+  compliance_check: <Bot className="w-3 h-3" />,
+};
+
 function formatRelativeTime(isoDate: string): string {
   const now = new Date();
   const date = new Date(isoDate);
@@ -45,6 +83,90 @@ function formatRelativeTime(isoDate: string): string {
   const diffD = Math.floor(diffH / 24);
   if (diffD < 7) return `vor ${diffD} Tag${diffD > 1 ? 'en' : ''}`;
   return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+}
+
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined) return '–';
+  if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+  return String(val);
+}
+
+function FieldChangesPanel({ changes }: { changes: FieldChange[] }) {
+  return (
+    <div className="space-y-1">
+      {changes.map((fc, i) => (
+        <div key={i} className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+          <span className="font-medium text-[var(--color-text-base)]">{fc.label}:</span>
+          <span>{formatValue(fc.from)}</span>
+          <ArrowRight className="w-3 h-3 shrink-0 text-[var(--color-text-muted)]" />
+          <span className="font-medium text-[var(--color-text-base)]">{formatValue(fc.to)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DayChangesPanel({ days }: { days: DayChange[] }) {
+  return (
+    <div className="space-y-2">
+      {days.map((day, i) => (
+        <div key={i}>
+          <p className="text-xs font-medium text-[var(--color-text-base)]">{day.day_name}</p>
+          <div className="pl-3 mt-0.5">
+            <FieldChangesPanel changes={day.field_changes} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChangelogDetailsPanel({ entry }: { entry: PlanChangeLogEntry }) {
+  const details = entry.details;
+  if (!details) return null;
+
+  const source = details.source as string | undefined;
+  const showSourceIndicator = source && source !== 'user' && SOURCE_ICONS[source];
+
+  return (
+    <div className="space-y-2">
+      {showSourceIndicator && (
+        <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+          {SOURCE_ICONS[source]}
+          <span className="capitalize">{source === 'ai_suggestion' ? 'KI-Vorschlag' : source === 'system' ? 'System' : source}</span>
+        </div>
+      )}
+
+      {details.field_changes && details.field_changes.length > 0 && (
+        <FieldChangesPanel changes={details.field_changes} />
+      )}
+
+      {details.changed_days && details.changed_days.length > 0 && (
+        <DayChangesPanel days={details.changed_days} />
+      )}
+
+      {/* Legacy: flat changed_fields array */}
+      {!details.field_changes && !details.changed_days && details.changed_fields && (
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Geaendert: {(details.changed_fields as string[]).join(', ')}
+        </p>
+      )}
+
+      {/* Fallback: key-value pairs for unknown structures */}
+      {!details.field_changes && !details.changed_days && !details.changed_fields && (
+        <div className="space-y-0.5">
+          {Object.entries(details)
+            .filter(([k]) => !['source', 'category'].includes(k))
+            .map(([k, v]) => (
+              <p key={k} className="text-xs text-[var(--color-text-muted)]">
+                <span className="font-medium text-[var(--color-text-base)]">{k}:</span>{' '}
+                {typeof v === 'object' ? JSON.stringify(v) : formatValue(v)}
+              </p>
+            ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface PlanChangeLogProps {
@@ -61,11 +183,13 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingReasonId, setEditingReasonId] = useState<number | null>(null);
   const [reasonInput, setReasonInput] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
   const loadEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getChangelog(planId, PAGE_SIZE, 0);
+      const cat = categoryFilter === 'all' ? undefined : categoryFilter;
+      const result = await getChangelog(planId, PAGE_SIZE, 0, cat);
       setEntries(result.entries);
       setTotal(result.total);
     } catch {
@@ -73,7 +197,7 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
     } finally {
       setLoading(false);
     }
-  }, [planId]);
+  }, [planId, categoryFilter]);
 
   useEffect(() => {
     loadEntries();
@@ -82,7 +206,8 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
   const handleLoadMore = async () => {
     setLoadingMore(true);
     try {
-      const result = await getChangelog(planId, PAGE_SIZE, entries.length);
+      const cat = categoryFilter === 'all' ? undefined : categoryFilter;
+      const result = await getChangelog(planId, PAGE_SIZE, entries.length, cat);
       setEntries((prev) => [...prev, ...result.entries]);
       setTotal(result.total);
     } catch {
@@ -102,6 +227,11 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
     } catch {
       toast({ title: 'Speichern fehlgeschlagen', variant: 'error' });
     }
+  };
+
+  const handleCategoryChange = (cat: CategoryFilter) => {
+    setCategoryFilter(cat);
+    setExpandedId(null);
   };
 
   const hasMore = entries.length < total;
@@ -130,13 +260,32 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
             isOpen ? 'max-h-[2000px] mt-3' : 'max-h-0'
           }`}
         >
+          {/* Category filter tabs */}
+          <div className="flex gap-1 mb-3 flex-wrap" role="tablist" aria-label="Kategorie-Filter">
+            {CATEGORY_TABS.map((tab) => (
+              <Button
+                key={tab.key}
+                variant={categoryFilter === tab.key ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => handleCategoryChange(tab.key)}
+                role="tab"
+                aria-selected={categoryFilter === tab.key}
+                className="text-xs"
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-4">
               <Spinner size="sm" />
             </div>
           ) : entries.length === 0 ? (
             <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
-              Noch keine Aenderungen protokolliert.
+              {categoryFilter === 'all'
+                ? 'Noch keine Aenderungen protokolliert.'
+                : 'Keine Eintraege in dieser Kategorie.'}
             </p>
           ) : (
             <div className="space-y-1" role="list" aria-label="Aenderungshistorie">
@@ -158,6 +307,15 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
                       <span className="text-xs text-[var(--color-text-base)] flex-1 truncate">
                         {entry.summary}
                       </span>
+                      {entry.category && (
+                        <Badge
+                          variant={CATEGORY_BADGE_VARIANT[entry.category] ?? 'neutral'}
+                          size="xs"
+                          className="shrink-0"
+                        >
+                          {CATEGORY_LABELS[entry.category] ?? entry.category}
+                        </Badge>
+                      )}
                       <span className="text-xs text-[var(--color-text-muted)] shrink-0">
                         {formatRelativeTime(entry.created_at)}
                       </span>
@@ -165,17 +323,14 @@ export function PlanChangeLog({ planId }: PlanChangeLogProps) {
 
                     {isExpanded && (
                       <div className="pl-8 pr-2 pb-2 space-y-2">
-                        {entry.details && (
-                          <pre className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-surface)] rounded-[var(--radius-component-sm)] p-2 overflow-x-auto">
-                            {JSON.stringify(entry.details, null, 2)}
-                          </pre>
-                        )}
-
                         {entry.reason && !isEditingReason && (
                           <p className="text-xs text-[var(--color-text-muted)]">
-                            <span className="font-medium">Grund:</span> {entry.reason}
+                            <span className="font-medium text-[var(--color-text-base)]">Grund:</span>{' '}
+                            {entry.reason}
                           </p>
                         )}
+
+                        <ChangelogDetailsPanel entry={entry} />
 
                         {isEditingReason ? (
                           <div className="flex gap-2">

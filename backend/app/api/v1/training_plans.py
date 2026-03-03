@@ -40,7 +40,9 @@ from app.models.training_plan import (
     TrainingPlanUpdate,
     WeeklyStructure,
 )
+from app.models.yaml_validation import YamlValidationIssue, YamlValidationResult
 from app.services.plan_generator import generate_weekly_plans
+from app.services.yaml_validator import validate_yaml_plan
 
 router = APIRouter(prefix="/training-plans")
 
@@ -223,6 +225,17 @@ def _create_phase_model(
     )
 
 
+_CHANGE_TYPE_CATEGORY: dict[str, str] = {
+    "weekly_generated": "technical",
+    "yaml_import": "technical",
+    "back_sync": "technical",
+    "phase_added": "structure",
+    "phase_deleted": "structure",
+    "manual_edit": "content",
+    "plan_created": "meta",
+}
+
+
 async def log_plan_change(
     db: AsyncSession,
     plan_id: int,
@@ -230,11 +243,14 @@ async def log_plan_change(
     summary: str,
     details: Optional[dict[str, object]] = None,
     reason: Optional[str] = None,
+    category: Optional[str] = None,
 ) -> None:
     """Log a change to a training plan (audit trail)."""
+    resolved_category = category or _CHANGE_TYPE_CATEGORY.get(change_type)
     entry = PlanChangeLogModel(
         plan_id=plan_id,
         change_type=change_type,
+        category=resolved_category,
         summary=summary,
         details_json=json.dumps(details) if details else None,
         reason=reason,
@@ -251,6 +267,7 @@ def _changelog_to_response(entry: PlanChangeLogModel) -> PlanChangeLogEntry:
         id=int(entry.id),  # type: ignore[arg-type]
         plan_id=int(entry.plan_id),  # type: ignore[arg-type]
         change_type=str(entry.change_type),
+        category=str(entry.category) if entry.category else None,
         summary=str(entry.summary),
         details=details,
         reason=str(entry.reason) if entry.reason else None,
@@ -362,6 +379,11 @@ async def create_plan(
         int(plan.id),  # type: ignore[arg-type]
         "plan_created",
         f"Trainingsplan '{data.name}' erstellt",
+        details={
+            "category": "meta",
+            "source": "user",
+            "phase_count": len(data.phases) if data.phases else 0,
+        },
     )
     await db.commit()
     await db.refresh(plan)
@@ -426,6 +448,69 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
     return result
 
 
+@router.post("/validate-yaml", response_model=YamlValidationResult)
+async def validate_yaml_endpoint(
+    yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
+) -> YamlValidationResult:
+    """Validate a YAML training plan file and return structured errors/warnings."""
+    if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
+        return YamlValidationResult(
+            valid=False,
+            errors=[
+                YamlValidationIssue(
+                    code="invalid_file_extension",
+                    level="error",
+                    message="Nur YAML-Dateien (.yaml, .yml) werden akzeptiert.",
+                )
+            ],
+            warnings=[],
+        )
+
+    content = await yaml_file.read()
+    if len(content) == 0:
+        return YamlValidationResult(
+            valid=False,
+            errors=[
+                YamlValidationIssue(
+                    code="empty_file",
+                    level="error",
+                    message="Die YAML-Datei ist leer.",
+                )
+            ],
+            warnings=[],
+        )
+
+    try:
+        raw = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        return YamlValidationResult(
+            valid=False,
+            errors=[
+                YamlValidationIssue(
+                    code="yaml_syntax_error",
+                    level="error",
+                    message=f"YAML-Syntaxfehler: {exc}",
+                )
+            ],
+            warnings=[],
+        )
+
+    if not isinstance(raw, dict):
+        return YamlValidationResult(
+            valid=False,
+            errors=[
+                YamlValidationIssue(
+                    code="yaml_not_mapping",
+                    level="error",
+                    message="YAML muss ein Objekt auf oberster Ebene enthalten.",
+                )
+            ],
+            warnings=[],
+        )
+
+    return validate_yaml_plan(raw)
+
+
 @router.post("/import", response_model=TrainingPlanResponse, status_code=201)
 async def import_plan_from_yaml(
     yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
@@ -456,6 +541,15 @@ async def import_plan_from_yaml(
             detail="YAML muss ein Objekt (Mapping) auf oberster Ebene enthalten.",
         )
 
+    # Semantic validation before Pydantic parsing
+    validation = validate_yaml_plan(raw)
+    if not validation.valid:
+        messages = "; ".join(e.message for e in validation.errors)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Validierungsfehler: {messages}",
+        )
+
     # Resolve goal_title -> goal_id (backward compat, lookup only)
     goal_title = raw.get("goal_title")
     if goal_title and not raw.get("goal_id") and not raw.get("goal"):
@@ -482,6 +576,12 @@ async def import_plan_from_yaml(
         created_plan.id,
         "yaml_import",
         f"Plan aus YAML importiert: {yaml_file.filename}",
+        details={
+            "category": "technical",
+            "source": "user",
+            "filename": yaml_file.filename or "",
+            "phase_count": len(created_plan.phases),
+        },
     )
     await db.commit()
     return created_plan
@@ -664,6 +764,12 @@ async def generate_plan_weeks(
         plan_id,
         "weekly_generated",
         f"{weeks_generated} Wochen generiert (Strategie: {strategy})",
+        details={
+            "category": "technical",
+            "source": "system",
+            "weeks_generated": weeks_generated,
+            "strategy": strategy,
+        },
     )
     await db.commit()
 
@@ -698,24 +804,62 @@ async def update_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 
+    _FIELD_LABELS: dict[str, str] = {
+        "name": "Name",
+        "description": "Beschreibung",
+        "status": "Status",
+        "start_date": "Startdatum",
+        "end_date": "Enddatum",
+        "target_event_date": "Wettkampfdatum",
+        "goal_id": "Ziel",
+        "weekly_structure": "Wochenstruktur",
+    }
+    _META_FIELDS = {"name", "description", "status"}
+    _STRUCTURE_FIELDS = {"start_date", "end_date", "target_event_date", "weekly_structure", "goal_id"}
+
+    field_changes: list[dict[str, object]] = []
+    changed_meta = False
+    changed_structure = False
+
+    def _track(field: str, old_val: object, new_val: object) -> None:
+        nonlocal changed_meta, changed_structure
+        field_changes.append({
+            "field": field,
+            "from": str(old_val) if old_val is not None else None,
+            "to": str(new_val) if new_val is not None else None,
+            "label": _FIELD_LABELS.get(field, field),
+        })
+        if field in _META_FIELDS:
+            changed_meta = True
+        if field in _STRUCTURE_FIELDS:
+            changed_structure = True
+
     if data.name is not None:
+        _track("name", plan.name, data.name)
         plan.name = data.name  # type: ignore[assignment]
     if data.description is not None:
+        _track("description", plan.description, data.description)
         plan.description = data.description  # type: ignore[assignment]
     if data.start_date is not None:
+        _track("start_date", plan.start_date, data.start_date)
         plan.start_date = data.start_date  # type: ignore[assignment]
     if data.end_date is not None:
+        _track("end_date", plan.end_date, data.end_date)
         plan.end_date = data.end_date  # type: ignore[assignment]
     if data.target_event_date is not None:
+        _track("target_event_date", plan.target_event_date, data.target_event_date)
         plan.target_event_date = data.target_event_date  # type: ignore[assignment]
     if data.weekly_structure is not None:
+        _track("weekly_structure", plan.weekly_structure_json, json.dumps(data.weekly_structure.model_dump()))
         plan.weekly_structure_json = json.dumps(data.weekly_structure.model_dump())  # type: ignore[assignment]
     if data.status is not None:
+        _track("status", plan.status, data.status)
         plan.status = data.status  # type: ignore[assignment]
 
     # S09: Update goal link
     if data.goal_id is not None:
         old_goal_id = plan.goal_id
+        _track("goal_id", old_goal_id, data.goal_id)
         plan.goal_id = data.goal_id  # type: ignore[assignment]
 
         # Remove old bidirectional link
@@ -736,24 +880,7 @@ async def update_plan(
             if new_goal:
                 new_goal.training_plan_id = plan.id  # type: ignore[assignment]
 
-    # Build details of changed fields
-    changed_fields: list[str] = []
-    if data.name is not None:
-        changed_fields.append("name")
-    if data.description is not None:
-        changed_fields.append("description")
-    if data.start_date is not None:
-        changed_fields.append("start_date")
-    if data.end_date is not None:
-        changed_fields.append("end_date")
-    if data.target_event_date is not None:
-        changed_fields.append("target_event_date")
-    if data.weekly_structure is not None:
-        changed_fields.append("weekly_structure")
-    if data.status is not None:
-        changed_fields.append("status")
-    if data.goal_id is not None:
-        changed_fields.append("goal_id")
+    category = "structure" if changed_structure else "meta" if changed_meta else "meta"
 
     plan.updated_at = datetime.utcnow()  # type: ignore[assignment]
     await log_plan_change(
@@ -761,7 +888,12 @@ async def update_plan(
         plan_id,
         "plan_updated",
         "Plan aktualisiert",
-        details={"changed_fields": changed_fields} if changed_fields else None,
+        details={
+            "category": category,
+            "source": "user",
+            "field_changes": field_changes,
+        } if field_changes else None,
+        category=category,
     )
     await db.commit()
     await db.refresh(plan)
@@ -851,6 +983,14 @@ async def create_phase(
         plan_id,
         "phase_added",
         f"Phase '{data.name}' hinzugefuegt (Woche {data.start_week}-{data.end_week})",
+        details={
+            "category": "structure",
+            "source": "user",
+            "phase_name": data.name,
+            "phase_type": data.phase_type,
+            "start_week": data.start_week,
+            "end_week": data.end_week,
+        },
     )
     await db.commit()
     await db.refresh(phase)
@@ -878,30 +1018,67 @@ async def update_phase(
     if not phase:
         raise HTTPException(status_code=404, detail="Phase nicht gefunden")
 
+    _PHASE_LABELS: dict[str, str] = {
+        "name": "Name",
+        "phase_type": "Phasentyp",
+        "start_week": "Startwoche",
+        "end_week": "Endwoche",
+        "focus": "Fokus",
+        "target_metrics": "Zielmetriken",
+        "weekly_template": "Wochenvorlage",
+        "notes": "Notizen",
+    }
+    _PHASE_STRUCTURE = {"name", "phase_type", "start_week", "end_week"}
+
+    phase_changes: list[dict[str, object]] = []
+    has_structure_change = False
+    has_content_change = False
+
     if data.name is not None:
+        phase_changes.append({"field": "name", "from": str(phase.name), "to": data.name, "label": _PHASE_LABELS["name"]})
+        has_structure_change = True
         phase.name = data.name  # type: ignore[assignment]
     if data.phase_type is not None:
+        phase_changes.append({"field": "phase_type", "from": str(phase.phase_type), "to": data.phase_type, "label": _PHASE_LABELS["phase_type"]})
+        has_structure_change = True
         phase.phase_type = data.phase_type  # type: ignore[assignment]
     if data.start_week is not None:
+        phase_changes.append({"field": "start_week", "from": int(phase.start_week), "to": data.start_week, "label": _PHASE_LABELS["start_week"]})  # type: ignore[arg-type]
+        has_structure_change = True
         phase.start_week = data.start_week  # type: ignore[assignment]
     if data.end_week is not None:
+        phase_changes.append({"field": "end_week", "from": int(phase.end_week), "to": data.end_week, "label": _PHASE_LABELS["end_week"]})  # type: ignore[arg-type]
+        has_structure_change = True
         phase.end_week = data.end_week  # type: ignore[assignment]
     if data.focus is not None:
+        has_content_change = True
         phase.focus_json = json.dumps(data.focus.model_dump())  # type: ignore[assignment]
     if data.target_metrics is not None:
+        has_content_change = True
         phase.target_metrics_json = json.dumps(data.target_metrics.model_dump())  # type: ignore[assignment]
     if data.weekly_template is not None:
+        has_content_change = True
         phase.weekly_template_json = json.dumps(data.weekly_template.model_dump())  # type: ignore[assignment]
     if data.weekly_templates is not None:
+        has_content_change = True
         phase.weekly_templates_json = json.dumps(data.weekly_templates.model_dump())  # type: ignore[assignment]
     if data.notes is not None:
+        phase_changes.append({"field": "notes", "from": str(phase.notes) if phase.notes else None, "to": data.notes, "label": _PHASE_LABELS["notes"]})
         phase.notes = data.notes  # type: ignore[assignment]
+
+    phase_category = "structure" if has_structure_change else "content" if has_content_change else "meta"
 
     await log_plan_change(
         db,
         plan_id,
         "phase_updated",
         f"Phase '{phase.name}' aktualisiert",
+        details={
+            "category": phase_category,
+            "source": "user",
+            "field_changes": phase_changes,
+        } if phase_changes or has_content_change else None,
+        category=phase_category,
     )
     await db.commit()
     await db.refresh(phase)
@@ -931,6 +1108,11 @@ async def delete_phase(
         plan_id,
         "phase_deleted",
         f"Phase '{phase_name}' geloescht",
+        details={
+            "category": "structure",
+            "source": "user",
+            "phase_name": phase_name,
+        },
     )
     await db.delete(phase)
     await db.commit()
@@ -944,6 +1126,7 @@ async def get_changelog(
     plan_id: int,
     limit: int = 50,
     offset: int = 0,
+    category: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ) -> PlanChangeLogResponse:
     """Get the change log for a training plan (paginated, newest first)."""
@@ -954,16 +1137,21 @@ async def get_changelog(
     if not plan_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 
+    # Build base filter
+    base_filter = PlanChangeLogModel.plan_id == plan_id
+    if category:
+        base_filter = base_filter & (PlanChangeLogModel.category == category)  # type: ignore[assignment]
+
     # Total count
     count_result = await db.execute(
-        select(func.count(PlanChangeLogModel.id)).where(PlanChangeLogModel.plan_id == plan_id)
+        select(func.count(PlanChangeLogModel.id)).where(base_filter)
     )
     total = count_result.scalar() or 0
 
     # Fetch entries
     result = await db.execute(
         select(PlanChangeLogModel)
-        .where(PlanChangeLogModel.plan_id == plan_id)
+        .where(base_filter)
         .order_by(PlanChangeLogModel.created_at.desc())
         .offset(offset)
         .limit(limit)
