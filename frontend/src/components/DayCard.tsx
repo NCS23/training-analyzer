@@ -6,6 +6,7 @@ import type {
   WeeklyPlanEntry,
   ComplianceDayEntry,
 } from '@/api/weekly-plan';
+import { RunDetailsEditor } from './RunDetailsEditor';
 
 // --- Constants ---
 
@@ -176,52 +177,13 @@ function SessionEditor({ session, canRemove, onUpdate, onRemove }: SessionEditor
             inputSize="sm"
             aria-label="Lauftyp"
           />
-
-          {runDetails?.run_type && (
-            <div className="grid grid-cols-1 gap-2.5">
-              <Input
-                type="number"
-                min={5}
-                max={360}
-                value={runDetails.target_duration_minutes ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : null;
-                  updateRunDetails({ ...runDetails, target_duration_minutes: val });
-                }}
-                inputSize="sm"
-                placeholder="Dauer (min)"
-                aria-label="Dauer in Minuten"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="text"
-                  value={runDetails.target_pace_min ?? ''}
-                  onChange={(e) =>
-                    updateRunDetails({
-                      ...runDetails,
-                      target_pace_min: e.target.value || null,
-                    })
-                  }
-                  inputSize="sm"
-                  placeholder="Pace von"
-                  aria-label="Pace von"
-                />
-                <Input
-                  type="text"
-                  value={runDetails.target_pace_max ?? ''}
-                  onChange={(e) =>
-                    updateRunDetails({
-                      ...runDetails,
-                      target_pace_max: e.target.value || null,
-                    })
-                  }
-                  inputSize="sm"
-                  placeholder="Pace bis"
-                  aria-label="Pace bis"
-                />
-              </div>
-            </div>
-          )}
+          <RunDetailsEditor
+            runDetails={runDetails}
+            runType={runDetails?.run_type ?? 'easy'}
+            onChange={(rd) => {
+              if (rd) updateRunDetails(rd);
+            }}
+          />
         </div>
       )}
 
