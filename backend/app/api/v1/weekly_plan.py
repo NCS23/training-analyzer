@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ from app.models.weekly_plan import (
     ComplianceDayEntry,
     ComplianceResponse,
     PlannedSession,
+    PlannedSessionOption,
     RunDetails,
     SyncToPlanRequest,
     SyncToPlanResponse,
@@ -134,6 +135,7 @@ def _build_entry_from_db(
                 template_name=template_names.get(tid) if tid else None,
                 notes=str(s.notes) if s.notes else None,
                 run_details=run_details,
+                status=str(s.status) if s.status else "active",
             )
         )
 
@@ -196,6 +198,9 @@ def _sessions_changed(
         if (old_s.template_id or None) != (new_s.template_id or None):
             return True
         if str(old_s.notes or "") != str(new_s.notes or ""):
+            return True
+        old_status = str(old_s.status) if old_s.status else "active"
+        if old_status != new_s.status:
             return True
         # Compare run_details
         old_rd = str(old_s.run_details_json) if old_s.run_details_json else None
@@ -363,6 +368,7 @@ async def save_weekly_plan(
                 template_id=session.template_id,
                 run_details_json=run_details_str,
                 notes=session.notes,
+                status=session.status,
             )
             db.add(db_session)
 
@@ -544,6 +550,9 @@ async def get_compliance(
             db_day, db_sessions = days_data[day]
             is_rest = bool(db_day.is_rest_day)
             for s in db_sessions:
+                # Skip sessions marked as 'skipped' for compliance
+                if str(s.status) == "skipped":
+                    continue
                 planned_types.append(str(s.training_type))
                 if str(s.training_type) == "running" and planned_run_type is None:
                     rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
@@ -589,6 +598,57 @@ async def get_compliance(
         completed_count=completed_count,
         planned_count=planned_count,
     )
+
+
+@router.get("/sessions-for-date", response_model=list[PlannedSessionOption])
+async def get_sessions_for_date(
+    target_date: date = Query(..., alias="date"),
+    db: AsyncSession = Depends(get_db),
+) -> list[PlannedSessionOption]:
+    """Get planned sessions for a specific date (for upload linking)."""
+    week_start = _monday_of_week(target_date)
+    day_of_week = (target_date - week_start).days
+
+    # Find the day entry
+    day_result = await db.execute(
+        select(WeeklyPlanDayModel).where(
+            WeeklyPlanDayModel.week_start == week_start,
+            WeeklyPlanDayModel.day_of_week == day_of_week,
+        )
+    )
+    day = day_result.scalar_one_or_none()
+    if not day:
+        return []
+
+    # Fetch sessions for this day
+    session_result = await db.execute(
+        select(PlannedSessionModel)
+        .where(
+            PlannedSessionModel.day_id == day.id,
+            PlannedSessionModel.status == "active",
+        )
+        .order_by(PlannedSessionModel.position)
+    )
+    sessions = session_result.scalars().all()
+
+    # Get template names
+    template_ids = [int(s.template_id) for s in sessions if s.template_id]
+    template_names = await _get_template_names(db, template_ids)
+
+    result: list[PlannedSessionOption] = []
+    for s in sessions:
+        rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
+        tid = int(s.template_id) if s.template_id else None
+        result.append(
+            PlannedSessionOption(
+                id=int(s.id),  # type: ignore[arg-type]
+                training_type=str(s.training_type),
+                run_type=rd.run_type if rd else None,
+                template_name=template_names.get(tid) if tid else None,
+                position=int(s.position),
+            )
+        )
+    return result
 
 
 @router.post("/sync-to-plan", response_model=SyncToPlanResponse)

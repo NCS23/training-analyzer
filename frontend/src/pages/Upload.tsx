@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { parseTraining, uploadTraining } from '@/api/training';
 import type { ParsedLap, TrainingParseResponse } from '@/api/training';
+import { getPlannedSessionsForDate } from '@/api/weekly-plan';
+import type { PlannedSessionOption } from '@/api/weekly-plan';
 import { trainingTypeOptions, lapTypeOptions } from '@/constants/training';
 import type { ExerciseInput } from '@/api/strength';
 import { createStrengthSession } from '@/api/strength';
@@ -76,11 +78,24 @@ export default function UploadPage() {
   const [lapOverrides, setLapOverrides] = useState<Record<number, string>>({});
   const [trainingTypeOverride, setTrainingTypeOverride] = useState<string | null>(null);
 
+  // Planned session linking
+  const [plannedSessions, setPlannedSessions] = useState<PlannedSessionOption[]>([]);
+  const [selectedPlannedId, setSelectedPlannedId] = useState<number | null>(null);
+
   // Strength: exercises
   const [duration, setDuration] = useState(60);
   const [rpe, setRpe] = useState(5);
   const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
+
+  // Load planned sessions for selected date
+  useEffect(() => {
+    const dateStr = trainingDate.toISOString().split('T')[0];
+    getPlannedSessionsForDate(dateStr)
+      .then(setPlannedSessions)
+      .catch(() => setPlannedSessions([]));
+    setSelectedPlannedId(null);
+  }, [trainingDate]);
 
   useEffect(() => {
     if (trainingType === 'strength') {
@@ -155,6 +170,7 @@ export default function UploadPage() {
         rpe,
         lapOverrides: Object.keys(lapOverrides).length > 0 ? lapOverrides : undefined,
         trainingTypeOverride: trainingTypeOverride || undefined,
+        plannedEntryId: selectedPlannedId ?? undefined,
       });
 
       if (result.success && result.session_id) {
@@ -215,6 +231,7 @@ export default function UploadPage() {
         notes: notes.trim() || undefined,
         rpe,
         trainingFile: csvFile || undefined,
+        plannedEntryId: selectedPlannedId ?? undefined,
       });
 
       if (result.success) {
@@ -225,7 +242,17 @@ export default function UploadPage() {
     } finally {
       setCreating(false);
     }
-  }, [canSubmitStrength, trainingDate, duration, exercises, notes, rpe, csvFile, navigate]);
+  }, [
+    canSubmitStrength,
+    trainingDate,
+    duration,
+    exercises,
+    notes,
+    rpe,
+    csvFile,
+    selectedPlannedId,
+    navigate,
+  ]);
 
   /* ---- Derived data for review step ---- */
   const laps = parseResult?.data?.laps;
@@ -331,6 +358,35 @@ export default function UploadPage() {
                       decrementLabel="5 Minuten weniger"
                     />
                   </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Geplante Session zuordnen</Label>
+                <Select
+                  options={[
+                    { value: '', label: 'Keine Zuordnung' },
+                    ...plannedSessions.map((ps) => {
+                      const typeLabel = ps.training_type === 'running' ? 'Laufen' : 'Kraft';
+                      const detail = ps.run_type
+                        ? ` — ${ps.run_type}`
+                        : ps.template_name
+                          ? ` — ${ps.template_name}`
+                          : '';
+                      return {
+                        value: String(ps.id),
+                        label: `${typeLabel}${detail}`,
+                      };
+                    }),
+                  ]}
+                  value={selectedPlannedId != null ? String(selectedPlannedId) : ''}
+                  onChange={(val) => setSelectedPlannedId(val ? Number(val) : null)}
+                  placeholder="Keine Zuordnung"
+                />
+                {plannedSessions.length === 0 && (
+                  <p className="text-[10px] text-[var(--color-text-disabled)]">
+                    Keine geplanten Sessions für diesen Tag
+                  </p>
                 )}
               </div>
 

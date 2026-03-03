@@ -44,6 +44,7 @@ export interface PlannedSession {
   template_name?: string | null;
   notes?: string | null;
   run_details?: RunDetails | null;
+  status?: 'active' | 'skipped'; // default: 'active'
 }
 
 export interface WeeklyPlanEntry {
@@ -116,6 +117,16 @@ export interface SyncToPlanResponse {
   synced_days: number;
 }
 
+// --- Planned Session Option (for upload linking) ---
+
+export interface PlannedSessionOption {
+  id: number;
+  training_type: string;
+  run_type: string | null;
+  template_name: string | null;
+  position: number;
+}
+
 // --- API Functions ---
 
 export async function getWeeklyPlan(weekStart?: string): Promise<WeeklyPlanResponse> {
@@ -164,5 +175,12 @@ export async function getCompliance(weekStart?: string): Promise<ComplianceRespo
     : '/api/v1/weekly-plan/compliance';
 
   const response = await apiClient.get<ComplianceResponse>(url);
+  return response.data;
+}
+
+export async function getPlannedSessionsForDate(date: string): Promise<PlannedSessionOption[]> {
+  const response = await apiClient.get<PlannedSessionOption[]>(
+    `/api/v1/weekly-plan/sessions-for-date?date=${date}`,
+  );
   return response.data;
 }

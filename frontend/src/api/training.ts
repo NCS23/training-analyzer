@@ -10,6 +10,7 @@ export interface TrainingUploadParams {
   rpe?: number;
   lapOverrides?: Record<number, string>;
   trainingTypeOverride?: string;
+  plannedEntryId?: number;
 }
 
 function isFitFile(file: File): boolean {
@@ -164,6 +165,9 @@ export async function uploadTraining(
   if (params.trainingTypeOverride) {
     formData.append('training_type_override', params.trainingTypeOverride);
   }
+  if (params.plannedEntryId != null) {
+    formData.append('planned_entry_id', String(params.plannedEntryId));
+  }
 
   const response = await apiClient.post<TrainingUploadResponse>(
     fit ? '/api/v1/sessions/upload/fit' : '/api/v1/sessions/upload/csv',
@@ -304,6 +308,17 @@ export async function updateSessionRpe(
   const response = await apiClient.patch<SessionDetail>(`/api/v1/sessions/${sessionId}/rpe`, {
     rpe,
   });
+  return response.data;
+}
+
+export async function updatePlannedEntry(
+  sessionId: number,
+  plannedEntryId: number | null,
+): Promise<SessionDetail> {
+  const response = await apiClient.patch<SessionDetail>(
+    `/api/v1/sessions/${sessionId}/planned-entry`,
+    { planned_entry_id: plannedEntryId },
+  );
   return response.data;
 }
 

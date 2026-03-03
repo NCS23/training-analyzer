@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
   Card,
   CardBody,
   Button,
@@ -69,6 +79,18 @@ function formatDateRange(weekStart: string): string {
   return `${startDay}. ${startMonth} – ${endDay}. ${endMonth}`;
 }
 
+const RUN_TYPE_LABELS: Record<string, string> = {
+  recovery: 'Regeneration',
+  easy: 'Lockerer Lauf',
+  long_run: 'Langer Lauf',
+  progression: 'Steigerungslauf',
+  tempo: 'Tempolauf',
+  intervals: 'Intervalle',
+  repetitions: 'Repetitions',
+  fartlek: 'Fahrtspiel',
+  race: 'Wettkampf',
+};
+
 // --- Component ---
 
 export function WeeklyPlanPage() {
@@ -128,6 +150,121 @@ export function WeeklyPlanPage() {
     setEntries((prev) => prev.map((e) => (e.day_of_week === dayOfWeek ? { ...e, ...updates } : e)));
     setDirty(true);
   }, []);
+
+  const handleMoveSession = useCallback(
+    (fromDay: number, sessionIdx: number, targetDay: number) => {
+      setEntries((prev) => {
+        const next = prev.map((e) => ({ ...e, sessions: [...e.sessions] }));
+        const source = next.find((e) => e.day_of_week === fromDay);
+        const target = next.find((e) => e.day_of_week === targetDay);
+        if (!source || !target || !source.sessions[sessionIdx]) return prev;
+
+        // Remove session from source
+        const [moved] = source.sessions.splice(sessionIdx, 1);
+        // Re-index source positions
+        source.sessions.forEach((s, i) => {
+          s.position = i;
+        });
+
+        // Add to target
+        moved.position = target.sessions.length;
+        target.sessions.push(moved);
+
+        // If target is a rest day, clear rest flag
+        if (target.is_rest_day) {
+          target.is_rest_day = false;
+        }
+
+        return next;
+      });
+      setDirty(true);
+    },
+    [],
+  );
+
+  // --- Move rest day ---
+
+  const handleMoveRestDay = useCallback((fromDay: number, targetDay: number) => {
+    setEntries((prev) => {
+      const next = prev.map((e) => ({ ...e, sessions: [...e.sessions] }));
+      const source = next.find((e) => e.day_of_week === fromDay);
+      const target = next.find((e) => e.day_of_week === targetDay);
+      if (!source || !target) return prev;
+
+      const movedNotes = source.notes;
+      source.is_rest_day = false;
+      source.notes = null;
+
+      target.is_rest_day = true;
+      target.sessions = [];
+      target.notes = movedNotes;
+
+      return next;
+    });
+    setDirty(true);
+  }, []);
+
+  // --- Drag & Drop ---
+
+  const [activeDragData, setActiveDragData] = useState<{
+    type: 'session' | 'rest';
+    day: number;
+    idx: number;
+  } | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    }),
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as
+      | { type: 'session'; dayOfWeek: number; sessionIdx: number }
+      | { type: 'rest'; dayOfWeek: number }
+      | undefined;
+    if (!data) return;
+    if (data.type === 'rest') {
+      setActiveDragData({ type: 'rest', day: data.dayOfWeek, idx: -1 });
+    } else {
+      setActiveDragData({ type: 'session', day: data.dayOfWeek, idx: data.sessionIdx });
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragData(null);
+      const { active, over } = event;
+      if (!over) return;
+
+      const data = active.data.current as
+        | { type: 'session'; dayOfWeek: number; sessionIdx: number }
+        | { type: 'rest'; dayOfWeek: number }
+        | undefined;
+      const overId = String(over.id);
+      const targetMatch = overId.match(/^day-(\d+)$/);
+
+      if (data && targetMatch) {
+        const targetDay = parseInt(targetMatch[1]);
+        if (data.dayOfWeek !== targetDay) {
+          if (data.type === 'rest') {
+            handleMoveRestDay(data.dayOfWeek, targetDay);
+          } else {
+            handleMoveSession(data.dayOfWeek, data.sessionIdx, targetDay);
+          }
+        }
+      }
+    },
+    [handleMoveSession, handleMoveRestDay],
+  );
+
+  const activeDragSession =
+    activeDragData?.type === 'session'
+      ? entries.find((e) => e.day_of_week === activeDragData.day)?.sessions[activeDragData.idx]
+      : null;
 
   // --- Save ---
 
@@ -375,33 +512,65 @@ export function WeeklyPlanPage() {
               <Spinner size="lg" />
             </div>
           ) : (
-            <div
-              className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-[var(--spacing-xs)]"
-              role="grid"
-              aria-label="Wochenplan"
-            >
-              {entries.map((entry) => {
-                const isToday =
-                  isCurrentWeek &&
-                  new Date().getDay() === (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
-                const dayCompliance = compliance?.entries.find(
-                  (c) => c.day_of_week === entry.day_of_week,
-                );
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <div
+                className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-[var(--spacing-xs)]"
+                role="grid"
+                aria-label="Wochenplan"
+              >
+                {entries.map((entry) => {
+                  const isToday =
+                    isCurrentWeek &&
+                    new Date().getDay() === (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
+                  const dayCompliance = compliance?.entries.find(
+                    (c) => c.day_of_week === entry.day_of_week,
+                  );
 
-                return (
-                  <DayCard
-                    key={entry.day_of_week}
-                    entry={entry}
-                    weekStart={weekStart}
-                    isToday={isToday}
-                    compliance={dayCompliance}
-                    showCompliance={hasContent}
-                    onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
-                    onNavigateSession={(id) => navigate(`/sessions/${id}`)}
-                  />
-                );
-              })}
-            </div>
+                  return (
+                    <DayCard
+                      key={entry.day_of_week}
+                      entry={entry}
+                      weekStart={weekStart}
+                      isToday={isToday}
+                      compliance={dayCompliance}
+                      showCompliance={hasContent}
+                      onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
+                      onNavigateSession={(id) => navigate(`/sessions/${id}`)}
+                      onMoveSession={(sessionIdx, targetDay) =>
+                        handleMoveSession(entry.day_of_week, sessionIdx, targetDay)
+                      }
+                      onMoveRestDay={(targetDay) => handleMoveRestDay(entry.day_of_week, targetDay)}
+                    />
+                  );
+                })}
+              </div>
+
+              <DragOverlay>
+                {activeDragData?.type === 'rest' && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
+                    <Moon className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    <span className="text-xs font-medium text-[var(--color-text-base)]">
+                      Ruhetag
+                    </span>
+                  </div>
+                )}
+                {activeDragSession && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
+                    {activeDragSession.training_type === 'strength' ? (
+                      <Dumbbell className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    ) : (
+                      <Footprints className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    )}
+                    <span className="text-xs font-medium text-[var(--color-text-base)]">
+                      {activeDragSession.training_type === 'strength'
+                        ? (activeDragSession.template_name ?? 'Kraft')
+                        : (RUN_TYPE_LABELS[activeDragSession.run_details?.run_type ?? 'easy'] ??
+                          'Laufen')}
+                    </span>
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
           )}
         </CardBody>
       </Card>
