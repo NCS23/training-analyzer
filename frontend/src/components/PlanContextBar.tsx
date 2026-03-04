@@ -21,7 +21,7 @@ const phaseTimelineColors: Record<string, { filled: string; empty: string }> = {
   base: { filled: 'var(--color-text-muted)', empty: 'var(--color-border-muted)' },
   build: { filled: 'var(--color-interactive-primary)', empty: 'var(--color-bg-primary-subtle)' },
   peak: { filled: 'var(--color-text-primary)', empty: 'var(--color-bg-primary-muted)' },
-  taper: { filled: 'var(--color-text-secondary)', empty: 'var(--color-border-muted)' },
+  taper: { filled: 'var(--color-text-accent)', empty: 'var(--color-bg-accent-subtle)' },
   transition: { filled: 'var(--color-text-muted)', empty: 'var(--color-border-muted)' },
 };
 
