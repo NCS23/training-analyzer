@@ -404,7 +404,7 @@ export function StrengthSessionPage() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+            <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-text-base)]">
               Krafttraining erfassen
             </h1>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">

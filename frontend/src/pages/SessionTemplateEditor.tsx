@@ -409,7 +409,7 @@ export function SessionTemplateEditorPage() {
         </Breadcrumbs>
         <header className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+            <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-text-base)]">
               {!isEdit
                 ? 'Neues Session-Template'
                 : isEditing

@@ -344,7 +344,7 @@ export default function UploadPage() {
           <BreadcrumbItem isCurrent>Neues Training</BreadcrumbItem>
         </Breadcrumbs>
         <header>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-text-base)]">
             Neues Training
           </h1>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">

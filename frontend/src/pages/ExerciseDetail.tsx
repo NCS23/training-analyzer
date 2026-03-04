@@ -265,7 +265,7 @@ export function ExerciseDetailPage() {
         <header className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)] truncate">
+              <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-text-base)] truncate">
                 {exercise.name}
               </h1>
               <Badge variant={categoryBadgeVariant[exercise.category] ?? 'neutral'} size="xs">
