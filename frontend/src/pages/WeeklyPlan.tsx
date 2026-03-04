@@ -49,6 +49,7 @@ import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { DayCard } from '@/components/DayCard';
+import { PlanContextBar } from '@/components/PlanContextBar';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 
 // --- Helpers ---
@@ -383,6 +384,9 @@ export function WeeklyPlanPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Plan Context Bar (#152) */}
+      {linkedPlanId && <PlanContextBar planId={linkedPlanId} weekStart={weekStart} />}
 
       {/* Week Navigation + Stats */}
       <Card elevation="raised" padding="spacious">

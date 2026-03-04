@@ -137,6 +137,10 @@ class GoalSummary(BaseModel):
 
     id: int
     title: str
+    # Plan-Kontext-Bar (#152)
+    race_date: Optional[str] = None
+    target_time_formatted: Optional[str] = None
+    days_until: Optional[int] = None
 
 
 class WeeklyStructure(BaseModel):

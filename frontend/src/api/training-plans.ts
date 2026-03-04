@@ -73,6 +73,10 @@ export interface TrainingPhase {
 export interface GoalSummary {
   id: number;
   title: string;
+  // Plan-Kontext-Bar (#152)
+  race_date: string | null;
+  target_time_formatted: string | null;
+  days_until: number | null;
 }
 
 export interface WeeklyStructure {

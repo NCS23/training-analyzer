@@ -2,7 +2,7 @@
 
 import contextlib
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 import yaml
@@ -116,12 +116,43 @@ async def _get_goal_summary(
         return None
     goal_id_int = int(goal_id)
     result = await db.execute(
-        select(RaceGoalModel.id, RaceGoalModel.title).where(RaceGoalModel.id == goal_id_int)
+        select(
+            RaceGoalModel.id,
+            RaceGoalModel.title,
+            RaceGoalModel.race_date,
+            RaceGoalModel.target_time_seconds,
+        ).where(RaceGoalModel.id == goal_id_int)
     )
     row = result.one_or_none()
     if not row:
         return None
-    return GoalSummary(id=int(row.id), title=str(row.title))  # type: ignore[arg-type]
+
+    # Format target time (#152)
+    target_secs = int(row.target_time_seconds) if row.target_time_seconds else None  # type: ignore[union-attr]
+    time_fmt: Optional[str] = None
+    if target_secs:
+        hours = target_secs // 3600
+        mins = (target_secs % 3600) // 60
+        secs = target_secs % 60
+        time_fmt = f"{hours}:{mins:02d}:{secs:02d}" if hours > 0 else f"{mins}:{secs:02d}"
+
+    # Days until race (#152)
+    days_until: Optional[int] = None
+    race_date_iso: Optional[str] = None
+    if row.race_date:  # type: ignore[union-attr]
+        race_dt = row.race_date  # type: ignore[union-attr]
+        if hasattr(race_dt, "date"):
+            race_dt = race_dt.date()
+        race_date_iso = race_dt.isoformat()
+        days_until = (race_dt - date.today()).days
+
+    return GoalSummary(
+        id=int(row.id),  # type: ignore[arg-type]
+        title=str(row.title),  # type: ignore[arg-type]
+        race_date=race_date_iso,
+        target_time_formatted=time_fmt,
+        days_until=days_until,
+    )
 
 
 async def _plan_to_response(
