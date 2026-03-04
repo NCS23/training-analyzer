@@ -393,9 +393,7 @@ export function TrainingPlanEditorPage() {
               Programme
             </Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>
-            {isEdit ? name || 'Plan' : 'Neuer Plan'}
-          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>{isEdit ? name || 'Plan' : 'Neuer Plan'}</BreadcrumbItem>
         </Breadcrumbs>
         <header className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -531,256 +529,262 @@ export function TrainingPlanEditorPage() {
 
       {/* Plan Details (Edit Mode) */}
       {isEditing && (
-      <Card elevation="raised" padding="spacious">
-        <CardBody>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="plan-name">Name</Label>
-              <Input
-                id="plan-name"
-                placeholder="z.B. HM Sub-2h Vorbereitung"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                inputSize="sm"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="plan-description">Beschreibung</Label>
-              <Input
-                id="plan-description"
-                placeholder="Kurze Beschreibung des Plans"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                inputSize="sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card elevation="raised" padding="spacious">
+          <CardBody>
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Startdatum</Label>
-                <DatePicker value={startDate} onChange={setStartDate} inputSize="sm" />
+                <Label htmlFor="plan-name">Name</Label>
+                <Input
+                  id="plan-name"
+                  placeholder="z.B. HM Sub-2h Vorbereitung"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  inputSize="sm"
+                  autoFocus
+                />
               </div>
-              <div className="space-y-1.5">
-                <Label>Enddatum</Label>
-                <DatePicker value={endDate} onChange={setEndDate} inputSize="sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Wettkampf-Datum</Label>
-                <DatePicker value={targetEventDate} onChange={setTargetEventDate} inputSize="sm" />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select
-                  options={STATUS_OPTIONS}
-                  value={status}
-                  onChange={(v) => {
-                    if (v) setStatus(v as PlanStatus);
-                  }}
+                <Label htmlFor="plan-description">Beschreibung</Label>
+                <Input
+                  id="plan-description"
+                  placeholder="Kurze Beschreibung des Plans"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   inputSize="sm"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Wettkampf-Ziel (optional)</Label>
-                <Select
-                  options={[
-                    { value: '', label: 'Kein Ziel' },
-                    ...goals.map((g) => ({ value: g.id.toString(), label: g.title })),
-                  ]}
-                  value={goalId?.toString() ?? ''}
-                  onChange={(v) => setGoalId(v ? parseInt(v, 10) : undefined)}
-                  inputSize="sm"
-                  placeholder="Kein Ziel"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Startdatum</Label>
+                  <DatePicker value={startDate} onChange={setStartDate} inputSize="sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Enddatum</Label>
+                  <DatePicker value={endDate} onChange={setEndDate} inputSize="sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Wettkampf-Datum</Label>
+                  <DatePicker
+                    value={targetEventDate}
+                    onChange={setTargetEventDate}
+                    inputSize="sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <Select
+                    options={STATUS_OPTIONS}
+                    value={status}
+                    onChange={(v) => {
+                      if (v) setStatus(v as PlanStatus);
+                    }}
+                    inputSize="sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Wettkampf-Ziel (optional)</Label>
+                  <Select
+                    options={[
+                      { value: '', label: 'Kein Ziel' },
+                      ...goals.map((g) => ({ value: g.id.toString(), label: g.title })),
+                    ]}
+                    value={goalId?.toString() ?? ''}
+                    onChange={(v) => setGoalId(v ? parseInt(v, 10) : undefined)}
+                    inputSize="sm"
+                    placeholder="Kein Ziel"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
       )}
 
       {/* Phases (Edit Mode) */}
       {isEditing && (
-      <Card elevation="raised" padding="spacious">
-        <CardBody>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-              Phasen ({phases.length})
-            </h2>
-            <Button variant="ghost" size="sm" onClick={addNewPhase}>
-              <Plus className="w-4 h-4 mr-1" />
-              Phase hinzufügen
-            </Button>
-          </div>
+        <Card elevation="raised" padding="spacious">
+          <CardBody>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                Phasen ({phases.length})
+              </h2>
+              <Button variant="ghost" size="sm" onClick={addNewPhase}>
+                <Plus className="w-4 h-4 mr-1" />
+                Phase hinzufügen
+              </Button>
+            </div>
 
-          {phases.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
-              Noch keine Phasen. Füge deine erste Trainingsphase hinzu.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {phases.map((phase, idx) => (
-                <div
-                  key={phase.id ?? `new-${idx}`}
-                  className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] p-3 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <Badge variant={PHASE_COLORS[phase.phase_type]} size="sm">
-                      {PHASE_TYPES.find((t) => t.value === phase.phase_type)?.label ??
-                        phase.phase_type}
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={() => removePhase(idx)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[var(--radius-component-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-error)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
-                      aria-label="Phase entfernen"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            {phases.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
+                Noch keine Phasen. Füge deine erste Trainingsphase hinzu.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {phases.map((phase, idx) => (
+                  <div
+                    key={phase.id ?? `new-${idx}`}
+                    className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] p-3 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Badge variant={PHASE_COLORS[phase.phase_type]} size="sm">
+                        {PHASE_TYPES.find((t) => t.value === phase.phase_type)?.label ??
+                          phase.phase_type}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => removePhase(idx)}
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[var(--radius-component-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-error)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
+                        aria-label="Phase entfernen"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Name</Label>
+                        <Input
+                          value={phase.name}
+                          onChange={(e) => updatePhaseForm(idx, { name: e.target.value })}
+                          inputSize="sm"
+                          placeholder="z.B. Grundlagenaufbau"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Typ</Label>
+                        <Select
+                          options={PHASE_TYPES}
+                          value={phase.phase_type}
+                          onChange={(v) => {
+                            if (v) updatePhaseForm(idx, { phase_type: v as PhaseType });
+                          }}
+                          inputSize="sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Von Woche</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={52}
+                          value={phase.start_week}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { start_week: parseInt(e.target.value, 10) || 1 })
+                          }
+                          inputSize="sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Bis Woche</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={52}
+                          value={phase.end_week}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { end_week: parseInt(e.target.value, 10) || 1 })
+                          }
+                          inputSize="sm"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-1">
-                      <Label>Name</Label>
+                      <Label>Notizen</Label>
                       <Input
-                        value={phase.name}
-                        onChange={(e) => updatePhaseForm(idx, { name: e.target.value })}
+                        value={phase.notes}
+                        onChange={(e) => updatePhaseForm(idx, { notes: e.target.value })}
                         inputSize="sm"
-                        placeholder="z.B. Grundlagenaufbau"
+                        placeholder="Optionale Hinweise zur Phase"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label>Typ</Label>
-                      <Select
-                        options={PHASE_TYPES}
-                        value={phase.phase_type}
-                        onChange={(v) => {
-                          if (v) updatePhaseForm(idx, { phase_type: v as PhaseType });
-                        }}
-                        inputSize="sm"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label>Von Woche</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={52}
-                        value={phase.start_week}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { start_week: parseInt(e.target.value, 10) || 1 })
-                        }
-                        inputSize="sm"
-                      />
+                    {/* Target Metrics */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="space-y-1">
+                        <Label>Vol. min (km)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={phase.weekly_volume_min}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { weekly_volume_min: e.target.value })
+                          }
+                          inputSize="sm"
+                          placeholder="z.B. 30"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Vol. max (km)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={phase.weekly_volume_max}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { weekly_volume_max: e.target.value })
+                          }
+                          inputSize="sm"
+                          placeholder="z.B. 45"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Quality/Wo.</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={5}
+                          value={phase.quality_sessions_per_week}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })
+                          }
+                          inputSize="sm"
+                          placeholder="z.B. 2"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Kraft/Wo.</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={5}
+                          value={phase.strength_sessions_per_week}
+                          onChange={(e) =>
+                            updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })
+                          }
+                          inputSize="sm"
+                          placeholder="z.B. 2"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label>Bis Woche</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={52}
-                        value={phase.end_week}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { end_week: parseInt(e.target.value, 10) || 1 })
-                        }
-                        inputSize="sm"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <Label>Notizen</Label>
-                    <Input
-                      value={phase.notes}
-                      onChange={(e) => updatePhaseForm(idx, { notes: e.target.value })}
-                      inputSize="sm"
-                      placeholder="Optionale Hinweise zur Phase"
+                    {/* Weekly Template */}
+                    <PhaseWeeklyTemplateEditor
+                      template={phase.weekly_template}
+                      weeklyTemplates={phase.weekly_templates}
+                      phaseType={phase.phase_type}
+                      startWeek={phase.start_week}
+                      endWeek={phase.end_week}
+                      onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
+                      onChangeWeeklyTemplates={(wt) =>
+                        updatePhaseForm(idx, { weekly_templates: wt })
+                      }
                     />
                   </div>
-
-                  {/* Target Metrics */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="space-y-1">
-                      <Label>Vol. min (km)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={5}
-                        value={phase.weekly_volume_min}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { weekly_volume_min: e.target.value })
-                        }
-                        inputSize="sm"
-                        placeholder="z.B. 30"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Vol. max (km)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={5}
-                        value={phase.weekly_volume_max}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { weekly_volume_max: e.target.value })
-                        }
-                        inputSize="sm"
-                        placeholder="z.B. 45"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Quality/Wo.</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={5}
-                        value={phase.quality_sessions_per_week}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })
-                        }
-                        inputSize="sm"
-                        placeholder="z.B. 2"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Kraft/Wo.</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={5}
-                        value={phase.strength_sessions_per_week}
-                        onChange={(e) =>
-                          updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })
-                        }
-                        inputSize="sm"
-                        placeholder="z.B. 2"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Weekly Template */}
-                  <PhaseWeeklyTemplateEditor
-                    template={phase.weekly_template}
-                    weeklyTemplates={phase.weekly_templates}
-                    phaseType={phase.phase_type}
-                    startWeek={phase.start_week}
-                    endWeek={phase.end_week}
-                    onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
-                    onChangeWeeklyTemplates={(wt) => updatePhaseForm(idx, { weekly_templates: wt })}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardBody>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
       )}
 
       {/* Change Log */}
@@ -788,46 +792,46 @@ export function TrainingPlanEditorPage() {
 
       {/* Error + Actions — only in edit mode */}
       {isEditing && (
-      <>
-      {error && (
-        <Alert variant="error" closeable onClose={() => setError(null)}>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/plan/programs')}>
-          Abbrechen
-        </Button>
-        {isEdit && phases.length > 0 && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleGenerateClick}
-            disabled={generating || loadingPreview}
-          >
-            {loadingPreview ? (
-              <Spinner size="sm" aria-hidden="true" />
-            ) : (
-              <>
-                <CalendarPlus className="w-4 h-4 mr-1" />
-                Wochenpläne generieren
-              </>
-            )}
-          </Button>
-        )}
-        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Spinner size="sm" aria-hidden="true" />
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-1" />
-              {isEdit ? 'Speichern' : 'Erstellen'}
-            </>
+        <>
+          {error && (
+            <Alert variant="error" closeable onClose={() => setError(null)}>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-        </Button>
-      </div>
-      </>
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/plan/programs')}>
+              Abbrechen
+            </Button>
+            {isEdit && phases.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleGenerateClick}
+                disabled={generating || loadingPreview}
+              >
+                {loadingPreview ? (
+                  <Spinner size="sm" aria-hidden="true" />
+                ) : (
+                  <>
+                    <CalendarPlus className="w-4 h-4 mr-1" />
+                    Wochenpläne generieren
+                  </>
+                )}
+              </Button>
+            )}
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <Spinner size="sm" aria-hidden="true" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1" />
+                  {isEdit ? 'Speichern' : 'Erstellen'}
+                </>
+              )}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

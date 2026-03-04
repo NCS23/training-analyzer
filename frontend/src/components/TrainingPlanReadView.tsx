@@ -86,7 +86,15 @@ function calcDurationWeeks(startDate: string, endDate: string): number {
 
 // --- Sub-Components ---
 
-function MetricItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+function MetricItem({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <div>
       <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
@@ -97,7 +105,6 @@ function MetricItem({ label, value, icon }: { label: string; value: string; icon
     </div>
   );
 }
-
 
 function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry }) {
   if (session.training_type === 'strength') {
@@ -410,9 +417,7 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
         <CardBody className="space-y-5">
           {/* Heading + Description */}
           <div>
-            <h2 className="text-base font-semibold text-[var(--color-text-base)]">
-              Überblick
-            </h2>
+            <h2 className="text-base font-semibold text-[var(--color-text-base)]">Überblick</h2>
             {plan.description && (
               <p className="text-sm text-[var(--color-text-muted)] leading-relaxed mt-1">
                 {plan.description}
@@ -426,7 +431,11 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
               <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Ziel
                 <span className="font-normal normal-case tracking-normal ml-1">
-                  (<Link to="/plan/goals" className="hover:underline underline-offset-2">{goal.title}</Link>)
+                  (
+                  <Link to="/plan/goals" className="hover:underline underline-offset-2">
+                    {goal.title}
+                  </Link>
+                  )
                 </span>
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-[10px]">
@@ -479,44 +488,44 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
 
           {/* Date metrics */}
           <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-            Zeitraum
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-[10px]">
-            <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
-              <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                <Calendar className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
-                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                  Start
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              Zeitraum
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-[10px]">
+              <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
+                <div className="flex items-center gap-1 mb-1 sm:mb-2">
+                  <Calendar className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Start
+                  </p>
+                </div>
+                <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
+                  {formatDateDE(plan.start_date)}
                 </p>
               </div>
-              <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
-                {formatDateDE(plan.start_date)}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
-              <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                <Calendar className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
-                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                  Ende
+              <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
+                <div className="flex items-center gap-1 mb-1 sm:mb-2">
+                  <Calendar className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Ende
+                  </p>
+                </div>
+                <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
+                  {formatDateDE(plan.end_date)}
                 </p>
               </div>
-              <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
-                {formatDateDE(plan.end_date)}
-              </p>
-            </div>
-            <div className="col-span-2 sm:col-span-1 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
-              <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                <Clock className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
-                <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                  Dauer
+              <div className="col-span-2 sm:col-span-1 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
+                <div className="flex items-center gap-1 mb-1 sm:mb-2">
+                  <Clock className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]" />
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                    Dauer
+                  </p>
+                </div>
+                <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
+                  {durationWeeks} Wochen
                 </p>
               </div>
-              <p className="text-sm sm:text-base font-semibold text-[var(--color-text-base)] leading-none">
-                {durationWeeks} Wochen
-              </p>
             </div>
-          </div>
           </div>
 
           {/* Wochenpläne count */}
@@ -530,13 +539,13 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
           {/* Phase Timeline */}
           {plan.phases.length > 1 && (
             <div className="space-y-2 pt-4">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Phasenübersicht
-                  <span className="font-normal normal-case tracking-normal ml-1">
-                    ({plan.phases.length} Phasen)
-                  </span>
-                </h2>
-                <PhaseTimeline phases={plan.phases} weekNumber={weekNumber} />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                Phasenübersicht
+                <span className="font-normal normal-case tracking-normal ml-1">
+                  ({plan.phases.length} Phasen)
+                </span>
+              </h2>
+              <PhaseTimeline phases={plan.phases} weekNumber={weekNumber} />
             </div>
           )}
         </CardBody>
