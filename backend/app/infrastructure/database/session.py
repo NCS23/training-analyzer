@@ -53,9 +53,14 @@ def _ensure_columns_exist(conn):
                     default_text = getattr(col.server_default.arg, "text", col.server_default.arg)  # type: ignore[union-attr]
                     raw = str(default_text)
                     # Quote string defaults for PostgreSQL (booleans/numbers are fine unquoted)
-                    if raw and not raw.replace(".", "").lstrip("-").isdigit() and raw.lower() not in (
-                        "true",
-                        "false",
+                    if (
+                        raw
+                        and not raw.replace(".", "").lstrip("-").isdigit()
+                        and raw.lower()
+                        not in (
+                            "true",
+                            "false",
+                        )
                     ):
                         raw = f"'{raw}'"
                     default_clause = f" DEFAULT {raw}"
