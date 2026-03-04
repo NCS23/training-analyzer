@@ -24,8 +24,21 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   Checkbox,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@nordlig/components';
-import { Save, ArrowLeft, ChevronRight, Plus, Trash2, CalendarPlus } from 'lucide-react';
+import {
+  Save,
+  ChevronRight,
+  Plus,
+  Trash2,
+  CalendarPlus,
+  Pencil,
+  EllipsisVertical,
+} from 'lucide-react';
 import {
   createTrainingPlan,
   getTrainingPlan,
@@ -40,6 +53,7 @@ import {
 import type {
   PlanStatus,
   PhaseType,
+  TrainingPlan,
   TrainingPhaseCreateParams,
   PhaseWeeklyTemplate,
   PhaseWeeklyTemplates,
@@ -49,29 +63,13 @@ import { listGoals } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
 import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEditor';
 import { PlanChangeLog } from '@/components/PlanChangeLog';
-
-const PHASE_TYPES: { value: PhaseType; label: string }[] = [
-  { value: 'base', label: 'Grundlage' },
-  { value: 'build', label: 'Aufbau' },
-  { value: 'peak', label: 'Wettkampf' },
-  { value: 'taper', label: 'Tapering' },
-  { value: 'transition', label: 'Übergang' },
-];
-
-const PHASE_COLORS: Record<PhaseType, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
-  base: 'neutral',
-  build: 'info',
-  peak: 'success',
-  taper: 'warning',
-  transition: 'error',
-};
-
-const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
-  { value: 'draft', label: 'Entwurf' },
-  { value: 'active', label: 'Aktiv' },
-  { value: 'completed', label: 'Abgeschlossen' },
-  { value: 'paused', label: 'Pausiert' },
-];
+import { TrainingPlanReadView } from '@/components/TrainingPlanReadView';
+import {
+  PHASE_TYPES,
+  PHASE_COLORS,
+  STATUS_OPTIONS,
+  STATUS_BADGE_VARIANTS,
+} from '@/components/plan-helpers';
 
 interface PhaseForm {
   id?: number;
@@ -94,6 +92,9 @@ export function TrainingPlanEditorPage() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEdit = !!planId;
+  const [editMode, setEditMode] = useState(false);
+  const isEditing = !isEdit || editMode;
+  const [rawPlan, setRawPlan] = useState<TrainingPlan | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -140,6 +141,7 @@ export function TrainingPlanEditorPage() {
     if (!planId) return;
     try {
       const plan = await getTrainingPlan(parseInt(planId, 10));
+      setRawPlan(plan);
       setName(plan.name);
       setDescription(plan.description ?? '');
       setStartDate(new Date(plan.start_date));
@@ -167,7 +169,7 @@ export function TrainingPlanEditorPage() {
       );
     } catch {
       toast({ title: 'Plan konnte nicht geladen werden', variant: 'error' });
-      navigate('/settings/plans');
+      navigate('/plan/programs');
     } finally {
       setLoading(false);
     }
@@ -247,7 +249,7 @@ export function TrainingPlanEditorPage() {
         });
         toast({ title: 'Trainingsplan erstellt', variant: 'success' });
       }
-      navigate('/settings/plans');
+      navigate('/plan/programs');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(detail ?? 'Speichern fehlgeschlagen');
@@ -262,7 +264,7 @@ export function TrainingPlanEditorPage() {
     try {
       await deleteTrainingPlan(parseInt(planId, 10), deleteWeeklyPlans);
       toast({ title: 'Trainingsplan gelöscht', variant: 'success' });
-      navigate('/settings/plans');
+      navigate('/plan/programs');
     } catch {
       toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
     } finally {
@@ -382,41 +384,56 @@ export function TrainingPlanEditorPage() {
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
+            <Link to="/plan" className="hover:underline underline-offset-2">
+              Plan
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem>
-            <Link to="/settings/plans" className="hover:underline underline-offset-2">
-              Trainingspläne
+            <Link to="/plan/programs" className="hover:underline underline-offset-2">
+              Programme
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>
-            {isEdit ? name || 'Plan bearbeiten' : 'Neuer Plan'}
+            {isEdit ? name || 'Plan' : 'Neuer Plan'}
           </BreadcrumbItem>
         </Breadcrumbs>
-        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-          <div>
+        <header className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              {isEdit ? 'Plan bearbeiten' : 'Neuer Trainingsplan'}
+              {!isEdit ? 'Neuer Trainingsplan' : isEditing ? 'Plan bearbeiten' : name}
             </h1>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings/plans')}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Zurück
-            </Button>
-            {isEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDeleteDialog(true)}
-                className="text-[var(--color-text-error)]"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+            {isEdit && !isEditing && (
+              <Badge variant={STATUS_BADGE_VARIANTS[status]} size="xs">
+                {STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status}
+              </Badge>
             )}
           </div>
+          {isEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+                  <EllipsisVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  icon={<Pencil />}
+                  disabled={isEditing}
+                  onSelect={() => setEditMode(true)}
+                >
+                  Bearbeiten
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  icon={<Trash2 />}
+                  destructive
+                  onSelect={() => setShowDeleteDialog(true)}
+                >
+                  Löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </header>
       </div>
 
@@ -509,7 +526,11 @@ export function TrainingPlanEditorPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Plan Details */}
+      {/* Read-Only View */}
+      {!isEditing && rawPlan && <TrainingPlanReadView plan={rawPlan} />}
+
+      {/* Plan Details (Edit Mode) */}
+      {isEditing && (
       <Card elevation="raised" padding="spacious">
         <CardBody>
           <div className="space-y-4">
@@ -580,8 +601,10 @@ export function TrainingPlanEditorPage() {
           </div>
         </CardBody>
       </Card>
+      )}
 
-      {/* Phases */}
+      {/* Phases (Edit Mode) */}
+      {isEditing && (
       <Card elevation="raised" padding="spacious">
         <CardBody>
           <div className="flex items-center justify-between mb-4">
@@ -758,11 +781,14 @@ export function TrainingPlanEditorPage() {
           )}
         </CardBody>
       </Card>
+      )}
 
       {/* Change Log */}
       {isEdit && planId && <PlanChangeLog planId={parseInt(planId, 10)} />}
 
-      {/* Error + Save */}
+      {/* Error + Actions — only in edit mode */}
+      {isEditing && (
+      <>
       {error && (
         <Alert variant="error" closeable onClose={() => setError(null)}>
           <AlertDescription>{error}</AlertDescription>
@@ -770,7 +796,7 @@ export function TrainingPlanEditorPage() {
       )}
 
       <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/settings/plans')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/plan/programs')}>
           Abbrechen
         </Button>
         {isEdit && phases.length > 0 && (
@@ -801,6 +827,8 @@ export function TrainingPlanEditorPage() {
           )}
         </Button>
       </div>
+      </>
+      )}
     </div>
   );
 }

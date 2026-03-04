@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
-  CardHeader,
   CardBody,
   Button,
   Badge,
   Spinner,
   EmptyState,
   useToast,
-  Breadcrumbs,
-  BreadcrumbItem,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -27,15 +24,7 @@ import {
   AlertDialogCancel,
   Checkbox,
 } from '@nordlig/components';
-import {
-  Plus,
-  ChevronRight,
-  EllipsisVertical,
-  Trash2,
-  CalendarRange,
-  Upload,
-  CalendarPlus,
-} from 'lucide-react';
+import { Plus, EllipsisVertical, Trash2, CalendarRange, Upload, CalendarPlus } from 'lucide-react';
 import {
   listTrainingPlans,
   deleteTrainingPlan,
@@ -50,20 +39,7 @@ import type {
   YamlValidationResult,
 } from '@/api/training-plans';
 import { YamlValidationResultPanel } from '@/components/YamlValidationResult';
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Entwurf',
-  active: 'Aktiv',
-  completed: 'Abgeschlossen',
-  paused: 'Pausiert',
-};
-
-const STATUS_VARIANTS: Record<string, 'neutral' | 'info' | 'success' | 'warning'> = {
-  draft: 'neutral',
-  active: 'info',
-  completed: 'success',
-  paused: 'warning',
-};
+import { STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
 
 export function TrainingPlansPage() {
   const navigate = useNavigate();
@@ -186,7 +162,7 @@ export function TrainingPlansPage() {
       }
 
       toast({ title: `„${plan.name}" importiert`, variant: 'success' });
-      navigate(`/settings/plans/${plan.id}`);
+      navigate(`/plan/programs/${plan.id}`);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
@@ -243,64 +219,46 @@ export function TrainingPlansPage() {
     new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
-      <div className="space-y-2 pb-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
-            </Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Trainingspläne</BreadcrumbItem>
-        </Breadcrumbs>
-        <header className="flex flex-wrap items-start justify-between gap-y-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              Trainingspläne
-            </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Periodisierte Trainingspläne erstellen und verwalten.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".yaml,.yml"
-              onChange={handleImportFile}
-              className="hidden"
-              aria-hidden="true"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing || validating}
-            >
-              {importing || validating ? (
-                <Spinner size="sm" aria-hidden="true" />
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-1" />
-                  Importieren
-                </>
-              )}
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate('/settings/plans/new')}>
-              <Plus className="w-4 h-4 mr-1" />
-              Neuer Plan
-            </Button>
-          </div>
-        </header>
-      </div>
+    <div className="space-y-6">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".yaml,.yml"
+        onChange={handleImportFile}
+        className="hidden"
+        aria-hidden="true"
+      />
 
       <Card elevation="raised" padding="spacious">
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-            Pläne ({plans.length})
-          </h2>
-        </CardHeader>
         <CardBody>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+              Programme ({plans.length})
+            </h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Aktionen"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                >
+                  <EllipsisVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem icon={<Plus />} onSelect={() => navigate('/plan/programs/new')}>
+                  Neuer Plan
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  icon={<Upload />}
+                  onSelect={() => fileInputRef.current?.click()}
+                  disabled={importing || validating}
+                >
+                  YAML importieren
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
@@ -310,24 +268,24 @@ export function TrainingPlansPage() {
               title="Noch keine Trainingspläne"
               description="Erstelle deinen ersten periodisierten Trainingsplan."
               action={
-                <Button variant="primary" size="sm" onClick={() => navigate('/settings/plans/new')}>
+                <Button variant="primary" size="sm" onClick={() => navigate('/plan/programs/new')}>
                   <Plus className="w-4 h-4 mr-1" />
                   Plan erstellen
                 </Button>
               }
             />
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-3">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
+                  className="flex items-center gap-3 p-3 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)] transition-colors motion-reduce:transition-none"
                 >
                   <CalendarRange className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/settings/plans/${plan.id}`)}
+                    onClick={() => navigate(`/plan/programs/${plan.id}`)}
                     className="flex-1 min-w-0 text-left"
                     aria-label={`${plan.name} bearbeiten`}
                   >
@@ -341,8 +299,8 @@ export function TrainingPlansPage() {
                     </span>
                   </button>
 
-                  <Badge variant={STATUS_VARIANTS[plan.status] ?? 'neutral'} size="sm">
-                    {STATUS_LABELS[plan.status] ?? plan.status}
+                  <Badge variant={STATUS_BADGE_VARIANTS[plan.status] ?? 'neutral'} size="sm">
+                    {STATUS_OPTIONS.find((s) => s.value === plan.status)?.label ?? plan.status}
                   </Badge>
 
                   <DropdownMenu>
