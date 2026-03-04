@@ -7,10 +7,16 @@ import { StrengthSessionPage } from './StrengthSession';
 vi.mock('@/api/strength', () => ({
   createStrengthSession: vi.fn(),
   getLastExerciseSets: vi.fn(),
+  getLastCompleteStrengthSession: vi.fn().mockResolvedValue({ found: false, session: null }),
 }));
 
 vi.mock('@/api/exercises', () => ({
   listExercises: vi.fn(),
+}));
+
+vi.mock('@/api/session-templates', () => ({
+  listSessionTemplates: vi.fn().mockResolvedValue({ templates: [] }),
+  getSessionTemplate: vi.fn(),
 }));
 
 // Mock useNavigate

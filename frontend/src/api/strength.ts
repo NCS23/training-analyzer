@@ -44,6 +44,19 @@ export interface StrengthSessionCreateResponse {
   };
 }
 
+export interface LastCompleteSession {
+  id: number;
+  date: string;
+  exercises: ExerciseInput[];
+  total_tonnage_kg: number;
+  duration_minutes: number | null;
+}
+
+export interface LastCompleteSessionResponse {
+  found: boolean;
+  session: LastCompleteSession | null;
+}
+
 export interface LastExerciseResponse {
   found: boolean;
   exercise: {
@@ -81,6 +94,13 @@ export async function createStrengthSession(
     '/api/v1/sessions/strength',
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+}
+
+export async function getLastCompleteStrengthSession(): Promise<LastCompleteSessionResponse> {
+  const response = await apiClient.get<LastCompleteSessionResponse>(
+    '/api/v1/sessions/strength/last-complete',
   );
   return response.data;
 }

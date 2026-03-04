@@ -91,3 +91,13 @@ class LastExerciseSets(BaseModel):
     category: str
     sets: list[SetResponse]
     session_date: date
+
+
+class LastCompleteSessionResponse(BaseModel):
+    """Letzte vollstaendige Strength-Session (fuer Clone)."""
+
+    id: int
+    date: date
+    exercises: list[ExerciseResponse]
+    total_tonnage_kg: float
+    duration_minutes: Optional[int] = None
