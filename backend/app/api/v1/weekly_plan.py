@@ -693,8 +693,7 @@ async def get_compliance(
         prev_week_start = week_start - timedelta(days=7)
         prev_week_end = week_start - timedelta(days=1)
         prev_result = await db.execute(
-            select(WorkoutModel)
-            .where(
+            select(WorkoutModel).where(
                 WorkoutModel.workout_type == "strength",
                 WorkoutModel.exercises_json.isnot(None),
                 WorkoutModel.date >= datetime.combine(prev_week_start, datetime.min.time()),
@@ -732,9 +731,7 @@ async def get_compliance(
             session_count=strength_session_count,
             exercise_count=total_metrics["total_exercises"],
             set_count=total_metrics["total_sets"],
-            categories=[
-                CategoryTonnage(**cat) for cat in cat_breakdown
-            ],
+            categories=[CategoryTonnage(**cat) for cat in cat_breakdown],
             prev_week_tonnage_kg=prev_tonnage,
             tonnage_delta_kg=delta_kg,
             tonnage_delta_pct=delta_pct,

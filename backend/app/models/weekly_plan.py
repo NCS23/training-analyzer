@@ -167,9 +167,7 @@ class WeeklyStrengthSummary(BaseModel):
     prev_week_tonnage_kg: Optional[float] = None
     tonnage_delta_kg: Optional[float] = None
     tonnage_delta_pct: Optional[float] = None
-    trend: Optional[str] = Field(
-        default=None, pattern="^(up|down|stable)$"
-    )
+    trend: Optional[str] = Field(default=None, pattern="^(up|down|stable)$")
 
 
 class ComplianceResponse(BaseModel):
