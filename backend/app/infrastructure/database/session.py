@@ -51,7 +51,14 @@ def _ensure_columns_exist(conn):
                 default_clause = ""
                 if col.server_default is not None and hasattr(col.server_default, "arg"):
                     default_text = getattr(col.server_default.arg, "text", col.server_default.arg)  # type: ignore[union-attr]
-                    default_clause = f" DEFAULT {default_text}"
+                    raw = str(default_text)
+                    # Quote string defaults for PostgreSQL (booleans/numbers are fine unquoted)
+                    if raw and not raw.replace(".", "").lstrip("-").isdigit() and raw.lower() not in (
+                        "true",
+                        "false",
+                    ):
+                        raw = f"'{raw}'"
+                    default_clause = f" DEFAULT {raw}"
 
                 nullable = "NULL" if col.nullable else "NOT NULL"
                 sql = (
