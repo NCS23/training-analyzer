@@ -528,7 +528,8 @@ export default function UploadPage() {
                     Übungen ({exercises.length})
                   </h2>
                   {tonnage.total > 0 && (
-                    <div className="flex items-center gap-2" aria-live="polite">
+                    <div className="flex items-center gap-1.5" aria-live="polite">
+                      <span className="text-xs text-[var(--color-text-muted)]">Tonnage</span>
                       <span className="text-sm font-semibold tabular-nums text-[var(--color-text-base)]">
                         {formatted.value}
                         <span className="text-xs font-normal text-[var(--color-text-muted)] ml-0.5">
