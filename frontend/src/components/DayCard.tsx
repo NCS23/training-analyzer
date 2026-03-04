@@ -44,6 +44,7 @@ import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
 import { lapTypeLabels } from '@/constants/training';
 import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
+import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { MoveSessionDialog } from './MoveSessionDialog';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
@@ -1148,6 +1149,15 @@ export function DayCard({
                 <span className="text-[10px] text-[var(--color-text-warning)]">Teilweise</span>
               </div>
             )}
+            {/* Planned strength info */}
+            {compliance.planned_template_name && (
+              <p className="text-[10px] text-[var(--color-text-muted)] truncate mt-0.5">
+                Soll: {compliance.planned_template_name}
+                {compliance.planned_exercise_count
+                  ? ` (${compliance.planned_exercise_count} Üb.)`
+                  : ''}
+              </p>
+            )}
             {hasActualSessions &&
               compliance.actual_sessions.map((s) => (
                 <button
@@ -1159,8 +1169,20 @@ export function DayCard({
                   }}
                   className="block text-[10px] text-[var(--color-text-link)] hover:underline mt-0.5 min-h-[22px]"
                 >
-                  {s.distance_km ? `${s.distance_km.toFixed(1)}km` : ''}
-                  {s.pace ? ` ${s.pace}/km` : ''}
+                  {s.workout_type === 'strength' ? (
+                    <>
+                      {s.template_name ?? 'Kraft'}
+                      {s.total_tonnage_kg != null && s.total_tonnage_kg > 0
+                        ? `: ${formatTonnage(s.total_tonnage_kg).value}${formatTonnage(s.total_tonnage_kg).unit}`
+                        : ''}
+                      {s.exercise_count ? ` (${s.exercise_count} Üb.)` : ''}
+                    </>
+                  ) : (
+                    <>
+                      {s.distance_km ? `${s.distance_km.toFixed(1)}km` : ''}
+                      {s.pace ? ` ${s.pace}/km` : ''}
+                    </>
+                  )}
                 </button>
               ))}
           </div>

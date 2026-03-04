@@ -82,6 +82,12 @@ export interface ActualSession {
   duration_sec: number | null;
   distance_km: number | null;
   pace: string | null;
+  planned_entry_id?: number | null;
+  // Strength-specific (#149)
+  total_tonnage_kg: number | null;
+  exercise_count: number | null;
+  set_count: number | null;
+  template_name: string | null;
 }
 
 export interface ComplianceDayEntry {
@@ -92,6 +98,28 @@ export interface ComplianceDayEntry {
   is_rest_day: boolean;
   status: 'completed' | 'partial' | 'off_target' | 'missed' | 'rest_ok' | 'unplanned' | 'empty';
   actual_sessions: ActualSession[];
+  // Strength planning details (#149)
+  planned_template_name: string | null;
+  planned_exercise_count: number | null;
+}
+
+export interface CategoryTonnage {
+  category: string;
+  tonnage_kg: number;
+  exercise_count: number;
+  set_count: number;
+}
+
+export interface WeeklyStrengthSummary {
+  total_tonnage_kg: number;
+  session_count: number;
+  exercise_count: number;
+  set_count: number;
+  categories: CategoryTonnage[];
+  prev_week_tonnage_kg: number | null;
+  tonnage_delta_kg: number | null;
+  tonnage_delta_pct: number | null;
+  trend: 'up' | 'down' | 'stable' | null;
 }
 
 export interface ComplianceResponse {
@@ -99,6 +127,7 @@ export interface ComplianceResponse {
   entries: ComplianceDayEntry[];
   completed_count: number;
   planned_count: number;
+  strength_summary: WeeklyStrengthSummary | null;
 }
 
 // --- Sync-to-Plan Types ---

@@ -37,13 +37,17 @@ import {
   Dumbbell,
   EllipsisVertical,
   Footprints,
+  Minus,
   Moon,
   Save,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   Upload,
 } from 'lucide-react';
 import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@/api/weekly-plan';
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
+import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { DayCard } from '@/components/DayCard';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 
@@ -434,6 +438,40 @@ export function WeeklyPlanPage() {
               {stats.strength > 0 && (
                 <span className="inline-flex items-center gap-1">
                   <Dumbbell className="w-3 h-3" /> {stats.strength}× Kraft
+                  {compliance?.strength_summary &&
+                    compliance.strength_summary.total_tonnage_kg > 0 &&
+                    (() => {
+                      const ss = compliance.strength_summary;
+                      const fmt = formatTonnage(ss.total_tonnage_kg);
+                      return (
+                        <>
+                          <span className="text-[var(--color-text-base)] font-medium ml-0.5">
+                            ({fmt.value}
+                            <span className="text-[var(--color-text-muted)] font-normal">
+                              {fmt.unit}
+                            </span>
+                            )
+                          </span>
+                          {ss.tonnage_delta_kg != null && ss.trend && (
+                            <span
+                              className={`inline-flex items-center gap-0.5 ml-0.5 font-medium ${
+                                ss.trend === 'up'
+                                  ? 'text-[var(--color-text-success)]'
+                                  : ss.trend === 'down'
+                                    ? 'text-[var(--color-text-error)]'
+                                    : 'text-[var(--color-text-muted)]'
+                              }`}
+                            >
+                              {ss.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                              {ss.trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                              {ss.trend === 'stable' && <Minus className="w-3 h-3" />}
+                              {ss.tonnage_delta_kg > 0 ? '+' : ''}
+                              {Math.round(ss.tonnage_delta_kg)}kg
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                 </span>
               )}
               {stats.rest > 0 && (

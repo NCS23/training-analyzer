@@ -5,7 +5,7 @@ import json
 import pytest
 from httpx import AsyncClient
 
-from app.services.tonnage_calculator import calculate_strength_metrics
+from app.services.tonnage_calculator import calculate_category_tonnage, calculate_strength_metrics
 
 # --- Unit Tests: Tonnage Calculator ---
 
@@ -78,6 +78,109 @@ class TestTonnageCalculator:
         result = calculate_strength_metrics(exercises)
         assert result["total_tonnage_kg"] == 0.0
         assert result["completed_sets"] == 1
+
+
+# --- Unit Tests: Category Tonnage (#149) ---
+
+
+class TestCategoryTonnage:
+    def test_single_category(self) -> None:
+        exercises = [
+            {
+                "name": "Bankdruecken",
+                "category": "push",
+                "sets": [
+                    {"reps": 10, "weight_kg": 60, "status": "completed"},
+                    {"reps": 8, "weight_kg": 60, "status": "completed"},
+                ],
+            }
+        ]
+        result = calculate_category_tonnage(exercises)
+        assert len(result) == 1
+        assert result[0]["category"] == "push"
+        assert result[0]["tonnage_kg"] == 1080.0
+        assert result[0]["exercise_count"] == 1
+        assert result[0]["set_count"] == 2
+
+    def test_multiple_categories(self) -> None:
+        exercises = [
+            {
+                "name": "Bankdruecken",
+                "category": "push",
+                "sets": [{"reps": 10, "weight_kg": 60, "status": "completed"}],
+            },
+            {
+                "name": "Klimmzuege",
+                "category": "pull",
+                "sets": [{"reps": 8, "weight_kg": 20, "status": "completed"}],
+            },
+            {
+                "name": "Kniebeugen",
+                "category": "legs",
+                "sets": [{"reps": 5, "weight_kg": 100, "status": "completed"}],
+            },
+        ]
+        result = calculate_category_tonnage(exercises)
+        assert len(result) == 3
+        # Sorted by tonnage desc: push 600, legs 500, pull 160
+        assert result[0]["category"] == "push"
+        assert result[0]["tonnage_kg"] == 600.0
+        assert result[1]["category"] == "legs"
+        assert result[1]["tonnage_kg"] == 500.0
+        assert result[2]["category"] == "pull"
+        assert result[2]["tonnage_kg"] == 160.0
+
+    def test_skipped_sets_excluded(self) -> None:
+        exercises = [
+            {
+                "name": "Bankdruecken",
+                "category": "push",
+                "sets": [
+                    {"reps": 10, "weight_kg": 60, "status": "completed"},
+                    {"reps": 0, "weight_kg": 60, "status": "skipped"},
+                ],
+            }
+        ]
+        result = calculate_category_tonnage(exercises)
+        assert result[0]["tonnage_kg"] == 600.0
+        assert result[0]["set_count"] == 2  # Both counted as sets
+        assert result[0]["exercise_count"] == 1
+
+    def test_reduced_sets_included(self) -> None:
+        exercises = [
+            {
+                "name": "Bankdruecken",
+                "category": "push",
+                "sets": [
+                    {"reps": 6, "weight_kg": 60, "status": "reduced"},
+                ],
+            }
+        ]
+        result = calculate_category_tonnage(exercises)
+        assert result[0]["tonnage_kg"] == 360.0
+
+    def test_empty_exercises(self) -> None:
+        result = calculate_category_tonnage([])
+        assert result == []
+
+    def test_same_category_multiple_exercises(self) -> None:
+        exercises = [
+            {
+                "name": "Bankdruecken",
+                "category": "push",
+                "sets": [{"reps": 10, "weight_kg": 60, "status": "completed"}],
+            },
+            {
+                "name": "Schulterpressen",
+                "category": "push",
+                "sets": [{"reps": 8, "weight_kg": 40, "status": "completed"}],
+            },
+        ]
+        result = calculate_category_tonnage(exercises)
+        assert len(result) == 1
+        assert result[0]["category"] == "push"
+        assert result[0]["tonnage_kg"] == 920.0
+        assert result[0]["exercise_count"] == 2
 
 
 # --- Integration Tests: API ---

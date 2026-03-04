@@ -122,6 +122,11 @@ class ActualSession(BaseModel):
     distance_km: Optional[float] = None
     pace: Optional[str] = None
     planned_entry_id: Optional[int] = None  # S10: FK to planned_sessions
+    # Strength-specific fields (#149)
+    total_tonnage_kg: Optional[float] = None
+    exercise_count: Optional[int] = None
+    set_count: Optional[int] = None
+    template_name: Optional[str] = None
 
 
 class ComplianceDayEntry(BaseModel):
@@ -137,6 +142,34 @@ class ComplianceDayEntry(BaseModel):
         pattern="^(completed|partial|off_target|missed|rest_ok|unplanned|empty)$",
     )
     actual_sessions: list[ActualSession] = Field(default_factory=list)
+    # Strength planning details (#149)
+    planned_template_name: Optional[str] = None
+    planned_exercise_count: Optional[int] = None
+
+
+class CategoryTonnage(BaseModel):
+    """Tonnage breakdown for a single exercise category (#149)."""
+
+    category: str
+    tonnage_kg: float
+    exercise_count: int
+    set_count: int
+
+
+class WeeklyStrengthSummary(BaseModel):
+    """Aggregated strength metrics for the entire week (#149)."""
+
+    total_tonnage_kg: float
+    session_count: int
+    exercise_count: int
+    set_count: int
+    categories: list[CategoryTonnage] = Field(default_factory=list)
+    prev_week_tonnage_kg: Optional[float] = None
+    tonnage_delta_kg: Optional[float] = None
+    tonnage_delta_pct: Optional[float] = None
+    trend: Optional[str] = Field(
+        default=None, pattern="^(up|down|stable)$"
+    )
 
 
 class ComplianceResponse(BaseModel):
@@ -146,6 +179,7 @@ class ComplianceResponse(BaseModel):
     entries: list[ComplianceDayEntry]
     completed_count: int
     planned_count: int
+    strength_summary: Optional[WeeklyStrengthSummary] = None  # #149
 
 
 class SyncToPlanRequest(BaseModel):

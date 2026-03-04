@@ -25,6 +25,7 @@ from app.models.training_plan import (
 )
 from app.models.weekly_plan import (
     ActualSession,
+    CategoryTonnage,
     ComplianceDayEntry,
     ComplianceResponse,
     PlannedSession,
@@ -35,6 +36,11 @@ from app.models.weekly_plan import (
     WeeklyPlanEntry,
     WeeklyPlanResponse,
     WeeklyPlanSaveRequest,
+    WeeklyStrengthSummary,
+)
+from app.services.tonnage_calculator import (
+    calculate_category_tonnage,
+    calculate_strength_metrics,
 )
 
 router = APIRouter(prefix="/weekly-plan")
@@ -60,6 +66,32 @@ async def _get_template_names(
         )
     )
     return {row.id: str(row.name) for row in result.all()}  # type: ignore[union-attr]
+
+
+async def _get_template_exercise_counts(
+    db: AsyncSession,
+    template_ids: list[int],
+) -> dict[int, int]:
+    """Fetch exercise counts from templates (#149)."""
+    if not template_ids:
+        return {}
+    result = await db.execute(
+        select(SessionTemplateModel.id, SessionTemplateModel.exercises_json).where(
+            SessionTemplateModel.id.in_(template_ids)
+        )
+    )
+    counts: dict[int, int] = {}
+    for row in result.all():
+        ex_json = row.exercises_json  # type: ignore[union-attr]
+        if ex_json:
+            try:
+                exercises = json.loads(str(ex_json))
+                counts[row.id] = len(exercises)  # type: ignore[union-attr]
+            except (json.JSONDecodeError, TypeError):
+                counts[row.id] = 0  # type: ignore[union-attr]
+        else:
+            counts[row.id] = 0  # type: ignore[union-attr]
+    return counts
 
 
 def _parse_run_details(raw: Optional[str]) -> Optional[RunDetails]:
@@ -533,10 +565,33 @@ async def get_compliance(
         if 0 <= day_idx <= 6:
             workouts_by_day[day_idx].append(w)
 
+    # --- #149: Resolve planned strength template info ---
+    # Build map: planned_session_id -> (template_name, template_id)
+    planned_session_template_map: dict[int, tuple[str, int | None]] = {}
+    strength_template_ids: list[int] = []
+    for _dow, (_day, db_sessions) in days_data.items():
+        for s in db_sessions:
+            if str(s.training_type) == "strength" and s.template_id:
+                tid = int(s.template_id)
+                strength_template_ids.append(tid)
+
+    template_names = await _get_template_names(db, strength_template_ids)
+    template_exercise_counts = await _get_template_exercise_counts(db, strength_template_ids)
+
+    for _dow, (_day, db_sessions) in days_data.items():
+        for s in db_sessions:
+            if str(s.training_type) == "strength":
+                s_tid: Optional[int] = int(s.template_id) if s.template_id else None
+                tname = template_names.get(s_tid) if s_tid else None  # type: ignore[arg-type]
+                planned_session_template_map[int(s.id)] = (tname or "", s_tid)  # type: ignore[arg-type]
+
     # Build compliance entries
     entries: list[ComplianceDayEntry] = []
     completed_count = 0
     planned_count = 0
+    # Collect all strength workouts for weekly summary
+    all_strength_exercises: list[dict[str, object]] = []
+    strength_session_count = 0
 
     for day in range(7):
         day_date = week_start + timedelta(days=day)
@@ -544,13 +599,14 @@ async def get_compliance(
 
         planned_types: list[str] = []
         planned_run_type: Optional[str] = None
+        planned_template_name: Optional[str] = None
+        planned_exercise_count: Optional[int] = None
         is_rest = False
 
         if day in days_data:
             db_day, db_sessions = days_data[day]
             is_rest = bool(db_day.is_rest_day)
             for s in db_sessions:
-                # Skip sessions marked as 'skipped' for compliance
                 if str(s.status) == "skipped":
                     continue
                 planned_types.append(str(s.training_type))
@@ -558,6 +614,12 @@ async def get_compliance(
                     rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
                     if rd:
                         planned_run_type = rd.run_type
+                # #149: First planned strength session's template info
+                if str(s.training_type) == "strength" and planned_template_name is None:
+                    p_tid: Optional[int] = int(s.template_id) if s.template_id else None
+                    if p_tid:
+                        planned_template_name = template_names.get(p_tid)
+                        planned_exercise_count = template_exercise_counts.get(p_tid)
 
         has_plan = len(planned_types) > 0 or is_rest
         if has_plan:
@@ -567,18 +629,45 @@ async def get_compliance(
         if status in ("completed", "rest_ok"):
             completed_count += 1
 
-        actual = [
-            ActualSession(
-                session_id=int(w.id),  # type: ignore[arg-type]
-                workout_type=str(w.workout_type),
-                training_type_effective=_effective_training_type(w),
-                duration_sec=int(w.duration_sec) if w.duration_sec else None,
-                distance_km=float(w.distance_km) if w.distance_km else None,
-                pace=str(w.pace) if w.pace else None,
-                planned_entry_id=int(w.planned_entry_id) if w.planned_entry_id else None,  # type: ignore[arg-type]
+        # Build actual sessions with strength details (#149)
+        actual: list[ActualSession] = []
+        for w in day_workouts:
+            tonnage_kg: Optional[float] = None
+            ex_count: Optional[int] = None
+            set_count: Optional[int] = None
+            tpl_name: Optional[str] = None
+
+            if str(w.workout_type) == "strength" and w.exercises_json:
+                exercises_raw = json.loads(str(w.exercises_json))
+                metrics = calculate_strength_metrics(exercises_raw)
+                tonnage_kg = metrics["total_tonnage_kg"]
+                ex_count = metrics["total_exercises"]
+                set_count = metrics["total_sets"]
+                # Collect for weekly summary
+                all_strength_exercises.extend(exercises_raw)
+                strength_session_count += 1
+
+            # Resolve template name via planned_entry_id
+            if w.planned_entry_id:
+                entry_id = int(w.planned_entry_id)  # type: ignore[arg-type]
+                if entry_id in planned_session_template_map:
+                    tpl_name = planned_session_template_map[entry_id][0] or None
+
+            actual.append(
+                ActualSession(
+                    session_id=int(w.id),  # type: ignore[arg-type]
+                    workout_type=str(w.workout_type),
+                    training_type_effective=_effective_training_type(w),
+                    duration_sec=int(w.duration_sec) if w.duration_sec else None,
+                    distance_km=float(w.distance_km) if w.distance_km else None,
+                    pace=str(w.pace) if w.pace else None,
+                    planned_entry_id=int(w.planned_entry_id) if w.planned_entry_id else None,  # type: ignore[arg-type]
+                    total_tonnage_kg=tonnage_kg,
+                    exercise_count=ex_count,
+                    set_count=set_count,
+                    template_name=tpl_name,
+                )
             )
-            for w in day_workouts
-        ]
 
         entries.append(
             ComplianceDayEntry(
@@ -589,7 +678,67 @@ async def get_compliance(
                 is_rest_day=is_rest,
                 status=status,
                 actual_sessions=actual,
+                planned_template_name=planned_template_name,
+                planned_exercise_count=planned_exercise_count,
             )
+        )
+
+    # --- #149: Weekly Strength Summary ---
+    strength_summary: Optional[WeeklyStrengthSummary] = None
+    if strength_session_count > 0:
+        total_metrics = calculate_strength_metrics(all_strength_exercises)
+        cat_breakdown = calculate_category_tonnage(all_strength_exercises)
+
+        # Previous week comparison
+        prev_week_start = week_start - timedelta(days=7)
+        prev_week_end = week_start - timedelta(days=1)
+        prev_result = await db.execute(
+            select(WorkoutModel)
+            .where(
+                WorkoutModel.workout_type == "strength",
+                WorkoutModel.exercises_json.isnot(None),
+                WorkoutModel.date >= datetime.combine(prev_week_start, datetime.min.time()),
+                WorkoutModel.date <= datetime.combine(prev_week_end, datetime.max.time()),
+            )
+        )
+        prev_workouts = prev_result.scalars().all()
+
+        prev_tonnage: Optional[float] = None
+        delta_kg: Optional[float] = None
+        delta_pct: Optional[float] = None
+        trend: Optional[str] = None
+
+        if prev_workouts:
+            prev_exercises: list[dict[str, object]] = []
+            for pw in prev_workouts:
+                if pw.exercises_json:
+                    prev_exercises.extend(json.loads(str(pw.exercises_json)))
+            if prev_exercises:
+                prev_metrics = calculate_strength_metrics(prev_exercises)
+                prev_tonnage = prev_metrics["total_tonnage_kg"]
+                current_tonnage = total_metrics["total_tonnage_kg"]
+                delta_kg = round(current_tonnage - prev_tonnage, 1)
+                if prev_tonnage > 0:
+                    delta_pct = round((delta_kg / prev_tonnage) * 100, 1)
+                    if delta_pct > 10:
+                        trend = "up"
+                    elif delta_pct < -10:
+                        trend = "down"
+                    else:
+                        trend = "stable"
+
+        strength_summary = WeeklyStrengthSummary(
+            total_tonnage_kg=total_metrics["total_tonnage_kg"],
+            session_count=strength_session_count,
+            exercise_count=total_metrics["total_exercises"],
+            set_count=total_metrics["total_sets"],
+            categories=[
+                CategoryTonnage(**cat) for cat in cat_breakdown
+            ],
+            prev_week_tonnage_kg=prev_tonnage,
+            tonnage_delta_kg=delta_kg,
+            tonnage_delta_pct=delta_pct,
+            trend=trend,
         )
 
     return ComplianceResponse(
@@ -597,6 +746,7 @@ async def get_compliance(
         entries=entries,
         completed_count=completed_count,
         planned_count=planned_count,
+        strength_summary=strength_summary,
     )
 
 

@@ -30,3 +30,37 @@ def calculate_strength_metrics(exercises: list[dict[str, Any]]) -> dict[str, Any
         "total_tonnage_kg": round(total_tonnage, 1),
         "completed_sets": completed_sets,
     }
+
+
+def calculate_category_tonnage(exercises: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Berechnet Tonnage aufgeschluesselt nach Kategorie (push/pull/legs/core/...).
+
+    Args:
+        exercises: Liste von Exercise-Dicts (wie in exercises_json gespeichert)
+
+    Returns:
+        Sortierte Liste von Dicts mit category, tonnage_kg, exercise_count, set_count.
+        Sortierung: absteigend nach tonnage_kg.
+    """
+    categories: dict[str, dict[str, Any]] = {}
+
+    for exercise in exercises:
+        cat = exercise.get("category", "other")
+        if cat not in categories:
+            categories[cat] = {
+                "category": cat,
+                "tonnage_kg": 0.0,
+                "exercise_count": 0,
+                "set_count": 0,
+            }
+        categories[cat]["exercise_count"] += 1
+        for s in exercise.get("sets", []):
+            categories[cat]["set_count"] += 1
+            status = s.get("status", "completed")
+            if status in ("completed", "reduced"):
+                categories[cat]["tonnage_kg"] += s.get("reps", 0) * s.get("weight_kg", 0)
+
+    result = list(categories.values())
+    for entry in result:
+        entry["tonnage_kg"] = round(entry["tonnage_kg"], 1)
+    return sorted(result, key=lambda x: x["tonnage_kg"], reverse=True)
