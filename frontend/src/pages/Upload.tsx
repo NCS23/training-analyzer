@@ -23,7 +23,6 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import {
-  ActionBar,
   Button,
   Card,
   CardHeader,
@@ -524,9 +523,38 @@ export default function UploadPage() {
           {isStrength && (
             <Card elevation="raised">
               <CardHeader>
-                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                  Übungen ({exercises.length})
-                </h2>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                    Übungen ({exercises.length})
+                  </h2>
+                  {tonnage.total > 0 && (
+                    <div className="flex items-center gap-2" aria-live="polite">
+                      <span className="text-sm font-semibold tabular-nums text-[var(--color-text-base)]">
+                        {formatted.value}
+                        <span className="text-xs font-normal text-[var(--color-text-muted)] ml-0.5">
+                          {formatted.unit}
+                        </span>
+                      </span>
+                      {tonnageDelta !== null && tonnageDelta !== 0 && (
+                        <span
+                          className={`text-xs flex items-center gap-0.5 ${
+                            tonnageDelta > 0
+                              ? 'text-[var(--color-text-success)]'
+                              : 'text-[var(--color-text-error)]'
+                          }`}
+                        >
+                          {tonnageDelta > 0 ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          {tonnageDelta > 0 ? '+' : ''}
+                          {Math.round(tonnageDelta)} kg
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardBody className="space-y-4">
                 {exercises.map((ex, idx) => (
@@ -574,6 +602,26 @@ export default function UploadPage() {
                   </span>
                 ) : (
                   'Weiter'
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Submit (Strength) */}
+          {isStrength && (
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                onClick={handleCreateStrength}
+                disabled={!canSubmitStrength || creating}
+              >
+                {creating ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" aria-hidden="true" />
+                    Speichere...
+                  </span>
+                ) : (
+                  'Session anlegen'
                 )}
               </Button>
             </div>
@@ -678,56 +726,6 @@ export default function UploadPage() {
             </Button>
           </div>
         </>
-      )}
-
-      {/* Fixed Tonnage + Submit Bar (Strength only) — fixed to work with overflow-x-hidden parent */}
-      {isStrength && step === 0 && (
-        <ActionBar
-          sticky={false}
-          className="fixed bottom-[82px] left-0 right-0 lg:left-[224px] z-40"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--color-actionbar-text)]">Tonnage</span>
-            <span className="text-lg font-semibold tabular-nums text-[var(--color-text-base)]">
-              {formatted.value}
-              <span className="text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
-                {formatted.unit}
-              </span>
-            </span>
-            {tonnageDelta !== null && tonnageDelta !== 0 && (
-              <span
-                className={`text-xs flex items-center gap-0.5 ${
-                  tonnageDelta > 0
-                    ? 'text-[var(--color-text-success)]'
-                    : 'text-[var(--color-text-error)]'
-                }`}
-              >
-                {tonnageDelta > 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                {tonnageDelta > 0 ? '+' : ''}
-                {Math.round(tonnageDelta)} kg
-              </span>
-            )}
-          </div>
-          <Button
-            variant="primary"
-            onClick={handleCreateStrength}
-            disabled={!canSubmitStrength || creating}
-          >
-            {creating ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" aria-hidden="true" />
-                Speichere...
-              </span>
-            ) : (
-              'Session anlegen'
-            )}
-          </Button>
-        </ActionBar>
       )}
     </div>
   );
