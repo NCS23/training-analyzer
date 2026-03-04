@@ -1,30 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
-  CardHeader,
   CardBody,
   Button,
   Badge,
   Spinner,
   EmptyState,
   useToast,
-  Breadcrumbs,
-  BreadcrumbItem,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@nordlig/components';
-import {
-  Plus,
-  ChevronRight,
-  EllipsisVertical,
-  Copy,
-  Trash2,
-  ClipboardList,
-  Footprints,
-} from 'lucide-react';
+import { Plus, EllipsisVertical, Copy, Trash2, ClipboardList, Footprints } from 'lucide-react';
 import {
   listSessionTemplates,
   deleteSessionTemplate,
@@ -76,41 +65,31 @@ export function SessionTemplatesPage() {
   };
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
-      {/* Breadcrumbs + Header */}
-      <div className="space-y-2 pb-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
-            </Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Session-Templates</BreadcrumbItem>
-        </Breadcrumbs>
-        <header className="flex flex-wrap items-start justify-between gap-y-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              Session-Templates
-            </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Vorlagen für Kraft- und Lauftraining erstellen und verwalten.
-            </p>
-          </div>
-          <Button variant="primary" size="sm" onClick={() => navigate('/settings/templates/new')}>
-            <Plus className="w-4 h-4 mr-1" />
-            Neues Template
-          </Button>
-        </header>
-      </div>
-
+    <div className="space-y-6">
       {/* Template List */}
       <Card elevation="raised" padding="spacious">
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-            Templates ({templates.length})
-          </h2>
-        </CardHeader>
         <CardBody>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+              Vorlagen ({templates.length})
+            </h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Aktionen"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                >
+                  <EllipsisVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem icon={<Plus />} onSelect={() => navigate('/plan/templates/new')}>
+                  Neues Template
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
@@ -120,22 +99,18 @@ export function SessionTemplatesPage() {
               title="Noch keine Session-Templates"
               description="Erstelle dein erstes Template mit Übungen, Sätzen und Gewichten."
               action={
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate('/settings/templates/new')}
-                >
+                <Button variant="primary" size="sm" onClick={() => navigate('/plan/templates/new')}>
                   <Plus className="w-4 h-4 mr-1" />
                   Template erstellen
                 </Button>
               }
             />
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-3">
               {templates.map((tmpl) => (
                 <div
                   key={tmpl.id}
-                  className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
+                  className="flex items-center gap-3 p-3 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)] transition-colors motion-reduce:transition-none"
                 >
                   {tmpl.session_type === 'running' ? (
                     <Footprints className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
@@ -145,7 +120,7 @@ export function SessionTemplatesPage() {
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/settings/templates/${tmpl.id}`)}
+                    onClick={() => navigate(`/plan/templates/${tmpl.id}`)}
                     className="flex-1 min-w-0 text-left"
                     aria-label={`${tmpl.name} bearbeiten`}
                   >
@@ -159,7 +134,10 @@ export function SessionTemplatesPage() {
                     </span>
                   </button>
 
-                  <Badge variant="neutral" size="sm">
+                  <Badge
+                    variant={tmpl.session_type === 'strength' ? 'primary-bold' : 'accent'}
+                    size="sm"
+                  >
                     {tmpl.session_type === 'strength' ? 'Kraft' : 'Laufen'}
                   </Badge>
 

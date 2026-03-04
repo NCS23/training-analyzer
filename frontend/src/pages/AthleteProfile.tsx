@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   CardHeader,
@@ -12,12 +11,28 @@ import {
   AlertDescription,
   Spinner,
   useToast,
-  Breadcrumbs,
-  BreadcrumbItem,
 } from '@nordlig/components';
-import { ChevronRight } from 'lucide-react';
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
-import type { KarvonenZone } from '@/api/athlete';
+
+// Karvonen zone definitions — mirrors backend/app/services/hr_zone_calculator.py
+const KARVONEN_ZONES = [
+  { zone: 1, name: 'Recovery', pctMin: 0.5, pctMax: 0.6, color: '#94a3b8' },
+  { zone: 2, name: 'Base', pctMin: 0.6, pctMax: 0.7, color: '#10b981' },
+  { zone: 3, name: 'Tempo', pctMin: 0.7, pctMax: 0.8, color: '#f59e0b' },
+  { zone: 4, name: 'Threshold', pctMin: 0.8, pctMax: 0.9, color: '#f97316' },
+  { zone: 5, name: 'VO2max', pctMin: 0.9, pctMax: 1.0, color: '#ef4444' },
+] as const;
+
+/** Compute Karvonen zones client-side (mirrors backend formula). */
+function calculateKarvonenZones(rhr: number, mhr: number) {
+  return KARVONEN_ZONES.map((z) => ({
+    zone: z.zone,
+    name: z.name,
+    color: z.color,
+    lower_bpm: Math.round(rhr + (mhr - rhr) * z.pctMin),
+    upper_bpm: Math.round(rhr + (mhr - rhr) * z.pctMax),
+  }));
+}
 
 export function AthleteProfilePage() {
   const { toast } = useToast();
@@ -25,16 +40,35 @@ export function AthleteProfilePage() {
   // HR state
   const [restingHr, setRestingHr] = useState('');
   const [maxHr, setMaxHr] = useState('');
-  const [zones, setZones] = useState<KarvonenZone[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track saved HR values for dirty detection
+  const savedHrRef = useRef({ restingHr: '', maxHr: '' });
 
   // Elevation state
   const [gainFactor, setGainFactor] = useState('10.0');
   const [lossFactor, setLossFactor] = useState('5.0');
   const [elevSaving, setElevSaving] = useState(false);
   const [elevError, setElevError] = useState<string | null>(null);
+
+  // Track saved elevation values for dirty detection
+  const savedElevRef = useRef({ gainFactor: '10.0', lossFactor: '5.0' });
+
+  // Live-preview: compute zones from current input values
+  const liveZones = useMemo(() => {
+    const rhr = parseInt(restingHr, 10);
+    const mhr = parseInt(maxHr, 10);
+    if (isNaN(rhr) || isNaN(mhr) || rhr >= mhr) return null;
+    return calculateKarvonenZones(rhr, mhr);
+  }, [restingHr, maxHr]);
+
+  // Dirty detection
+  const hrDirty = restingHr !== savedHrRef.current.restingHr || maxHr !== savedHrRef.current.maxHr;
+  const elevDirty =
+    gainFactor !== savedElevRef.current.gainFactor ||
+    lossFactor !== savedElevRef.current.lossFactor;
 
   useEffect(() => {
     loadSettings();
@@ -43,11 +77,16 @@ export function AthleteProfilePage() {
   const loadSettings = async () => {
     try {
       const settings = await getAthleteSettings();
-      setRestingHr(settings.resting_hr?.toString() || '');
-      setMaxHr(settings.max_hr?.toString() || '');
-      setGainFactor(settings.elevation_gain_factor.toString());
-      setLossFactor(settings.elevation_loss_factor.toString());
-      setZones(settings.karvonen_zones);
+      const rhr = settings.resting_hr?.toString() || '';
+      const mhr = settings.max_hr?.toString() || '';
+      const gf = settings.elevation_gain_factor.toString();
+      const lf = settings.elevation_loss_factor.toString();
+      setRestingHr(rhr);
+      setMaxHr(mhr);
+      setGainFactor(gf);
+      setLossFactor(lf);
+      savedHrRef.current = { restingHr: rhr, maxHr: mhr };
+      savedElevRef.current = { gainFactor: gf, lossFactor: lf };
     } catch {
       setError('Einstellungen konnten nicht geladen werden');
     } finally {
@@ -72,8 +111,8 @@ export function AthleteProfilePage() {
     setError(null);
 
     try {
-      const result = await updateAthleteSettings({ resting_hr: rhr, max_hr: mhr });
-      setZones(result.karvonen_zones);
+      await updateAthleteSettings({ resting_hr: rhr, max_hr: mhr });
+      savedHrRef.current = { restingHr, maxHr };
       toast({ title: 'Herzfrequenz gespeichert', variant: 'success' });
     } catch {
       setError('Speichern fehlgeschlagen');
@@ -103,6 +142,7 @@ export function AthleteProfilePage() {
         elevation_gain_factor: gf,
         elevation_loss_factor: lf,
       });
+      savedElevRef.current = { gainFactor, lossFactor };
       toast({ title: 'Höhenkorrektur gespeichert', variant: 'success' });
     } catch {
       setElevError('Speichern fehlgeschlagen');
@@ -121,24 +161,14 @@ export function AthleteProfilePage() {
 
   return (
     <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
-      <div className="space-y-2 pb-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
-            </Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Athletenprofil</BreadcrumbItem>
-        </Breadcrumbs>
-        <header>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-            Athletenprofil
-          </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Herzfrequenz-Zonen und Höhenkorrektur konfigurieren.
-          </p>
-        </header>
-      </div>
+      <header className="pb-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
+          Athletenprofil
+        </h1>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Herzfrequenz-Zonen und Höhenkorrektur konfigurieren.
+        </p>
+      </header>
 
       {/* HR Settings */}
       <Card elevation="raised" padding="spacious">
@@ -178,12 +208,46 @@ export function AthleteProfilePage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          {/* Karvonen Zones — live preview from current inputs */}
+          {liveZones && (
+            <div className="mt-6 pt-6 border-t border-[var(--color-border-default)]">
+              <h3 className="text-sm font-semibold text-[var(--color-text-base)] mb-3">
+                Karvonen-Zonen (5 Zonen)
+              </h3>
+              <div className="space-y-2">
+                {liveZones.map((zone) => (
+                  <div
+                    key={zone.zone}
+                    className="flex items-center justify-between py-2 px-3 rounded-[var(--radius-component-sm)]"
+                    style={{ backgroundColor: `${zone.color}15` }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: zone.color }}
+                      />
+                      <span className="text-sm font-medium text-[var(--color-text-base)]">
+                        Zone {zone.zone}: {zone.name}
+                      </span>
+                    </div>
+                    <span className="text-sm text-[var(--color-text-muted)]">
+                      {zone.lower_bpm}–{zone.upper_bpm} bpm
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--color-text-muted)] mt-3">
+                Berechnet via Karvonen-Formel: HR = Ruhe-HR + (Max-HR − Ruhe-HR) × Intensität%
+              </p>
+            </div>
+          )}
         </CardBody>
         <CardFooter className="justify-end pt-4">
           <Button
             variant="primary"
             onClick={handleSaveHR}
-            disabled={saving || !restingHr || !maxHr}
+            disabled={saving || !restingHr || !maxHr || !hrDirty}
           >
             {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
           </Button>
@@ -241,50 +305,12 @@ export function AthleteProfilePage() {
           <Button
             variant="primary"
             onClick={handleSaveElevation}
-            disabled={elevSaving || !gainFactor || !lossFactor}
+            disabled={elevSaving || !gainFactor || !lossFactor || !elevDirty}
           >
             {elevSaving ? <Spinner size="sm" aria-hidden="true" /> : 'Speichern'}
           </Button>
         </CardFooter>
       </Card>
-
-      {/* Karvonen Zones Preview */}
-      {zones && (
-        <Card elevation="raised" padding="spacious">
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-              Karvonen-Zonen (5 Zonen)
-            </h2>
-          </CardHeader>
-          <CardBody>
-            <div className="space-y-2">
-              {zones.map((zone) => (
-                <div
-                  key={zone.zone}
-                  className="flex items-center justify-between py-2 px-3 rounded-[var(--radius-component-sm)]"
-                  style={{ backgroundColor: `${zone.color}15` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: zone.color }}
-                    />
-                    <span className="text-sm font-medium text-[var(--color-text-base)]">
-                      Zone {zone.zone}: {zone.name}
-                    </span>
-                  </div>
-                  <span className="text-sm text-[var(--color-text-muted)]">
-                    {zone.lower_bpm}-{zone.upper_bpm} bpm
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-4">
-              Berechnet via Karvonen-Formel: HR = Ruhe-HR + (Max-HR - Ruhe-HR) × Intensität%
-            </p>
-          </CardBody>
-        </Card>
-      )}
     </div>
   );
 }

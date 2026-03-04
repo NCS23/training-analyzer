@@ -487,7 +487,7 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
           )}
 
           {/* Date metrics */}
-          <div className="space-y-2">
+          <div className="space-y-2 pt-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               Zeitraum
             </h2>

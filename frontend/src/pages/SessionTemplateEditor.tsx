@@ -15,6 +15,10 @@ import {
   useToast,
   Breadcrumbs,
   BreadcrumbItem,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '@nordlig/components';
 import {
   Dumbbell,
@@ -22,11 +26,12 @@ import {
   Plus,
   Trash2,
   Save,
-  ArrowLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   GripVertical,
+  Pencil,
+  EllipsisVertical,
 } from 'lucide-react';
 import {
   createSessionTemplate,
@@ -143,6 +148,8 @@ export function SessionTemplateEditorPage() {
   const { templateId } = useParams<{ templateId: string }>();
   const { toast } = useToast();
   const isEdit = templateId != null && templateId !== 'new';
+  const [editMode, setEditMode] = useState(false);
+  const isEditing = !isEdit || editMode;
 
   // Form state — shared
   const [templateName, setTemplateName] = useState('');
@@ -192,7 +199,7 @@ export function SessionTemplateEditorPage() {
         }
       } catch {
         toast({ title: 'Template nicht gefunden', variant: 'error' });
-        navigate('/settings/templates');
+        navigate('/plan/templates');
       } finally {
         setLoading(false);
       }
@@ -354,7 +361,7 @@ export function SessionTemplateEditorPage() {
       }
 
       toast({ title: isEdit ? 'Template aktualisiert' : 'Template erstellt', variant: 'success' });
-      navigate('/settings/templates');
+      navigate('/plan/templates');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern.');
     } finally {
@@ -387,40 +394,58 @@ export function SessionTemplateEditorPage() {
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
+            <Link to="/plan" className="hover:underline underline-offset-2">
+              Plan
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem>
-            <Link to="/settings/templates" className="hover:underline underline-offset-2">
-              Session-Templates
+            <Link to="/plan/templates" className="hover:underline underline-offset-2">
+              Vorlagen
             </Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>{isEdit ? 'Bearbeiten' : 'Neues Template'}</BreadcrumbItem>
+          <BreadcrumbItem isCurrent>
+            {isEdit ? templateName || 'Template' : 'Neues Template'}
+          </BreadcrumbItem>
         </Breadcrumbs>
-        <header className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/settings/templates')}
-            aria-label="Zurück"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+        <header className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              {isEdit ? 'Template bearbeiten' : 'Neues Session-Template'}
+              {!isEdit
+                ? 'Neues Session-Template'
+                : isEditing
+                  ? 'Template bearbeiten'
+                  : templateName}
             </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              {sessionType === 'strength'
-                ? 'Übungen, Sätze und Gewichte als Vorlage definieren.'
-                : 'Lauftyp, Dauer, Pace und Segmente als Vorlage definieren.'}
-            </p>
+            {isEditing && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                {sessionType === 'strength'
+                  ? 'Übungen, Sätze und Gewichte als Vorlage definieren.'
+                  : 'Lauftyp, Dauer, Pace und Segmente als Vorlage definieren.'}
+              </p>
+            )}
           </div>
+          {isEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
+                  <EllipsisVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  icon={<Pencil />}
+                  disabled={isEditing}
+                  onSelect={() => setEditMode(true)}
+                >
+                  Bearbeiten
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </header>
       </div>
 
-      {error && (
+      {isEditing && error && (
         <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -429,91 +454,102 @@ export function SessionTemplateEditorPage() {
       {/* Template Meta */}
       <Card elevation="raised" padding="spacious">
         <CardBody>
-          <div className="space-y-4">
-            {/* Session Type Selector — only for new templates */}
-            {!isEdit && (
-              <div>
-                <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-                  Trainingsart
-                </Label>
-                <div className="flex gap-2">
-                  {SESSION_TYPE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setSessionType(opt.value)}
-                      className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-sm rounded-[var(--radius-component-md)] border transition-colors duration-150 motion-reduce:transition-none ${
-                        sessionType === opt.value
-                          ? 'border-[var(--color-border-focus)] bg-[var(--color-bg-primary-subtle)] text-[var(--color-text-primary)] font-medium'
-                          : 'border-[var(--color-border-default)] bg-[var(--color-bg-base)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
-                      }`}
-                      aria-pressed={sessionType === opt.value}
-                    >
-                      {opt.icon === 'dumbbell' ? (
-                        <Dumbbell className="w-4 h-4" />
-                      ) : (
-                        <Footprints className="w-4 h-4" />
-                      )}
-                      {opt.label}
-                    </button>
-                  ))}
+          {isEditing ? (
+            <div className="space-y-4">
+              {/* Session Type Selector — only for new templates */}
+              {!isEdit && (
+                <div>
+                  <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+                    Trainingsart
+                  </Label>
+                  <div className="flex gap-2">
+                    {SESSION_TYPE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSessionType(opt.value)}
+                        className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] text-sm rounded-[var(--radius-component-md)] border transition-colors duration-150 motion-reduce:transition-none ${
+                          sessionType === opt.value
+                            ? 'border-[var(--color-border-focus)] bg-[var(--color-bg-primary-subtle)] text-[var(--color-text-primary)] font-medium'
+                            : 'border-[var(--color-border-default)] bg-[var(--color-bg-base)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
+                        }`}
+                        aria-pressed={sessionType === opt.value}
+                      >
+                        {opt.icon === 'dumbbell' ? (
+                          <Dumbbell className="w-4 h-4" />
+                        ) : (
+                          <Footprints className="w-4 h-4" />
+                        )}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Edit mode: show locked session type badge */}
-            {isEdit && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Trainingsart:
+              {/* Edit mode: show locked session type badge */}
+              {isEdit && (
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                    Trainingsart:
+                  </Label>
+                  <Badge variant="neutral" size="sm">
+                    {sessionType === 'strength' ? 'Kraft' : 'Laufen'}
+                  </Badge>
+                </div>
+              )}
+
+              <div>
+                <Label
+                  htmlFor="template-name"
+                  className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
+                >
+                  Template-Name
                 </Label>
-                <Badge variant="neutral" size="sm">
-                  {sessionType === 'strength' ? 'Kraft' : 'Laufen'}
-                </Badge>
+                <Input
+                  id="template-name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder={
+                    sessionType === 'strength'
+                      ? 'z.B. Studio Tag 1 — Kniedominant'
+                      : 'z.B. Intervall 4×3min'
+                  }
+                  inputSize="md"
+                />
               </div>
-            )}
-
-            <div>
-              <Label
-                htmlFor="template-name"
-                className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
-              >
-                Template-Name
-              </Label>
-              <Input
-                id="template-name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={
-                  sessionType === 'strength'
-                    ? 'z.B. Studio Tag 1 — Kniedominant'
-                    : 'z.B. Intervall 4×3min'
-                }
-                inputSize="md"
-              />
+              <div>
+                <Label
+                  htmlFor="template-description"
+                  className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
+                >
+                  Beschreibung (optional)
+                </Label>
+                <textarea
+                  id="template-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Fokus, Ziele, Hinweise…"
+                  rows={2}
+                  className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
+                />
+              </div>
             </div>
-            <div>
-              <Label
-                htmlFor="template-description"
-                className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]"
-              >
-                Beschreibung (optional)
-              </Label>
-              <textarea
-                id="template-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Fokus, Ziele, Hinweise…"
-                rows={2}
-                className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
-              />
+          ) : (
+            <div className="space-y-2">
+              <Badge variant="neutral" size="sm">
+                {sessionType === 'strength' ? 'Kraft' : 'Laufen'}
+              </Badge>
+              {description && (
+                <p className="text-sm text-[var(--color-text-muted)]">{description}</p>
+              )}
             </div>
-          </div>
+          )}
         </CardBody>
       </Card>
 
-      {/* ===== STRENGTH: Exercise Editor ===== */}
-      {sessionType === 'strength' && (
+      {/* ===== STRENGTH ===== */}
+      {sessionType === 'strength' && isEditing && (
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
             Übungen ({exercises.filter((e) => e.name.trim()).length})
@@ -764,8 +800,64 @@ export function SessionTemplateEditorPage() {
         </div>
       )}
 
+      {/* ===== STRENGTH: Read-Only ===== */}
+      {sessionType === 'strength' && !isEditing && (
+        <Card elevation="raised" padding="spacious">
+          <CardBody>
+            <h2 className="text-sm font-semibold text-[var(--color-text-base)] mb-3">
+              Übungen ({exercises.filter((e) => e.name.trim()).length})
+            </h2>
+            {exercises.filter((e) => e.name.trim()).length === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
+                Keine Übungen definiert.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {exercises
+                  .filter((e) => e.name.trim())
+                  .map((exercise, idx) => (
+                    <div
+                      key={exercise.id ?? `ro-${idx}`}
+                      className="py-2 px-3 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-surface)] space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-[var(--color-text-base)] truncate">
+                            {exercise.name}
+                          </span>
+                          <Badge
+                            variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
+                            size="xs"
+                          >
+                            {CATEGORY_LABELS[exercise.category] ?? exercise.category}
+                          </Badge>
+                          {exercise.exercise_type !== 'kraft' && (
+                            <Badge variant="neutral" size="xs">
+                              {EXERCISE_TYPE_OPTIONS.find((t) => t.value === exercise.exercise_type)
+                                ?.label ?? exercise.exercise_type}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-sm text-[var(--color-text-muted)] shrink-0 ml-2">
+                          {exercise.sets}×{exercise.reps}
+                          {exercise.weight_kg > 0 ? ` @ ${exercise.weight_kg} kg` : ''}
+                        </span>
+                      </div>
+                      {exercise.notes && (
+                        <p className="text-xs text-[var(--color-text-muted)] italic">
+                          {exercise.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
       {/* ===== RUNNING: Run Details Editor ===== */}
-      {sessionType === 'running' && (
+      {sessionType === 'running' && isEditing && (
         <Card elevation="raised" padding="spacious">
           <CardBody>
             <div className="space-y-4">
@@ -796,19 +888,126 @@ export function SessionTemplateEditorPage() {
         </Card>
       )}
 
-      {/* Submit */}
-      <div className="sticky bottom-4 z-10">
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={submitting || !templateName.trim()}
-          className="w-full"
-          size="lg"
-        >
-          {submitting ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          {submitting ? 'Speichern...' : isEdit ? 'Template aktualisieren' : 'Template erstellen'}
-        </Button>
-      </div>
+      {/* ===== RUNNING: Read-Only ===== */}
+      {sessionType === 'running' && !isEditing && (
+        <Card elevation="raised" padding="spacious">
+          <CardBody>
+            <h2 className="text-sm font-semibold text-[var(--color-text-base)] mb-3">
+              Lauf-Details
+            </h2>
+            <div className="space-y-3">
+              {/* Run type + overall metrics */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="neutral" size="sm">
+                    {RUN_TYPE_OPTIONS.find((o) => o.value === runType)?.label ?? runType}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4 mt-2">
+                  {runDetails?.target_duration_minutes != null && (
+                    <div>
+                      <span className="block text-xs text-[var(--color-text-muted)]">Dauer</span>
+                      <p className="text-sm text-[var(--color-text-base)]">
+                        {runDetails.target_duration_minutes} min
+                      </p>
+                    </div>
+                  )}
+                  {(runDetails?.target_pace_min || runDetails?.target_pace_max) && (
+                    <div>
+                      <span className="block text-xs text-[var(--color-text-muted)]">Pace</span>
+                      <p className="text-sm text-[var(--color-text-base)]">
+                        {runDetails.target_pace_min ?? '?'} – {runDetails.target_pace_max ?? '?'}{' '}
+                        min/km
+                      </p>
+                    </div>
+                  )}
+                  {(runDetails?.target_hr_min != null || runDetails?.target_hr_max != null) && (
+                    <div>
+                      <span className="block text-xs text-[var(--color-text-muted)]">
+                        Herzfrequenz
+                      </span>
+                      <p className="text-sm text-[var(--color-text-base)]">
+                        {runDetails?.target_hr_min ?? '?'} – {runDetails?.target_hr_max ?? '?'} bpm
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Intervals */}
+              {runDetails?.intervals && runDetails.intervals.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-[var(--color-text-base)] mb-2">
+                    Segmente ({runDetails.intervals.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {runDetails.intervals.map((interval, iIdx) => {
+                      const typeLabel: Record<string, string> = {
+                        warmup: 'Einlaufen',
+                        cooldown: 'Auslaufen',
+                        steady: 'Steady',
+                        work: 'Belastung',
+                        recovery_jog: 'Trab-Pause',
+                        rest: 'Pause',
+                        strides: 'Steigerungen',
+                        drills: 'Lauf-ABC',
+                      };
+                      return (
+                        <div
+                          key={iIdx}
+                          className="flex items-center justify-between py-1.5 px-3 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-surface)]"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-medium text-[var(--color-text-base)]">
+                              {typeLabel[interval.type] ?? interval.type}
+                            </span>
+                            {interval.repeats > 1 && (
+                              <span className="text-xs text-[var(--color-text-muted)]">
+                                ×{interval.repeats}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] shrink-0 ml-2">
+                            {interval.duration_minutes != null && (
+                              <span>{interval.duration_minutes} min</span>
+                            )}
+                            {interval.distance_km != null && <span>{interval.distance_km} km</span>}
+                            {(interval.target_pace_min || interval.target_pace_max) && (
+                              <span>
+                                {interval.target_pace_min ?? '?'}–{interval.target_pace_max ?? '?'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Submit — only in edit mode */}
+      {isEditing && (
+        <div className="sticky bottom-4 z-10">
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={submitting || !templateName.trim()}
+            className="w-full"
+            size="lg"
+          >
+            {submitting ? (
+              <Spinner size="sm" className="mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {submitting ? 'Speichern...' : isEdit ? 'Template aktualisieren' : 'Template erstellen'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

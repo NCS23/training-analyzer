@@ -20,13 +20,14 @@ export const PHASE_TYPES: { value: PhaseType; label: string }[] = [
   { value: 'transition', label: 'Übergang' },
 ];
 
-export const PHASE_COLORS: Record<PhaseType, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
-  base: 'neutral',
-  build: 'info',
-  peak: 'success',
-  taper: 'warning',
-  transition: 'error',
-};
+export const PHASE_COLORS: Record<PhaseType, 'neutral' | 'info' | 'success' | 'warning' | 'error'> =
+  {
+    base: 'neutral',
+    build: 'info',
+    peak: 'success',
+    taper: 'warning',
+    transition: 'error',
+  };
 
 export const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
   { value: 'draft', label: 'Entwurf' },
@@ -35,12 +36,13 @@ export const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
   { value: 'paused', label: 'Pausiert' },
 ];
 
-export const STATUS_BADGE_VARIANTS: Record<PlanStatus, 'neutral' | 'info' | 'success' | 'warning'> = {
-  draft: 'neutral',
-  active: 'success',
-  completed: 'info',
-  paused: 'warning',
-};
+export const STATUS_BADGE_VARIANTS: Record<PlanStatus, 'neutral' | 'info' | 'success' | 'warning'> =
+  {
+    draft: 'neutral',
+    active: 'success',
+    completed: 'info',
+    paused: 'warning',
+  };
 
 export const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
