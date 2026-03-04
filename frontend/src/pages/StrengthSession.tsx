@@ -29,7 +29,12 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { createStrengthSession, getLastCompleteStrengthSession } from '@/api/strength';
-import type { ExerciseCategory, ExerciseInput, LastCompleteSession, SetStatus } from '@/api/strength';
+import type {
+  ExerciseCategory,
+  ExerciseInput,
+  LastCompleteSession,
+  SetStatus,
+} from '@/api/strength';
 import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
@@ -483,12 +488,7 @@ export function StrengthSessionPage() {
 
       {/* Clone last session */}
       {lastSession && (
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleCloneLastSession}
-          className="w-full"
-        >
+        <Button variant="secondary" size="sm" onClick={handleCloneLastSession} className="w-full">
           <RotateCcw className="w-4 h-4 mr-2" />
           Letztes Training übernehmen ({lastSession.date})
         </Button>
@@ -723,7 +723,10 @@ export function StrengthSessionPage() {
                 {exercise.collapsed && exercise.name && (
                   <p className="text-sm text-[var(--color-text-muted)]">
                     {exercise.sets.length} Sätze ·{' '}
-                    {exercise.sets.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.reps, 0)} Reps ·{' '}
+                    {exercise.sets
+                      .filter((s) => s.status !== 'skipped')
+                      .reduce((sum, s) => sum + s.reps, 0)}{' '}
+                    Reps ·{' '}
                     {Math.round(
                       exercise.sets
                         .filter((s) => s.status !== 'skipped')
