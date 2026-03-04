@@ -427,7 +427,7 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
 
           {/* Goal section */}
           {goal && (
-            <div className="space-y-2">
+            <div className="space-y-2 pt-4">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Ziel
                 <span className="font-normal normal-case tracking-normal ml-1">
