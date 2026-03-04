@@ -1,19 +1,51 @@
+import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@nordlig/components';
-import { CalendarDays, LayoutDashboard, Dumbbell, TrendingUp, Settings } from 'lucide-react';
+import {
+  CalendarDays,
+  LayoutDashboard,
+  Dumbbell,
+  TrendingUp,
+  User,
+  ChevronDown,
+  Calendar,
+  Target,
+  BookOpen,
+  ClipboardList,
+  Library,
+} from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  children?: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean }[];
+}
+
+const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
   { to: '/analyse', label: 'Analyse', icon: TrendingUp },
-  { to: '/plan', label: 'Wochenplan', icon: CalendarDays },
-  { to: '/settings', label: 'Einstellungen', icon: Settings },
+  {
+    to: '/plan',
+    label: 'Plan',
+    icon: CalendarDays,
+    children: [
+      { to: '/plan', label: 'Woche', icon: Calendar, end: true },
+      { to: '/plan/goals', label: 'Ziele', icon: Target },
+      { to: '/plan/programs', label: 'Programme', icon: BookOpen },
+      { to: '/plan/templates', label: 'Vorlagen', icon: ClipboardList },
+      { to: '/plan/exercises', label: 'Übungen', icon: Library },
+    ],
+  },
+  { to: '/profile', label: 'Profil', icon: User },
 ];
 
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [planExpanded, setPlanExpanded] = useState(location.pathname.startsWith('/plan'));
 
   return (
     <nav className="fixed top-0 bottom-0 left-0 z-[100] hidden w-[224px] flex-col overflow-y-auto border-r border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-sm)] lg:flex">
@@ -29,21 +61,82 @@ function Sidebar() {
       </div>
 
       {/* Nav items */}
-      {navItems.map(({ to, label, icon }) => {
-        const isActive = location.pathname.startsWith(to);
+      {navItems.map((item) => {
+        const isActive = item.children
+          ? location.pathname.startsWith(item.to)
+          : location.pathname.startsWith(item.to);
+
+        if (item.children) {
+          return (
+            <div key={item.to}>
+              {/* Parent item with expand toggle */}
+              <button
+                onClick={() => {
+                  if (!location.pathname.startsWith('/plan')) {
+                    navigate('/plan');
+                    setPlanExpanded(true);
+                  } else {
+                    setPlanExpanded((prev) => !prev);
+                  }
+                }}
+                className={`relative flex w-full items-center gap-[var(--spacing-xs)] px-5 py-[9px] text-[13.5px] select-none transition-colors duration-150 motion-reduce:transition-none ${
+                  isActive
+                    ? 'bg-[var(--color-bg-primary-subtle)] font-medium text-[var(--color-text-primary)]'
+                    : 'font-normal text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-base)]'
+                }`}
+              >
+                <Icon icon={item.icon} size="sm" />
+                {item.label}
+                <ChevronDown
+                  className={`ml-auto h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none ${
+                    planExpanded ? 'rotate-0' : '-rotate-90'
+                  }`}
+                />
+                {isActive && (
+                  <span className="absolute right-0 top-1 bottom-1 w-[3px] rounded-l-sm bg-[var(--color-interactive-primary)]" />
+                )}
+              </button>
+
+              {/* Sub-items */}
+              {planExpanded && (
+                <div className="pb-1">
+                  {item.children.map((child) => {
+                    const childActive = child.end
+                      ? location.pathname === child.to
+                      : location.pathname.startsWith(child.to);
+                    return (
+                      <button
+                        key={child.to}
+                        onClick={() => navigate(child.to)}
+                        className={`flex w-full items-center gap-[var(--spacing-xs)] py-[7px] pl-10 pr-5 text-[12.5px] select-none transition-colors duration-150 motion-reduce:transition-none ${
+                          childActive
+                            ? 'font-medium text-[var(--color-text-primary)]'
+                            : 'font-normal text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]'
+                        }`}
+                      >
+                        <child.icon className="h-3.5 w-3.5 shrink-0" />
+                        {child.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
         return (
           <button
-            key={to}
-            onClick={() => navigate(to)}
+            key={item.to}
+            onClick={() => navigate(item.to)}
             className={`relative flex items-center gap-[var(--spacing-xs)] px-5 py-[9px] text-[13.5px] select-none transition-colors duration-150 motion-reduce:transition-none ${
               isActive
                 ? 'bg-[var(--color-bg-primary-subtle)] font-medium text-[var(--color-text-primary)]'
                 : 'font-normal text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-base)]'
             }`}
           >
-            <Icon icon={icon} size="sm" />
-            {label}
-            {/* Right-side active bar */}
+            <Icon icon={item.icon} size="sm" />
+            {item.label}
             {isActive && (
               <span className="absolute right-0 top-1 bottom-1 w-[3px] rounded-l-sm bg-[var(--color-interactive-primary)]" />
             )}

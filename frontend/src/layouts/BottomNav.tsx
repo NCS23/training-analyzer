@@ -6,7 +6,7 @@ const navItems = [
   { to: '/sessions', label: 'Sessions', icon: Activity },
   { to: '/analyse', label: 'Analyse', icon: TrendingUp },
   { to: '/plan', label: 'Plan', icon: CalendarDays },
-  { to: '/settings', label: 'Profil', icon: User },
+  { to: '/profile', label: 'Profil', icon: User },
 ];
 
 export function BottomNav() {

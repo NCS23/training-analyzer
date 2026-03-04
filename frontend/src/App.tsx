@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Spinner, ToastProvider } from '@nordlig/components';
 import { AppLayout } from './layouts/AppLayout';
+import { PlanLayout } from './layouts/PlanLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Global Error Boundary                                              */
@@ -75,9 +76,6 @@ const SessionDetailPage = lazy(() =>
   import('./pages/SessionDetail').then((m) => ({ default: m.SessionDetailPage })),
 );
 const UploadPage = lazy(() => import('./pages/Upload'));
-const SettingsPage = lazy(() =>
-  import('./pages/Settings').then((m) => ({ default: m.SettingsPage })),
-);
 const StrengthSessionPage = lazy(() =>
   import('./pages/StrengthSession').then((m) => ({ default: m.StrengthSessionPage })),
 );
@@ -141,21 +139,41 @@ function App() {
                     element={<Navigate to="/analyse" replace />}
                   />
                   <Route path="/balance" element={<Navigate to="/analyse" replace />} />
-                  <Route path="/plan" element={<WeeklyPlanPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/settings/exercises" element={<ExerciseLibraryPage />} />
-                  <Route path="/settings/exercises/:exerciseId" element={<ExerciseDetailPage />} />
-                  <Route path="/settings/plans" element={<TrainingPlansPage />} />
-                  <Route path="/settings/plans/new" element={<TrainingPlanEditorPage />} />
-                  <Route path="/settings/plans/:planId" element={<TrainingPlanEditorPage />} />
-                  <Route path="/settings/templates" element={<SessionTemplatesPage />} />
-                  <Route path="/settings/templates/new" element={<SessionTemplateEditorPage />} />
+
+                  {/* Plan Hub with tabs */}
+                  <Route path="/plan" element={<PlanLayout />}>
+                    <Route index element={<WeeklyPlanPage />} />
+                    <Route path="goals" element={<GoalsPage />} />
+                    <Route path="programs" element={<TrainingPlansPage />} />
+                    <Route path="programs/new" element={<TrainingPlanEditorPage />} />
+                    <Route path="programs/:planId" element={<TrainingPlanEditorPage />} />
+                    <Route path="templates" element={<SessionTemplatesPage />} />
+                    <Route path="templates/new" element={<SessionTemplateEditorPage />} />
+                    <Route path="templates/:templateId" element={<SessionTemplateEditorPage />} />
+                    <Route path="exercises" element={<ExerciseLibraryPage />} />
+                    <Route path="exercises/:exerciseId" element={<ExerciseDetailPage />} />
+                  </Route>
+
+                  {/* Profil (formerly Einstellungen > Athletenprofil) */}
+                  <Route path="/profile" element={<AthleteProfilePage />} />
+
+                  {/* Redirects for old /settings paths */}
+                  <Route path="/settings" element={<Navigate to="/plan" replace />} />
                   <Route
-                    path="/settings/templates/:templateId"
-                    element={<SessionTemplateEditorPage />}
+                    path="/settings/plans/*"
+                    element={<Navigate to="/plan/programs" replace />}
                   />
-                  <Route path="/settings/goals" element={<GoalsPage />} />
-                  <Route path="/settings/athlete" element={<AthleteProfilePage />} />
+                  <Route
+                    path="/settings/templates/*"
+                    element={<Navigate to="/plan/templates" replace />}
+                  />
+                  <Route
+                    path="/settings/exercises/*"
+                    element={<Navigate to="/plan/exercises" replace />}
+                  />
+                  <Route path="/settings/goals" element={<Navigate to="/plan/goals" replace />} />
+                  <Route path="/settings/athlete" element={<Navigate to="/profile" replace />} />
+
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Routes>

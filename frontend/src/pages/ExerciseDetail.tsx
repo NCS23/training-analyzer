@@ -155,12 +155,12 @@ export function ExerciseDetailPage() {
         const params = new URLSearchParams(window.location.search);
         if (params.get('edit') === 'true') {
           enterEditMode(ex);
-          navigate(`/settings/exercises/${exerciseId}`, { replace: true });
+          navigate(`/plan/exercises/${exerciseId}`, { replace: true });
         }
       })
       .catch(() => {
         toast({ title: 'Übung nicht gefunden', variant: 'error' });
-        navigate('/settings/exercises');
+        navigate('/plan/exercises');
       })
       .finally(() => setLoading(false));
   }, [exerciseId, navigate, toast, enterEditMode]);
@@ -222,7 +222,7 @@ export function ExerciseDetailPage() {
     try {
       await deleteExercise(exercise.id);
       toast({ title: 'Übung gelöscht', variant: 'success' });
-      navigate('/settings/exercises');
+      navigate('/plan/exercises');
     } catch {
       toast({ title: 'Fehler beim Löschen', variant: 'error' });
       setDeleting(false);
@@ -251,13 +251,13 @@ export function ExerciseDetailPage() {
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
           <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
+            <Link to="/plan" className="hover:underline underline-offset-2">
+              Plan
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem>
-            <Link to="/settings/exercises" className="hover:underline underline-offset-2">
-              Übungsbibliothek
+            <Link to="/plan/exercises" className="hover:underline underline-offset-2">
+              Übungen
             </Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>{exercise.name}</BreadcrumbItem>

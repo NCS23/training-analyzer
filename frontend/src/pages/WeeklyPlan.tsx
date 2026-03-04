@@ -35,11 +35,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Dumbbell,
-  EllipsisVertical,
   Footprints,
   Minus,
   Moon,
   Save,
+  EllipsisVertical,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -49,7 +49,6 @@ import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { DayCard } from '@/components/DayCard';
-import { PlanContextBar } from '@/components/PlanContextBar';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 
 // --- Helpers ---
@@ -353,44 +352,41 @@ export function WeeklyPlanPage() {
   const editedPlanCount = entries.filter((e) => e.plan_id != null && e.edited).length;
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-7xl mx-auto space-y-4">
-      {/* Header with kebab menu */}
-      <header className="flex items-start justify-between gap-2 pb-2">
-        <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-          Wochenplan
-        </h1>
-        {hasContent && (
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-                <EllipsisVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                icon={<Trash2 />}
-                destructive
-                onSelect={() => setShowDeleteDialog(true)}
-              >
-                Woche löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </header>
-
+    <div className="space-y-4">
       {error && (
         <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Plan Context Bar (#152) */}
-      {linkedPlanId && <PlanContextBar planId={linkedPlanId} weekStart={weekStart} />}
-
       {/* Week Navigation + Stats */}
       <Card elevation="raised" padding="spacious">
         <CardBody>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">Wochenplan</h2>
+            {hasContent && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Aktionen"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                  >
+                    <EllipsisVertical className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    icon={<Trash2 />}
+                    destructive
+                    onSelect={() => setShowDeleteDialog(true)}
+                  >
+                    Woche löschen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
@@ -401,7 +397,7 @@ export function WeeklyPlanPage() {
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <div className="text-center">
+            <div className="text-center flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--color-text-base)]">
                 {formatDateRange(weekStart)}
               </p>
@@ -507,7 +503,7 @@ export function WeeklyPlanPage() {
               }
               if (planned === 0) return null;
               return (
-                <div className="mt-3 pt-3 border-t border-[var(--color-border-muted)]">
+                <div className="mt-3 pt-5 border-t border-[var(--color-border-muted)]">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-[var(--color-text-muted)]">Umsetzung</p>
                     <p className="text-xs font-medium text-[var(--color-text-base)]">
@@ -525,6 +521,76 @@ export function WeeklyPlanPage() {
                 </div>
               );
             })()}
+          {/* Day grid */}
+          <div className="mt-10">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : (
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div
+                  className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-[var(--spacing-sm)]"
+                  role="grid"
+                  aria-label="Wochenplan"
+                >
+                  {entries.map((entry) => {
+                    const isToday =
+                      isCurrentWeek &&
+                      new Date().getDay() === (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
+                    const dayCompliance = compliance?.entries.find(
+                      (c) => c.day_of_week === entry.day_of_week,
+                    );
+
+                    return (
+                      <DayCard
+                        key={entry.day_of_week}
+                        entry={entry}
+                        weekStart={weekStart}
+                        isToday={isToday}
+                        compliance={dayCompliance}
+                        showCompliance={hasContent}
+                        onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
+                        onNavigateSession={(id) => navigate(`/sessions/${id}`)}
+                        onMoveSession={(sessionIdx, targetDay) =>
+                          handleMoveSession(entry.day_of_week, sessionIdx, targetDay)
+                        }
+                        onMoveRestDay={(targetDay) =>
+                          handleMoveRestDay(entry.day_of_week, targetDay)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+
+                <DragOverlay>
+                  {activeDragData?.type === 'rest' && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
+                      <Moon className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                      <span className="text-xs font-medium text-[var(--color-text-base)]">
+                        Ruhetag
+                      </span>
+                    </div>
+                  )}
+                  {activeDragSession && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
+                      {activeDragSession.training_type === 'strength' ? (
+                        <Dumbbell className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                      ) : (
+                        <Footprints className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                      )}
+                      <span className="text-xs font-medium text-[var(--color-text-base)]">
+                        {activeDragSession.training_type === 'strength'
+                          ? (activeDragSession.template_name ?? 'Kraft')
+                          : (RUN_TYPE_LABELS[activeDragSession.run_details?.run_type ?? 'easy'] ??
+                            'Laufen')}
+                      </span>
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </div>
         </CardBody>
       </Card>
 
@@ -545,77 +611,6 @@ export function WeeklyPlanPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* 7-Day Grid */}
-      <Card elevation="raised" padding="spacious">
-        <CardBody>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Spinner size="lg" />
-            </div>
-          ) : (
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div
-                className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-[var(--spacing-xs)]"
-                role="grid"
-                aria-label="Wochenplan"
-              >
-                {entries.map((entry) => {
-                  const isToday =
-                    isCurrentWeek &&
-                    new Date().getDay() === (entry.day_of_week === 6 ? 0 : entry.day_of_week + 1);
-                  const dayCompliance = compliance?.entries.find(
-                    (c) => c.day_of_week === entry.day_of_week,
-                  );
-
-                  return (
-                    <DayCard
-                      key={entry.day_of_week}
-                      entry={entry}
-                      weekStart={weekStart}
-                      isToday={isToday}
-                      compliance={dayCompliance}
-                      showCompliance={hasContent}
-                      onUpdate={(updates) => updateEntry(entry.day_of_week, updates)}
-                      onNavigateSession={(id) => navigate(`/sessions/${id}`)}
-                      onMoveSession={(sessionIdx, targetDay) =>
-                        handleMoveSession(entry.day_of_week, sessionIdx, targetDay)
-                      }
-                      onMoveRestDay={(targetDay) => handleMoveRestDay(entry.day_of_week, targetDay)}
-                    />
-                  );
-                })}
-              </div>
-
-              <DragOverlay>
-                {activeDragData?.type === 'rest' && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
-                    <Moon className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                    <span className="text-xs font-medium text-[var(--color-text-base)]">
-                      Ruhetag
-                    </span>
-                  </div>
-                )}
-                {activeDragSession && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-paper)] shadow-[var(--shadow-raised)] border border-[var(--color-border-muted)]">
-                    {activeDragSession.training_type === 'strength' ? (
-                      <Dumbbell className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                    ) : (
-                      <Footprints className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                    )}
-                    <span className="text-xs font-medium text-[var(--color-text-base)]">
-                      {activeDragSession.training_type === 'strength'
-                        ? (activeDragSession.template_name ?? 'Kraft')
-                        : (RUN_TYPE_LABELS[activeDragSession.run_details?.run_type ?? 'easy'] ??
-                          'Laufen')}
-                    </span>
-                  </div>
-                )}
-              </DragOverlay>
-            </DndContext>
-          )}
-        </CardBody>
-      </Card>
 
       {/* Sync-to-Plan Bar */}
       {showSyncBar && linkedPlanId && editedPlanCount > 0 && (

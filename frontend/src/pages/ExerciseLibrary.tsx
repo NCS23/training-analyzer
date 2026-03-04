@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
-  CardHeader,
   CardBody,
   Button,
   Input,
@@ -21,10 +20,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  Breadcrumbs,
-  BreadcrumbItem,
 } from '@nordlig/components';
-import { Plus, Star, ChevronRight, EllipsisVertical } from 'lucide-react';
+import {
+  Plus,
+  Star,
+  EllipsisVertical,
+  Dumbbell,
+  Footprints,
+  ArrowUpFromLine,
+  ArrowDownToLine,
+  ShieldHalf,
+  HeartPulse,
+  type LucideIcon,
+} from 'lucide-react';
 import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises, createExercise, toggleFavorite } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
@@ -48,6 +56,15 @@ const categoryLabels: Record<string, string> = {
   core: 'Core',
   cardio: 'Cardio',
   drills: 'Lauf-ABC',
+};
+
+const categoryIcons: Record<string, LucideIcon> = {
+  push: ArrowUpFromLine,
+  pull: ArrowDownToLine,
+  legs: Dumbbell,
+  core: ShieldHalf,
+  cardio: HeartPulse,
+  drills: Footprints,
 };
 
 export function ExerciseLibraryPage() {
@@ -119,53 +136,7 @@ export function ExerciseLibraryPage() {
   };
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
-      {/* Breadcrumbs + Header (grouped for tighter spacing) */}
-      <div className="space-y-2 pb-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
-            </Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Übungsbibliothek</BreadcrumbItem>
-        </Breadcrumbs>
-        <header className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              Übungsbibliothek
-            </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Übungen verwalten, Favoriten setzen, eigene Übungen hinzufügen.
-            </p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <button
-                type="button"
-                className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[var(--radius-component-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
-                aria-label="Aktionen"
-              >
-                <EllipsisVertical className="w-5 h-5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                icon={<Plus />}
-                onSelect={() => {
-                  setShowCreateDialog(true);
-                  setCreateError(null);
-                  setNewName('');
-                  setNewCategory('push');
-                }}
-              >
-                Neue Übung
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-      </div>
-
+    <div className="space-y-6">
       {/* Filters */}
       <Card elevation="raised" padding="spacious">
         <CardBody>
@@ -246,12 +217,36 @@ export function ExerciseLibraryPage() {
 
       {/* Exercise List */}
       <Card elevation="raised" padding="spacious">
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-            Übungen ({exercises.length})
-          </h2>
-        </CardHeader>
         <CardBody>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+              Übungen ({exercises.length})
+            </h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Aktionen"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                >
+                  <EllipsisVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  icon={<Plus />}
+                  onSelect={() => {
+                    setShowCreateDialog(true);
+                    setCreateError(null);
+                    setNewName('');
+                    setNewCategory('push');
+                  }}
+                >
+                  Neue Übung
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
@@ -266,50 +261,58 @@ export function ExerciseLibraryPage() {
               }
             />
           ) : (
-            <div className="space-y-1">
-              {exercises.map((ex) => (
-                <div
-                  key={ex.id}
-                  className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFavorite(ex)}
-                    className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label={ex.is_favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+            <div className="space-y-3">
+              {exercises.map((ex) => {
+                const CategoryIcon = categoryIcons[ex.category] ?? Dumbbell;
+                return (
+                  <div
+                    key={ex.id}
+                    className="flex items-center gap-3 p-3 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)] transition-colors motion-reduce:transition-none"
                   >
-                    <Star
-                      className={`w-4 h-4 transition-colors motion-reduce:transition-none ${
-                        ex.is_favorite
-                          ? 'text-[var(--color-status-warning)] fill-current'
-                          : 'text-[var(--color-text-muted)]'
-                      }`}
-                    />
-                  </button>
+                    <CategoryIcon className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
 
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/settings/exercises/${ex.id}`)}
-                    className="flex-1 min-w-0 text-left"
-                    aria-label={`${ex.name} Details anzeigen`}
-                  >
-                    <span className="text-sm font-medium text-[var(--color-text-base)] truncate block">
-                      {ex.name}
-                    </span>
-                    {ex.usage_count > 0 && (
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        {ex.usage_count}x verwendet
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/plan/exercises/${ex.id}`)}
+                      className="flex-1 min-w-0 text-left"
+                      aria-label={`${ex.name} Details anzeigen`}
+                    >
+                      <span className="text-sm font-medium text-[var(--color-text-base)] truncate block">
+                        {ex.name}
                       </span>
-                    )}
-                  </button>
+                      {ex.usage_count > 0 && (
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {ex.usage_count}x verwendet
+                        </span>
+                      )}
+                    </button>
 
-                  <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="sm">
-                    {categoryLabels[ex.category] ?? ex.category}
-                  </Badge>
+                    <Badge variant={categoryBadgeVariant[ex.category] ?? 'neutral'} size="sm">
+                      {categoryLabels[ex.category] ?? ex.category}
+                    </Badge>
 
-                  <ChevronRight className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" />
-                </div>
-              ))}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <button
+                          type="button"
+                          className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[var(--radius-component-sm)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
+                          aria-label="Aktionen"
+                        >
+                          <EllipsisVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          icon={<Star className={ex.is_favorite ? 'fill-current' : ''} />}
+                          onSelect={() => handleToggleFavorite(ex)}
+                        >
+                          {ex.is_favorite ? 'Favorit entfernen' : 'Als Favorit'}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardBody>

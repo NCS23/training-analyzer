@@ -48,14 +48,14 @@ export function PlanContextBar({ planId, weekStart }: PlanContextBarProps) {
       elevation="raised"
       padding="compact"
       className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)] transition-colors duration-150 motion-reduce:transition-none"
-      onClick={() => navigate(`/settings/plans/${planId}`)}
+      onClick={() => navigate(`/plan/programs/${planId}`)}
       role="link"
       tabIndex={0}
       aria-label={`Trainingsplan: ${plan.name}`}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          navigate(`/settings/plans/${planId}`);
+          navigate(`/plan/programs/${planId}`);
         }
       }}
     >

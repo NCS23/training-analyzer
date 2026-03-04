@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from './test/test-utils';
 import { DashboardPage } from './pages/Dashboard';
 import { SessionsPage } from './pages/Sessions';
-import { SettingsPage } from './pages/Settings';
 import { NotFoundPage } from './pages/NotFound';
 
 vi.mock('@/api/athlete', () => ({
@@ -31,13 +30,6 @@ describe('Page stubs render correctly', () => {
     render(<SessionsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sessions')).toBeInTheDocument();
-    });
-  });
-
-  it('renders Settings page', async () => {
-    render(<SettingsPage />);
-    await waitFor(() => {
-      expect(screen.getByText('Einstellungen')).toBeInTheDocument();
     });
   });
 

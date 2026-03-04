@@ -13,8 +13,6 @@ import {
   DatePicker,
   EmptyState,
   useToast,
-  Breadcrumbs,
-  BreadcrumbItem,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -35,7 +33,7 @@ import {
   AlertDialogCancel,
 } from '@nordlig/components';
 import { format } from 'date-fns';
-import { ChevronRight, Plus, EllipsisVertical, Trash2, Power, Pencil } from 'lucide-react';
+import { Plus, EllipsisVertical, Trash2, Power, Pencil, Trophy } from 'lucide-react';
 import { listGoals, createGoal, updateGoal, deleteGoal } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
 
@@ -189,46 +187,7 @@ export function GoalsPage() {
   }
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
-      <div className="space-y-2 pb-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/settings" className="hover:underline underline-offset-2">
-              Einstellungen
-            </Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>Wettkampf-Ziele</BreadcrumbItem>
-        </Breadcrumbs>
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[var(--color-text-base)]">
-              Wettkampf-Ziele
-            </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Wettkampf-Ziele definieren und Fortschritt verfolgen.
-            </p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
-                <EllipsisVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                icon={<Plus className="w-4 h-4" />}
-                onSelect={() => {
-                  resetForm();
-                  setShowDialog(true);
-                }}
-              >
-                Neues Ziel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-      </div>
-
+    <div className="space-y-6">
       {/* Create / Edit Dialog */}
       <Dialog
         open={showDialog}
@@ -354,37 +313,52 @@ export function GoalsPage() {
       </AlertDialog>
 
       {/* Goals */}
-      {goals.length === 0 ? (
-        <Card elevation="raised" padding="spacious">
-          <CardBody>
+      <Card elevation="raised" padding="spacious">
+        <CardBody>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-base)]">
+              Wettkampf-Ziele ({goals.length})
+            </h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Aktionen"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                >
+                  <EllipsisVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  icon={<Plus />}
+                  onSelect={() => {
+                    resetForm();
+                    setShowDialog(true);
+                  }}
+                >
+                  Neues Ziel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {goals.length === 0 ? (
             <EmptyState
               title="Keine Wettkampf-Ziele"
               description="Erstelle dein erstes Wettkampf-Ziel, um deinen Fortschritt zu verfolgen."
             />
-          </CardBody>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {goals.map((goal) => (
-            <Card
-              key={goal.id}
-              elevation="raised"
-              padding="compact"
-              className={!goal.is_active ? 'opacity-50' : ''}
-            >
-              <CardBody>
-                <div className="flex items-center gap-3">
+          ) : (
+            <div className="space-y-3">
+              {goals.map((goal) => (
+                <div
+                  key={goal.id}
+                  className={`flex items-center gap-3 p-3 rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-muted)] transition-colors motion-reduce:transition-none ${!goal.is_active ? 'opacity-50' : ''}`}
+                >
+                  <Trophy className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[var(--color-text-base)] truncate">
-                        {goal.title}
-                      </span>
-                      {goal.is_active && (
-                        <Badge variant="neutral" size="xs">
-                          Aktiv
-                        </Badge>
-                      )}
-                    </div>
+                    <span className="text-sm font-semibold text-[var(--color-text-base)] truncate block">
+                      {goal.title}
+                    </span>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                       {new Date(goal.race_date).toLocaleDateString('de-DE', {
                         day: 'numeric',
@@ -396,36 +370,28 @@ export function GoalsPage() {
                       {goal.target_time_formatted}
                       {' · '}
                       {goal.target_pace_formatted} /km
+                      {goal.days_until > 0 && ` · ${goal.days_until} Tage`}
+                      {goal.days_until === 0 && ' · Heute'}
                     </p>
                     {goal.training_plan_summary ? (
                       <Link
-                        to={`/settings/plans/${goal.training_plan_summary.id}`}
+                        to={`/plan/programs/${goal.training_plan_summary.id}`}
                         className="text-xs text-[var(--color-interactive-primary)] hover:underline mt-0.5 inline-block"
                       >
                         Plan: {goal.training_plan_summary.name}
                       </Link>
                     ) : (
                       <Link
-                        to={`/settings/plans/new?goalId=${goal.id}`}
+                        to={`/plan/programs/new?goalId=${goal.id}`}
                         className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-interactive-primary)] hover:underline mt-0.5 inline-block"
                       >
                         + Trainingsplan erstellen
                       </Link>
                     )}
                   </div>
-                  <div className="shrink-0 text-right">
-                    {goal.days_until > 0 ? (
-                      <span className="text-sm font-semibold text-[var(--color-text-base)]">
-                        {goal.days_until} Tage
-                      </span>
-                    ) : goal.days_until === 0 ? (
-                      <Badge variant="warning" size="xs">
-                        Heute
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-[var(--color-text-muted)]">Vergangen</span>
-                    )}
-                  </div>
+                  <Badge variant={goal.is_active ? 'info' : 'neutral'} size="sm">
+                    {goal.is_active ? 'Aktiv' : 'Inaktiv'}
+                  </Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger>
                       <Button variant="ghost" size="sm" aria-label={`${goal.title} Aktionen`}>
@@ -450,11 +416,11 @@ export function GoalsPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
-      )}
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }
