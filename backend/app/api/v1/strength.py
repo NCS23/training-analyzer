@@ -177,6 +177,43 @@ async def create_strength_session(
     }
 
 
+@router.get("/last-complete")
+async def get_last_complete_session(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Gibt die letzte vollstaendige Strength-Session zurueck (fuer Clone + Tonnage-Delta)."""
+    query = (
+        select(WorkoutModel)
+        .where(WorkoutModel.workout_type == "strength")
+        .where(WorkoutModel.exercises_json.isnot(None))
+        .order_by(WorkoutModel.date.desc())
+        .limit(1)
+    )
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout or not workout.exercises_json:
+        return {"found": False, "session": None}
+
+    exercises_raw = json.loads(str(workout.exercises_json))
+    metrics = calculate_strength_metrics(exercises_raw)
+    model_date = workout.date
+    session_date = model_date.date() if isinstance(model_date, datetime) else model_date
+
+    return {
+        "found": True,
+        "session": {
+            "id": int(workout.id),  # type: ignore[arg-type]
+            "date": session_date.isoformat(),  # type: ignore[union-attr]
+            "exercises": exercises_raw,
+            "total_tonnage_kg": metrics["total_tonnage_kg"],
+            "duration_minutes": (
+                (int(workout.duration_sec) // 60) if workout.duration_sec else None  # type: ignore[arg-type]
+            ),
+        },
+    }
+
+
 @router.get("/last-exercises")
 async def get_last_exercises(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),

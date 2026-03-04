@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
 import { Card, CardBody } from '@nordlig/components';
 import { Dumbbell, Layers, Weight, Clock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ExerciseInput } from '@/api/strength';
+import { useTonnageCalc } from '@/hooks/useTonnageCalc';
 
 interface SessionSummaryProps {
   exercises: ExerciseInput[];
@@ -10,38 +10,18 @@ interface SessionSummaryProps {
 }
 
 export function SessionSummary({ exercises, durationMinutes }: SessionSummaryProps) {
-  const metrics = useMemo(() => {
-    let totalSets = 0;
-    let tonnage = 0;
-
-    for (const ex of exercises) {
-      for (const s of ex.sets) {
-        totalSets++;
-        if (s.status !== 'skipped') {
-          tonnage += s.reps * s.weight_kg;
-        }
-      }
-    }
-
-    return {
-      exercises: exercises.length,
-      sets: totalSets,
-      tonnage: Math.round(tonnage * 10) / 10,
-      duration: durationMinutes,
-    };
-  }, [exercises, durationMinutes]);
+  const { total, setCount, exerciseCount } = useTonnageCalc(exercises);
 
   const tiles: { label: string; value: string; unit: string; icon: LucideIcon }[] = [
-    { label: 'Übungen', value: String(metrics.exercises), unit: '', icon: Dumbbell },
-    { label: 'Sätze', value: String(metrics.sets), unit: '', icon: Layers },
+    { label: 'Übungen', value: String(exerciseCount), unit: '', icon: Dumbbell },
+    { label: 'Sätze', value: String(setCount), unit: '', icon: Layers },
     {
       label: 'Tonnage',
-      value:
-        metrics.tonnage >= 1000 ? (metrics.tonnage / 1000).toFixed(1) : String(metrics.tonnage),
-      unit: metrics.tonnage >= 1000 ? 't' : 'kg',
+      value: total >= 1000 ? (total / 1000).toFixed(1) : String(total),
+      unit: total >= 1000 ? 't' : 'kg',
       icon: Weight,
     },
-    { label: 'Dauer', value: String(metrics.duration), unit: 'min', icon: Clock },
+    { label: 'Dauer', value: String(durationMinutes), unit: 'min', icon: Clock },
   ];
 
   return (

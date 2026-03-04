@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -24,15 +24,19 @@ import {
   ChevronUp,
   Save,
   ArrowLeft,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
-import { createStrengthSession } from '@/api/strength';
-import type { ExerciseCategory, SetStatus } from '@/api/strength';
+import { createStrengthSession, getLastCompleteStrengthSession } from '@/api/strength';
+import type { ExerciseCategory, ExerciseInput, LastCompleteSession, SetStatus } from '@/api/strength';
 import { categoryBadgeVariant } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { getLastExerciseSets } from '@/api/strength';
 import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
+import { useTonnageCalc, formatTonnage } from '@/hooks/useTonnageCalc';
 
 // --- Types ---
 
@@ -101,6 +105,17 @@ function createDefaultExercise(): ExerciseForm {
   };
 }
 
+/** Convert ExerciseForm[] (with id, collapsed) to ExerciseInput[] for tonnage calc + API. */
+function toExerciseInputs(forms: ExerciseForm[]): ExerciseInput[] {
+  return forms
+    .filter((f) => f.name.trim())
+    .map((f) => ({
+      name: f.name,
+      category: f.category,
+      sets: f.sets.map((s) => ({ reps: s.reps, weight_kg: s.weight_kg, status: s.status })),
+    }));
+}
+
 // --- Component ---
 
 export function StrengthSessionPage() {
@@ -119,6 +134,9 @@ export function StrengthSessionPage() {
   const [availableTemplates, setAvailableTemplates] = useState<SessionTemplateSummary[]>([]);
   const [loadingPlan, setLoadingPlan] = useState(false);
 
+  // Last session (for clone + tonnage delta)
+  const [lastSession, setLastSession] = useState<LastCompleteSession | null>(null);
+
   // Exercise library for suggestions
   const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<string | null>(null);
@@ -131,7 +149,18 @@ export function StrengthSessionPage() {
     listSessionTemplates('strength')
       .then((res) => setAvailableTemplates(res.templates))
       .catch(() => {});
+    getLastCompleteStrengthSession()
+      .then((res) => {
+        if (res.found && res.session) setLastSession(res.session);
+      })
+      .catch(() => {});
   }, []);
+
+  // Live tonnage calculation
+  const exerciseInputs = useMemo(() => toExerciseInputs(exercises), [exercises]);
+  const tonnage = useTonnageCalc(exerciseInputs);
+  const tonnageDelta =
+    lastSession && tonnage.total > 0 ? tonnage.total - lastSession.total_tonnage_kg : null;
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -253,6 +282,33 @@ export function StrengthSessionPage() {
       setLoadingPlan(false);
     }
   }, []);
+
+  // --- Clone last session ---
+
+  const handleCloneLastSession = useCallback(() => {
+    if (!lastSession) return;
+    const hasContent = exercises.some((ex) => ex.name.trim());
+    if (hasContent && !window.confirm('Aktuelle Eingabe überschreiben?')) return;
+
+    const cloned: ExerciseForm[] = lastSession.exercises.map((ex) => ({
+      id: genId(),
+      name: ex.name,
+      category: ex.category as ExerciseCategory,
+      sets: ex.sets.map((s) => ({
+        id: genId(),
+        reps: s.reps,
+        weight_kg: s.weight_kg,
+        status: 'completed' as SetStatus,
+      })),
+      collapsed: false,
+    }));
+    if (cloned.length > 0) {
+      setExercises(cloned);
+      if (lastSession.duration_minutes) {
+        setDurationMinutes(lastSession.duration_minutes);
+      }
+    }
+  }, [lastSession, exercises]);
 
   // --- Exercise name suggestions ---
 
@@ -425,6 +481,19 @@ export function StrengthSessionPage() {
         </Card>
       )}
 
+      {/* Clone last session */}
+      {lastSession && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleCloneLastSession}
+          className="w-full"
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Letztes Training übernehmen ({lastSession.date})
+        </Button>
+      )}
+
       {/* Exercises */}
       <div className="space-y-4">
         {exercises.map((exercise, exIndex) => (
@@ -439,12 +508,20 @@ export function StrengthSessionPage() {
                       Übung {exIndex + 1}
                     </span>
                     {exercise.name && (
-                      <Badge
-                        variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
-                        size="xs"
-                      >
-                        {CATEGORY_LABELS[exercise.category] ?? exercise.category}
-                      </Badge>
+                      <>
+                        <Badge
+                          variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
+                          size="xs"
+                        >
+                          {CATEGORY_LABELS[exercise.category] ?? exercise.category}
+                        </Badge>
+                        {(tonnage.perExercise.get(exIndex) ?? 0) > 0 && (
+                          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+                            {formatTonnage(tonnage.perExercise.get(exIndex) ?? 0).value}
+                            {formatTonnage(tonnage.perExercise.get(exIndex) ?? 0).unit}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -646,9 +723,13 @@ export function StrengthSessionPage() {
                 {exercise.collapsed && exercise.name && (
                   <p className="text-sm text-[var(--color-text-muted)]">
                     {exercise.sets.length} Sätze ·{' '}
-                    {exercise.sets.reduce((sum, s) => sum + s.reps, 0)} Reps ·{' '}
-                    {Math.round(exercise.sets.reduce((sum, s) => sum + s.reps * s.weight_kg, 0))} kg
-                    Tonnage
+                    {exercise.sets.filter((s) => s.status !== 'skipped').reduce((sum, s) => sum + s.reps, 0)} Reps ·{' '}
+                    {Math.round(
+                      exercise.sets
+                        .filter((s) => s.status !== 'skipped')
+                        .reduce((sum, s) => sum + s.reps * s.weight_kg, 0),
+                    )}{' '}
+                    kg Tonnage
                   </p>
                 )}
               </div>
@@ -707,8 +788,41 @@ export function StrengthSessionPage() {
         </CardBody>
       </Card>
 
-      {/* Submit */}
-      <div className="sticky bottom-4 z-10">
+      {/* Sticky tonnage bar + submit */}
+      <div className="sticky bottom-4 z-10 space-y-2">
+        {tonnage.total > 0 && (
+          <div
+            className="bg-[var(--color-bg-base)]/95 backdrop-blur-sm rounded-[var(--radius-component-md)] border border-[var(--color-border-subtle)] px-4 py-2 flex items-center justify-between"
+            aria-live="polite"
+          >
+            <span className="text-sm text-[var(--color-text-muted)]">Gesamt-Tonnage</span>
+            <div className="flex items-center gap-2">
+              {tonnageDelta !== null && tonnageDelta !== 0 && (
+                <span
+                  className={`text-xs tabular-nums flex items-center gap-0.5 ${
+                    tonnageDelta > 0
+                      ? 'text-[var(--color-text-success)]'
+                      : 'text-[var(--color-text-error)]'
+                  }`}
+                >
+                  {tonnageDelta > 0 ? (
+                    <TrendingUp className="w-3 h-3" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3" />
+                  )}
+                  {tonnageDelta > 0 ? '+' : ''}
+                  {Math.round(tonnageDelta)} kg
+                </span>
+              )}
+              <span className="text-lg font-semibold text-[var(--color-text-base)] tabular-nums">
+                {tonnage.formatted.value}
+                <span className="text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+                  {tonnage.formatted.unit}
+                </span>
+              </span>
+            </div>
+          </div>
+        )}
         <Button
           variant="primary"
           onClick={handleSubmit}
