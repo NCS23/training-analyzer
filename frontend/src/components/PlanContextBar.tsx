@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Target } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@nordlig/components';
 import { getTrainingPlan } from '@/api/training-plans';
 import type { TrainingPlan, TrainingPhase } from '@/api/training-plans';
 
@@ -12,6 +13,16 @@ const phaseTypeLabels: Record<string, string> = {
   peak: 'Spitze',
   taper: 'Tapering',
   transition: 'Übergang',
+};
+
+// --- Phase Timeline Colors (#153) ---
+
+const phaseTimelineColors: Record<string, { filled: string; empty: string }> = {
+  base: { filled: 'var(--color-text-muted)', empty: 'var(--color-border-muted)' },
+  build: { filled: 'var(--color-interactive-primary)', empty: 'var(--color-bg-primary-subtle)' },
+  peak: { filled: 'var(--color-text-primary)', empty: 'var(--color-bg-primary-muted)' },
+  taper: { filled: 'var(--color-text-secondary)', empty: 'var(--color-border-muted)' },
+  transition: { filled: 'var(--color-text-muted)', empty: 'var(--color-border-muted)' },
 };
 
 // --- Helpers ---
@@ -36,6 +47,108 @@ function getCurrentPhase(phases: TrainingPhase[], weekNumber: number): TrainingP
 function getTotalWeeks(phases: TrainingPhase[]): number {
   if (phases.length === 0) return 0;
   return Math.max(...phases.map((p) => p.end_week));
+}
+
+function getPhaseProgress(phase: TrainingPhase, weekNumber: number): number {
+  const phaseDuration = phase.end_week - phase.start_week + 1;
+  if (weekNumber > phase.end_week) return 100;
+  if (weekNumber < phase.start_week) return 0;
+  return ((weekNumber - phase.start_week) / phaseDuration) * 100;
+}
+
+// --- Phase Timeline Subcomponent (#153) ---
+
+interface PhaseTimelineProps {
+  phases: TrainingPhase[];
+  weekNumber: number;
+}
+
+function PhaseTimeline({ phases, weekNumber }: PhaseTimelineProps) {
+  // Sort phases by start_week
+  const sortedPhases = [...phases].sort((a, b) => a.start_week - b.start_week);
+
+  return (
+    <div className="mt-1.5 space-y-1" aria-label="Phasen-Fortschritt">
+      {/* Timeline bar */}
+      <div className="flex gap-px h-1.5 rounded-full overflow-hidden">
+        {sortedPhases.map((phase) => {
+          const phaseDuration = phase.end_week - phase.start_week + 1;
+          const colors = phaseTimelineColors[phase.phase_type] ?? phaseTimelineColors.base;
+          const progress = getPhaseProgress(phase, weekNumber);
+
+          return (
+            <Popover key={phase.id}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="relative h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1 rounded-[1px]"
+                  style={{
+                    flex: phaseDuration,
+                    backgroundColor: colors.empty,
+                  }}
+                  aria-label={`${phaseTypeLabels[phase.phase_type] ?? phase.phase_type}: ${phase.name}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Filled portion */}
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-[1px] transition-all duration-500 motion-reduce:transition-none"
+                    style={{
+                      width: `${progress}%`,
+                      backgroundColor: colors.filled,
+                    }}
+                  />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                showArrow
+                className="text-xs leading-relaxed"
+                style={{ maxWidth: 220 }}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-[var(--color-text-base)]">{phase.name}</p>
+                  <p className="text-[var(--color-text-muted)]">
+                    {phaseTypeLabels[phase.phase_type] ?? phase.phase_type} · Woche{' '}
+                    {phase.start_week}–{phase.end_week}
+                  </p>
+                  {phase.focus?.primary && phase.focus.primary.length > 0 && (
+                    <p className="text-[var(--color-text-muted)]">
+                      Fokus: {phase.focus.primary.join(', ')}
+                    </p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          );
+        })}
+      </div>
+
+      {/* Phase labels below the bar */}
+      <div className="flex gap-px">
+        {sortedPhases.map((phase) => {
+          const phaseDuration = phase.end_week - phase.start_week + 1;
+          const isActive = phase.start_week <= weekNumber && weekNumber <= phase.end_week;
+
+          return (
+            <span
+              key={`label-${phase.id}`}
+              className={[
+                'text-[10px] truncate text-center',
+                isActive
+                  ? 'font-medium text-[var(--color-text-secondary)]'
+                  : 'text-[var(--color-text-muted)]',
+              ].join(' ')}
+              style={{ flex: phaseDuration }}
+            >
+              {/* Only show label if phase is wide enough (>=2 weeks) */}
+              {phaseDuration >= 2 ? (phaseTypeLabels[phase.phase_type] ?? phase.phase_type) : ''}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // --- Component ---
@@ -122,6 +235,9 @@ export function PlanContextBar({ planId, weekStart }: PlanContextBarProps) {
         {currentPhase && phaseTypeLabels[currentPhase.phase_type] ? ' · ' : ''}
         {phaseLabel}
       </p>
+
+      {/* Phase Timeline (#153) */}
+      {plan.phases.length > 1 && <PhaseTimeline phases={plan.phases} weekNumber={weekNumber} />}
     </button>
   );
 }
