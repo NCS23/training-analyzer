@@ -1,16 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { parseTraining, uploadTraining } from '@/api/training';
 import type { ParsedLap, TrainingParseResponse } from '@/api/training';
 import { getPlannedSessionsForDate } from '@/api/weekly-plan';
 import type { PlannedSessionOption } from '@/api/weekly-plan';
 import { trainingTypeOptions, lapTypeOptions } from '@/constants/training';
-import type { ExerciseInput } from '@/api/strength';
-import { createStrengthSession } from '@/api/strength';
-import type { Exercise } from '@/api/exercises';
-import { listExercises } from '@/api/exercises';
-import { ExerciseCard } from '@/features/strength/ExerciseCard';
-import { Plus, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import {
   Button,
   Card,
@@ -26,7 +21,6 @@ import {
   Spinner,
   Breadcrumbs,
   BreadcrumbItem,
-  NumberInput,
   Slider,
   Table,
   TableHeader,
@@ -37,43 +31,35 @@ import {
 } from '@nordlig/components';
 
 /* ------------------------------------------------------------------ */
-/*  State types                                                       */
-/* ------------------------------------------------------------------ */
-
-type TrainingType = 'running' | 'strength';
-
-const defaultExercise: ExerciseInput = {
-  name: '',
-  category: 'push',
-  sets: [{ reps: 8, weight_kg: 0, status: 'completed' }],
-};
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
+/*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Pre-select strength if navigated with state
+  // Pre-select strength → redirect to dedicated strength page
   const preselect = (location.state as { preselect?: string } | null)?.preselect;
 
-  // Wizard step: 0 = Upload, 1 = Prüfen (only for running)
+  useEffect(() => {
+    if (preselect === 'strength') {
+      navigate('/sessions/new/strength', { replace: true });
+    }
+  }, [preselect, navigate]);
+
+  // Wizard step: 0 = Upload, 1 = Prüfen
   const [step, setStep] = useState(0);
 
   // Shared state
-  const [trainingType, setTrainingType] = useState<TrainingType>(
-    preselect === 'strength' ? 'strength' : 'running',
-  );
   const [trainingDate, setTrainingDate] = useState<Date>(new Date());
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rpe, setRpe] = useState(5);
 
-  // Running: review step
+  // Review step
   const [parseResult, setParseResult] = useState<TrainingParseResponse | null>(null);
   const [lapOverrides, setLapOverrides] = useState<Record<number, string>>({});
   const [trainingTypeOverride, setTrainingTypeOverride] = useState<string | null>(null);
@@ -81,12 +67,6 @@ export default function UploadPage() {
   // Planned session linking
   const [plannedSessions, setPlannedSessions] = useState<PlannedSessionOption[]>([]);
   const [selectedPlannedId, setSelectedPlannedId] = useState<number | null>(null);
-
-  // Strength: exercises
-  const [duration, setDuration] = useState(60);
-  const [rpe, setRpe] = useState(5);
-  const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
-  const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
 
   // Load planned sessions for selected date
   useEffect(() => {
@@ -97,16 +77,6 @@ export default function UploadPage() {
     setSelectedPlannedId(null);
   }, [trainingDate]);
 
-  useEffect(() => {
-    if (trainingType === 'strength') {
-      listExercises()
-        .then((res) => setExerciseLibrary(res.exercises))
-        .catch(() => {
-          /* Autocomplete optional */
-        });
-    }
-  }, [trainingType]);
-
   /* ---- Handlers ---- */
 
   const handleFileUpload = (files: File[]) => {
@@ -115,7 +85,7 @@ export default function UploadPage() {
 
   const handleFileRemove = () => setCsvFile(null);
 
-  // Running: Step 0 → Parse CSV
+  // Step 0 → Parse CSV
   const handleNext = async () => {
     if (!csvFile) {
       setError('Bitte Datei auswählen');
@@ -129,7 +99,7 @@ export default function UploadPage() {
       const result = await parseTraining({
         csvFile,
         trainingDate: trainingDate.toISOString().split('T')[0],
-        trainingType,
+        trainingType: 'running',
         notes: notes || undefined,
       });
 
@@ -154,7 +124,7 @@ export default function UploadPage() {
     }
   };
 
-  // Running: Step 1 → Create session
+  // Step 1 → Create session
   const handleCreateRunning = async () => {
     if (!csvFile) return;
 
@@ -165,7 +135,7 @@ export default function UploadPage() {
       const result = await uploadTraining({
         csvFile,
         trainingDate: trainingDate.toISOString().split('T')[0],
-        trainingType,
+        trainingType: 'running',
         notes: notes || undefined,
         rpe,
         lapOverrides: Object.keys(lapOverrides).length > 0 ? lapOverrides : undefined,
@@ -193,74 +163,10 @@ export default function UploadPage() {
     setError(null);
   };
 
-  // Strength: exercises
-  const handleExerciseChange = useCallback((idx: number, updated: ExerciseInput) => {
-    setExercises((prev) => {
-      const next = [...prev];
-      next[idx] = updated;
-      return next;
-    });
-  }, []);
-
-  const handleExerciseRemove = useCallback((idx: number) => {
-    setExercises((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
-
-  const handleAddExercise = useCallback(() => {
-    setExercises((prev) => [
-      ...prev,
-      { ...defaultExercise, sets: [{ reps: 8, weight_kg: 0, status: 'completed' }] },
-    ]);
-  }, []);
-
-  // Strength: submit
-  const canSubmitStrength =
-    exercises.length > 0 && exercises.every((ex) => ex.name.trim().length > 0);
-
-  const handleCreateStrength = useCallback(async () => {
-    if (!canSubmitStrength) return;
-
-    setCreating(true);
-    setError(null);
-
-    try {
-      const result = await createStrengthSession({
-        date: trainingDate.toISOString().split('T')[0],
-        duration_minutes: duration,
-        exercises,
-        notes: notes.trim() || undefined,
-        rpe,
-        trainingFile: csvFile || undefined,
-        plannedEntryId: selectedPlannedId ?? undefined,
-      });
-
-      if (result.success) {
-        navigate(`/sessions/${result.session_id}`, { state: { uploaded: true } });
-      }
-    } catch (err) {
-      setError('Fehler beim Speichern: ' + (err as Error).message);
-    } finally {
-      setCreating(false);
-    }
-  }, [
-    canSubmitStrength,
-    trainingDate,
-    duration,
-    exercises,
-    notes,
-    rpe,
-    csvFile,
-    selectedPlannedId,
-    navigate,
-  ]);
-
   /* ---- Derived data for review step ---- */
   const laps = parseResult?.data?.laps;
   const autoType = parseResult?.metadata?.training_type_auto;
   const effectiveType = trainingTypeOverride || autoType;
-
-  const isRunning = trainingType === 'running';
-  const isStrength = trainingType === 'strength';
 
   /* ---- Render ---- */
 
@@ -297,9 +203,11 @@ export default function UploadPage() {
                   { value: 'running', label: 'Laufen' },
                   { value: 'strength', label: 'Kraft' },
                 ]}
-                value={trainingType}
+                value="running"
                 onChange={(val) => {
-                  if (val) setTrainingType(val as TrainingType);
+                  if (val === 'strength') {
+                    navigate('/sessions/new/strength');
+                  }
                 }}
                 placeholder="Typ wählen"
               />
@@ -332,7 +240,7 @@ export default function UploadPage() {
                 subText="Unterstützt: CSV, Garmin/Wahoo FIT"
               />
 
-              <div className={`grid grid-cols-1 gap-4 ${isStrength ? 'sm:grid-cols-2' : ''}`}>
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <Label>Datum</Label>
                   <DatePicker
@@ -344,21 +252,6 @@ export default function UploadPage() {
                     placeholder="Datum wählen"
                   />
                 </div>
-                {isStrength && (
-                  <div className="space-y-1.5">
-                    <Label>Dauer (min)</Label>
-                    <NumberInput
-                      value={duration}
-                      onChange={setDuration}
-                      min={1}
-                      max={300}
-                      step={5}
-                      aria-label="Trainingsdauer in Minuten"
-                      incrementLabel="5 Minuten mehr"
-                      decrementLabel="5 Minuten weniger"
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="space-y-1.5">
@@ -405,35 +298,7 @@ export default function UploadPage() {
             </CardBody>
           </Card>
 
-          {/* Card 2: Exercises (Strength only) */}
-          {isStrength && (
-            <Card elevation="raised">
-              <CardHeader>
-                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                  Übungen ({exercises.length})
-                </h2>
-              </CardHeader>
-              <CardBody className="space-y-4">
-                {exercises.map((ex, idx) => (
-                  <ExerciseCard
-                    key={idx}
-                    index={idx}
-                    exercise={ex}
-                    onChange={handleExerciseChange}
-                    onRemove={handleExerciseRemove}
-                    canRemove={exercises.length > 1}
-                    exerciseLibrary={exerciseLibrary}
-                  />
-                ))}
-                <Button variant="ghost" size="sm" onClick={handleAddExercise} className="w-full">
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Übung hinzufügen
-                </Button>
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Card 3: Notizen */}
+          {/* Card 2: Notizen */}
           <Card elevation="raised">
             <CardHeader>
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Notizen</h2>
@@ -450,40 +315,22 @@ export default function UploadPage() {
 
           {/* Submit */}
           <div className="flex justify-end">
-            {isRunning && (
-              <Button variant="primary" onClick={handleNext} disabled={!csvFile || loading}>
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <Spinner size="sm" aria-hidden="true" />
-                    Analysiere...
-                  </span>
-                ) : (
-                  'Weiter'
-                )}
-              </Button>
-            )}
-            {isStrength && (
-              <Button
-                variant="primary"
-                onClick={handleCreateStrength}
-                disabled={!canSubmitStrength || creating}
-              >
-                {creating ? (
-                  <span className="flex items-center gap-2">
-                    <Spinner size="sm" aria-hidden="true" />
-                    Speichere...
-                  </span>
-                ) : (
-                  'Session anlegen'
-                )}
-              </Button>
-            )}
+            <Button variant="primary" onClick={handleNext} disabled={!csvFile || loading}>
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Spinner size="sm" aria-hidden="true" />
+                  Analysiere...
+                </span>
+              ) : (
+                'Weiter'
+              )}
+            </Button>
           </div>
         </>
       )}
 
-      {/* ============== Running: Step 1 — Review ============== */}
-      {isRunning && step === 1 && parseResult && (
+      {/* ============== Step 1 — Review ============== */}
+      {step === 1 && parseResult && (
         <>
           <Card elevation="raised">
             <CardHeader>
