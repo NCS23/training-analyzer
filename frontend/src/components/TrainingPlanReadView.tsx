@@ -15,7 +15,7 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@nordlig/components';
-import { Calendar, Clock, TrendingUp, Dumbbell, FileText, Target } from 'lucide-react';
+import { Calendar, Clock, FileText, Target } from 'lucide-react';
 import type {
   TrainingPlan,
   TrainingPhase,
@@ -86,25 +86,6 @@ function calcDurationWeeks(startDate: string, endDate: string): number {
 
 // --- Sub-Components ---
 
-function MetricItem({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div>
-      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
-      <p className="text-sm font-medium text-[var(--color-text-base)] mt-1">
-        {icon && <span className="inline-block mr-1.5 align-text-bottom">{icon}</span>}
-        {value}
-      </p>
-    </div>
-  );
-}
 
 function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry }) {
   if (session.training_type === 'strength') {
@@ -176,7 +157,11 @@ function DayRow({ day, dayIdx }: { day: PhaseWeeklyTemplateDayEntry; dayIdx: num
           <span className="text-sm text-[var(--color-text-disabled)]">—</span>
         </TableCell>
         <TableCell>
-          <span className="text-sm text-[var(--color-text-disabled)]">—</span>
+          {day.notes ? (
+            <p className="text-xs italic text-[var(--color-text-muted)]">{day.notes}</p>
+          ) : (
+            <span className="text-sm text-[var(--color-text-disabled)]">—</span>
+          )}
         </TableCell>
       </TableRow>
     );
@@ -184,33 +169,34 @@ function DayRow({ day, dayIdx }: { day: PhaseWeeklyTemplateDayEntry; dayIdx: num
 
   return (
     <>
-      {day.sessions.map((session, sIdx) => (
-        <TableRow key={sIdx}>
-          {sIdx === 0 ? (
-            <TableCell
-              className="font-medium text-sm align-top"
-              rowSpan={day.sessions.length > 1 ? day.sessions.length : undefined}
-            >
-              {dayLabel}
+      {day.sessions.map((session, sIdx) => {
+        const isLast = sIdx === day.sessions.length - 1;
+        return (
+          <TableRow key={sIdx}>
+            {sIdx === 0 ? (
+              <TableCell
+                className="font-medium text-sm align-top"
+                rowSpan={day.sessions.length > 1 ? day.sessions.length : undefined}
+              >
+                {dayLabel}
+              </TableCell>
+            ) : null}
+            <TableCell className="align-top">
+              <Badge variant={getSessionBadgeVariant(session)} size="xs">
+                {getSessionLabel(session)}
+              </Badge>
             </TableCell>
-          ) : null}
-          <TableCell className="align-top">
-            <Badge variant={getSessionBadgeVariant(session)} size="xs">
-              {getSessionLabel(session)}
-            </Badge>
-          </TableCell>
-          <TableCell>
-            <SessionDetails session={session} />
-          </TableCell>
-        </TableRow>
-      ))}
-      {day.notes && (
-        <TableRow>
-          <TableCell colSpan={3}>
-            <p className="text-xs italic text-[var(--color-text-muted)]">{day.notes}</p>
-          </TableCell>
-        </TableRow>
-      )}
+            <TableCell>
+              <SessionDetails session={session} />
+              {isLast && day.notes && (
+                <p className="text-xs italic text-[var(--color-text-muted)] mt-1">
+                  {day.notes}
+                </p>
+              )}
+            </TableCell>
+          </TableRow>
+        );
+      })}
     </>
   );
 }
@@ -279,14 +265,6 @@ function PerWeekTabs({
 
 function PhaseCard({ phase }: { phase: TrainingPhase }) {
   const totalWeeks = phase.end_week - phase.start_week + 1;
-  const metrics = phase.target_metrics;
-  const hasMetrics =
-    metrics &&
-    (metrics.weekly_volume_min ||
-      metrics.weekly_volume_max ||
-      metrics.quality_sessions_per_week ||
-      metrics.strength_sessions_per_week);
-  const hasFocus = phase.focus && phase.focus.primary && phase.focus.primary.length > 0;
   const hasTemplate = phase.weekly_template && phase.weekly_template.days.length === 7;
   const perWeekMode =
     phase.weekly_templates && Object.keys(phase.weekly_templates.weeks).length > 0;
@@ -304,61 +282,11 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
           </p>
         </div>
 
-        {/* Focus */}
-        {hasFocus && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Schwerpunkte
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {phase.focus!.primary.map((f) => (
-                <Badge key={f} variant="primary" size="xs">
-                  {f}
-                </Badge>
-              ))}
-              {phase.focus!.secondary?.map((f) => (
-                <Badge key={f} variant="neutral" size="xs">
-                  {f}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Metrics */}
-        {hasMetrics && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-            {(metrics!.weekly_volume_min || metrics!.weekly_volume_max) && (
-              <MetricItem
-                label="Volumen / Woche"
-                value={`${metrics!.weekly_volume_min ?? '?'}–${metrics!.weekly_volume_max ?? '?'} km`}
-                icon={<TrendingUp className="w-3.5 h-3.5" />}
-              />
-            )}
-            {metrics!.quality_sessions_per_week != null && (
-              <MetricItem
-                label="Quality / Woche"
-                value={`${metrics!.quality_sessions_per_week}×`}
-                icon={<Clock className="w-3.5 h-3.5" />}
-              />
-            )}
-            {metrics!.strength_sessions_per_week != null && (
-              <MetricItem
-                label="Kraft / Woche"
-                value={`${metrics!.strength_sessions_per_week}×`}
-                icon={<Dumbbell className="w-3.5 h-3.5" />}
-              />
-            )}
-          </div>
-        )}
-
         {/* Notes */}
         {phase.notes && (
-          <div className="bg-[var(--color-bg-muted)] rounded-[var(--radius-component-sm)] p-3">
-            <p className="text-sm text-[var(--color-text-muted)] italic leading-relaxed">
-              {phase.notes}
-            </p>
-          </div>
+          <p className="text-sm text-[var(--color-text-muted)] italic leading-relaxed">
+            {phase.notes}
+          </p>
         )}
 
         {/* Weekly Template */}
