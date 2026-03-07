@@ -127,24 +127,19 @@ function DayRow({ day, dayIdx }: { day: PhaseWeeklyTemplateDayEntry; dayIdx: num
 
   if (day.is_rest_day) {
     return (
-      <>
-        <TableRow>
-          <TableCell className="font-medium text-sm">{dayLabel}</TableCell>
-          <TableCell>
-            <span className="text-sm text-[var(--color-text-muted)]">Ruhetag</span>
-          </TableCell>
-          <TableCell>
+      <TableRow>
+        <TableCell className="font-medium text-sm">{dayLabel}</TableCell>
+        <TableCell>
+          <span className="text-sm text-[var(--color-text-muted)]">Ruhetag</span>
+        </TableCell>
+        <TableCell>
+          {day.notes ? (
+            <p className="text-xs italic text-[var(--color-text-muted)]">{day.notes}</p>
+          ) : (
             <span className="text-sm text-[var(--color-text-disabled)]">—</span>
-          </TableCell>
-        </TableRow>
-        {day.notes && (
-          <TableRow>
-            <TableCell colSpan={3}>
-              <p className="text-xs italic text-[var(--color-text-muted)]">{day.notes}</p>
-            </TableCell>
-          </TableRow>
-        )}
-      </>
+          )}
+        </TableCell>
+      </TableRow>
     );
   }
 
@@ -291,17 +286,9 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
           <>
             <Separator />
             <div className="space-y-3">
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Wochenvorlage
-                </h4>
-                {hasTemplate && !perWeekMode && (
-                  <p className="text-xs text-[var(--color-text-disabled)] mt-0.5">
-                    gilt für Woche {phase.start_week}–{phase.end_week}
-                    {totalWeeks > 1 ? ` (${totalWeeks} Wochen)` : ''}
-                  </p>
-                )}
-              </div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                Wochenvorlage
+              </h4>
 
               {hasTemplate && !perWeekMode && (
                 <WeeklyTemplateTable template={phase.weekly_template!} />
