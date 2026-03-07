@@ -25,6 +25,8 @@ import type {
   FieldChange,
   DayChange,
 } from '@/api/training-plans';
+import { trainingTypeLabels } from '@/constants/training';
+import { phaseTypeLabels } from '@/components/plan-helpers';
 
 const PAGE_SIZE = 20;
 
@@ -91,15 +93,93 @@ function formatValue(val: unknown): string {
   return String(val);
 }
 
+// --- Field label translations ---
+const FIELD_LABELS: Record<string, string> = {
+  // Session fields
+  training_type: 'Trainingsart',
+  run_type: 'Laufart',
+  template_id: 'Vorlage',
+  target_duration_minutes: 'Zieldauer (min)',
+  target_pace_min: 'Zielpace (min)',
+  target_pace_max: 'Zielpace (max)',
+  target_hr_min: 'Ziel-HF (min)',
+  target_hr_max: 'Ziel-HF (max)',
+  target_distance_km: 'Zieldistanz (km)',
+  notes: 'Notizen',
+  is_rest_day: 'Ruhetag',
+  // Phase fields
+  name: 'Name',
+  phase_type: 'Phasentyp',
+  start_week: 'Startwoche',
+  end_week: 'Endwoche',
+  // Plan fields
+  status: 'Status',
+  description: 'Beschreibung',
+  start_date: 'Startdatum',
+  end_date: 'Enddatum',
+  target_event_date: 'Wettkampfdatum',
+  target_time: 'Zielzeit',
+  distance_km: 'Distanz (km)',
+};
+
+// Translate values for known enum fields
+const VALUE_TRANSLATORS: Record<string, Record<string, string>> = {
+  training_type: { running: 'Laufen', strength: 'Kraft', ...trainingTypeLabels },
+  run_type: trainingTypeLabels,
+  phase_type: phaseTypeLabels,
+  status: { draft: 'Entwurf', active: 'Aktiv', completed: 'Abgeschlossen', paused: 'Pausiert' },
+  is_rest_day: { true: 'Ja', false: 'Nein' },
+};
+
+function translateLabel(rawLabel: string): string {
+  // Handle "session[N].field" pattern → "Session N+1: Feldname"
+  const sessionMatch = rawLabel.match(/^session\[(\d+)]\.(.+)$/);
+  if (sessionMatch) {
+    const idx = parseInt(sessionMatch[1], 10) + 1;
+    const field = sessionMatch[2];
+    const fieldLabel = FIELD_LABELS[field] ?? field;
+    return `Session ${idx}: ${fieldLabel}`;
+  }
+  // Handle "intervals[N].field" pattern
+  const intervalMatch = rawLabel.match(/^intervals?\[(\d+)]\.(.+)$/);
+  if (intervalMatch) {
+    const idx = parseInt(intervalMatch[1], 10) + 1;
+    const field = intervalMatch[2];
+    const fieldLabel = FIELD_LABELS[field] ?? field;
+    return `Intervall ${idx}: ${fieldLabel}`;
+  }
+  // Direct lookup
+  return FIELD_LABELS[rawLabel] ?? rawLabel;
+}
+
+function translateValue(rawLabel: string, val: unknown): string {
+  if (val === null || val === undefined) return '–';
+  if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+  const str = String(val);
+  // Extract field key for value translation
+  const fieldMatch = rawLabel.match(/\.([^.]+)$/);
+  const fieldKey = fieldMatch ? fieldMatch[1] : rawLabel;
+  const translator = VALUE_TRANSLATORS[fieldKey];
+  if (translator && str in translator) return translator[str];
+  return str;
+}
+
 function FieldChangesPanel({ changes }: { changes: FieldChange[] }) {
   return (
     <div className="space-y-1">
       {changes.map((fc, i) => (
         <div key={i} className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-          <span className="font-medium text-[var(--color-text-base)]">{fc.label}:</span>
-          <span>{formatValue(fc.from)}</span>
-          <ArrowRight className="w-3 h-3 shrink-0 text-[var(--color-text-muted)]" />
-          <span className="font-medium text-[var(--color-text-base)]">{formatValue(fc.to)}</span>
+          <span className="font-medium text-[var(--color-text-base)]">
+            {translateLabel(fc.label)}:
+          </span>
+          <span>{translateValue(fc.label, fc.from)}</span>
+          <ArrowRight
+            className="w-3 h-3 shrink-0 text-[var(--color-text-muted)]"
+            aria-hidden="true"
+          />
+          <span className="font-medium text-[var(--color-text-base)]">
+            {translateValue(fc.label, fc.to)}
+          </span>
         </div>
       ))}
     </div>
