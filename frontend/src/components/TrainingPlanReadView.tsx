@@ -86,7 +86,6 @@ function calcDurationWeeks(startDate: string, endDate: string): number {
 
 // --- Sub-Components ---
 
-
 function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry }) {
   if (session.training_type === 'strength') {
     return (
@@ -189,9 +188,7 @@ function DayRow({ day, dayIdx }: { day: PhaseWeeklyTemplateDayEntry; dayIdx: num
             <TableCell>
               <SessionDetails session={session} />
               {isLast && day.notes && (
-                <p className="text-xs italic text-[var(--color-text-muted)] mt-1">
-                  {day.notes}
-                </p>
+                <p className="text-xs italic text-[var(--color-text-muted)] mt-1">{day.notes}</p>
               )}
             </TableCell>
           </TableRow>
