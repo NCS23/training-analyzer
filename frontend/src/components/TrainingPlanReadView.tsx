@@ -28,6 +28,7 @@ import { trainingTypeLabels, trainingTypeBadgeVariant } from '@/constants/traini
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import {
   PHASE_TYPES,
+  PHASE_COLORS,
   DAY_LABELS,
   formatDateDE,
   getWeekNumber,
@@ -268,18 +269,21 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
       <CardBody className="space-y-5">
         {/* Header */}
         <div>
-          <h3 className="text-base font-semibold text-[var(--color-text-base)]">{phase.name}</h3>
-          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-            {phaseTypeLabel} · Woche {phase.start_week}–{phase.end_week} ({totalWeeks} Wochen)
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-semibold text-[var(--color-text-base)]">{phase.name}</h3>
+            <Badge variant={PHASE_COLORS[phase.phase_type] ?? 'neutral'} size="xs">
+              {phaseTypeLabel}
+            </Badge>
+            <Badge variant="neutral" size="xs">
+              Woche {phase.start_week}–{phase.end_week} ({totalWeeks} Wo.)
+            </Badge>
+          </div>
+          {phase.notes && (
+            <p className="text-sm text-[var(--color-text-muted)] leading-relaxed mt-1">
+              {phase.notes}
+            </p>
+          )}
         </div>
-
-        {/* Notes */}
-        {phase.notes && (
-          <p className="text-sm text-[var(--color-text-muted)] italic leading-relaxed">
-            {phase.notes}
-          </p>
-        )}
 
         {/* Weekly Template */}
         {(hasTemplate || perWeekMode) && (
