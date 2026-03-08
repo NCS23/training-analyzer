@@ -275,7 +275,7 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
               {phaseTypeLabel}
             </Badge>
             <Badge variant="neutral" size="xs">
-              Woche {phase.start_week}–{phase.end_week} ({totalWeeks} Wo.)
+              Woche {phase.start_week}–{phase.end_week}
             </Badge>
           </div>
           {phase.notes && (
