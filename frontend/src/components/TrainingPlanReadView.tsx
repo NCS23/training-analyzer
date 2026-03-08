@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import {
   Card,
   CardBody,
-  Separator,
   Badge,
   Table,
   TableHeader,
@@ -286,29 +285,26 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
 
         {/* Weekly Template */}
         {(hasTemplate || perWeekMode) && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Wochenvorlage
-                <span className="font-normal normal-case tracking-normal ml-1">
-                  ({perWeekMode ? 'Individuell' : 'Übergreifend'})
-                </span>
-              </h4>
+          <div className="space-y-3 pt-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              Wochenvorlage
+              <span className="font-normal normal-case tracking-normal ml-1">
+                ({perWeekMode ? 'Individuell' : 'Übergreifend'})
+              </span>
+            </h4>
 
-              {hasTemplate && !perWeekMode && (
-                <WeeklyTemplateTable template={phase.weekly_template!} />
-              )}
+            {hasTemplate && !perWeekMode && (
+              <WeeklyTemplateTable template={phase.weekly_template!} />
+            )}
 
-              {perWeekMode && phase.weekly_templates && (
-                <PerWeekTabs
-                  weeklyTemplates={phase.weekly_templates.weeks}
-                  fallbackTemplate={phase.weekly_template}
-                  totalWeeks={totalWeeks}
-                />
-              )}
-            </div>
-          </>
+            {perWeekMode && phase.weekly_templates && (
+              <PerWeekTabs
+                weeklyTemplates={phase.weekly_templates.weeks}
+                fallbackTemplate={phase.weekly_template}
+                totalWeeks={totalWeeks}
+              />
+            )}
+          </div>
         )}
       </CardBody>
     </Card>
