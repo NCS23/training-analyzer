@@ -198,5 +198,3 @@ class SyncToPlanResponse(BaseModel):
     week_key: str
     apply_to_all_weeks: bool
     synced_days: int
-
-
