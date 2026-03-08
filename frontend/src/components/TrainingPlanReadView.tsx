@@ -288,6 +288,9 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
             <div className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Wochenvorlage
+                <span className="font-normal normal-case tracking-normal ml-1">
+                  ({perWeekMode ? 'Individuell' : 'Übergreifend'})
+                </span>
               </h4>
 
               {hasTemplate && !perWeekMode && (
