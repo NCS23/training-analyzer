@@ -1051,12 +1051,16 @@ async def generate_plan_weeks(
                 run_details_str: Optional[str] = None
                 if sess.run_details is not None:
                     run_details_str = json.dumps(sess.run_details.model_dump())
+                exercises_str: Optional[str] = None
+                if sess.exercises is not None:
+                    exercises_str = json.dumps([ex.model_dump() for ex in sess.exercises])
                 db_sess = PlannedSessionModel(
                     day_id=db_day.id,
                     position=sess.position,
                     training_type=sess.training_type,
                     template_id=sess.template_id,
                     run_details_json=run_details_str,
+                    exercises_json=exercises_str,
                     notes=sess.notes,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),

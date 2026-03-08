@@ -79,8 +79,8 @@ function SegmentEditorRow({
   };
 
   return (
-    <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] p-2.5 space-y-2">
-      {/* Row 1: Type + Repeats + Delete */}
+    <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] border-l-2 border-l-[var(--color-border-primary)] bg-[var(--color-bg-surface)] p-3 space-y-2.5">
+      {/* Row 1: Type + Repeats */}
       <div className="flex items-end gap-1.5">
         <div className="flex-1 min-w-0">
           <Label className="text-[10px] mb-0.5">Typ</Label>
@@ -106,87 +106,83 @@ function SegmentEditorRow({
             aria-label={`Segment ${index + 1} Wiederholungen`}
           />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onRemove(index)}
-          type="button"
-          className="min-h-[44px] min-w-[44px] shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-error)]"
-          aria-label={`Segment ${index + 1} entfernen`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
       </div>
 
-      {/* Row 2: Duration/Distance toggle + value */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <Button
-            variant={targetMode === 'duration' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => handleTargetModeSwitch('duration')}
-            type="button"
-            className="text-[10px] h-6 px-2"
-          >
-            Dauer
-          </Button>
-          <Button
-            variant={targetMode === 'distance' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => handleTargetModeSwitch('distance')}
-            type="button"
-            className="text-[10px] h-6 px-2"
-          >
-            Distanz
-          </Button>
+      {/* Row 2: Duration/Distance select + value */}
+      <div className="flex items-end gap-1.5">
+        <div className="w-32 shrink-0">
+          <Label className="text-[10px] mb-0.5">Zielwert</Label>
+          <Select
+            options={[
+              { value: 'duration', label: 'Dauer' },
+              { value: 'distance', label: 'Distanz' },
+            ]}
+            value={targetMode}
+            onChange={(val) => {
+              if (val) handleTargetModeSwitch(val as TargetMode);
+            }}
+            inputSize="sm"
+            aria-label={`Segment ${index + 1} Zielwert-Typ`}
+          />
         </div>
-        {targetMode === 'duration' ? (
-          <Input
-            type="number"
-            min={0.5}
-            max={180}
-            step={0.5}
-            value={segment.target_duration_minutes ?? ''}
-            onChange={(e) => update({ target_duration_minutes: Number(e.target.value) || 1 })}
-            inputSize="sm"
-            placeholder="z.B. 3 min"
-            aria-label={`Segment ${index + 1} Dauer`}
-          />
-        ) : (
-          <Input
-            type="number"
-            min={0.01}
-            max={100}
-            step={0.1}
-            value={segment.target_distance_km ?? ''}
-            onChange={(e) => update({ target_distance_km: Number(e.target.value) || 0.4 })}
-            inputSize="sm"
-            placeholder="z.B. 0.4 km"
-            aria-label={`Segment ${index + 1} Distanz`}
-          />
-        )}
+        <div className="flex-1 min-w-0">
+          <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
+            {targetMode === 'duration' ? 'Dauer (min)' : 'Distanz (km)'}
+          </Label>
+            {targetMode === 'duration' ? (
+              <Input
+                type="number"
+                min={0.5}
+                max={180}
+                step={0.5}
+                value={segment.target_duration_minutes ?? ''}
+                onChange={(e) => update({ target_duration_minutes: Number(e.target.value) || 1 })}
+                inputSize="sm"
+                placeholder="min"
+                aria-label={`Segment ${index + 1} Dauer`}
+              />
+            ) : (
+              <Input
+                type="number"
+                min={0.01}
+                max={100}
+                step={0.1}
+                value={segment.target_distance_km ?? ''}
+                onChange={(e) => update({ target_distance_km: Number(e.target.value) || 0.4 })}
+                inputSize="sm"
+                placeholder="km"
+                aria-label={`Segment ${index + 1} Distanz`}
+              />
+            )}
+          </div>
       </div>
 
       {/* Row 3: Pace range */}
       <div>
         <Label className="text-[10px] mb-0.5">Pace (M:SS / km)</Label>
         <div className="grid grid-cols-2 gap-1.5">
-          <Input
-            type="text"
-            value={segment.target_pace_min ?? ''}
-            onChange={(e) => update({ target_pace_min: e.target.value || null })}
-            inputSize="sm"
-            placeholder="schnell"
-            aria-label={`Segment ${index + 1} Pace schnell`}
-          />
-          <Input
-            type="text"
-            value={segment.target_pace_max ?? ''}
-            onChange={(e) => update({ target_pace_max: e.target.value || null })}
-            inputSize="sm"
-            placeholder="langsam"
-            aria-label={`Segment ${index + 1} Pace langsam`}
-          />
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Von (schnell)</Label>
+            <Input
+              type="text"
+              value={segment.target_pace_min ?? ''}
+              onChange={(e) => update({ target_pace_min: e.target.value || null })}
+              inputSize="sm"
+              placeholder="4:30"
+              aria-label={`Segment ${index + 1} Pace schnell`}
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Bis (langsam)</Label>
+            <Input
+              type="text"
+              value={segment.target_pace_max ?? ''}
+              onChange={(e) => update({ target_pace_max: e.target.value || null })}
+              inputSize="sm"
+              placeholder="5:30"
+              aria-label={`Segment ${index + 1} Pace langsam`}
+            />
+          </div>
         </div>
       </div>
 
@@ -194,32 +190,38 @@ function SegmentEditorRow({
       <div>
         <Label className="text-[10px] mb-0.5">Herzfrequenz (bpm)</Label>
         <div className="grid grid-cols-2 gap-1.5">
-          <Input
-            type="number"
-            min={60}
-            max={220}
-            value={segment.target_hr_min ?? ''}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              update({ target_hr_min: val });
-            }}
-            inputSize="sm"
-            placeholder="Min"
-            aria-label={`Segment ${index + 1} HR Min`}
-          />
-          <Input
-            type="number"
-            min={60}
-            max={220}
-            value={segment.target_hr_max ?? ''}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              update({ target_hr_max: val });
-            }}
-            inputSize="sm"
-            placeholder="Max"
-            aria-label={`Segment ${index + 1} HR Max`}
-          />
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Min</Label>
+            <Input
+              type="number"
+              min={60}
+              max={220}
+              value={segment.target_hr_min ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                update({ target_hr_min: val });
+              }}
+              inputSize="sm"
+              placeholder="130"
+              aria-label={`Segment ${index + 1} HR Min`}
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Max</Label>
+            <Input
+              type="number"
+              min={60}
+              max={220}
+              value={segment.target_hr_max ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                update({ target_hr_max: val });
+              }}
+              inputSize="sm"
+              placeholder="150"
+              aria-label={`Segment ${index + 1} HR Max`}
+            />
+          </div>
         </div>
       </div>
 
@@ -249,6 +251,20 @@ function SegmentEditorRow({
           placeholder="z.B. bergauf, Fokus Kniehub"
           aria-label={`Segment ${index + 1} Notiz`}
         />
+      </div>
+
+      {/* Delete segment */}
+      <div className="flex justify-end pt-3">
+        <Button
+          variant="destructive-outline"
+          size="sm"
+          onClick={() => onRemove(index)}
+          type="button"
+          aria-label={`Segment ${index + 1} entfernen`}
+        >
+          <Trash2 className="w-4 h-4 mr-1" />
+          Segment entfernen
+        </Button>
       </div>
     </div>
   );
@@ -332,22 +348,28 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
       <div>
         <Label className="text-xs mb-1">Pace (M:SS / km)</Label>
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="text"
-            value={details.target_pace_min ?? ''}
-            onChange={(e) => update({ target_pace_min: e.target.value || null })}
-            inputSize="sm"
-            placeholder="schnell 4:30"
-            aria-label="Pace schnell"
-          />
-          <Input
-            type="text"
-            value={details.target_pace_max ?? ''}
-            onChange={(e) => update({ target_pace_max: e.target.value || null })}
-            inputSize="sm"
-            placeholder="langsam 5:30"
-            aria-label="Pace langsam"
-          />
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Von (schnell)</Label>
+            <Input
+              type="text"
+              value={details.target_pace_min ?? ''}
+              onChange={(e) => update({ target_pace_min: e.target.value || null })}
+              inputSize="sm"
+              placeholder="4:30"
+              aria-label="Pace schnell"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Bis (langsam)</Label>
+            <Input
+              type="text"
+              value={details.target_pace_max ?? ''}
+              onChange={(e) => update({ target_pace_max: e.target.value || null })}
+              inputSize="sm"
+              placeholder="5:30"
+              aria-label="Pace langsam"
+            />
+          </div>
         </div>
       </div>
 
@@ -355,38 +377,44 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
       <div>
         <Label className="text-xs mb-1">Herzfrequenz (bpm)</Label>
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="number"
-            min={60}
-            max={220}
-            value={details.target_hr_min ?? ''}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              update({ target_hr_min: val });
-            }}
-            inputSize="sm"
-            placeholder="Min"
-            aria-label="Herzfrequenz Min"
-          />
-          <Input
-            type="number"
-            min={60}
-            max={220}
-            value={details.target_hr_max ?? ''}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              update({ target_hr_max: val });
-            }}
-            inputSize="sm"
-            placeholder="Max"
-            aria-label="Herzfrequenz Max"
-          />
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Min</Label>
+            <Input
+              type="number"
+              min={60}
+              max={220}
+              value={details.target_hr_min ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                update({ target_hr_min: val });
+              }}
+              inputSize="sm"
+              placeholder="130"
+              aria-label="Herzfrequenz Min"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Max</Label>
+            <Input
+              type="number"
+              min={60}
+              max={220}
+              value={details.target_hr_max ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                update({ target_hr_max: val });
+              }}
+              inputSize="sm"
+              placeholder="150"
+              aria-label="Herzfrequenz Max"
+            />
+          </div>
         </div>
       </div>
 
       {/* Segment builder — available for ALL run types */}
-      <div className="space-y-2">
-        <Label className="text-xs">Segmente</Label>
+      <div className="border-t border-[var(--color-border-muted)] pt-3 mt-1 space-y-2">
+        <Label className="text-xs font-semibold">Segmente</Label>
 
         {(details.segments ?? []).length === 0 && (
           <p className="text-xs text-[var(--color-text-muted)] italic">
@@ -410,18 +438,13 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
           size="sm"
           onClick={handleSegmentAdd}
           type="button"
-          className="min-h-[44px]"
+          className="w-full"
         >
           <Plus className="w-4 h-4 mr-1" />
-          Segment
+          Segment hinzufügen
         </Button>
       </div>
 
-      {!runDetails && (
-        <p className="text-[10px] text-[var(--color-text-muted)] italic">
-          Leer lassen = automatische Berechnung aus Ziel und Volumen
-        </p>
-      )}
     </div>
   );
 }

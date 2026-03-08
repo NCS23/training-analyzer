@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type { Segment } from './segment';
+import type { TemplateExercise } from './session-templates';
 
 // --- Types ---
 
@@ -44,6 +45,7 @@ export interface PlannedSession {
   template_name?: string | null;
   notes?: string | null;
   run_details?: RunDetails | null;
+  exercises?: TemplateExercise[] | null;
   status?: 'active' | 'skipped'; // default: 'active'
 }
 

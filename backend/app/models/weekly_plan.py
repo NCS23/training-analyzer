@@ -7,6 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.models.exercise import TemplateExercise
 from app.models.segment import Segment, intervals_to_segments, segments_to_intervals
 from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
 
@@ -74,6 +75,7 @@ class PlannedSession(BaseModel):
     template_name: Optional[str] = None  # response only
     notes: Optional[str] = Field(default=None, max_length=500)
     run_details: Optional[RunDetails] = None
+    exercises: Optional[list[TemplateExercise]] = None
     status: str = Field(default="active", pattern="^(active|skipped)$")
 
 
@@ -196,3 +198,5 @@ class SyncToPlanResponse(BaseModel):
     week_key: str
     apply_to_all_weeks: bool
     synced_days: int
+
+

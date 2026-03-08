@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { TemplateExercise } from './session-templates';
 import type { RunDetails } from './weekly-plan';
 
 // --- Types ---
@@ -34,8 +35,10 @@ export interface PhaseWeeklyTemplateSessionEntry {
   training_type: 'strength' | 'running';
   run_type: RunType | null;
   template_id: number | null;
+  template_name?: string | null;
   notes: string | null;
   run_details?: RunDetails | null;
+  exercises?: TemplateExercise[] | null;
 }
 
 export interface PhaseWeeklyTemplateDayEntry {

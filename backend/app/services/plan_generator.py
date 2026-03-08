@@ -164,6 +164,8 @@ def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]
                     training_type=ts.training_type,
                     template_id=ts.template_id,
                     run_details=run_details,
+                    notes=ts.notes,
+                    exercises=ts.exercises,
                 )
             )
         entries.append(

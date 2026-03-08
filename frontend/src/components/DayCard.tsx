@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Button,
   Input,
+  Label,
   Select,
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { MoveSessionDialog } from './MoveSessionDialog';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
+import { StrengthExerciseEditor } from './StrengthExerciseEditor';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
 
 /** Convert RunInterval[] to Segment[] for display (fallback for old data without segments). */
@@ -178,12 +180,16 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
 
   const label =
     session.training_type === 'strength'
-      ? 'Kraft'
+      ? (session.template_name ?? 'Kraft')
       : rd?.run_type
         ? (RUN_TYPE_LABELS[rd.run_type] ?? rd.run_type)
         : 'Laufen';
 
   const details: string[] = [];
+  if (session.training_type === 'strength') {
+    const exCount = session.exercises?.length;
+    if (exCount) details.push(`${exCount} Üb.`);
+  }
   if (session.training_type === 'running') {
     if (rd?.target_duration_minutes) details.push(`${rd.target_duration_minutes}′`);
     if (rd?.target_pace_min) {
@@ -444,22 +450,27 @@ function SessionDetailDialog({
   }
   if (open !== prevOpen) setPrevOpen(open);
 
-  // Fetch template exercises when a strength session has a template_id
+  // Fetch template exercises only as fallback for legacy sessions without embedded exercises
   useEffect(() => {
-    if (!open || !session.template_id || session.training_type !== 'strength') {
+    if (
+      !open ||
+      !session.template_id ||
+      session.training_type !== 'strength' ||
+      (session.exercises && session.exercises.length > 0)
+    ) {
       setTemplateExercises([]);
       return;
     }
     getSessionTemplate(session.template_id)
       .then((t) => setTemplateExercises(t.exercises))
       .catch(() => setTemplateExercises([]));
-  }, [open, session.template_id, session.training_type]);
+  }, [open, session.template_id, session.training_type, session.exercises]);
 
   const rd = isEditing ? (local.run_details ?? null) : (session.run_details ?? null);
   const current = isEditing ? local : session;
   const handleTypeChange = (val: string) => {
     if (val === 'running') {
-      setLocal({ ...local, training_type: 'running', run_details: null });
+      setLocal({ ...local, training_type: 'running', run_details: null, exercises: undefined });
     } else {
       setLocal({ ...local, training_type: 'strength', run_details: undefined });
     }
@@ -518,12 +529,17 @@ function SessionDetailDialog({
           session.training_type === 'running'
             ? (full.run_details ?? session.run_details)
             : session.run_details,
+        exercises:
+          session.training_type === 'strength'
+            ? (full.exercises?.length ? full.exercises : session.exercises)
+            : session.exercises,
         notes:
           session.training_type === 'strength'
             ? (full.description ?? session.notes)
             : session.notes,
       };
       onUpdate(updated);
+      setLocal(updated);
     } catch {
       // Silently fail — session stays unchanged
     }
@@ -531,7 +547,7 @@ function SessionDetailDialog({
 
   const sessionLabel =
     current.training_type === 'strength'
-      ? 'Kraft'
+      ? (current.template_name ?? 'Kraft')
       : (RUN_TYPE_LABELS[rd?.run_type ?? 'easy'] ?? 'Laufen');
 
   return (
@@ -578,7 +594,10 @@ function SessionDetailDialog({
                   >
                     Vorlage zuweisen
                   </DropdownMenuItem>
-                  {session.training_type === 'running' && session.run_details && (
+                  {((session.training_type === 'running' && session.run_details) ||
+                    (session.training_type === 'strength' &&
+                      session.exercises &&
+                      session.exercises.length > 0)) && (
                     <DropdownMenuItem
                       icon={<BookmarkPlus />}
                       onSelect={() => setShowSaveAsTemplate(true)}
@@ -612,36 +631,48 @@ function SessionDetailDialog({
                     </p>
                   )}
 
-                  {templateExercises.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-                        <Dumbbell className="w-3 h-3" />
-                        <span>Übungen</span>
+                  {/* Prefer embedded exercises, fallback to template fetch (legacy) */}
+                  {(() => {
+                    const exercises =
+                      current.exercises && current.exercises.length > 0
+                        ? current.exercises
+                        : templateExercises.length > 0
+                          ? templateExercises
+                          : null;
+                    return exercises ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                          <Dumbbell className="w-3 h-3" />
+                          <span>Übungen</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {exercises.map((ex, i) => (
+                            <div
+                              key={i}
+                              className="flex items-baseline justify-between text-xs px-2 py-1 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-surface)]"
+                            >
+                              <span className="text-[var(--color-text-base)] font-medium truncate mr-2">
+                                {ex.name}
+                              </span>
+                              <span className="text-[var(--color-text-muted)] whitespace-nowrap">
+                                {ex.sets}×{ex.reps}
+                                {ex.weight_kg != null && ` · ${ex.weight_kg}kg`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-0.5">
-                        {templateExercises.map((ex, i) => (
-                          <div
-                            key={i}
-                            className="flex items-baseline justify-between text-xs px-2 py-1 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-surface)]"
-                          >
-                            <span className="text-[var(--color-text-base)] font-medium truncate mr-2">
-                              {ex.name}
-                            </span>
-                            <span className="text-[var(--color-text-muted)] whitespace-nowrap">
-                              {ex.sets}×{ex.reps}
-                              {ex.weight_kg != null && ` · ${ex.weight_kg}kg`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    ) : null;
+                  })()}
 
-                  {!current.template_id && !current.notes && (
-                    <p className="text-xs text-[var(--color-text-disabled)] italic">
-                      Keine Vorlage verknüpft
-                    </p>
-                  )}
+                  {!current.exercises?.length &&
+                    !templateExercises.length &&
+                    !current.template_id &&
+                    !current.notes && (
+                      <p className="text-xs text-[var(--color-text-disabled)] italic">
+                        Keine Übungen oder Vorlage
+                      </p>
+                    )}
 
                   {current.notes && (
                     <p className="text-xs text-[var(--color-text-muted)] italic">{current.notes}</p>
@@ -714,27 +745,33 @@ function SessionDetailDialog({
           {/* --- EDIT MODE --- */}
           {isEditing && (
             <div className="space-y-3">
-              <Select
-                options={SESSION_TYPE_OPTIONS}
-                value={local.training_type}
-                onChange={(val) => {
-                  if (val) handleTypeChange(val);
-                }}
-                inputSize="sm"
-                aria-label="Trainingstyp"
-              />
+              <div>
+                <Label className="text-xs mb-1">Trainingstyp</Label>
+                <Select
+                  options={SESSION_TYPE_OPTIONS}
+                  value={local.training_type}
+                  onChange={(val) => {
+                    if (val) handleTypeChange(val);
+                  }}
+                  inputSize="sm"
+                  aria-label="Trainingstyp"
+                />
+              </div>
 
               {local.training_type === 'running' && (
                 <div className="space-y-2">
-                  <Select
-                    options={RUN_TYPE_OPTIONS}
-                    value={local.run_details?.run_type ?? 'easy'}
-                    onChange={(val) => {
-                      if (val) handleRunTypeChange(val);
-                    }}
-                    inputSize="sm"
-                    aria-label="Lauftyp"
-                  />
+                  <div>
+                    <Label className="text-xs mb-1">Lauftyp</Label>
+                    <Select
+                      options={RUN_TYPE_OPTIONS}
+                      value={local.run_details?.run_type ?? 'easy'}
+                      onChange={(val) => {
+                        if (val) handleRunTypeChange(val);
+                      }}
+                      inputSize="sm"
+                      aria-label="Lauftyp"
+                    />
+                  </div>
                   <RunDetailsEditor
                     runDetails={local.run_details ?? null}
                     runType={local.run_details?.run_type ?? 'easy'}
@@ -745,14 +782,26 @@ function SessionDetailDialog({
                 </div>
               )}
 
-              <Input
-                type="text"
-                value={local.notes ?? ''}
-                onChange={(e) => setLocal({ ...local, notes: e.target.value || null })}
-                inputSize="sm"
-                placeholder="Notizen"
-                aria-label="Session Notizen"
-              />
+              {local.training_type === 'strength' && (
+                <StrengthExerciseEditor
+                  exercises={local.exercises ?? null}
+                  onChange={(exercises) =>
+                    setLocal({ ...local, exercises: exercises ?? undefined })
+                  }
+                />
+              )}
+
+              <div>
+                <Label className="text-xs mb-1">Notizen</Label>
+                <Input
+                  type="text"
+                  value={local.notes ?? ''}
+                  onChange={(e) => setLocal({ ...local, notes: e.target.value || null })}
+                  inputSize="sm"
+                  placeholder="Notizen"
+                  aria-label="Session Notizen"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -769,12 +818,21 @@ function SessionDetailDialog({
         )}
       </DialogContent>
 
-      {session.run_details && (
+      {session.training_type === 'running' && session.run_details && (
         <SaveAsTemplateDialog
           open={showSaveAsTemplate}
           onOpenChange={setShowSaveAsTemplate}
           runDetails={session.run_details}
           defaultName={RUN_TYPE_LABELS[session.run_details.run_type] ?? 'Laufen'}
+        />
+      )}
+      {session.training_type === 'strength' && session.exercises && (
+        <SaveAsTemplateDialog
+          open={showSaveAsTemplate}
+          onOpenChange={setShowSaveAsTemplate}
+          exercises={session.exercises}
+          sessionType="strength"
+          defaultName={session.template_name ?? 'Krafttraining'}
         />
       )}
 
@@ -1025,7 +1083,7 @@ export function DayCard({
       return;
     }
 
-    // Load full template to get run_details
+    // Load full template to get run_details / exercises
     try {
       const full = await getSessionTemplate(template.id);
       const newSession: PlannedSession = {
@@ -1034,6 +1092,7 @@ export function DayCard({
         template_id: full.id,
         template_name: full.name,
         run_details: type === 'running' ? (full.run_details ?? null) : undefined,
+        exercises: type === 'strength' ? (full.exercises ?? undefined) : undefined,
         notes: type === 'strength' ? (full.description ?? null) : undefined,
       };
       onUpdate({ sessions: [...entry.sessions, newSession], is_rest_day: false });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -9,10 +10,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
+  SegmentedControl,
 } from '@nordlig/components';
 import { Calendar, Clock, FileText, Target } from 'lucide-react';
 import type {
@@ -22,8 +20,9 @@ import type {
   PhaseWeeklyTemplateDayEntry,
   PhaseWeeklyTemplateSessionEntry,
 } from '@/api/training-plans';
-import type { RunDetails, RunInterval } from '@/api/weekly-plan';
-import { trainingTypeLabels, trainingTypeBadgeVariant } from '@/constants/training';
+import type { RunDetails } from '@/api/weekly-plan';
+import type { Segment } from '@/api/segment';
+import { trainingTypeLabels, trainingTypeBadgeVariant, lapTypeLabels } from '@/constants/training';
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import {
   PHASE_TYPES,
@@ -52,22 +51,62 @@ function formatRunDetails(details: RunDetails | null | undefined): string {
   return parts.join(' · ');
 }
 
-function formatIntervalSummary(intervals: RunInterval[]): string | null {
-  if (intervals.length === 0) return null;
-  const workIntervals = intervals.filter((i) => i.type === 'work');
-  if (workIntervals.length === 0) return null;
-  const first = workIntervals[0];
-  const count = first.repeats > 1 ? first.repeats : workIntervals.length;
-  if (first.distance_km) {
-    const m = first.distance_km >= 1 ? `${first.distance_km}km` : `${first.distance_km * 1000}m`;
-    return `${count}×${m}`;
+function formatSegmentDetail(seg: Segment): string {
+  const typeLabel = lapTypeLabels[seg.segment_type] ?? seg.segment_type;
+  const parts: string[] = [];
+
+  // Target
+  if (seg.repeats > 1) {
+    if (seg.target_distance_km) {
+      const d =
+        seg.target_distance_km >= 1
+          ? `${seg.target_distance_km}km`
+          : `${seg.target_distance_km * 1000}m`;
+      parts.push(`${seg.repeats}×${d}`);
+    } else if (seg.target_duration_minutes) {
+      parts.push(`${seg.repeats}×${seg.target_duration_minutes}′`);
+    } else {
+      parts.push(`${seg.repeats}×`);
+    }
+  } else {
+    if (seg.target_distance_km) {
+      const d =
+        seg.target_distance_km >= 1
+          ? `${seg.target_distance_km} km`
+          : `${seg.target_distance_km * 1000}m`;
+      parts.push(d);
+    } else if (seg.target_duration_minutes) {
+      parts.push(`${seg.target_duration_minutes} min`);
+    }
   }
-  if (first.duration_minutes) return `${count}×${first.duration_minutes}min`;
-  return `${count}× Intervall`;
+
+  // Pace
+  if (seg.target_pace_min && seg.target_pace_max) {
+    parts.push(`${seg.target_pace_min}–${seg.target_pace_max}/km`);
+  } else if (seg.target_pace_min) {
+    parts.push(`${seg.target_pace_min}/km`);
+  }
+
+  // HR
+  if (seg.target_hr_min && seg.target_hr_max) {
+    parts.push(`HR ${seg.target_hr_min}–${seg.target_hr_max}`);
+  }
+
+  // Exercise name
+  if (seg.exercise_name) {
+    parts.push(seg.exercise_name);
+  }
+
+  return `${typeLabel}: ${parts.join(' · ') || '—'}`;
+}
+
+function formatSegmentsSummary(segments: Segment[]): string[] | null {
+  if (segments.length === 0) return null;
+  return segments.map(formatSegmentDetail);
 }
 
 function getSessionLabel(session: PhaseWeeklyTemplateSessionEntry): string {
-  if (session.training_type === 'strength') return 'Kraft';
+  if (session.training_type === 'strength') return session.template_name ?? 'Kraft';
   return trainingTypeLabels[session.run_type ?? 'easy'] ?? session.run_type ?? 'Lauf';
 }
 
@@ -87,28 +126,59 @@ function calcDurationWeeks(startDate: string, endDate: string): number {
 
 function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry }) {
   if (session.training_type === 'strength') {
+    const exercises = session.exercises;
     return (
-      <span className="text-sm text-[var(--color-text-muted)]">
-        {session.notes ?? 'Krafttraining'}
-      </span>
+      <div className="space-y-0.5">
+        {session.template_name && (
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Vorlage:{' '}
+            <span className="font-medium text-[var(--color-text-base)]">
+              {session.template_name}
+            </span>
+          </p>
+        )}
+        {exercises && exercises.length > 0 ? (
+          <ul className="text-xs text-[var(--color-text-muted)] space-y-0.5 pl-3 list-disc marker:text-[var(--color-text-disabled)]">
+            {exercises.map((ex, i) => (
+              <li key={i}>
+                {ex.name} — {ex.sets}×{ex.reps}
+                {ex.weight_kg != null && ` · ${ex.weight_kg}kg`}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-sm text-[var(--color-text-muted)]">
+            {session.notes ?? 'Krafttraining'}
+          </span>
+        )}
+        {session.notes && exercises && exercises.length > 0 && (
+          <p className="text-xs text-[var(--color-text-muted)] italic">{session.notes}</p>
+        )}
+      </div>
     );
   }
 
   const details = session.run_details;
   const detailStr = formatRunDetails(details);
-  const intervalStr =
-    details?.intervals && details.intervals.length > 0
-      ? formatIntervalSummary(details.intervals)
-      : null;
 
-  if (!detailStr && !intervalStr && !session.notes) {
+  // Prefer segments (new) over intervals (legacy)
+  const segments = details?.segments ?? [];
+  const segmentLines = segments.length > 0 ? formatSegmentsSummary(segments) : null;
+
+  if (!detailStr && !segmentLines && !session.notes) {
     return <span className="text-sm text-[var(--color-text-disabled)]">—</span>;
   }
 
   return (
     <div className="space-y-0.5">
       {detailStr && <p className="text-sm text-[var(--color-text-base)]">{detailStr}</p>}
-      {intervalStr && <p className="text-xs text-[var(--color-text-muted)]">{intervalStr}</p>}
+      {segmentLines && (
+        <ul className="text-xs text-[var(--color-text-muted)] space-y-0.5 pl-3 list-disc marker:text-[var(--color-text-disabled)]">
+          {segmentLines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      )}
       {session.notes && (
         <p className="text-xs text-[var(--color-text-muted)] italic">{session.notes}</p>
       )}
@@ -224,33 +294,24 @@ function PerWeekTabs({
   fallbackTemplate: PhaseWeeklyTemplate | null;
   totalWeeks: number;
 }) {
+  const [activeWeek, setActiveWeek] = useState('1');
+  const items = Array.from({ length: totalWeeks }, (_, i) => ({
+    value: String(i + 1),
+    label: `W${i + 1}`,
+  }));
+  const template = weeklyTemplates[activeWeek] ?? fallbackTemplate;
+
   return (
-    <Tabs defaultValue="1">
-      <div className="overflow-x-auto">
-        <TabsList variant="underline">
-          {Array.from({ length: totalWeeks }, (_, i) => (
-            <TabsTrigger key={i + 1} value={String(i + 1)}>
-              W{i + 1}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-      {Array.from({ length: totalWeeks }, (_, i) => {
-        const weekKey = String(i + 1);
-        const template = weeklyTemplates[weekKey] ?? fallbackTemplate;
-        return (
-          <TabsContent key={weekKey} value={weekKey}>
-            {template && template.days.length === 7 ? (
-              <WeeklyTemplateTable template={template} />
-            ) : (
-              <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
-                Keine Vorlage für Woche {i + 1}
-              </p>
-            )}
-          </TabsContent>
-        );
-      })}
-    </Tabs>
+    <div className="space-y-3">
+      <SegmentedControl items={items} value={activeWeek} onChange={setActiveWeek} size="sm" />
+      {template && template.days.length === 7 ? (
+        <WeeklyTemplateTable template={template} />
+      ) : (
+        <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+          Keine Vorlage für Woche {activeWeek}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -11,12 +11,14 @@ import {
 } from '@nordlig/components';
 import { Loader2 } from 'lucide-react';
 import type { RunDetails } from '@/api/weekly-plan';
-import { createSessionTemplate } from '@/api/session-templates';
+import { createSessionTemplate, type TemplateExercise } from '@/api/session-templates';
 
 interface SaveAsTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  runDetails: RunDetails;
+  runDetails?: RunDetails;
+  exercises?: TemplateExercise[];
+  sessionType?: string;
   defaultName: string;
 }
 
@@ -24,6 +26,8 @@ export function SaveAsTemplateDialog({
   open,
   onOpenChange,
   runDetails,
+  exercises,
+  sessionType,
   defaultName,
 }: SaveAsTemplateDialogProps) {
   const { toast } = useToast();
@@ -44,11 +48,13 @@ export function SaveAsTemplateDialog({
     if (!name.trim()) return;
     setSaving(true);
     try {
+      const type = sessionType ?? 'running';
       await createSessionTemplate({
         name: name.trim(),
         description: description.trim() || undefined,
-        session_type: 'running',
-        run_details: runDetails,
+        session_type: type,
+        ...(type === 'running' && runDetails ? { run_details: runDetails } : {}),
+        ...(type === 'strength' && exercises ? { exercises } : {}),
       });
       toast({ title: 'Vorlage erstellt', variant: 'success' });
       onOpenChange(false);

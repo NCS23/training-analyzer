@@ -18,6 +18,7 @@ from app.infrastructure.database.models import (
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
+from app.models.exercise import TemplateExercise
 from app.models.training_plan import (
     PhaseWeeklyTemplate,
     PhaseWeeklyTemplateDayEntry,
@@ -105,6 +106,17 @@ def _parse_run_details(raw: Optional[str]) -> Optional[RunDetails]:
         return None
 
 
+def _parse_exercises(raw: Optional[str]) -> Optional[list[TemplateExercise]]:
+    """Parse exercises_json string to list of TemplateExercise."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return [TemplateExercise(**ex) for ex in data]
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 async def _load_days_with_sessions(
     db: AsyncSession,
     week_start: date,
@@ -157,6 +169,7 @@ def _build_entry_from_db(
     session_list: list[PlannedSession] = []
     for s in sessions:
         run_details = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
+        exercises = _parse_exercises(str(s.exercises_json) if s.exercises_json else None)
         tid = int(s.template_id) if s.template_id else None
         session_list.append(
             PlannedSession(
@@ -167,6 +180,7 @@ def _build_entry_from_db(
                 template_name=template_names.get(tid) if tid else None,
                 notes=str(s.notes) if s.notes else None,
                 run_details=run_details,
+                exercises=exercises,
                 status=str(s.status) if s.status else "active",
             )
         )
@@ -393,12 +407,17 @@ async def save_weekly_plan(
             if session.run_details is not None:
                 run_details_str = json.dumps(session.run_details.model_dump())
 
+            exercises_str: Optional[str] = None
+            if session.exercises is not None:
+                exercises_str = json.dumps([ex.model_dump() for ex in session.exercises])
+
             db_session = PlannedSessionModel(
                 day_id=db_day.id,
                 position=session.position,
                 training_type=session.training_type,
                 template_id=session.template_id,
                 run_details_json=run_details_str,
+                exercises_json=exercises_str,
                 notes=session.notes,
                 status=session.status,
             )
@@ -843,6 +862,14 @@ async def sync_to_plan(
     # Load weekly plan days + sessions
     days_data = await _load_days_with_sessions(db, week_start)
 
+    # Resolve template names for all sessions
+    sync_template_ids: list[int] = []
+    for _, (_, db_sessions) in days_data.items():
+        for s in db_sessions:
+            if s.template_id:
+                sync_template_ids.append(int(s.template_id))
+    sync_template_names = await _get_template_names(db, sync_template_ids)
+
     # Build PhaseWeeklyTemplate from weekly plan (multi-session)
     template_days: list[PhaseWeeklyTemplateDayEntry] = []
     synced_days = 0
@@ -853,13 +880,17 @@ async def sync_to_plan(
                 template_sessions: list[PhaseWeeklyTemplateSessionEntry] = []
                 for s in db_sessions:
                     rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
+                    ex = _parse_exercises(str(s.exercises_json) if s.exercises_json else None)
+                    s_tid = int(s.template_id) if s.template_id else None
                     template_sessions.append(
                         PhaseWeeklyTemplateSessionEntry(
                             position=int(s.position),
                             training_type=str(s.training_type),
                             run_type=rd.run_type if rd else None,
-                            template_id=(int(s.template_id) if s.template_id else None),
+                            template_id=s_tid,
+                            template_name=sync_template_names.get(s_tid) if s_tid else None,
                             run_details=rd,
+                            exercises=ex,
                         )
                     )
 

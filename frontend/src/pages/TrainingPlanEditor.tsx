@@ -64,12 +64,7 @@ import type { RaceGoal } from '@/api/goals';
 import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEditor';
 import { PlanChangeLog } from '@/components/PlanChangeLog';
 import { TrainingPlanReadView } from '@/components/TrainingPlanReadView';
-import {
-  PHASE_TYPES,
-  PHASE_COLORS,
-  STATUS_OPTIONS,
-  STATUS_BADGE_VARIANTS,
-} from '@/components/plan-helpers';
+import { PHASE_TYPES, STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
 
 interface PhaseForm {
   id?: number;
@@ -78,10 +73,6 @@ interface PhaseForm {
   start_week: number;
   end_week: number;
   notes: string;
-  weekly_volume_min: string;
-  weekly_volume_max: string;
-  quality_sessions_per_week: string;
-  strength_sessions_per_week: string;
   weekly_template: PhaseWeeklyTemplate | null;
   weekly_templates: PhaseWeeklyTemplates | null;
 }
@@ -158,11 +149,6 @@ export function TrainingPlanEditorPage() {
           start_week: p.start_week,
           end_week: p.end_week,
           notes: p.notes ?? '',
-          weekly_volume_min: p.target_metrics?.weekly_volume_min?.toString() ?? '',
-          weekly_volume_max: p.target_metrics?.weekly_volume_max?.toString() ?? '',
-          quality_sessions_per_week: p.target_metrics?.quality_sessions_per_week?.toString() ?? '',
-          strength_sessions_per_week:
-            p.target_metrics?.strength_sessions_per_week?.toString() ?? '',
           weekly_template: p.weekly_template ?? null,
           weekly_templates: p.weekly_templates ?? null,
         })),
@@ -309,34 +295,12 @@ export function TrainingPlanEditorPage() {
   };
 
   const phaseFormToParams = (phase: PhaseForm): TrainingPhaseCreateParams => {
-    const volMin = phase.weekly_volume_min ? parseFloat(phase.weekly_volume_min) : undefined;
-    const volMax = phase.weekly_volume_max ? parseFloat(phase.weekly_volume_max) : undefined;
-    const quality = phase.quality_sessions_per_week
-      ? parseInt(phase.quality_sessions_per_week, 10)
-      : undefined;
-    const strength = phase.strength_sessions_per_week
-      ? parseInt(phase.strength_sessions_per_week, 10)
-      : undefined;
-    const hasMetrics =
-      volMin !== undefined ||
-      volMax !== undefined ||
-      quality !== undefined ||
-      strength !== undefined;
-
     return {
       name: phase.name,
       phase_type: phase.phase_type,
       start_week: phase.start_week,
       end_week: phase.end_week,
       notes: phase.notes || undefined,
-      target_metrics: hasMetrics
-        ? {
-            weekly_volume_min: volMin,
-            weekly_volume_max: volMax,
-            quality_sessions_per_week: quality,
-            strength_sessions_per_week: strength,
-          }
-        : undefined,
       weekly_template: phase.weekly_template ?? undefined,
       weekly_templates: phase.weekly_templates ?? undefined,
     };
@@ -352,10 +316,6 @@ export function TrainingPlanEditorPage() {
         start_week: lastEnd + 1,
         end_week: lastEnd + 4,
         notes: '',
-        weekly_volume_min: '',
-        weekly_volume_max: '',
-        quality_sessions_per_week: '',
-        strength_sessions_per_week: '',
         weekly_template: null,
         weekly_templates: null,
       },
@@ -555,7 +515,7 @@ export function TrainingPlanEditorPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Startdatum</Label>
                   <DatePicker value={startDate} onChange={setStartDate} inputSize="sm" />
@@ -563,14 +523,6 @@ export function TrainingPlanEditorPage() {
                 <div className="space-y-1.5">
                   <Label>Enddatum</Label>
                   <DatePicker value={endDate} onChange={setEndDate} inputSize="sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Wettkampf-Datum</Label>
-                  <DatePicker
-                    value={targetEventDate}
-                    onChange={setTargetEventDate}
-                    inputSize="sm"
-                  />
                 </div>
               </div>
 
@@ -587,7 +539,7 @@ export function TrainingPlanEditorPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Wettkampf-Ziel (optional)</Label>
+                  <Label>Ziel</Label>
                   <Select
                     options={[
                       { value: '', label: 'Kein Ziel' },
@@ -609,15 +561,9 @@ export function TrainingPlanEditorPage() {
       {isEditing && (
         <Card elevation="raised" padding="spacious">
           <CardBody>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Phasen ({phases.length})
-              </h2>
-              <Button variant="ghost" size="sm" onClick={addNewPhase}>
-                <Plus className="w-4 h-4 mr-1" />
-                Phase hinzufügen
-              </Button>
-            </div>
+            <h2 className="text-sm font-semibold text-[var(--color-text-base)] mb-4">
+              Phasen ({phases.length})
+            </h2>
 
             {phases.length === 0 ? (
               <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
@@ -628,23 +574,8 @@ export function TrainingPlanEditorPage() {
                 {phases.map((phase, idx) => (
                   <div
                     key={phase.id ?? `new-${idx}`}
-                    className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] p-3 space-y-3"
+                    className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 pt-3 pb-6 space-y-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <Badge variant={PHASE_COLORS[phase.phase_type]} size="sm">
-                        {PHASE_TYPES.find((t) => t.value === phase.phase_type)?.label ??
-                          phase.phase_type}
-                      </Badge>
-                      <button
-                        type="button"
-                        onClick={() => removePhase(idx)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-[var(--radius-component-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-error)] hover:bg-[var(--color-bg-hover)] transition-colors motion-reduce:transition-none"
-                        aria-label="Phase entfernen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label>Name</Label>
@@ -707,66 +638,6 @@ export function TrainingPlanEditorPage() {
                       />
                     </div>
 
-                    {/* Target Metrics */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="space-y-1">
-                        <Label>Vol. min (km)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={5}
-                          value={phase.weekly_volume_min}
-                          onChange={(e) =>
-                            updatePhaseForm(idx, { weekly_volume_min: e.target.value })
-                          }
-                          inputSize="sm"
-                          placeholder="z.B. 30"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Vol. max (km)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={5}
-                          value={phase.weekly_volume_max}
-                          onChange={(e) =>
-                            updatePhaseForm(idx, { weekly_volume_max: e.target.value })
-                          }
-                          inputSize="sm"
-                          placeholder="z.B. 45"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Quality/Wo.</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={5}
-                          value={phase.quality_sessions_per_week}
-                          onChange={(e) =>
-                            updatePhaseForm(idx, { quality_sessions_per_week: e.target.value })
-                          }
-                          inputSize="sm"
-                          placeholder="z.B. 2"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Kraft/Wo.</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={5}
-                          value={phase.strength_sessions_per_week}
-                          onChange={(e) =>
-                            updatePhaseForm(idx, { strength_sessions_per_week: e.target.value })
-                          }
-                          inputSize="sm"
-                          placeholder="z.B. 2"
-                        />
-                      </div>
-                    </div>
-
                     {/* Weekly Template */}
                     <PhaseWeeklyTemplateEditor
                       template={phase.weekly_template}
@@ -779,10 +650,26 @@ export function TrainingPlanEditorPage() {
                         updatePhaseForm(idx, { weekly_templates: wt })
                       }
                     />
+
+                    <div className="flex justify-end pt-3">
+                      <Button
+                        variant="destructive-outline"
+                        size="sm"
+                        onClick={() => removePhase(idx)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Phase entfernen
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
+
+            <Button variant="ghost" size="sm" onClick={addNewPhase} className="w-full mt-2">
+              <Plus className="w-4 h-4 mr-1" />
+              Phase hinzufügen
+            </Button>
           </CardBody>
         </Card>
       )}

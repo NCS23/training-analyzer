@@ -1,6 +1,18 @@
 import { useState, useCallback } from 'react';
-import { Button, Label, Select, Separator } from '@nordlig/components';
-import { ChevronDown, Dumbbell, Footprints, Minus, Moon, Plus } from 'lucide-react';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  Button,
+  Card,
+  CardBody,
+  Input,
+  Label,
+  SegmentedControl,
+  Select,
+} from '@nordlig/components';
+import { Dumbbell, Footprints, LayoutTemplate, Moon, Plus, Trash2 } from 'lucide-react';
 import type {
   PhaseWeeklyTemplate,
   PhaseWeeklyTemplateDayEntry,
@@ -10,11 +22,15 @@ import type {
   PhaseType,
 } from '@/api/training-plans';
 import type { RunDetails } from '@/api/weekly-plan';
+import type { TemplateExercise } from '@/api/session-templates';
+import { getSessionTemplate } from '@/api/session-templates';
+import type { SessionTemplateSummary } from '@/api/session-templates';
 import { RunDetailsEditor } from './RunDetailsEditor';
+import { StrengthExerciseEditor } from './StrengthExerciseEditor';
+import { TemplatePickerDialog } from './TemplatePickerDialog';
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-const MAX_SESSIONS = 3;
 
 type DayType =
   | 'rest'
@@ -27,28 +43,16 @@ type DayType =
   | 'recovery'
   | 'strength';
 
-const DAY_TYPE_SHORT: Record<DayType, string> = {
-  rest: 'Ruhe',
-  easy: 'Easy',
+const DAY_TYPE_LABELS: Record<DayType, string> = {
+  rest: 'Ruhetag',
+  easy: 'Easy Run',
   tempo: 'Tempo',
-  intervals: 'Int.',
-  progression: 'Prog.',
-  fartlek: 'Fartl.',
-  long_run: 'Long',
-  recovery: 'Rec.',
+  intervals: 'Intervalle',
+  progression: 'Progression',
+  fartlek: 'Fartlek',
+  long_run: 'Long Run',
+  recovery: 'Recovery',
   strength: 'Kraft',
-};
-
-const DAY_TYPE_COLORS: Record<DayType, string> = {
-  rest: 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]',
-  easy: 'bg-[var(--color-primary-1-50)] text-[var(--color-primary-1-600)]',
-  tempo: 'bg-[var(--color-primary-2-50)] text-[var(--color-primary-2-600)]',
-  intervals: 'bg-[var(--color-primary-2-100)] text-[var(--color-primary-2-700)]',
-  progression: 'bg-[var(--color-primary-1-100)] text-[var(--color-primary-1-600)]',
-  fartlek: 'bg-[var(--color-primary-2-50)] text-[var(--color-primary-2-500)]',
-  long_run: 'bg-[var(--color-primary-1-100)] text-[var(--color-primary-1-700)]',
-  recovery: 'bg-[var(--color-primary-1-50)] text-[var(--color-primary-1-500)]',
-  strength: 'bg-[var(--color-secondary-1-100)] text-[var(--color-secondary-1-600)]',
 };
 
 const RUN_TYPE_OPTIONS: { value: RunType; label: string }[] = [
@@ -68,11 +72,10 @@ const SESSION_TYPE_OPTIONS = [
   { value: 'strength', label: 'Kraft' },
 ];
 
-const INITIAL_TYPE_OPTIONS = [
-  { value: '', label: 'Leer' },
+const DAY_TYPE_OPTIONS = [
+  { value: 'rest', label: 'Ruhetag' },
   { value: 'running', label: 'Laufen' },
   { value: 'strength', label: 'Kraft' },
-  { value: 'rest', label: 'Ruhetag' },
 ];
 
 // Default templates per phase type
@@ -106,7 +109,7 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
     return {
       day_of_week: dayOfWeek,
       sessions: [
-        { position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null },
+        { position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null, exercises: null },
       ],
       is_rest_day: false,
       notes: null,
@@ -149,6 +152,7 @@ function cloneTemplate(template: PhaseWeeklyTemplate): PhaseWeeklyTemplate {
                 : null,
             }
           : s.run_details,
+        exercises: s.exercises ? s.exercises.map((ex) => ({ ...ex })) : s.exercises,
       })),
     })),
   };
@@ -159,21 +163,35 @@ function cloneTemplate(template: PhaseWeeklyTemplate): PhaseWeeklyTemplate {
 interface TemplateSessionEditorProps {
   session: PhaseWeeklyTemplateSessionEntry;
   canRemove: boolean;
+  showRestOption?: boolean;
   onUpdate: (updated: PhaseWeeklyTemplateSessionEntry) => void;
   onRemove: () => void;
+  onMakeRest?: () => void;
 }
 
 function TemplateSessionEditor({
   session,
   canRemove,
+  showRestOption,
   onUpdate,
   onRemove,
+  onMakeRest,
 }: TemplateSessionEditorProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const typeOptions = showRestOption
+    ? [{ value: 'rest', label: 'Ruhetag' }, ...SESSION_TYPE_OPTIONS]
+    : SESSION_TYPE_OPTIONS;
+
   const handleTypeChange = (val: string) => {
+    if (val === 'rest') {
+      onMakeRest?.();
+      return;
+    }
     if (val === 'strength') {
-      onUpdate({ ...session, training_type: 'strength', run_type: null, run_details: undefined });
+      onUpdate({ ...session, training_type: 'strength', run_type: null, run_details: undefined, exercises: null });
     } else {
-      onUpdate({ ...session, training_type: 'running', run_type: 'easy', run_details: undefined });
+      onUpdate({ ...session, training_type: 'running', run_type: 'easy', run_details: undefined, exercises: undefined });
     }
   };
 
@@ -185,44 +203,87 @@ function TemplateSessionEditor({
     onUpdate({ ...session, run_details: details ?? undefined });
   };
 
+  const handleExercisesChange = (exercises: TemplateExercise[] | null) => {
+    onUpdate({ ...session, exercises });
+  };
+
+  const handleTemplateSelect = async (tmplSummary: SessionTemplateSummary | null) => {
+    setPickerOpen(false);
+    if (!tmplSummary) return;
+    try {
+      const full = await getSessionTemplate(tmplSummary.id);
+      if (session.training_type === 'strength') {
+        onUpdate({
+          ...session,
+          template_id: full.id,
+          template_name: full.name,
+          exercises: full.exercises.length > 0 ? full.exercises : null,
+          notes: full.description ?? session.notes,
+        });
+      } else if (session.training_type === 'running' && full.run_details) {
+        onUpdate({
+          ...session,
+          template_id: full.id,
+          template_name: full.name,
+          run_details: full.run_details,
+          run_type: full.run_details.run_type as RunType,
+        });
+      }
+    } catch {
+      /* template fetch failed — ignore */
+    }
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <Select
-            options={SESSION_TYPE_OPTIONS}
-            value={session.training_type}
-            onChange={(val) => {
-              if (val) handleTypeChange(val);
-            }}
-            inputSize="sm"
-            aria-label="Trainingstyp"
-          />
-        </div>
-        {canRemove && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            aria-label="Session entfernen"
-            className="shrink-0"
-          >
-            <Minus className="w-4 h-4" />
-          </Button>
+      <div>
+        <Label className="text-xs mb-1">Trainingstyp</Label>
+        <Select
+          options={typeOptions}
+          value={session.training_type}
+          onChange={(val) => {
+            if (val) handleTypeChange(val);
+          }}
+          inputSize="sm"
+          aria-label="Trainingstyp"
+        />
+      </div>
+
+      {/* Template picker button + name */}
+      <div className="space-y-1">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setPickerOpen(true)}
+          className="w-full"
+        >
+          <LayoutTemplate className="w-4 h-4 mr-1" />
+          {session.template_id ? 'Vorlage wechseln' : 'Vorlage laden'}
+        </Button>
+        {session.template_name && (
+          <p className="text-xs text-[var(--color-text-muted)] truncate px-1">
+            Vorlage:{' '}
+            <span className="font-medium text-[var(--color-text-base)]">
+              {session.template_name}
+            </span>
+          </p>
         )}
       </div>
 
       {session.training_type === 'running' && (
         <>
-          <Select
-            options={RUN_TYPE_OPTIONS}
-            value={session.run_type ?? 'easy'}
-            onChange={(val) => {
-              if (val) handleRunTypeChange(val);
-            }}
-            inputSize="sm"
-            aria-label="Lauftyp"
-          />
+          <div>
+            <Label className="text-xs mb-1">Lauftyp</Label>
+            <Select
+              options={RUN_TYPE_OPTIONS}
+              value={session.run_type ?? 'easy'}
+              onChange={(val) => {
+                if (val) handleRunTypeChange(val);
+              }}
+              inputSize="sm"
+              aria-label="Lauftyp"
+            />
+          </div>
           <RunDetailsEditor
             runDetails={session.run_details ?? null}
             runType={session.run_type}
@@ -232,10 +293,45 @@ function TemplateSessionEditor({
       )}
 
       {session.training_type === 'strength' && (
-        <p className="text-xs text-[var(--color-text-muted)] italic">
-          Krafttraining — Details werden im Wochenplan konfiguriert
-        </p>
+        <StrengthExerciseEditor
+          exercises={session.exercises ?? null}
+          onChange={handleExercisesChange}
+        />
       )}
+
+      {/* Notes */}
+      <div>
+        <Label className="text-xs mb-1">Notiz</Label>
+        <Input
+          type="text"
+          value={session.notes ?? ''}
+          onChange={(e) => onUpdate({ ...session, notes: e.target.value || null })}
+          inputSize="sm"
+          placeholder={session.training_type === 'running' ? 'z.B. lockerer Dauerlauf, Fokus Technik' : 'z.B. Aufwärmen, Mobilität'}
+          aria-label="Session Notiz"
+        />
+      </div>
+
+      {canRemove && (
+        <div className="flex justify-end pt-3">
+          <Button
+            variant="destructive-outline"
+            size="sm"
+            onClick={onRemove}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Session entfernen
+          </Button>
+        </div>
+      )}
+
+      {/* Template Picker Dialog */}
+      <TemplatePickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        sessionType={session.training_type}
+        onSelect={handleTemplateSelect}
+      />
     </div>
   );
 }
@@ -243,10 +339,10 @@ function TemplateSessionEditor({
 // --- Compact day cell for grid ---
 
 function DayCellIcon({ type }: { type: DayType }) {
-  if (type === 'rest') return <Moon className="w-3 h-3 text-[var(--color-text-muted)]" />;
+  if (type === 'rest') return <Moon className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />;
   if (type === 'strength')
-    return <Dumbbell className="w-3 h-3 text-[var(--color-secondary-1-500)]" />;
-  return <Footprints className="w-3 h-3 text-[var(--color-primary-1-500)]" />;
+    return <Dumbbell className="w-3.5 h-3.5 text-[var(--color-secondary-1-500)]" />;
+  return <Footprints className="w-3.5 h-3.5 text-[var(--color-primary-1-500)]" />;
 }
 
 // --- Main Component ---
@@ -273,7 +369,6 @@ export function PhaseWeeklyTemplateEditor({
   const totalWeeks = Math.max(1, endWeek - startWeek + 1);
   const perWeekMode = weeklyTemplates !== null && Object.keys(weeklyTemplates.weeks).length > 0;
   const [activeWeek, setActiveWeek] = useState(1);
-  const [expandedDay, setExpandedDay] = useState<number | null>(null);
 
   const clampedActiveWeek = Math.min(activeWeek, totalWeeks);
 
@@ -340,14 +435,15 @@ export function PhaseWeeklyTemplateEditor({
     [currentTemplate, updateDay],
   );
 
-  const handleInitialTypeChange = useCallback(
+  const handleDayTypeChange = useCallback(
     (dayIndex: number, val: string) => {
+      const day = currentTemplate.days[dayIndex];
       if (val === 'rest') {
         updateDay(dayIndex, {
           day_of_week: dayIndex,
           sessions: [],
           is_rest_day: true,
-          notes: null,
+          notes: day.notes ?? null,
         });
       } else if (val === 'strength') {
         updateDay(dayIndex, {
@@ -362,9 +458,9 @@ export function PhaseWeeklyTemplateEditor({
             },
           ],
           is_rest_day: false,
-          notes: null,
+          notes: day.notes ?? null,
         });
-      } else if (val === 'running') {
+      } else {
         updateDay(dayIndex, {
           day_of_week: dayIndex,
           sessions: [
@@ -377,25 +473,12 @@ export function PhaseWeeklyTemplateEditor({
             },
           ],
           is_rest_day: false,
-          notes: null,
-        });
-      } else {
-        updateDay(dayIndex, {
-          day_of_week: dayIndex,
-          sessions: [],
-          is_rest_day: false,
-          notes: null,
+          notes: day.notes ?? null,
         });
       }
     },
-    [updateDay],
+    [currentTemplate, updateDay],
   );
-
-  const handleLoadDefaults = useCallback(() => {
-    const defaultTemplate = createDefaultTemplate(phaseType);
-    updateTemplate(defaultTemplate);
-    setExpandedDay(null);
-  }, [phaseType, updateTemplate]);
 
   const handleTogglePerWeek = useCallback(() => {
     if (perWeekMode) {
@@ -412,7 +495,7 @@ export function PhaseWeeklyTemplateEditor({
       onChangeWeeklyTemplates({ weeks });
       setActiveWeek(1);
     }
-    setExpandedDay(null);
+    // Accordion resets automatically on template change
   }, [perWeekMode, weeklyTemplates, sharedTemplate, totalWeeks, onChange, onChangeWeeklyTemplates]);
 
   const handleCopyFromWeek = useCallback(
@@ -423,26 +506,14 @@ export function PhaseWeeklyTemplateEditor({
       const updatedWeeks = { ...weeklyTemplates.weeks };
       updatedWeeks[String(clampedActiveWeek)] = cloneTemplate(source);
       onChangeWeeklyTemplates({ weeks: updatedWeeks });
-      setExpandedDay(null);
+      // Accordion resets automatically on template change
     },
     [weeklyTemplates, clampedActiveWeek, onChangeWeeklyTemplates],
   );
 
-  const expandedDayEntry = expandedDay !== null ? currentTemplate.days[expandedDay] : null;
-  const expandedDayLabel = expandedDay !== null ? DAY_LABELS[expandedDay] : '';
-
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>Wochen-Template</Label>
-        <button
-          type="button"
-          onClick={handleLoadDefaults}
-          className="text-xs text-[var(--color-text-link)] hover:underline underline-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-        >
-          Standard laden
-        </button>
-      </div>
+      <Label>Wochen-Template</Label>
 
       {/* Per-week toggle */}
       {totalWeeks > 1 && (
@@ -462,48 +533,32 @@ export function PhaseWeeklyTemplateEditor({
       {/* Week tabs */}
       {perWeekMode && (
         <div className="space-y-2">
-          <div className="flex items-center gap-1 overflow-x-auto pb-1">
-            {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
-              <button
-                key={w}
-                type="button"
-                onClick={() => {
-                  setActiveWeek(w);
-                  setExpandedDay(null);
-                }}
-                className={`
-                  shrink-0 min-w-[44px] min-h-[44px] px-3 py-1.5
-                  rounded-[var(--radius-component-sm)] text-xs font-medium
-                  transition-colors motion-reduce:transition-none
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-                  ${
-                    w === clampedActiveWeek
-                      ? 'bg-[var(--color-primary-1-600)] text-white'
-                      : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
-                  }
-                `}
-              >
-                W{w}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            size="sm"
+            items={Array.from({ length: totalWeeks }, (_, i) => ({
+              value: String(i + 1),
+              label: `W${i + 1}`,
+            }))}
+            value={String(clampedActiveWeek)}
+            onChange={(v) => setActiveWeek(Number(v))}
+          />
 
           {/* Copy from week */}
           {totalWeeks > 1 && (
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-[var(--color-text-muted)]">Kopieren von:</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Kopieren von:</span>
               <div className="flex gap-1">
                 {Array.from({ length: totalWeeks }, (_, i) => i + 1)
                   .filter((w) => w !== clampedActiveWeek)
                   .map((w) => (
-                    <button
+                    <Button
                       key={w}
-                      type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleCopyFromWeek(w)}
-                      className="text-[10px] text-[var(--color-text-link)] hover:underline underline-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     >
                       W{w}
-                    </button>
+                    </Button>
                   ))}
               </div>
             </div>
@@ -511,137 +566,102 @@ export function PhaseWeeklyTemplateEditor({
         </div>
       )}
 
-      {/* 7-day grid */}
-      <div className="grid grid-cols-7 gap-1">
+      {/* Day list (Accordion) */}
+      <Accordion type="multiple" className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)]">
         {DAY_LABELS.map((label, i) => {
           const dayTypes = getDayTypes(currentTemplate.days[i]);
-          const isExpanded = expandedDay === i;
           const isEmpty = dayTypes.length === 0;
+          const dayEntry = currentTemplate.days[i];
 
           return (
-            <div key={label} className="text-center">
-              <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                {label}
-              </span>
-              {/* Day content — shows session badges */}
-              <button
-                type="button"
-                onClick={() => setExpandedDay(isExpanded ? null : i)}
-                className={`
-                  w-full mt-0.5 py-1 px-0.5 rounded-t-[var(--radius-component-sm)]
-                  min-h-[44px] flex flex-col items-center justify-center gap-0.5
-                  transition-colors motion-reduce:transition-none
-                  hover:bg-[var(--color-bg-surface-hover)]
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-                  ${isEmpty ? 'bg-[var(--color-bg-base)]' : ''}
-                `}
-                aria-expanded={isExpanded}
-                aria-label={`${label} bearbeiten`}
-              >
-                {isEmpty ? (
-                  <span className="text-[10px] text-[var(--color-text-disabled)]">—</span>
-                ) : (
-                  dayTypes.map((type, idx) => (
-                    <div key={idx} className="flex items-center gap-0.5">
-                      <DayCellIcon type={type} />
-                      <span
-                        className={`text-[10px] font-medium ${DAY_TYPE_COLORS[type].split(' ')[1] ?? 'text-[var(--color-text-base)]'}`}
+            <AccordionItem key={label} value={label}>
+              <AccordionTrigger>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-[var(--color-text-muted)] w-6 shrink-0">
+                    {label}
+                  </span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {isEmpty ? (
+                      <span className="text-xs text-[var(--color-text-disabled)]">—</span>
+                    ) : (
+                      dayTypes.map((type, idx) => (
+                        <div key={idx} className="flex items-center gap-1">
+                          <DayCellIcon type={type} />
+                          <span className="text-xs font-medium text-[var(--color-text-base)]">
+                            {DAY_TYPE_LABELS[type]}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3">
+                  {/* Day type selector — only for rest days */}
+                  {dayEntry.is_rest_day && (
+                    <Select
+                      options={DAY_TYPE_OPTIONS}
+                      value="rest"
+                      onChange={(val) => {
+                        if (val) handleDayTypeChange(i, val);
+                      }}
+                      inputSize="sm"
+                      aria-label="Tagestyp"
+                    />
+                  )}
+
+                  {/* Sessions list */}
+                  {dayEntry.sessions.length > 0 &&
+                    dayEntry.sessions.map((session, idx) => (
+                      <Card key={idx} elevation="flat" padding="compact">
+                        <CardBody>
+                          <TemplateSessionEditor
+                            session={session}
+                            canRemove={dayEntry.sessions.length > 1}
+                            showRestOption={idx === 0}
+                            onUpdate={(updated) => updateDaySession(i, idx, updated)}
+                            onRemove={() => removeDaySession(i, idx)}
+                            onMakeRest={() => handleDayTypeChange(i, 'rest')}
+                          />
+                        </CardBody>
+                      </Card>
+                    ))}
+
+                  {/* Add Session button */}
+                  {dayEntry.sessions.length > 0 &&
+                    !dayEntry.is_rest_day && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => addDaySession(i)}
+                        className="w-full"
                       >
-                        {DAY_TYPE_SHORT[type]}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </button>
-              {/* Expand toggle */}
-              <button
-                type="button"
-                onClick={() => setExpandedDay(isExpanded ? null : i)}
-                className={`
-                  w-full flex items-center justify-center
-                  min-h-[22px] rounded-b-[var(--radius-component-sm)]
-                  transition-colors motion-reduce:transition-none
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]
-                  ${
-                    isExpanded
-                      ? 'bg-[var(--color-bg-surface-hover)]'
-                      : 'bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-surface-hover)]'
-                  }
-                `}
-                aria-label={`${label} Details ${isExpanded ? 'schliessen' : 'oeffnen'}`}
-              >
-                <ChevronDown
-                  className={`w-3 h-3 text-[var(--color-text-muted)] transition-transform duration-150 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
-                />
-              </button>
-            </div>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Session hinzufügen
+                      </Button>
+                    )}
+
+                  {/* Day notes */}
+                  <div>
+                    <Label className="text-xs mb-1">Tagesnotiz</Label>
+                    <Input
+                      type="text"
+                      value={dayEntry.notes ?? ''}
+                      onChange={(e) =>
+                        updateDay(i, { ...dayEntry, notes: e.target.value || null })
+                      }
+                      inputSize="sm"
+                      placeholder="z.B. optional Yoga, Mobilität"
+                      aria-label={`${DAY_LABELS[i]} Notiz`}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           );
         })}
-      </div>
-
-      {/* Expanded day detail panel */}
-      {expandedDay !== null && expandedDayEntry && (
-        <div className="border border-[var(--color-border-muted)] rounded-[var(--radius-component-md)] p-[var(--spacing-sm)] space-y-3 bg-[var(--color-bg-paper)]">
-          <span className="text-xs font-semibold text-[var(--color-text-base)]">
-            {expandedDayLabel}
-          </span>
-
-          {/* No sessions and not rest day → initial type selector */}
-          {expandedDayEntry.sessions.length === 0 && !expandedDayEntry.is_rest_day && (
-            <Select
-              options={INITIAL_TYPE_OPTIONS}
-              value=""
-              onChange={(val) => handleInitialTypeChange(expandedDay, val ?? '')}
-              inputSize="sm"
-              aria-label="Trainingstyp"
-            />
-          )}
-
-          {/* Rest day → show selector to switch back */}
-          {expandedDayEntry.is_rest_day && (
-            <>
-              <Select
-                options={INITIAL_TYPE_OPTIONS}
-                value="rest"
-                onChange={(val) => handleInitialTypeChange(expandedDay, val ?? '')}
-                inputSize="sm"
-                aria-label="Trainingstyp"
-              />
-              <p className="text-xs text-[var(--color-text-muted)] italic">Ruhetag</p>
-            </>
-          )}
-
-          {/* Sessions list */}
-          {expandedDayEntry.sessions.length > 0 &&
-            expandedDayEntry.sessions.map((session, idx) => (
-              <div key={idx}>
-                {idx > 0 && <Separator className="my-3" />}
-                <TemplateSessionEditor
-                  session={session}
-                  canRemove={expandedDayEntry.sessions.length > 1}
-                  onUpdate={(updated) => updateDaySession(expandedDay, idx, updated)}
-                  onRemove={() => removeDaySession(expandedDay, idx)}
-                />
-              </div>
-            ))}
-
-          {/* Add Session button */}
-          {expandedDayEntry.sessions.length > 0 &&
-            !expandedDayEntry.is_rest_day &&
-            expandedDayEntry.sessions.length < MAX_SESSIONS && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => addDaySession(expandedDay)}
-                className="w-full"
-                aria-label="Session hinzufügen"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Session
-              </Button>
-            )}
-        </div>
-      )}
+      </Accordion>
     </div>
   );
 }

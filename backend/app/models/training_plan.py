@@ -5,6 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.models.exercise import TemplateExercise
 from app.models.taxonomy import SESSION_TYPE_REGEX
 from app.models.weekly_plan import RunDetails
 
@@ -32,8 +33,10 @@ class PhaseWeeklyTemplateSessionEntry(BaseModel):
     training_type: str = Field(..., pattern="^(strength|running)$")
     run_type: Optional[str] = Field(default=None, pattern=SESSION_TYPE_REGEX)
     template_id: Optional[int] = None
+    template_name: Optional[str] = None
     notes: Optional[str] = Field(default=None, max_length=200)
     run_details: Optional[RunDetails] = None
+    exercises: Optional[list[TemplateExercise]] = None
 
 
 class PhaseWeeklyTemplateDayEntry(BaseModel):

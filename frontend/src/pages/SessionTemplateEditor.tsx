@@ -38,12 +38,21 @@ import {
   getSessionTemplate,
   updateSessionTemplate,
 } from '@/api/session-templates';
-import type { ExerciseCategory, ExerciseType, TemplateExercise } from '@/api/session-templates';
+import type { ExerciseCategory } from '@/api/session-templates';
 import type { RunDetails } from '@/api/weekly-plan';
 import { categoryBadgeVariant, trainingTypeOptions } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import { RunDetailsEditor } from '@/components/RunDetailsEditor';
+import {
+  type ExerciseForm,
+  CATEGORY_OPTIONS,
+  CATEGORY_LABELS,
+  EXERCISE_TYPE_OPTIONS,
+  createDefaultExercise,
+  exerciseFormToApi,
+  apiExerciseToForm,
+} from '@/utils/exercise-helpers';
 
 // --- Types ---
 
@@ -55,91 +64,10 @@ const SESSION_TYPE_OPTIONS: { value: TemplateSessionType; label: string; icon: s
   { value: 'running', label: 'Laufen', icon: 'footprints' },
 ];
 
-interface ExerciseForm {
-  id: string;
-  name: string;
-  category: ExerciseCategory;
-  sets: number;
-  reps: number;
-  weight_kg: number;
-  exercise_type: ExerciseType;
-  notes: string;
-  collapsed: boolean;
-}
-
-const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
-  { value: 'push', label: 'Push' },
-  { value: 'pull', label: 'Pull' },
-  { value: 'legs', label: 'Beine' },
-  { value: 'core', label: 'Core' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'drills', label: 'Lauf-ABC' },
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Beine',
-  core: 'Core',
-  cardio: 'Cardio',
-  drills: 'Lauf-ABC',
-};
-
-const EXERCISE_TYPE_OPTIONS: { value: ExerciseType; label: string }[] = [
-  { value: 'kraft', label: 'Kraft' },
-  { value: 'mobilitaet', label: 'Mobilität' },
-  { value: 'dehnung', label: 'Dehnung' },
-];
-
 const RUN_TYPE_OPTIONS = trainingTypeOptions.map((opt) => ({
   value: opt.value,
   label: opt.label,
 }));
-
-let nextId = 0;
-function genId(): string {
-  return `pe-${++nextId}-${Date.now()}`;
-}
-
-function createDefaultExercise(): ExerciseForm {
-  return {
-    id: genId(),
-    name: '',
-    category: 'push',
-    sets: 3,
-    reps: 10,
-    weight_kg: 0,
-    exercise_type: 'kraft',
-    notes: '',
-    collapsed: false,
-  };
-}
-
-function exerciseFormToApi(ex: ExerciseForm): TemplateExercise {
-  return {
-    name: ex.name.trim(),
-    category: ex.category,
-    sets: ex.sets,
-    reps: ex.reps,
-    weight_kg: ex.weight_kg > 0 ? ex.weight_kg : null,
-    exercise_type: ex.exercise_type,
-    notes: ex.notes.trim() || null,
-  };
-}
-
-function apiExerciseToForm(ex: TemplateExercise): ExerciseForm {
-  return {
-    id: genId(),
-    name: ex.name,
-    category: ex.category,
-    sets: ex.sets,
-    reps: ex.reps,
-    weight_kg: ex.weight_kg ?? 0,
-    exercise_type: ex.exercise_type,
-    notes: ex.notes ?? '',
-    collapsed: true,
-  };
-}
 
 // --- Component ---
 

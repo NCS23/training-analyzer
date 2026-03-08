@@ -200,6 +200,7 @@ class PlannedSessionModel(Base):
     training_type = Column(String(30), nullable=False)  # 'strength', 'running'
     template_id = Column(Integer, nullable=True)  # FK to session_templates
     run_details_json = Column(Text, nullable=True)
+    exercises_json = Column(Text, nullable=True)  # JSON array of TemplateExercise
     notes = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, server_default="active")  # 'active' | 'skipped'
 
