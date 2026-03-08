@@ -31,7 +31,6 @@ import { TemplatePickerDialog } from './TemplatePickerDialog';
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-
 type DayType =
   | 'rest'
   | 'easy'
@@ -109,7 +108,14 @@ function dayTypeToEntry(dayOfWeek: number, type: DayType): PhaseWeeklyTemplateDa
     return {
       day_of_week: dayOfWeek,
       sessions: [
-        { position: 0, training_type: 'strength', run_type: null, template_id: null, notes: null, exercises: null },
+        {
+          position: 0,
+          training_type: 'strength',
+          run_type: null,
+          template_id: null,
+          notes: null,
+          exercises: null,
+        },
       ],
       is_rest_day: false,
       notes: null,
@@ -189,9 +195,21 @@ function TemplateSessionEditor({
       return;
     }
     if (val === 'strength') {
-      onUpdate({ ...session, training_type: 'strength', run_type: null, run_details: undefined, exercises: null });
+      onUpdate({
+        ...session,
+        training_type: 'strength',
+        run_type: null,
+        run_details: undefined,
+        exercises: null,
+      });
     } else {
-      onUpdate({ ...session, training_type: 'running', run_type: 'easy', run_details: undefined, exercises: undefined });
+      onUpdate({
+        ...session,
+        training_type: 'running',
+        run_type: 'easy',
+        run_details: undefined,
+        exercises: undefined,
+      });
     }
   };
 
@@ -307,18 +325,18 @@ function TemplateSessionEditor({
           value={session.notes ?? ''}
           onChange={(e) => onUpdate({ ...session, notes: e.target.value || null })}
           inputSize="sm"
-          placeholder={session.training_type === 'running' ? 'z.B. lockerer Dauerlauf, Fokus Technik' : 'z.B. Aufwärmen, Mobilität'}
+          placeholder={
+            session.training_type === 'running'
+              ? 'z.B. lockerer Dauerlauf, Fokus Technik'
+              : 'z.B. Aufwärmen, Mobilität'
+          }
           aria-label="Session Notiz"
         />
       </div>
 
       {canRemove && (
         <div className="flex justify-end pt-3">
-          <Button
-            variant="destructive-outline"
-            size="sm"
-            onClick={onRemove}
-          >
+          <Button variant="destructive-outline" size="sm" onClick={onRemove}>
             <Trash2 className="w-4 h-4 mr-1" />
             Session entfernen
           </Button>
@@ -551,12 +569,7 @@ export function PhaseWeeklyTemplateEditor({
                 {Array.from({ length: totalWeeks }, (_, i) => i + 1)
                   .filter((w) => w !== clampedActiveWeek)
                   .map((w) => (
-                    <Button
-                      key={w}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyFromWeek(w)}
-                    >
+                    <Button key={w} variant="ghost" size="sm" onClick={() => handleCopyFromWeek(w)}>
                       W{w}
                     </Button>
                   ))}
@@ -567,7 +580,10 @@ export function PhaseWeeklyTemplateEditor({
       )}
 
       {/* Day list (Accordion) */}
-      <Accordion type="multiple" className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)]">
+      <Accordion
+        type="multiple"
+        className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)]"
+      >
         {DAY_LABELS.map((label, i) => {
           const dayTypes = getDayTypes(currentTemplate.days[i]);
           const isEmpty = dayTypes.length === 0;
@@ -629,18 +645,17 @@ export function PhaseWeeklyTemplateEditor({
                     ))}
 
                   {/* Add Session button */}
-                  {dayEntry.sessions.length > 0 &&
-                    !dayEntry.is_rest_day && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => addDaySession(i)}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Session hinzufügen
-                      </Button>
-                    )}
+                  {dayEntry.sessions.length > 0 && !dayEntry.is_rest_day && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => addDaySession(i)}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Session hinzufügen
+                    </Button>
+                  )}
 
                   {/* Day notes */}
                   <div>
@@ -648,9 +663,7 @@ export function PhaseWeeklyTemplateEditor({
                     <Input
                       type="text"
                       value={dayEntry.notes ?? ''}
-                      onChange={(e) =>
-                        updateDay(i, { ...dayEntry, notes: e.target.value || null })
-                      }
+                      onChange={(e) => updateDay(i, { ...dayEntry, notes: e.target.value || null })}
                       inputSize="sm"
                       placeholder="z.B. optional Yoga, Mobilität"
                       aria-label={`${DAY_LABELS[i]} Notiz`}

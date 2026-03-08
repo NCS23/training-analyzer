@@ -531,7 +531,9 @@ function SessionDetailDialog({
             : session.run_details,
         exercises:
           session.training_type === 'strength'
-            ? (full.exercises?.length ? full.exercises : session.exercises)
+            ? full.exercises?.length
+              ? full.exercises
+              : session.exercises
             : session.exercises,
         notes:
           session.training_type === 'strength'

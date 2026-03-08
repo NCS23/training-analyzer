@@ -129,32 +129,32 @@ function SegmentEditorRow({
           <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
             {targetMode === 'duration' ? 'Dauer (min)' : 'Distanz (km)'}
           </Label>
-            {targetMode === 'duration' ? (
-              <Input
-                type="number"
-                min={0.5}
-                max={180}
-                step={0.5}
-                value={segment.target_duration_minutes ?? ''}
-                onChange={(e) => update({ target_duration_minutes: Number(e.target.value) || 1 })}
-                inputSize="sm"
-                placeholder="min"
-                aria-label={`Segment ${index + 1} Dauer`}
-              />
-            ) : (
-              <Input
-                type="number"
-                min={0.01}
-                max={100}
-                step={0.1}
-                value={segment.target_distance_km ?? ''}
-                onChange={(e) => update({ target_distance_km: Number(e.target.value) || 0.4 })}
-                inputSize="sm"
-                placeholder="km"
-                aria-label={`Segment ${index + 1} Distanz`}
-              />
-            )}
-          </div>
+          {targetMode === 'duration' ? (
+            <Input
+              type="number"
+              min={0.5}
+              max={180}
+              step={0.5}
+              value={segment.target_duration_minutes ?? ''}
+              onChange={(e) => update({ target_duration_minutes: Number(e.target.value) || 1 })}
+              inputSize="sm"
+              placeholder="min"
+              aria-label={`Segment ${index + 1} Dauer`}
+            />
+          ) : (
+            <Input
+              type="number"
+              min={0.01}
+              max={100}
+              step={0.1}
+              value={segment.target_distance_km ?? ''}
+              onChange={(e) => update({ target_distance_km: Number(e.target.value) || 0.4 })}
+              inputSize="sm"
+              placeholder="km"
+              aria-label={`Segment ${index + 1} Distanz`}
+            />
+          )}
+        </div>
       </div>
 
       {/* Row 3: Pace range */}
@@ -162,7 +162,9 @@ function SegmentEditorRow({
         <Label className="text-[10px] mb-0.5">Pace (M:SS / km)</Label>
         <div className="grid grid-cols-2 gap-1.5">
           <div>
-            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Von (schnell)</Label>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
+              Von (schnell)
+            </Label>
             <Input
               type="text"
               value={segment.target_pace_min ?? ''}
@@ -173,7 +175,9 @@ function SegmentEditorRow({
             />
           </div>
           <div>
-            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Bis (langsam)</Label>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
+              Bis (langsam)
+            </Label>
             <Input
               type="text"
               value={segment.target_pace_max ?? ''}
@@ -349,7 +353,9 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
         <Label className="text-xs mb-1">Pace (M:SS / km)</Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Von (schnell)</Label>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
+              Von (schnell)
+            </Label>
             <Input
               type="text"
               value={details.target_pace_min ?? ''}
@@ -360,7 +366,9 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
             />
           </div>
           <div>
-            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Bis (langsam)</Label>
+            <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
+              Bis (langsam)
+            </Label>
             <Input
               type="text"
               value={details.target_pace_max ?? ''}
@@ -444,7 +452,6 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
           Segment hinzufügen
         </Button>
       </div>
-
     </div>
   );
 }

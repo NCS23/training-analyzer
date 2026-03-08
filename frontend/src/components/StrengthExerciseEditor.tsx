@@ -84,7 +84,10 @@ function ExerciseRow({
   return (
     <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] border-l-2 border-l-[var(--color-border-primary)] bg-[var(--color-bg-surface)] p-3 space-y-2">
       {/* Row 1: Name with suggestions */}
-      <div className="relative" ref={showSuggestions ? suggestionsRef as React.RefObject<HTMLDivElement> : undefined}>
+      <div
+        className="relative"
+        ref={showSuggestions ? (suggestionsRef as React.RefObject<HTMLDivElement>) : undefined}
+      >
         <Label className="text-[10px] mb-0.5">Übung</Label>
         <Input
           value={exercise.name}
