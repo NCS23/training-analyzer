@@ -28,7 +28,6 @@ import { trainingTypeLabels, trainingTypeBadgeVariant } from '@/constants/traini
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import {
   PHASE_TYPES,
-  PHASE_COLORS,
   DAY_LABELS,
   formatDateDE,
   getWeekNumber,
@@ -271,7 +270,7 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold text-[var(--color-text-base)]">{phase.name}</h3>
-            <Badge variant={PHASE_COLORS[phase.phase_type] ?? 'neutral'} size="xs">
+            <Badge variant="neutral" size="xs">
               {phaseTypeLabel}
             </Badge>
             <Badge variant="neutral" size="xs">
