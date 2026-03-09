@@ -39,7 +39,9 @@ if [ ! -f "$CHECKLIST" ]; then
 fi
 
 # Count incomplete items (lines with "- [ ]")
-INCOMPLETE=$(grep -c '^\- \[ \]' "$CHECKLIST" 2>/dev/null || echo "0")
+INCOMPLETE=$(grep -c '^\- \[ \]' "$CHECKLIST" 2>/dev/null || true)
+INCOMPLETE=${INCOMPLETE:-0}
+INCOMPLETE=$(echo "$INCOMPLETE" | tr -d '[:space:]')
 
 if [ "$INCOMPLETE" -gt 0 ]; then
   echo ""
