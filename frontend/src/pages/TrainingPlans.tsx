@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   Label,
   Select,
   AlertDialog,
@@ -24,7 +25,15 @@ import {
   AlertDialogCancel,
   Checkbox,
 } from '@nordlig/components';
-import { Plus, EllipsisVertical, Trash2, CalendarRange, Upload, CalendarPlus } from 'lucide-react';
+import {
+  Plus,
+  EllipsisVertical,
+  Trash2,
+  CalendarRange,
+  Upload,
+  CalendarPlus,
+  Pencil,
+} from 'lucide-react';
 import {
   listTrainingPlans,
   deleteTrainingPlan,
@@ -314,6 +323,12 @@ export function TrainingPlansPage() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        icon={<Pencil />}
+                        onSelect={() => navigate(`/plan/programs/${plan.id}?edit=true`)}
+                      >
+                        Bearbeiten
+                      </DropdownMenuItem>
                       {plan.phase_count > 0 && (
                         <DropdownMenuItem
                           icon={<CalendarPlus />}
@@ -322,6 +337,7 @@ export function TrainingPlansPage() {
                           Wochenpläne generieren
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         icon={<Trash2 />}
                         onSelect={() => openDeleteDialog(plan)}

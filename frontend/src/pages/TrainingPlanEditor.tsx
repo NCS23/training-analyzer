@@ -72,7 +72,7 @@ export function TrainingPlanEditorPage() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEdit = !!planId;
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(() => searchParams.get('edit') === 'true');
   const isEditing = !isEdit || editMode;
   const [rawPlan, setRawPlan] = useState<TrainingPlan | null>(null);
 
@@ -313,7 +313,9 @@ export function TrainingPlanEditorPage() {
   }
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
+    <div
+      className={`p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6${isEditing ? ' pb-24' : ''}`}
+    >
       {/* Breadcrumbs */}
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
@@ -595,17 +597,35 @@ export function TrainingPlanEditorPage() {
       {/* Change Log */}
       {isEdit && planId && <PlanChangeLog planId={parseInt(planId, 10)} />}
 
-      {/* Error + Actions — only in edit mode */}
-      {isEditing && (
-        <>
-          {error && (
-            <Alert variant="error" closeable onClose={() => setError(null)}>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* Error — only in edit mode */}
+      {isEditing && error && (
+        <Alert variant="error" closeable onClose={() => setError(null)}>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/plan/programs')}>
+      {/* Fixed ActionBar — edit mode */}
+      {isEditing && (
+        <div
+          role="toolbar"
+          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
+        >
+          <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
+            Ungespeicherte Änderungen
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (isEdit) {
+                  setEditMode(false);
+                  loadPlan();
+                } else {
+                  navigate('/plan/programs');
+                }
+              }}
+            >
               Abbrechen
             </Button>
             <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
@@ -619,7 +639,7 @@ export function TrainingPlanEditorPage() {
               )}
             </Button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
