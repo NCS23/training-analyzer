@@ -568,7 +568,7 @@ export function PhaseWeeklyTemplateEditor({
                   variant="ghost"
                   size="sm"
                   aria-label="Von anderer Woche kopieren"
-                  className="h-7 w-7 p-0"
+                  className="h-7 w-7 p-0 bg-[var(--color-seg-bg)] rounded-[var(--radius-seg-container)]"
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
