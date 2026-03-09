@@ -562,14 +562,20 @@ export function PhaseWeeklyTemplateEditor({
                     <span className="inline-flex items-center gap-1">
                       W{weekNum}
                       <PopoverTrigger asChild>
-                        <button
-                          type="button"
+                        <span
+                          role="button"
+                          tabIndex={0}
                           aria-label="Von anderer Woche kopieren"
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center justify-center rounded-[var(--radius-component-sm)] p-0.5 hover:bg-[var(--color-bg-muted)] transition-colors"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation();
+                            }
+                          }}
+                          className="inline-flex items-center justify-center rounded-[var(--radius-component-sm)] p-0.5 hover:bg-[var(--color-bg-muted)] transition-colors cursor-pointer"
                         >
                           <Copy className="w-3 h-3" />
-                        </button>
+                        </span>
                       </PopoverTrigger>
                     </span>
                   ) : (
