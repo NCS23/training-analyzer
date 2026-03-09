@@ -468,11 +468,37 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
             />
           ))}
 
-        {/* In simple mode, show hint */}
+        {/* In simple mode, show compact segment summary */}
         {isSimpleMode && (
-          <p className="text-xs text-[var(--color-text-muted)] italic">
-            Einzelnes Segment — weitere hinzufügen für strukturierte Workouts
-          </p>
+          <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-medium text-[var(--color-text-base)]">
+                {lapTypeLabels[primarySegment.segment_type] ?? primarySegment.segment_type}
+              </span>
+              {primarySegment.target_duration_minutes != null && (
+                <span className="text-[var(--color-text-muted)]">
+                  {primarySegment.target_duration_minutes} min
+                </span>
+              )}
+              {primarySegment.target_pace_min && (
+                <span className="text-[var(--color-text-muted)]">
+                  {primarySegment.target_pace_min}
+                  {primarySegment.target_pace_max ? `–${primarySegment.target_pace_max}` : ''} /km
+                </span>
+              )}
+              {primarySegment.target_hr_min != null && (
+                <span className="text-[var(--color-text-muted)]">
+                  HR {primarySegment.target_hr_min}
+                  {primarySegment.target_hr_max ? `–${primarySegment.target_hr_max}` : ''}
+                </span>
+              )}
+              {!primarySegment.target_duration_minutes &&
+                !primarySegment.target_pace_min &&
+                primarySegment.target_hr_min == null && (
+                  <span className="text-[var(--color-text-disabled)] italic">keine Vorgaben</span>
+                )}
+            </div>
+          </div>
         )}
 
         <Button
