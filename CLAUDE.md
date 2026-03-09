@@ -69,18 +69,27 @@ Vor der ersten Zeile Code:
 **Vor jedem Commit muessen ALLE Gates bestehen:**
 
 ```bash
-# Frontend
+# Frontend (ALLE muessen bestehen)
 cd frontend
 npx eslint src/ --max-warnings 0
-npx vitest --run
+npx prettier --check "src/**/*.{ts,tsx,css}"
 npx tsc --noEmit
+npx vitest --run
 
-# Backend
+# Backend (ALLE muessen bestehen)
 cd backend
 ruff check app/
+ruff format --check app/
 mypy app/
 pytest app/tests/ -x
 ```
+
+**Automatische Durchsetzung (Claude Code Hooks):**
+Diese Quality Gates werden durch Hooks in `.claude/hooks/` erzwungen:
+- `git commit` wird BLOCKIERT wenn Gates nicht bestanden haben
+- `git push` wird BLOCKIERT bei Push auf main ohne Feature-Branch
+- Nach `git push` wird CI-Monitoring erzwungen
+- Bypass nur mit expliziter User-Genehmigung ("skip checks")
 
 **UX & Design Review (selbst durchgefuehrt):**
 - DESIGN_REVIEW.md Checkliste durchgehen
