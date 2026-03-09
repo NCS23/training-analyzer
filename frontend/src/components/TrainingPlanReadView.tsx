@@ -12,7 +12,7 @@ import {
   TableCell,
   SegmentedControl,
 } from '@nordlig/components';
-import { Calendar, Clock, FileText, Target } from 'lucide-react';
+import { Calendar, Clock, Target } from 'lucide-react';
 import type {
   TrainingPlan,
   TrainingPhase,
@@ -502,14 +502,6 @@ export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
               </div>
             </div>
           </div>
-
-          {/* Wochenpläne count */}
-          {plan.weekly_plan_week_count > 0 && (
-            <span className="text-xs text-[var(--color-text-muted)]">
-              <FileText className="w-3 h-3 inline-block mr-1 align-text-bottom" />
-              {plan.weekly_plan_week_count} Wochenpläne generiert
-            </span>
-          )}
 
           {/* Phase Timeline */}
           {plan.phases.length > 1 && (

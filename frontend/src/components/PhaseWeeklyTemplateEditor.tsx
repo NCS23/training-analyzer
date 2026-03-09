@@ -9,10 +9,13 @@ import {
   CardBody,
   Input,
   Label,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
   SegmentedControl,
   Select,
 } from '@nordlig/components';
-import { Dumbbell, Footprints, LayoutTemplate, Moon, Plus, Trash2 } from 'lucide-react';
+import { Copy, Dumbbell, Footprints, LayoutTemplate, Moon, Plus, Trash2 } from 'lucide-react';
 import type {
   PhaseWeeklyTemplate,
   PhaseWeeklyTemplateDayEntry,
@@ -387,6 +390,7 @@ export function PhaseWeeklyTemplateEditor({
   const totalWeeks = Math.max(1, endWeek - startWeek + 1);
   const perWeekMode = weeklyTemplates !== null && Object.keys(weeklyTemplates.weeks).length > 0;
   const [activeWeek, setActiveWeek] = useState(1);
+  const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
 
   const clampedActiveWeek = Math.min(activeWeek, totalWeeks);
 
@@ -498,23 +502,30 @@ export function PhaseWeeklyTemplateEditor({
     [currentTemplate, updateDay],
   );
 
-  const handleTogglePerWeek = useCallback(() => {
-    if (perWeekMode) {
-      const week1 = weeklyTemplates?.weeks['1'];
-      if (week1) {
-        onChange(cloneTemplate(week1));
+  const handleTabChange = useCallback(
+    (value: string) => {
+      if (value === 'all') {
+        // Switch to shared mode
+        if (perWeekMode) {
+          const week1 = weeklyTemplates?.weeks['1'];
+          if (week1) onChange(cloneTemplate(week1));
+          onChangeWeeklyTemplates(null);
+        }
+      } else {
+        const weekNum = Number(value);
+        if (!perWeekMode) {
+          // Switch to per-week mode — clone shared into all weeks
+          const weeks: Record<string, PhaseWeeklyTemplate> = {};
+          for (let w = 1; w <= totalWeeks; w++) {
+            weeks[String(w)] = cloneTemplate(sharedTemplate);
+          }
+          onChangeWeeklyTemplates({ weeks });
+        }
+        setActiveWeek(weekNum);
       }
-      onChangeWeeklyTemplates(null);
-    } else {
-      const weeks: Record<string, PhaseWeeklyTemplate> = {};
-      for (let w = 1; w <= totalWeeks; w++) {
-        weeks[String(w)] = cloneTemplate(sharedTemplate);
-      }
-      onChangeWeeklyTemplates({ weeks });
-      setActiveWeek(1);
-    }
-    // Accordion resets automatically on template change
-  }, [perWeekMode, weeklyTemplates, sharedTemplate, totalWeeks, onChange, onChangeWeeklyTemplates]);
+    },
+    [perWeekMode, weeklyTemplates, sharedTemplate, totalWeeks, onChange, onChangeWeeklyTemplates],
+  );
 
   const handleCopyFromWeek = useCallback(
     (sourceWeek: number) => {
@@ -529,54 +540,68 @@ export function PhaseWeeklyTemplateEditor({
     [weeklyTemplates, clampedActiveWeek, onChangeWeeklyTemplates],
   );
 
+  const otherWeeks = Array.from({ length: totalWeeks }, (_, i) => i + 1).filter(
+    (w) => w !== clampedActiveWeek,
+  );
+
   return (
     <div className="space-y-2">
-      <Label>Wochen-Template</Label>
-
-      {/* Per-week toggle */}
+      {/* Week selector: [Alle] [W1] [W2] ... with inline copy icon on active tab */}
       {totalWeeks > 1 && (
-        <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-          <input
-            type="checkbox"
-            checked={perWeekMode}
-            onChange={handleTogglePerWeek}
-            className="w-4 h-4 rounded-[var(--radius-component-sm)] border-[var(--color-border-default)] accent-[var(--color-primary-1-600)]"
-          />
-          <span className="text-xs text-[var(--color-text-base)]">
-            Wochen individuell gestalten
-          </span>
-        </label>
-      )}
-
-      {/* Week tabs */}
-      {perWeekMode && (
-        <div className="space-y-2">
+        <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
           <SegmentedControl
             size="sm"
-            items={Array.from({ length: totalWeeks }, (_, i) => ({
-              value: String(i + 1),
-              label: `W${i + 1}`,
-            }))}
-            value={String(clampedActiveWeek)}
-            onChange={(v) => setActiveWeek(Number(v))}
+            items={[
+              { value: 'all', label: 'Alle' },
+              ...Array.from({ length: totalWeeks }, (_, i) => {
+                const weekNum = i + 1;
+                const isActive = perWeekMode && clampedActiveWeek === weekNum;
+                return {
+                  value: String(weekNum),
+                  label: isActive ? (
+                    <span className="inline-flex items-center gap-1">
+                      W{weekNum}
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Von anderer Woche kopieren"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center justify-center rounded-[var(--radius-component-sm)] p-0.5 hover:bg-[var(--color-bg-muted)] transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </PopoverTrigger>
+                    </span>
+                  ) : (
+                    `W${weekNum}`
+                  ),
+                };
+              }),
+            ]}
+            value={perWeekMode ? String(clampedActiveWeek) : 'all'}
+            onChange={handleTabChange}
           />
-
-          {/* Copy from week */}
-          {totalWeeks > 1 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--color-text-muted)]">Kopieren von:</span>
-              <div className="flex gap-1">
-                {Array.from({ length: totalWeeks }, (_, i) => i + 1)
-                  .filter((w) => w !== clampedActiveWeek)
-                  .map((w) => (
-                    <Button key={w} variant="ghost" size="sm" onClick={() => handleCopyFromWeek(w)}>
-                      W{w}
-                    </Button>
-                  ))}
-              </div>
+          <PopoverContent align="start" className="p-2 w-auto">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-[var(--color-text-muted)] px-2 py-1">
+                Kopieren von
+              </span>
+              {otherWeeks.map((w) => (
+                <Button
+                  key={w}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    handleCopyFromWeek(w);
+                    setCopyPopoverOpen(false);
+                  }}
+                >
+                  Woche {w}
+                </Button>
+              ))}
             </div>
-          )}
-        </div>
+          </PopoverContent>
+        </Popover>
       )}
 
       {/* Day list (Accordion) */}
