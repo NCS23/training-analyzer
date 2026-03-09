@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from app.infrastructure.database.models import RaceGoalModel, TrainingPhaseModel, TrainingPlanModel
+from app.models.segment import Segment
 from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplates
 from app.models.weekly_plan import PlannedSession, RunDetails, WeeklyPlanEntry
 
@@ -127,11 +128,20 @@ def _parse_weekly_templates(
 
 
 def _has_explicit_run_details(rd: RunDetails) -> bool:
-    """Check whether RunDetails has user-provided values (not just a skeleton)."""
+    """Check whether RunDetails has user-provided values (not just a skeleton).
+
+    Checks the primary segment for any target fields, or whether
+    multiple segments exist (which implies an explicit structure).
+    """
+    if rd.segments and len(rd.segments) > 1:
+        return True
+    seg = rd.segments[0] if rd.segments else None
+    if seg is None:
+        return False
     return (
-        rd.target_duration_minutes is not None
-        or rd.target_pace_min is not None
-        or rd.intervals is not None
+        seg.target_duration_minutes is not None
+        or seg.target_pace_min is not None
+        or seg.target_distance_km is not None
     )
 
 
@@ -149,15 +159,8 @@ def _template_to_entries(template: PhaseWeeklyTemplate) -> list[WeeklyPlanEntry]
             if ts.run_details is not None:
                 run_details = ts.run_details
             elif ts.training_type == "running" and ts.run_type:
-                run_details = RunDetails(
-                    run_type=ts.run_type,
-                    target_duration_minutes=None,
-                    target_pace_min=None,
-                    target_pace_max=None,
-                    target_hr_min=None,
-                    target_hr_max=None,
-                    intervals=None,
-                )
+                # Skeleton — validators will create a default segment
+                run_details = RunDetails(run_type=ts.run_type)
             sessions.append(
                 PlannedSession(
                     position=ts.position,
@@ -195,11 +198,15 @@ def _build_run_details(
     distance_km: float,
     race_pace: Optional[float],
 ) -> RunDetails:
-    """Build RunDetails for a single running session."""
+    """Build RunDetails for a single running session.
+
+    Populates data via a single 'steady' segment. The RunDetails validators
+    will automatically compute top-level fields from this segment.
+    """
     multipliers = PACE_MULTIPLIERS.get(run_type, PACE_MULTIPLIERS["easy"])
     pace_min: Optional[str] = None
     pace_max: Optional[str] = None
-    duration_minutes: Optional[int] = None
+    duration_minutes: Optional[float] = None
 
     if race_pace:
         pace_slow = race_pace * multipliers[1]  # slower end
@@ -207,19 +214,22 @@ def _build_run_details(
         pace_min = _seconds_to_pace(pace_fast)
         pace_max = _seconds_to_pace(pace_slow)
         avg_pace = (pace_slow + pace_fast) / 2.0
-        duration_minutes = _round_to_5(distance_km * avg_pace / 60.0)
+        duration_minutes = float(_round_to_5(distance_km * avg_pace / 60.0))
     elif distance_km > 0:
         # No goal: estimate ~6:30/km average
-        duration_minutes = _round_to_5(distance_km * 390.0 / 60.0)
+        duration_minutes = float(_round_to_5(distance_km * 390.0 / 60.0))
 
     return RunDetails(
         run_type=run_type,
-        target_duration_minutes=duration_minutes,
-        target_pace_min=pace_min,
-        target_pace_max=pace_max,
-        target_hr_min=None,
-        target_hr_max=None,
-        intervals=None,
+        segments=[
+            Segment(
+                position=0,
+                segment_type="steady",
+                target_duration_minutes=duration_minutes,
+                target_pace_min=pace_min,
+                target_pace_max=pace_max,
+            )
+        ],
     )
 
 
@@ -320,15 +330,7 @@ def _distribute_days(
                 PlannedSession(
                     position=0,
                     training_type="running",
-                    run_details=RunDetails(
-                        run_type=run_type,
-                        target_duration_minutes=None,
-                        target_pace_min=None,
-                        target_pace_max=None,
-                        target_hr_min=None,
-                        target_hr_max=None,
-                        intervals=None,
-                    ),
+                    run_details=RunDetails(run_type=run_type),
                 )
             ],
         )
@@ -351,15 +353,7 @@ def _distribute_days(
                 PlannedSession(
                     position=0,
                     training_type="running",
-                    run_details=RunDetails(
-                        run_type=run_type,
-                        target_duration_minutes=None,
-                        target_pace_min=None,
-                        target_pace_max=None,
-                        target_hr_min=None,
-                        target_hr_max=None,
-                        intervals=None,
-                    ),
+                    run_details=RunDetails(run_type=run_type),
                 )
             ],
         )

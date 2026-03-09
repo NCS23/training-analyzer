@@ -225,6 +225,30 @@ def segments_to_intervals(segments: list[Segment]) -> list[RunInterval]:
     return result
 
 
+def top_level_to_segment(
+    *,
+    target_duration_minutes: float | None = None,
+    target_pace_min: str | None = None,
+    target_pace_max: str | None = None,
+    target_hr_min: int | None = None,
+    target_hr_max: int | None = None,
+) -> Segment:
+    """Create a 'steady' segment from top-level RunDetails fields.
+
+    Used by the ``_ensure_segments`` validator to guarantee at least
+    one segment exists for every run.
+    """
+    return Segment(
+        position=0,
+        segment_type="steady",
+        target_duration_minutes=target_duration_minutes,
+        target_pace_min=target_pace_min,
+        target_pace_max=target_pace_max,
+        target_hr_min=target_hr_min,
+        target_hr_max=target_hr_max,
+    )
+
+
 def laps_to_template_segments(laps: list[LapResponse]) -> list[Segment]:
     """Konvertiert Laps zu Template-Segmenten mit Ist-als-Soll-Ableitung.
 

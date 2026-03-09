@@ -2,7 +2,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/test-utils';
 import userEvent from '@testing-library/user-event';
 import { DayCard } from './DayCard';
-import type { WeeklyPlanEntry } from '@/api/weekly-plan';
+import type { RunDetails, WeeklyPlanEntry } from '@/api/weekly-plan';
+import { createEmptySegment } from '@/api/segment';
+
+/** Create a RunDetails with a default steady segment. */
+function makeRunDetails(overrides: Partial<RunDetails> & { run_type: RunDetails['run_type'] }): RunDetails {
+  const base: RunDetails = {
+    run_type: overrides.run_type,
+    target_duration_minutes: overrides.target_duration_minutes ?? null,
+    target_pace_min: overrides.target_pace_min ?? null,
+    target_pace_max: overrides.target_pace_max ?? null,
+    target_hr_min: overrides.target_hr_min ?? null,
+    target_hr_max: overrides.target_hr_max ?? null,
+    intervals: overrides.intervals ?? null,
+    segments: overrides.segments ?? [
+      createEmptySegment(0, {
+        segment_type: 'steady',
+        target_duration_minutes: overrides.target_duration_minutes ?? null,
+        target_pace_min: overrides.target_pace_min ?? null,
+        target_pace_max: overrides.target_pace_max ?? null,
+        target_hr_min: overrides.target_hr_min ?? null,
+        target_hr_max: overrides.target_hr_max ?? null,
+      }),
+    ],
+  };
+  return base;
+}
 
 const baseEntry: WeeklyPlanEntry = {
   day_of_week: 0,
@@ -49,15 +74,7 @@ describe('DayCard compact card', () => {
         {
           position: 0,
           training_type: 'running',
-          run_details: {
-            run_type: 'easy',
-            target_duration_minutes: 45,
-            target_pace_min: null,
-            target_pace_max: null,
-            target_hr_min: null,
-            target_hr_max: null,
-            intervals: null,
-          },
+          run_details: makeRunDetails({ run_type: 'easy', target_duration_minutes: 45 }),
         },
       ],
     };
@@ -73,15 +90,7 @@ describe('DayCard compact card', () => {
         {
           position: 0,
           training_type: 'running',
-          run_details: {
-            run_type: 'easy',
-            target_duration_minutes: 45,
-            target_pace_min: null,
-            target_pace_max: null,
-            target_hr_min: null,
-            target_hr_max: null,
-            intervals: null,
-          },
+          run_details: makeRunDetails({ run_type: 'easy', target_duration_minutes: 45 }),
         },
         { position: 1, training_type: 'strength' },
       ],
@@ -129,15 +138,14 @@ describe('DayCard per-session detail dialog', () => {
         {
           position: 0,
           training_type: 'running',
-          run_details: {
+          run_details: makeRunDetails({
             run_type: 'tempo',
             target_duration_minutes: 40,
             target_pace_min: '4:30',
             target_pace_max: '5:00',
             target_hr_min: 160,
             target_hr_max: 175,
-            intervals: null,
-          },
+          }),
         },
       ],
     };
@@ -158,52 +166,15 @@ describe('DayCard per-session detail dialog', () => {
         {
           position: 0,
           training_type: 'running',
-          run_details: {
+          run_details: makeRunDetails({
             run_type: 'intervals',
-            target_duration_minutes: null,
-            target_pace_min: null,
-            target_pace_max: null,
-            target_hr_min: null,
-            target_hr_max: null,
-            intervals: [
-              {
-                type: 'warmup',
-                duration_minutes: 10,
-                target_pace_min: null,
-                target_pace_max: null,
-                target_hr_min: null,
-                target_hr_max: null,
-                repeats: 1,
-              },
-              {
-                type: 'work',
-                duration_minutes: 3,
-                target_pace_min: null,
-                target_pace_max: null,
-                target_hr_min: null,
-                target_hr_max: null,
-                repeats: 1,
-              },
-              {
-                type: 'recovery_jog',
-                duration_minutes: 2,
-                target_pace_min: null,
-                target_pace_max: null,
-                target_hr_min: null,
-                target_hr_max: null,
-                repeats: 1,
-              },
-              {
-                type: 'cooldown',
-                duration_minutes: 5,
-                target_pace_min: null,
-                target_pace_max: null,
-                target_hr_min: null,
-                target_hr_max: null,
-                repeats: 1,
-              },
+            segments: [
+              createEmptySegment(0, { segment_type: 'warmup', target_duration_minutes: 10 }),
+              createEmptySegment(1, { segment_type: 'work', target_duration_minutes: 3 }),
+              createEmptySegment(2, { segment_type: 'recovery_jog', target_duration_minutes: 2 }),
+              createEmptySegment(3, { segment_type: 'cooldown', target_duration_minutes: 5 }),
             ],
-          },
+          }),
         },
       ],
     };
@@ -242,15 +213,7 @@ describe('DayCard per-session detail dialog', () => {
         {
           position: 0,
           training_type: 'running',
-          run_details: {
-            run_type: 'easy',
-            target_duration_minutes: 45,
-            target_pace_min: null,
-            target_pace_max: null,
-            target_hr_min: null,
-            target_hr_max: null,
-            intervals: null,
-          },
+          run_details: makeRunDetails({ run_type: 'easy', target_duration_minutes: 45 }),
         },
         { position: 1, training_type: 'strength' },
       ],

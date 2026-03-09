@@ -52,37 +52,6 @@ import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 import { StrengthExerciseEditor } from './StrengthExerciseEditor';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
 
-/** Convert RunInterval[] to Segment[] for display (fallback for old data without segments). */
-function intervalsToDisplaySegments(
-  intervals: {
-    type: string;
-    duration_minutes?: number | null;
-    distance_km?: number | null;
-    target_pace_min: string | null;
-    target_pace_max: string | null;
-    target_hr_min: number | null;
-    target_hr_max: number | null;
-    repeats: number;
-    notes?: string | null;
-    exercise_name?: string | null;
-  }[],
-): Segment[] {
-  return intervals.map((iv, i) =>
-    createEmptySegment(i, {
-      segment_type: iv.type as Segment['segment_type'],
-      target_duration_minutes: iv.duration_minutes ?? null,
-      target_distance_km: iv.distance_km ?? null,
-      target_pace_min: iv.target_pace_min,
-      target_pace_max: iv.target_pace_max,
-      target_hr_min: iv.target_hr_min,
-      target_hr_max: iv.target_hr_max,
-      repeats: iv.repeats,
-      notes: iv.notes ?? null,
-      exercise_name: iv.exercise_name ?? null,
-    }),
-  );
-}
-
 // --- Constants ---
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -197,21 +166,12 @@ function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick
         rd.target_pace_max ? `${rd.target_pace_min}–${rd.target_pace_max}` : rd.target_pace_min,
       );
     }
-    const segs = rd?.segments ?? rd?.intervals;
-    if (segs && segs.length > 0) {
-      const workSegs = segs.filter((s) =>
-        'segment_type' in s ? s.segment_type === 'work' : s.type === 'work',
-      );
+    const segs = rd?.segments ?? [];
+    if (segs.length > 1) {
+      const workSegs = segs.filter((s) => s.segment_type === 'work');
       if (workSegs.length > 0) {
         const first = workSegs[0];
-        const dur =
-          'target_duration_minutes' in first
-            ? first.target_duration_minutes
-              ? `${first.target_duration_minutes}′`
-              : ''
-            : first.duration_minutes
-              ? `${first.duration_minutes}′`
-              : '';
+        const dur = first.target_duration_minutes ? `${first.target_duration_minutes}′` : '';
         details.push(`${workSegs.length}×${dur}`);
       }
     }
@@ -488,7 +448,7 @@ function SessionDetailDialog({
         target_hr_min: existingRd?.target_hr_min ?? null,
         target_hr_max: existingRd?.target_hr_max ?? null,
         intervals: existingRd?.intervals ?? null,
-        segments: existingRd?.segments,
+        segments: existingRd?.segments ?? [createEmptySegment(0, { segment_type: 'steady' })],
       },
     });
   };
@@ -716,11 +676,7 @@ function SessionDetailDialog({
 
                   {(() => {
                     const displaySegs =
-                      rd?.segments && rd.segments.length > 0
-                        ? rd.segments
-                        : rd?.intervals && rd.intervals.length > 0
-                          ? intervalsToDisplaySegments(rd.intervals)
-                          : null;
+                      rd?.segments && rd.segments.length > 1 ? rd.segments : null;
                     return displaySegs ? (
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
