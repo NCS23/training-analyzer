@@ -27,7 +27,7 @@ jobs:
 
       - name: ESLint
         working-directory: frontend
-        run: npx eslint src/ --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+        run: npx eslint src/ --max-warnings 0
 
       - name: Prettier check
         working-directory: frontend
