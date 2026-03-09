@@ -21,7 +21,7 @@
 - [ ] Vitest alle Tests gruen
 - [ ] UX/Design Review Report erstellt (siehe .claude/design-review.md)
 
-## Phase 4: Abschluss
+## Phase 4: Abschluss (post-push, not validated by hook)
 - [ ] Commit + Push auf Feature-Branch
 - [ ] CI gruen
 - [ ] GitHub Issue kommentiert

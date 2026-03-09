@@ -39,8 +39,9 @@ if [ ! -f "$CHECKLIST" ]; then
   exit 1
 fi
 
-# Count incomplete items (lines with "- [ ]")
-INCOMPLETE=$(grep -c '^\- \[ \]' "$CHECKLIST" 2>/dev/null || true)
+# Count incomplete items BEFORE "Phase 4" (Phase 4 is post-push, can't be checked yet)
+PRE_PUSH_SECTION=$(sed '/^## Phase 4/,$d' "$CHECKLIST")
+INCOMPLETE=$(echo "$PRE_PUSH_SECTION" | grep -c '^\- \[ \]' 2>/dev/null || true)
 INCOMPLETE=${INCOMPLETE:-0}
 INCOMPLETE=$(echo "$INCOMPLETE" | tr -d '[:space:]')
 
@@ -50,11 +51,11 @@ if [ "$INCOMPLETE" -gt 0 ]; then
   echo "  BLOCKED: Workflow checklist incomplete"
   echo "============================================"
   echo ""
-  echo "  $INCOMPLETE unchecked items in .claude/workflow-checklist.md:"
+  echo "  $INCOMPLETE unchecked items (Phase 0-3) in .claude/workflow-checklist.md:"
   echo ""
-  grep '^\- \[ \]' "$CHECKLIST"
+  echo "$PRE_PUSH_SECTION" | grep '^\- \[ \]'
   echo ""
-  echo "  Complete all items before pushing."
+  echo "  Complete all pre-push items before pushing."
   echo ""
   exit 1
 fi

@@ -20,7 +20,7 @@
 - [x] TypeScript kompiliert
 - [x] Vitest alle Tests gruen
 
-## Phase 4: Abschluss
+## Phase 4: Abschluss (post-push, not validated by hook)
 - [ ] Commit + Push auf Feature-Branch
 - [ ] CI gruen
 - [ ] GitHub Issue kommentiert
