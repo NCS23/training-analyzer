@@ -476,7 +476,7 @@ export function PhaseWeeklyTemplateEditor({
             },
           ],
           is_rest_day: false,
-          notes: day.notes ?? null,
+          notes: null,
         });
       } else {
         updateDay(dayIndex, {
@@ -491,7 +491,7 @@ export function PhaseWeeklyTemplateEditor({
             },
           ],
           is_rest_day: false,
-          notes: day.notes ?? null,
+          notes: null,
         });
       }
     },
@@ -657,18 +657,22 @@ export function PhaseWeeklyTemplateEditor({
                     </Button>
                   )}
 
-                  {/* Day notes */}
-                  <div>
-                    <Label className="text-xs mb-1">Tagesnotiz</Label>
-                    <Input
-                      type="text"
-                      value={dayEntry.notes ?? ''}
-                      onChange={(e) => updateDay(i, { ...dayEntry, notes: e.target.value || null })}
-                      inputSize="sm"
-                      placeholder="z.B. optional Yoga, Mobilität"
-                      aria-label={`${DAY_LABELS[i]} Notiz`}
-                    />
-                  </div>
+                  {/* Day notes — only for rest days (sessions have their own notes field) */}
+                  {dayEntry.is_rest_day && (
+                    <div>
+                      <Label className="text-xs mb-1">Notiz</Label>
+                      <Input
+                        type="text"
+                        value={dayEntry.notes ?? ''}
+                        onChange={(e) =>
+                          updateDay(i, { ...dayEntry, notes: e.target.value || null })
+                        }
+                        inputSize="sm"
+                        placeholder="z.B. optional Yoga, Mobilität"
+                        aria-label={`${DAY_LABELS[i]} Notiz`}
+                      />
+                    </div>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
