@@ -1276,9 +1276,7 @@ async def update_plan(
             skip_weeks = (
                 await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
             )
-            weeks_generated = await _persist_generated_weeks(
-                db, plan_id, weekly_plans, skip_weeks
-            )
+            weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
 
             await log_plan_change(
                 db,
@@ -1607,8 +1605,8 @@ async def update_phase(
 
                 if weeks_to_regen:
                     # Full generation (reuses same logic)
-                    gen_plan, gen_phases, gen_goal, gen_rest_days = (
-                        await _load_generation_context(db, plan_id)
+                    gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
+                        db, plan_id
                     )
                     weekly_plans = generate_weekly_plans(
                         gen_plan, gen_phases, gen_rest_days, gen_goal
@@ -1616,13 +1614,9 @@ async def update_phase(
 
                     # Only persist weeks that belong to this phase and are in scope
                     phase_plans = [
-                        (ws, entries)
-                        for ws, entries in weekly_plans
-                        if ws in weeks_to_regen
+                        (ws, entries) for ws, entries in weekly_plans if ws in weeks_to_regen
                     ]
-                    weeks_regenerated = await _persist_generated_weeks(
-                        db, plan_id, phase_plans
-                    )
+                    weeks_regenerated = await _persist_generated_weeks(db, plan_id, phase_plans)
 
                     past_weeks = len(phase_week_starts) - len(future_weeks)
 
