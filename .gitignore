@@ -51,3 +51,6 @@ package-lock.json
 # Coverage
 .coverage
 coverage/
+
+# Claude Code workflow (temporary per-session files)
+.claude/workflow-checklist.md

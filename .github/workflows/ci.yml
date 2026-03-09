@@ -186,9 +186,25 @@ jobs:
     needs: [frontend-build, backend-lint, backend-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
+      - uses: actions/checkout@v6
+
       - name: Trigger Coolify deployment
         run: |
           curl -s -X POST "${{ secrets.COOLIFY_URL }}/api/v1/deploy" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"uuid":"${{ secrets.COOLIFY_APP_UUID }}"}'
+
+      - name: Comment on linked issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+          if [ -n "$ISSUE_NUM" ]; then
+            gh issue comment "$ISSUE_NUM" -R "$REPO" \
+              --body "Deployed to production. CI run: $RUN_URL"
+          fi

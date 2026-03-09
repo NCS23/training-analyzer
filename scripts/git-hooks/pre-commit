@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: enforces workflow, branch naming, test coverage,
+# project board status, and quality gates.
+# Cannot be bypassed by Claude Code.
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+BRANCH=$(git branch --show-current 2>/dev/null)
+
+# ============================================================
+# 1. Block commits on main
+# ============================================================
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: Direct commit on $BRANCH"
+  echo "============================================"
+  echo ""
+  echo "  Use a feature branch:"
+  echo "    git checkout -b feature/<issue-slug>"
+  echo ""
+  exit 1
+fi
+
+# ============================================================
+# 2. Branch name must reference an issue number
+#    Valid: feature/163-segment-presets, fix/42-hr-calc
+# ============================================================
+ISSUE_NUM=$(echo "$BRANCH" | grep -oE '[0-9]+' | head -1)
+
+if [ -z "$ISSUE_NUM" ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: Branch name has no issue number"
+  echo "============================================"
+  echo ""
+  echo "  Branch: $BRANCH"
+  echo "  Expected: feature/<number>-<slug> or fix/<number>-<slug>"
+  echo ""
+  exit 1
+fi
+
+# ============================================================
+# 3. Check project board: issue must be "In Progress"
+#    (only if gh CLI is available)
+# ============================================================
+if command -v gh &>/dev/null; then
+  BOARD_STATUS=$(gh project item-list 1 --owner NCS23 --format json --limit 200 2>/dev/null \
+    | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for item in data.get('items', []):
+    if item.get('content', {}).get('number') == $ISSUE_NUM:
+        print(item.get('status', 'unknown'))
+        sys.exit(0)
+print('not_found')
+" 2>/dev/null || echo "api_error")
+
+  if [ "$BOARD_STATUS" = "not_found" ]; then
+    echo ""
+    echo "============================================"
+    echo "  WARNING: Issue #$ISSUE_NUM not found on project board"
+    echo "============================================"
+    echo "  Add it: gh project item-add 1 --owner NCS23 --url https://github.com/NCS23/training-analyzer/issues/$ISSUE_NUM"
+    echo ""
+    # Warning only, don't block
+  elif [ "$BOARD_STATUS" != "In Progress" ] && [ "$BOARD_STATUS" != "api_error" ]; then
+    echo ""
+    echo "============================================"
+    echo "  BLOCKED: Issue #$ISSUE_NUM is not 'In Progress'"
+    echo "============================================"
+    echo ""
+    echo "  Current status: $BOARD_STATUS"
+    echo "  Set it to 'In Progress' on the project board first."
+    echo ""
+    exit 1
+  fi
+fi
+
+# ============================================================
+# 4. Check that new/changed source files have corresponding tests
+# ============================================================
+STAGED=$(git diff --cached --name-only 2>/dev/null || true)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+NEED_FE=false
+NEED_BE=false
+MISSING_TESTS=()
+
+while IFS= read -r file; do
+  case "$file" in
+    frontend/src/components/*.tsx|frontend/src/config/*.ts|frontend/src/hooks/*.ts|frontend/src/utils/*.ts)
+      NEED_FE=true
+      # Skip test files, index files, type-only files
+      if echo "$file" | grep -qE '\.(test|spec)\.(ts|tsx)$'; then continue; fi
+      if echo "$file" | grep -qE 'index\.(ts|tsx)$'; then continue; fi
+      if echo "$file" | grep -qE 'types?\.(ts|tsx)$'; then continue; fi
+
+      # Check if a test file exists anywhere in the repo for this source file
+      BASENAME=$(basename "$file" | sed 's/\.\(ts\|tsx\)$//')
+      EXISTING_TEST=$(find "${REPO_ROOT}/frontend/src" -name "${BASENAME}.test.ts" -o -name "${BASENAME}.test.tsx" 2>/dev/null | head -1)
+      STAGED_TEST=$(echo "$STAGED" | grep -E "${BASENAME}\.(test|spec)\.(ts|tsx)$" | head -1)
+
+      if [ -z "$EXISTING_TEST" ] && [ -z "$STAGED_TEST" ]; then
+        MISSING_TESTS+=("  - $file → missing ${BASENAME}.test.ts(x)")
+      fi
+      ;;
+    backend/app/*.py)
+      NEED_BE=true
+      ;;
+  esac
+done <<< "$STAGED"
+
+if [ ${#MISSING_TESTS[@]} -gt 0 ]; then
+  echo ""
+  echo "============================================"
+  echo "  WARNING: New/changed files without tests"
+  echo "============================================"
+  printf '%s\n' "${MISSING_TESTS[@]}"
+  echo ""
+  echo "  Consider adding tests. Proceeding anyway..."
+  echo ""
+  # Warning only — some files legitimately don't need tests (components, etc.)
+fi
+
+# If only non-src files (docs, config, scripts), skip QA
+if ! $NEED_FE && ! $NEED_BE; then
+  exit 0
+fi
+
+# ============================================================
+# 5. Quality gates
+# ============================================================
+ERRORS=0
+
+if $NEED_FE; then
+  echo "[pre-commit] Running frontend quality gates..."
+
+  (cd frontend && npx eslint src/ --max-warnings 0 --quiet) || {
+    echo "FAILED: ESLint"; ERRORS=1;
+  }
+  (cd frontend && npx prettier --check "src/**/*.{ts,tsx,css}" 2>/dev/null) || {
+    echo "FAILED: Prettier"; ERRORS=1;
+  }
+  (cd frontend && npx tsc --noEmit) || {
+    echo "FAILED: TypeScript"; ERRORS=1;
+  }
+  (cd frontend && npx vitest --run 2>/dev/null) || {
+    echo "FAILED: Vitest"; ERRORS=1;
+  }
+fi
+
+if $NEED_BE; then
+  echo "[pre-commit] Running backend quality gates..."
+
+  VENV="${REPO_ROOT}/venv/bin"
+
+  ($VENV/python3 -m ruff check backend/app/) || {
+    echo "FAILED: Ruff check"; ERRORS=1;
+  }
+  ($VENV/python3 -m ruff format --check backend/app/) || {
+    echo "FAILED: Ruff format"; ERRORS=1;
+  }
+  ($VENV/python3 -m mypy backend/app/) || {
+    echo "FAILED: Mypy"; ERRORS=1;
+  }
+  ($VENV/python3 -m pytest backend/app/tests/ -x --tb=short -q) || {
+    echo "FAILED: Pytest"; ERRORS=1;
+  }
+fi
+
+if [ $ERRORS -ne 0 ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: Quality gates failed"
+  echo "============================================"
+  exit 1
+fi
+
+exit 0

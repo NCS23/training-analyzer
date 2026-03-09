@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Git pre-push hook:
+# 1. Block direct push to main
+# 2. Require a workflow checklist file in the branch
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+BRANCH=$(git branch --show-current 2>/dev/null)
+
+# ============================================================
+# 1. Block push to main
+# ============================================================
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: Direct push to $BRANCH"
+  echo "============================================"
+  echo ""
+  echo "  Use a feature branch and create a PR."
+  echo ""
+  exit 1
+fi
+
+# ============================================================
+# 2. Check that workflow checklist exists and is complete
+# ============================================================
+CHECKLIST="${REPO_ROOT}/.claude/workflow-checklist.md"
+
+if [ ! -f "$CHECKLIST" ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: No workflow checklist found"
+  echo "============================================"
+  echo ""
+  echo "  Create .claude/workflow-checklist.md with all steps marked [x]."
+  echo ""
+  exit 1
+fi
+
+# Count incomplete items (lines with "- [ ]")
+INCOMPLETE=$(grep -c '^\- \[ \]' "$CHECKLIST" 2>/dev/null || true)
+INCOMPLETE=${INCOMPLETE:-0}
+INCOMPLETE=$(echo "$INCOMPLETE" | tr -d '[:space:]')
+
+if [ "$INCOMPLETE" -gt 0 ]; then
+  echo ""
+  echo "============================================"
+  echo "  BLOCKED: Workflow checklist incomplete"
+  echo "============================================"
+  echo ""
+  echo "  $INCOMPLETE unchecked items in .claude/workflow-checklist.md:"
+  echo ""
+  grep '^\- \[ \]' "$CHECKLIST"
+  echo ""
+  echo "  Complete all items before pushing."
+  echo ""
+  exit 1
+fi
+
+echo "[pre-push] Workflow checklist complete. Pushing..."
+exit 0
