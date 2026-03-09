@@ -109,6 +109,14 @@ class TrainingPhaseUpdate(BaseModel):
     notes: Optional[str] = Field(None, max_length=2000)
 
 
+class AutoRegenerationResult(BaseModel):
+    """Result of automatic weekly plan regeneration after template change."""
+
+    weeks_regenerated: int
+    weeks_skipped_edited: int
+    weeks_skipped_past: int
+
+
 class TrainingPhaseResponse(BaseModel):
     """Response schema: training phase."""
 
@@ -123,6 +131,7 @@ class TrainingPhaseResponse(BaseModel):
     weekly_template: Optional[PhaseWeeklyTemplate] = None
     weekly_templates: Optional[PhaseWeeklyTemplates] = None
     notes: Optional[str] = None
+    auto_regeneration: Optional[AutoRegenerationResult] = None
     created_at: str
 
 
@@ -195,6 +204,7 @@ class TrainingPlanResponse(BaseModel):
     phases: list[TrainingPhaseResponse] = Field(default_factory=list)
     goal_summary: Optional[GoalSummary] = None
     weekly_plan_week_count: int = 0
+    auto_generation_result: Optional["AutoGenerationResult"] = None
     created_at: str
     updated_at: str
 
@@ -219,6 +229,13 @@ class TrainingPlanListResponse(BaseModel):
 
     plans: list[TrainingPlanSummary]
     total: int
+
+
+class AutoGenerationResult(BaseModel):
+    """Result of automatic weekly plan generation (embedded in plan response)."""
+
+    weeks_generated: int
+    total_weeks: int
 
 
 class GenerateWeeklyPlansResponse(BaseModel):

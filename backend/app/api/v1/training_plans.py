@@ -29,6 +29,8 @@ from app.models.plan_changelog import (
 )
 from app.models.taxonomy import SEGMENT_TYPE_MIGRATION, SESSION_TYPE_MIGRATION
 from app.models.training_plan import (
+    AutoGenerationResult,
+    AutoRegenerationResult,
     GenerateWeeklyPlansResponse,
     GenerationPreviewResponse,
     GoalSummary,
@@ -67,7 +69,10 @@ def _parse_json(raw: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
         return None
 
 
-def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
+def _phase_to_response(
+    phase: TrainingPhaseModel,
+    auto_regeneration: Optional[AutoRegenerationResult] = None,
+) -> TrainingPhaseResponse:
     focus: Optional[PhaseFocus] = None
     raw_focus = _parse_json(str(phase.focus_json) if phase.focus_json else None)
     if raw_focus:
@@ -104,6 +109,7 @@ def _phase_to_response(phase: TrainingPhaseModel) -> TrainingPhaseResponse:
         weekly_template=weekly_template,
         weekly_templates=weekly_templates,
         notes=str(phase.notes) if phase.notes else None,
+        auto_regeneration=auto_regeneration,
         created_at=phase.created_at.isoformat() if phase.created_at else "",  # type: ignore[union-attr]
     )
 
@@ -158,6 +164,7 @@ async def _get_goal_summary(
 async def _plan_to_response(
     db: AsyncSession,
     plan: TrainingPlanModel,
+    auto_generation_result: Optional[AutoGenerationResult] = None,
 ) -> TrainingPlanResponse:
     # Fetch phases
     result = await db.execute(
@@ -198,6 +205,7 @@ async def _plan_to_response(
         phases=phases,
         goal_summary=goal_summary,
         weekly_plan_week_count=weekly_plan_week_count,
+        auto_generation_result=auto_generation_result,
         created_at=plan.created_at.isoformat() if plan.created_at else "",  # type: ignore[union-attr]
         updated_at=plan.updated_at.isoformat() if plan.updated_at else "",  # type: ignore[union-attr]
     )
@@ -924,33 +932,24 @@ async def get_generation_preview(
     )
 
 
-@router.post(
-    "/{plan_id}/generate",
-    response_model=GenerateWeeklyPlansResponse,
-)
-async def generate_plan_weeks(
+# --- Shared Generation Helpers ---
+# Used by generate_plan_weeks() endpoint and auto-generation triggers.
+
+
+async def _load_generation_context(
+    db: AsyncSession,
     plan_id: int,
-    strategy: str = "all",
-    db: AsyncSession = Depends(get_db),
-) -> GenerateWeeklyPlansResponse:
-    """Generate weekly plans from a training plan's phases.
+) -> tuple[TrainingPlanModel, list[TrainingPhaseModel], Optional[RaceGoalModel], list[int]]:
+    """Load plan, phases, goal, and rest_days for weekly plan generation.
 
-    strategy=all: replaces all previously generated entries (default).
-    strategy=unedited_only: preserves weeks with manually edited entries.
+    Raises HTTPException if plan not found or has no phases.
+    Returns (plan, phases, goal, rest_days).
     """
-    if strategy not in ("all", "unedited_only"):
-        raise HTTPException(
-            status_code=422,
-            detail="strategy muss 'all' oder 'unedited_only' sein.",
-        )
-
-    # Load plan
     result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 
-    # Load phases
     phase_result = await db.execute(
         select(TrainingPhaseModel)
         .where(TrainingPhaseModel.training_plan_id == plan_id)
@@ -963,7 +962,6 @@ async def generate_plan_weeks(
             detail="Trainingsplan hat keine Phasen. Bitte zuerst Phasen anlegen.",
         )
 
-    # Load goal (optional, for pace calculation)
     goal: Optional[RaceGoalModel] = None
     if plan.goal_id:
         goal_result = await db.execute(
@@ -973,7 +971,6 @@ async def generate_plan_weeks(
         )
         goal = goal_result.scalar_one_or_none()
 
-    # Parse rest days from weekly_structure
     rest_days = [6]  # Default: Sunday
     if plan.weekly_structure_json:
         try:
@@ -982,31 +979,38 @@ async def generate_plan_weeks(
         except (json.JSONDecodeError, ValueError):
             pass
 
-    # Generate
-    weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
-    new_week_starts = [ws for ws, _ in weekly_plans]
+    return plan, phases, goal, rest_days
 
-    # Determine edited weeks to skip (for unedited_only strategy)
-    from datetime import date as date_type
 
-    edited_weeks: set[date_type] = set()
-    if strategy == "unedited_only":
-        edited_result = await db.execute(
-            select(WeeklyPlanDayModel.week_start)
-            .where(
-                WeeklyPlanDayModel.plan_id == plan_id,
-                WeeklyPlanDayModel.edited.is_(True),
-            )
-            .distinct()
+async def _get_edited_weeks(db: AsyncSession, plan_id: int) -> set[date]:
+    """Get week_start dates that have at least one manually edited day."""
+    edited_result = await db.execute(
+        select(WeeklyPlanDayModel.week_start)
+        .where(
+            WeeklyPlanDayModel.plan_id == plan_id,
+            WeeklyPlanDayModel.edited.is_(True),
         )
-        edited_weeks = {row[0] for row in edited_result.all()}
-
-    # Determine weeks to (re)generate
-    weeks_to_generate = (
-        [ws for ws in new_week_starts if ws not in edited_weeks]
-        if strategy == "unedited_only"
-        else new_week_starts
+        .distinct()
     )
+    return {row[0] for row in edited_result.all()}
+
+
+async def _persist_generated_weeks(
+    db: AsyncSession,
+    plan_id: int,
+    weekly_plans: list[tuple[date, list]],
+    skip_weeks: set[date] | None = None,
+) -> int:
+    """Delete old and insert new weekly plan days + sessions.
+
+    Skips weeks in skip_weeks (e.g. edited weeks for unedited_only strategy).
+    Does NOT commit — caller is responsible for commit.
+    Returns number of weeks generated.
+    """
+    if skip_weeks is None:
+        skip_weeks = set()
+
+    weeks_to_generate = [ws for ws, _ in weekly_plans if ws not in skip_weeks]
 
     # Delete ALL existing days for target weeks (regardless of plan_id).
     # This handles: same plan re-generation, orphaned entries from deleted
@@ -1027,10 +1031,10 @@ async def generate_plan_weeks(
 
     await db.flush()
 
-    # Insert new days + sessions (skip edited weeks if strategy=unedited_only)
+    # Insert new days + sessions
     weeks_generated = 0
     for week_start, entries in weekly_plans:
-        if strategy == "unedited_only" and week_start in edited_weeks:
+        if week_start in skip_weeks:
             continue
 
         for plan_entry in entries:
@@ -1067,6 +1071,35 @@ async def generate_plan_weeks(
                 )
                 db.add(db_sess)
         weeks_generated += 1
+
+    return weeks_generated
+
+
+@router.post(
+    "/{plan_id}/generate",
+    response_model=GenerateWeeklyPlansResponse,
+)
+async def generate_plan_weeks(
+    plan_id: int,
+    strategy: str = "all",
+    db: AsyncSession = Depends(get_db),
+) -> GenerateWeeklyPlansResponse:
+    """Generate weekly plans from a training plan's phases.
+
+    strategy=all: replaces all previously generated entries (default).
+    strategy=unedited_only: preserves weeks with manually edited entries.
+    """
+    if strategy not in ("all", "unedited_only"):
+        raise HTTPException(
+            status_code=422,
+            detail="strategy muss 'all' oder 'unedited_only' sein.",
+        )
+
+    plan, phases, goal, rest_days = await _load_generation_context(db, plan_id)
+    weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
+
+    skip_weeks = await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
+    weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
 
     await log_plan_change(
         db,
@@ -1173,6 +1206,7 @@ async def update_plan(
             json.dumps(data.weekly_structure.model_dump()),
         )
         plan.weekly_structure_json = json.dumps(data.weekly_structure.model_dump())  # type: ignore[assignment]
+    old_status = str(plan.status)
     if data.status is not None:
         _track("status", plan.status, data.status)
         plan.status = data.status  # type: ignore[assignment]
@@ -1218,9 +1252,57 @@ async def update_plan(
         else None,
         category=category,
     )
+
+    # Auto-generate weekly plans on activation
+    auto_gen_result: Optional[AutoGenerationResult] = None
+    new_status = str(plan.status)
+    if new_status == "active" and old_status != "active":
+        # Check prerequisites: plan needs phases + start/end date
+        phase_count_result = await db.execute(
+            select(func.count(TrainingPhaseModel.id)).where(
+                TrainingPhaseModel.training_plan_id == plan_id
+            )
+        )
+        has_phases = (phase_count_result.scalar() or 0) > 0
+        has_dates = plan.start_date is not None and plan.end_date is not None
+
+        if has_phases and has_dates:
+            strategy = "all" if old_status == "draft" else "unedited_only"
+            gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
+                db, plan_id
+            )
+            weekly_plans = generate_weekly_plans(gen_plan, gen_phases, gen_rest_days, gen_goal)
+
+            skip_weeks = (
+                await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
+            )
+            weeks_generated = await _persist_generated_weeks(
+                db, plan_id, weekly_plans, skip_weeks
+            )
+
+            await log_plan_change(
+                db,
+                plan_id,
+                "weekly_auto_generated",
+                f"{weeks_generated} Wochenpläne automatisch generiert",
+                details={
+                    "category": "technical",
+                    "source": "system",
+                    "trigger": "plan_activation",
+                    "strategy": strategy,
+                    "weeks_generated": weeks_generated,
+                    "total_weeks": len(weekly_plans),
+                },
+            )
+
+            auto_gen_result = AutoGenerationResult(
+                weeks_generated=weeks_generated,
+                total_weeks=len(weekly_plans),
+            )
+
     await db.commit()
     await db.refresh(plan)
-    return await _plan_to_response(db, plan)
+    return await _plan_to_response(db, plan, auto_generation_result=auto_gen_result)
 
 
 @router.delete("/{plan_id}", status_code=204)
@@ -1486,9 +1568,89 @@ async def update_phase(
         else None,
         category=phase_category,
     )
+
+    # Auto-regenerate weekly plans when template changes on active plan
+    auto_regen: Optional[AutoRegenerationResult] = None
+    if has_content_change:
+        plan_result = await db.execute(
+            select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+        )
+        parent_plan = plan_result.scalar_one_or_none()
+        if parent_plan and str(parent_plan.status) == "active" and parent_plan.start_date:
+            from datetime import timedelta
+
+            # Compute week_start dates for this phase
+            plan_start = date(
+                parent_plan.start_date.year,
+                parent_plan.start_date.month,
+                parent_plan.start_date.day,
+            )
+            plan_start = plan_start - timedelta(days=plan_start.weekday())  # Monday
+
+            phase_start_week = int(phase.start_week)  # type: ignore[arg-type]
+            phase_end_week = int(phase.end_week)  # type: ignore[arg-type]
+            phase_week_starts: list[date] = []
+            for wn in range(phase_start_week, phase_end_week + 1):
+                ws = plan_start + timedelta(weeks=wn - 1)
+                phase_week_starts.append(ws)
+
+            # Filter: only future weeks (week_start >= Monday of current week)
+            today = date.today()
+            current_monday = today - timedelta(days=today.weekday())
+            future_weeks = {ws for ws in phase_week_starts if ws >= current_monday}
+
+            if future_weeks:
+                # Get edited weeks
+                edited_weeks = await _get_edited_weeks(db, plan_id)
+                edited_in_scope = future_weeks & edited_weeks
+                weeks_to_regen = future_weeks - edited_weeks
+
+                if weeks_to_regen:
+                    # Full generation (reuses same logic)
+                    gen_plan, gen_phases, gen_goal, gen_rest_days = (
+                        await _load_generation_context(db, plan_id)
+                    )
+                    weekly_plans = generate_weekly_plans(
+                        gen_plan, gen_phases, gen_rest_days, gen_goal
+                    )
+
+                    # Only persist weeks that belong to this phase and are in scope
+                    phase_plans = [
+                        (ws, entries)
+                        for ws, entries in weekly_plans
+                        if ws in weeks_to_regen
+                    ]
+                    weeks_regenerated = await _persist_generated_weeks(
+                        db, plan_id, phase_plans
+                    )
+
+                    past_weeks = len(phase_week_starts) - len(future_weeks)
+
+                    await log_plan_change(
+                        db,
+                        plan_id,
+                        "weekly_auto_generated",
+                        f"{weeks_regenerated} Wochenpläne nach Template-Änderung aktualisiert",
+                        details={
+                            "category": "technical",
+                            "source": "system",
+                            "trigger": "template_change",
+                            "phase_id": phase_id,
+                            "weeks_regenerated": weeks_regenerated,
+                            "weeks_skipped_edited": len(edited_in_scope),
+                            "weeks_skipped_past": past_weeks,
+                        },
+                    )
+
+                    auto_regen = AutoRegenerationResult(
+                        weeks_regenerated=weeks_regenerated,
+                        weeks_skipped_edited=len(edited_in_scope),
+                        weeks_skipped_past=past_weeks,
+                    )
+
     await db.commit()
     await db.refresh(phase)
-    return _phase_to_response(phase)
+    return _phase_to_response(phase, auto_regeneration=auto_regen)
 
 
 @router.delete("/{plan_id}/phases/{phase_id}", status_code=204)

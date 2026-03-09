@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  Tooltip,
 } from '@nordlig/components';
 import {
   ArrowRightLeft,
@@ -1086,10 +1087,17 @@ export function DayCard({
             </span>
             <div className="flex items-center gap-1">
               {entry.plan_id != null && entry.edited && (
-                <Pencil
-                  className="w-2.5 h-2.5 text-[var(--color-text-muted)]"
-                  aria-label="Manuell bearbeitet"
-                />
+                <Tooltip
+                  content="Manuell bearbeitet — wird bei Regenerierung übersprungen"
+                  side="top"
+                >
+                  <span className="inline-flex">
+                    <Pencil
+                      className="w-2.5 h-2.5 text-[var(--color-text-muted)]"
+                      aria-label="Manuell bearbeitet"
+                    />
+                  </span>
+                </Tooltip>
               )}
               <span className="text-xs text-[var(--color-text-muted)]">
                 {getDateStr(weekStart, entry.day_of_week)}.

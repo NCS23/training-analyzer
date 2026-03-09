@@ -45,11 +45,18 @@ import {
   TrendingUp,
   Upload,
 } from 'lucide-react';
-import { getWeeklyPlan, saveWeeklyPlan, getCompliance, clearWeeklyPlan } from '@/api/weekly-plan';
+import {
+  getWeeklyPlan,
+  saveWeeklyPlan,
+  syncToPlan,
+  getCompliance,
+  clearWeeklyPlan,
+} from '@/api/weekly-plan';
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { DayCard } from '@/components/DayCard';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
+import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
 
 // --- Helpers ---
 
@@ -112,6 +119,7 @@ export function WeeklyPlanPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSyncBar, setShowSyncBar] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   // Load week data + compliance
   const loadWeek = useCallback(
@@ -272,7 +280,8 @@ export function WeeklyPlanPage() {
 
   // --- Save ---
 
-  const handleSave = useCallback(async () => {
+  /** Internal save: persist weekly plan entries. */
+  const doSave = useCallback(async () => {
     setSaving(true);
     setError(null);
     try {
@@ -295,16 +304,68 @@ export function WeeklyPlanPage() {
       });
       setEntries(result.entries);
       setDirty(false);
-      toast({ title: 'Wochenplan gespeichert', variant: 'success' });
-      // Show sync bar if there are edited entries linked to a plan
-      const hasEditedPlanEntries = result.entries.some((e) => e.plan_id != null && e.edited);
-      setShowSyncBar(hasEditedPlanEntries);
+      return result;
     } catch {
       setError('Speichern fehlgeschlagen.');
+      return null;
     } finally {
       setSaving(false);
     }
   }, [entries, weekStart, toast]);
+
+  /** Save only this week (no sync to plan template). */
+  const handleSaveWeekOnly = useCallback(async () => {
+    const result = await doSave();
+    if (result) {
+      toast({ title: 'Wochenplan gespeichert', variant: 'success' });
+      const hasEditedPlanEntries = result.entries.some((e) => e.plan_id != null && e.edited);
+      setShowSyncBar(hasEditedPlanEntries);
+    }
+  }, [doSave, toast]);
+
+  /** Save this week AND sync changes back to plan template. */
+  const handleSaveAndSync = useCallback(
+    async (applyToAll: boolean) => {
+      const result = await doSave();
+      if (!result) return;
+
+      const planId = result.entries.find((e) => e.plan_id != null)?.plan_id;
+      if (!planId) {
+        toast({ title: 'Wochenplan gespeichert', variant: 'success' });
+        return;
+      }
+
+      try {
+        const syncResult = await syncToPlan({
+          week_start: weekStart,
+          plan_id: planId,
+          apply_to_all_weeks: applyToAll,
+        });
+        toast({
+          title: `Gespeichert & in Phase "${syncResult.phase_name}" übernommen`,
+          description: applyToAll
+            ? 'Alle Wochen der Phase aktualisiert'
+            : `Woche ${syncResult.week_key} aktualisiert`,
+          variant: 'success',
+        });
+        setShowSyncBar(false);
+      } catch {
+        toast({ title: 'Gespeichert, aber Sync fehlgeschlagen', variant: 'warning' });
+        setShowSyncBar(true);
+      }
+    },
+    [doSave, weekStart, toast],
+  );
+
+  /** Click handler: show dialog if plan-linked, otherwise save directly. */
+  const handleSaveClick = useCallback(() => {
+    const isPlanLinked = entries.some((e) => e.plan_id != null);
+    if (isPlanLinked && dirty) {
+      setShowSaveDialog(true);
+    } else {
+      handleSaveWeekOnly();
+    }
+  }, [entries, dirty, handleSaveWeekOnly]);
 
   // --- Delete week ---
 
@@ -637,12 +698,20 @@ export function WeeklyPlanPage() {
         Training hochladen
       </Button>
 
+      {/* Save Dialog (plan-linked) */}
+      <SaveWeeklyPlanDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSaveWeekOnly={handleSaveWeekOnly}
+        onSaveAndSync={handleSaveAndSync}
+      />
+
       {/* Save button */}
       {dirty && (
         <div className="sticky bottom-4 z-10">
           <Button
             variant="primary"
-            onClick={handleSave}
+            onClick={handleSaveClick}
             disabled={saving}
             className="w-full"
             size="lg"

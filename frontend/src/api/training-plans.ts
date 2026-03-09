@@ -58,6 +58,12 @@ export interface PhaseWeeklyTemplates {
   weeks: Record<string, PhaseWeeklyTemplate>;
 }
 
+export interface AutoRegenerationResult {
+  weeks_regenerated: number;
+  weeks_skipped_edited: number;
+  weeks_skipped_past: number;
+}
+
 export interface TrainingPhase {
   id: number;
   training_plan_id: number;
@@ -70,6 +76,7 @@ export interface TrainingPhase {
   weekly_template: PhaseWeeklyTemplate | null;
   weekly_templates: PhaseWeeklyTemplates | null;
   notes: string | null;
+  auto_regeneration: AutoRegenerationResult | null;
   created_at: string;
 }
 
@@ -86,6 +93,11 @@ export interface WeeklyStructure {
   rest_days: number[];
 }
 
+export interface AutoGenerationResult {
+  weeks_generated: number;
+  total_weeks: number;
+}
+
 export interface TrainingPlan {
   id: number;
   name: string;
@@ -99,6 +111,7 @@ export interface TrainingPlan {
   phases: TrainingPhase[];
   goal_summary: GoalSummary | null;
   weekly_plan_week_count: number;
+  auto_generation_result: AutoGenerationResult | null;
   created_at: string;
   updated_at: string;
 }

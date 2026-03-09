@@ -30,15 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@nordlig/components';
-import {
-  Save,
-  ChevronRight,
-  Plus,
-  Trash2,
-  CalendarPlus,
-  Pencil,
-  EllipsisVertical,
-} from 'lucide-react';
+import { Save, ChevronRight, Plus, Trash2, Pencil, EllipsisVertical } from 'lucide-react';
 import {
   createTrainingPlan,
   getTrainingPlan,
@@ -47,8 +39,6 @@ import {
   addPhase,
   updatePhase,
   deletePhase,
-  generateWeeklyPlans,
-  getGenerationPreview,
 } from '@/api/training-plans';
 import type {
   PlanStatus,
@@ -57,7 +47,6 @@ import type {
   TrainingPhaseCreateParams,
   PhaseWeeklyTemplate,
   PhaseWeeklyTemplates,
-  GenerationPreviewResponse,
 } from '@/api/training-plans';
 import { listGoals } from '@/api/goals';
 import type { RaceGoal } from '@/api/goals';
@@ -106,12 +95,6 @@ export function TrainingPlanEditorPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteWeeklyPlans, setDeleteWeeklyPlans] = useState(false);
   const [weeklyPlanWeekCount, setWeeklyPlanWeekCount] = useState(0);
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [preview, setPreview] = useState<GenerationPreviewResponse | null>(null);
-  const [generateStrategy, setGenerateStrategy] = useState<'all' | 'unedited_only'>('all');
-  const [loadingPreview, setLoadingPreview] = useState(false);
-
   // Load goals for dropdown
   useEffect(() => {
     listGoals()
@@ -187,7 +170,7 @@ export function TrainingPlanEditorPage() {
     try {
       if (isEdit) {
         // Update plan metadata
-        await updateTrainingPlan(parseInt(planId!, 10), {
+        const updatedPlan = await updateTrainingPlan(parseInt(planId!, 10), {
           name: name.trim(),
           description: description.trim() || undefined,
           start_date: formatDate(startDate),
@@ -210,17 +193,42 @@ export function TrainingPlanEditorPage() {
         }
 
         // Update or create phases
+        let totalRegenerated = 0;
+        let totalSkippedEdited = 0;
         for (const phase of phases) {
           const phaseData = phaseFormToParams(phase);
 
           if (phase.id && existingPhaseIds.has(phase.id)) {
-            await updatePhase(parseInt(planId!, 10), phase.id, phaseData);
+            const result = await updatePhase(parseInt(planId!, 10), phase.id, phaseData);
+            if (result.auto_regeneration) {
+              totalRegenerated += result.auto_regeneration.weeks_regenerated;
+              totalSkippedEdited += result.auto_regeneration.weeks_skipped_edited;
+            }
           } else {
             await addPhase(parseInt(planId!, 10), phaseData);
           }
         }
 
         toast({ title: 'Trainingsplan aktualisiert', variant: 'success' });
+
+        // Show auto-generation toast if weekly plans were generated
+        if (updatedPlan.auto_generation_result) {
+          const { weeks_generated } = updatedPlan.auto_generation_result;
+          toast({
+            title: `${weeks_generated} Wochenpläne automatisch erstellt`,
+            variant: 'success',
+          });
+        }
+
+        // Show auto-regeneration toast if template changes triggered regeneration
+        if (totalRegenerated > 0) {
+          const editedNote =
+            totalSkippedEdited > 0 ? ` (${totalSkippedEdited} bearbeitete beibehalten)` : '';
+          toast({
+            title: `${totalRegenerated} Wochenpläne aktualisiert${editedNote}`,
+            variant: 'success',
+          });
+        }
       } else {
         // Create new plan with phases
         await createTrainingPlan({
@@ -257,40 +265,6 @@ export function TrainingPlanEditorPage() {
       setDeleting(false);
       setShowDeleteDialog(false);
       setDeleteWeeklyPlans(false);
-    }
-  };
-
-  const handleGenerateClick = async () => {
-    if (!planId) return;
-    setLoadingPreview(true);
-    try {
-      const previewData = await getGenerationPreview(parseInt(planId, 10));
-      setPreview(previewData);
-      setGenerateStrategy(previewData.edited_week_count > 0 ? 'unedited_only' : 'all');
-    } catch {
-      setPreview(null);
-      setGenerateStrategy('all');
-    } finally {
-      setLoadingPreview(false);
-      setShowGenerateDialog(true);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!planId) return;
-    setGenerating(true);
-    try {
-      const result = await generateWeeklyPlans(parseInt(planId, 10), generateStrategy);
-      toast({
-        title: `${result.weeks_generated} Wochenpläne erstellt`,
-        variant: 'success',
-      });
-    } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast({ title: detail ?? 'Generierung fehlgeschlagen', variant: 'error' });
-    } finally {
-      setGenerating(false);
-      setShowGenerateDialog(false);
     }
   };
 
@@ -423,62 +397,6 @@ export function TrainingPlanEditorPage() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting}>
               {deleting ? <Spinner size="sm" /> : 'Löschen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Generate Dialog */}
-      <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Wochenpläne generieren?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {preview && preview.edited_week_count > 0 ? (
-                <>
-                  <span className="font-medium text-[var(--color-text-warning)]">
-                    {preview.edited_week_count} von {preview.total_generated_weeks} Wochen
-                  </span>{' '}
-                  wurden manuell bearbeitet.
-                </>
-              ) : (
-                <>
-                  Alle bestehenden generierten Einträge dieses Plans werden ersetzt.
-                  {phases.length > 0
-                    ? ` ${phases.reduce((max, p) => Math.max(max, p.end_week), 0)} Wochen werden neu erstellt.`
-                    : ''}
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {preview && preview.edited_week_count > 0 && (
-            <div className="space-y-2 px-[var(--spacing-md)]">
-              <Label>Strategie</Label>
-              <Select
-                options={[
-                  {
-                    value: 'unedited_only',
-                    label: `Nur unbearbeitete Wochen (${preview.unedited_week_count})`,
-                  },
-                  {
-                    value: 'all',
-                    label: `Alle Wochen überschreiben (${preview.total_generated_weeks})`,
-                  },
-                ]}
-                value={generateStrategy}
-                onChange={(v) => {
-                  if (v) setGenerateStrategy(v as 'all' | 'unedited_only');
-                }}
-                inputSize="sm"
-              />
-            </div>
-          )}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleGenerate} disabled={generating}>
-              {generating ? <Spinner size="sm" /> : 'Generieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -690,23 +608,6 @@ export function TrainingPlanEditorPage() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/plan/programs')}>
               Abbrechen
             </Button>
-            {isEdit && phases.length > 0 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleGenerateClick}
-                disabled={generating || loadingPreview}
-              >
-                {loadingPreview ? (
-                  <Spinner size="sm" aria-hidden="true" />
-                ) : (
-                  <>
-                    <CalendarPlus className="w-4 h-4 mr-1" />
-                    Wochenpläne generieren
-                  </>
-                )}
-              </Button>
-            )}
             <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
               {saving ? (
                 <Spinner size="sm" aria-hidden="true" />
