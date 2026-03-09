@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Git pre-push hook:
 # 1. Block direct push to main
-# 2. Require a workflow checklist file in the branch
+# 2. Require a completed workflow checklist
+# 3. Validate design review report (when UI files changed)
 
 set -uo pipefail
 
@@ -58,5 +59,40 @@ if [ "$INCOMPLETE" -gt 0 ]; then
   exit 1
 fi
 
-echo "[pre-push] Workflow checklist complete. Pushing..."
+# ============================================================
+# 3. Validate design review (when .tsx files are in the diff)
+# ============================================================
+# Check if any .tsx files changed compared to main
+HAS_TSX=$(git diff main...HEAD --name-only 2>/dev/null | grep '\.tsx$' || true)
+
+if [ -n "$HAS_TSX" ]; then
+  echo "[pre-push] UI files changed — validating design review..."
+
+  VALIDATE_SCRIPT="${REPO_ROOT}/scripts/validate-design-review.sh"
+
+  if [ ! -x "$VALIDATE_SCRIPT" ]; then
+    echo ""
+    echo "============================================"
+    echo "  BLOCKED: Design review validator not found"
+    echo "============================================"
+    echo ""
+    echo "  Expected: scripts/validate-design-review.sh (executable)"
+    echo ""
+    exit 1
+  fi
+
+  if ! bash "$VALIDATE_SCRIPT"; then
+    echo ""
+    echo "============================================"
+    echo "  BLOCKED: Design review validation failed"
+    echo "============================================"
+    echo ""
+    echo "  Copy scripts/design-review-template.md to .claude/design-review.md"
+    echo "  Fill out all sections, take a screenshot, set verdict to PASS."
+    echo ""
+    exit 1
+  fi
+fi
+
+echo "[pre-push] All checks passed. Pushing..."
 exit 0
