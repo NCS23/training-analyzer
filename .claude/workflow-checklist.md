@@ -1,4 +1,4 @@
-# Workflow Checklist — Issue #167
+# Workflow Checklist — Issue #169
 
 ## Phase 0: Pre-Code
 - [x] GitHub Issue gelesen (Akzeptanzkriterien + Taskbreakdown)
@@ -11,14 +11,10 @@
 - [x] Issue auf "In Progress" im Project Board gesetzt
 
 ## Phase 2: Implementation
-- [x] Keine hardcodierten Farben/Radii/Shadows (Audit geprueft)
-- [x] Nordlig DS Komponenten verwendet (keine nativen HTML-Elemente)
+- [x] CI Workflow fix implementiert
 
 ## Phase 3: Quality Gates
-- [x] ESLint 0 Warnings
-- [x] Prettier check bestanden
-- [x] TypeScript kompiliert
-- [x] Vitest alle Tests gruen
+- [x] Keine Frontend/Backend-Aenderungen — nur CI Config
 
 ## Phase 4: Abschluss (post-push, not validated by hook)
 - [ ] Commit + Push auf Feature-Branch

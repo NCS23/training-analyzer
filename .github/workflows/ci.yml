@@ -185,6 +185,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [frontend-build, backend-lint, backend-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v6
 
@@ -203,8 +206,14 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+          # Extract issue number from commit message — look for (#NNN) pattern
+          # Squash merges use PR number, so also check for "Closes #NNN" in the message
+          ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE 'Closes #[0-9]+' | head -1 | grep -oE '[0-9]+')
+          if [ -z "$ISSUE_NUM" ]; then
+            # Fallback: first (#NNN) in commit message (could be PR number)
+            ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+          fi
           if [ -n "$ISSUE_NUM" ]; then
             gh issue comment "$ISSUE_NUM" -R "$REPO" \
-              --body "Deployed to production. CI run: $RUN_URL"
+              --body "Deployed to production. CI run: $RUN_URL" || true
           fi
