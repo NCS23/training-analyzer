@@ -546,68 +546,56 @@ export function PhaseWeeklyTemplateEditor({
 
   return (
     <div className="space-y-2">
-      {/* Week selector: [Alle] [W1] [W2] ... with inline copy icon on active tab */}
+      {/* Week selector: [Alle] [W1] [W2] ... + separate copy button */}
       {totalWeeks > 1 && (
-        <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
+        <div className="flex items-center gap-1.5">
           <SegmentedControl
             size="sm"
             items={[
               { value: 'all', label: 'Alle' },
-              ...Array.from({ length: totalWeeks }, (_, i) => {
-                const weekNum = i + 1;
-                const isActive = perWeekMode && clampedActiveWeek === weekNum;
-                return {
-                  value: String(weekNum),
-                  label: isActive ? (
-                    <span className="inline-flex items-center gap-1">
-                      W{weekNum}
-                      <PopoverTrigger asChild>
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          aria-label="Von anderer Woche kopieren"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.stopPropagation();
-                            }
-                          }}
-                          className="inline-flex items-center justify-center rounded-[var(--radius-component-sm)] p-0.5 hover:bg-[var(--color-bg-muted)] transition-colors cursor-pointer"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </span>
-                      </PopoverTrigger>
-                    </span>
-                  ) : (
-                    `W${weekNum}`
-                  ),
-                };
-              }),
+              ...Array.from({ length: totalWeeks }, (_, i) => ({
+                value: String(i + 1),
+                label: `W${i + 1}`,
+              })),
             ]}
             value={perWeekMode ? String(clampedActiveWeek) : 'all'}
             onChange={handleTabChange}
           />
-          <PopoverContent align="start" className="p-2 w-auto">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-[var(--color-text-muted)] px-2 py-1">
-                Kopieren von
-              </span>
-              {otherWeeks.map((w) => (
+          {perWeekMode && (
+            <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
+              <PopoverTrigger asChild>
                 <Button
-                  key={w}
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    handleCopyFromWeek(w);
-                    setCopyPopoverOpen(false);
-                  }}
+                  aria-label="Von anderer Woche kopieren"
+                  className="h-7 w-7 p-0"
                 >
-                  Woche {w}
+                  <Copy className="w-3.5 h-3.5" />
                 </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="p-2 w-auto">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-[var(--color-text-muted)] px-2 py-1">
+                    Kopieren von
+                  </span>
+                  {otherWeeks.map((w) => (
+                    <Button
+                      key={w}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        handleCopyFromWeek(w);
+                        setCopyPopoverOpen(false);
+                      }}
+                    >
+                      Woche {w}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       )}
 
       {/* Day list (Accordion) */}
