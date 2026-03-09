@@ -106,7 +106,7 @@ function formatSegmentsSummary(segments: Segment[]): string[] | null {
 }
 
 function getSessionLabel(session: PhaseWeeklyTemplateSessionEntry): string {
-  if (session.training_type === 'strength') return session.template_name ?? 'Kraft';
+  if (session.training_type === 'strength') return 'Kraft';
   return trainingTypeLabels[session.run_type ?? 'easy'] ?? session.run_type ?? 'Lauf';
 }
 
