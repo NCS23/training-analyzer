@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Input,
   Label,
@@ -44,6 +52,7 @@ import type {
 } from '@/api/weekly-plan';
 import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
+import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
 import { lapTypeLabels } from '@/constants/training';
 import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
@@ -401,6 +410,7 @@ function SessionDetailDialog({
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showAssignTemplate, setShowAssignTemplate] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [pendingRunType, setPendingRunType] = useState<string | null>(null);
   const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>([]);
 
   // Sync when dialog opens
@@ -437,7 +447,24 @@ function SessionDetailDialog({
     }
   };
 
-  const handleRunTypeChange = (runType: string) => {
+  const applyRunTypeWithPreset = (runType: string) => {
+    const preset = getPresetSegments(runType as RunDetails['run_type']);
+    setLocal({
+      ...local,
+      run_details: {
+        run_type: runType as RunDetails['run_type'],
+        target_duration_minutes: null,
+        target_pace_min: null,
+        target_pace_max: null,
+        target_hr_min: null,
+        target_hr_max: null,
+        intervals: null,
+        segments: preset,
+      },
+    });
+  };
+
+  const applyRunTypeKeepSegments = (runType: string) => {
     const existingRd = local.run_details;
     setLocal({
       ...local,
@@ -452,6 +479,14 @@ function SessionDetailDialog({
         segments: existingRd?.segments ?? [createEmptySegment(0, { segment_type: 'steady' })],
       },
     });
+  };
+
+  const handleRunTypeChange = (runType: string) => {
+    if (hasSegmentData(local.run_details?.segments)) {
+      setPendingRunType(runType);
+    } else {
+      applyRunTypeWithPreset(runType);
+    }
   };
 
   const handleSave = () => {
@@ -814,6 +849,41 @@ function SessionDetailDialog({
           }}
         />
       )}
+
+      <AlertDialog
+        open={pendingRunType !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRunType(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Segmente ersetzen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du hast bereits Segmente konfiguriert. Moechtest du sie mit der Vorlage fuer &ldquo;
+              {RUN_TYPE_LABELS[pendingRunType ?? ''] ?? pendingRunType}&rdquo; ersetzen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                if (pendingRunType) applyRunTypeKeepSegments(pendingRunType);
+                setPendingRunType(null);
+              }}
+            >
+              Beibehalten
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRunType) applyRunTypeWithPreset(pendingRunType);
+                setPendingRunType(null);
+              }}
+            >
+              Ersetzen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

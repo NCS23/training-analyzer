@@ -4,6 +4,14 @@ import {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Card,
   CardBody,
@@ -28,6 +36,7 @@ import type { RunDetails } from '@/api/weekly-plan';
 import type { TemplateExercise } from '@/api/session-templates';
 import { getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
+import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { StrengthExerciseEditor } from './StrengthExerciseEditor';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
@@ -187,6 +196,7 @@ function TemplateSessionEditor({
   onMakeRest,
 }: TemplateSessionEditorProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingRunType, setPendingRunType] = useState<string | null>(null);
 
   const typeOptions = showRestOption
     ? [{ value: 'rest', label: 'Ruhetag' }, ...SESSION_TYPE_OPTIONS]
@@ -206,18 +216,60 @@ function TemplateSessionEditor({
         exercises: null,
       });
     } else {
+      const preset = getPresetSegments('easy');
       onUpdate({
         ...session,
         training_type: 'running',
         run_type: 'easy',
-        run_details: undefined,
+        run_details: {
+          run_type: 'easy',
+          target_duration_minutes: null,
+          target_pace_min: null,
+          target_pace_max: null,
+          target_hr_min: null,
+          target_hr_max: null,
+          intervals: null,
+          segments: preset,
+        },
         exercises: undefined,
       });
     }
   };
 
+  const applyRunTypeWithPreset = (runType: string) => {
+    const preset = getPresetSegments(runType as RunType);
+    onUpdate({
+      ...session,
+      run_type: runType as RunType,
+      run_details: {
+        run_type: runType as RunDetails['run_type'],
+        target_duration_minutes: null,
+        target_pace_min: null,
+        target_pace_max: null,
+        target_hr_min: null,
+        target_hr_max: null,
+        intervals: null,
+        segments: preset,
+      },
+    });
+  };
+
+  const applyRunTypeKeepSegments = (runType: string) => {
+    onUpdate({
+      ...session,
+      run_type: runType as RunType,
+      run_details: session.run_details
+        ? { ...session.run_details, run_type: runType as RunDetails['run_type'] }
+        : undefined,
+    });
+  };
+
   const handleRunTypeChange = (runType: string) => {
-    onUpdate({ ...session, run_type: runType as RunType, run_details: undefined });
+    if (hasSegmentData(session.run_details?.segments)) {
+      setPendingRunType(runType);
+    } else {
+      applyRunTypeWithPreset(runType);
+    }
   };
 
   const handleRunDetailsChange = (details: RunDetails | null) => {
@@ -353,6 +405,43 @@ function TemplateSessionEditor({
         sessionType={session.training_type}
         onSelect={handleTemplateSelect}
       />
+
+      {/* Preset confirmation dialog */}
+      <AlertDialog
+        open={pendingRunType !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRunType(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Segmente ersetzen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du hast bereits Segmente konfiguriert. Moechtest du sie mit der Vorlage fuer &ldquo;
+              {RUN_TYPE_OPTIONS.find((o) => o.value === pendingRunType)?.label ?? pendingRunType}
+              &rdquo; ersetzen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                if (pendingRunType) applyRunTypeKeepSegments(pendingRunType);
+                setPendingRunType(null);
+              }}
+            >
+              Beibehalten
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRunType) applyRunTypeWithPreset(pendingRunType);
+                setPendingRunType(null);
+              }}
+            >
+              Ersetzen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
