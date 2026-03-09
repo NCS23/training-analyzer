@@ -534,10 +534,128 @@ class TestRunDetailsValidators:
         assert rd.intervals[0].type == "warmup"
         assert rd.segments[0].segment_type == "steady"
 
-    def test_neither_present_no_error(self) -> None:
+    def test_neither_present_creates_default_segment(self) -> None:
+        """Empty RunDetails gets a default 'steady' segment via _ensure_segments."""
         rd = RunDetails(run_type="easy")
-        assert rd.intervals is None
-        assert rd.segments is None
+        assert rd.segments is not None
+        assert len(rd.segments) == 1
+        assert rd.segments[0].segment_type == "steady"
+        # Intervals are auto-derived from the default segment
+        assert rd.intervals is not None
+
+
+class TestEnsureSegmentsValidator:
+    """Test _ensure_segments and _compute_top_level_from_segments validators (#162)."""
+
+    def test_top_level_creates_segment(self) -> None:
+        """Top-level fields are migrated to a 'steady' segment."""
+        rd = RunDetails(
+            run_type="easy",
+            target_duration_minutes=45,
+            target_pace_min="5:30",
+            target_pace_max="6:00",
+            target_hr_min=130,
+            target_hr_max=150,
+        )
+        assert rd.segments is not None
+        assert len(rd.segments) == 1
+        seg = rd.segments[0]
+        assert seg.segment_type == "steady"
+        assert seg.target_duration_minutes == 45.0
+        assert seg.target_pace_min == "5:30"
+        assert seg.target_pace_max == "6:00"
+        assert seg.target_hr_min == 130
+        assert seg.target_hr_max == 150
+
+    def test_explicit_segments_preserved(self) -> None:
+        """Explicitly set segments are not overwritten."""
+        rd = RunDetails(
+            run_type="intervals",
+            segments=[
+                Segment(position=0, segment_type="warmup", target_duration_minutes=10.0),
+                Segment(position=1, segment_type="work", target_duration_minutes=3.0, repeats=4),
+                Segment(position=2, segment_type="cooldown", target_duration_minutes=10.0),
+            ],
+        )
+        assert rd.segments is not None
+        assert len(rd.segments) == 3
+        assert rd.segments[1].repeats == 4
+
+    def test_compute_top_level_single_segment(self) -> None:
+        """Single segment: top-level fields are copied from the segment."""
+        rd = RunDetails(
+            run_type="easy",
+            segments=[
+                Segment(
+                    position=0,
+                    segment_type="steady",
+                    target_duration_minutes=50.0,
+                    target_pace_min="5:30",
+                    target_pace_max="6:00",
+                    target_hr_min=130,
+                    target_hr_max=150,
+                ),
+            ],
+        )
+        assert rd.target_duration_minutes == 50
+        assert rd.target_pace_min == "5:30"
+        assert rd.target_pace_max == "6:00"
+        assert rd.target_hr_min == 130
+        assert rd.target_hr_max == 150
+
+    def test_compute_top_level_multi_segment_sums_duration(self) -> None:
+        """Multiple segments: duration is summed (with repeats), pace/HR set to None."""
+        rd = RunDetails(
+            run_type="intervals",
+            segments=[
+                Segment(position=0, segment_type="warmup", target_duration_minutes=10.0),
+                Segment(position=1, segment_type="work", target_duration_minutes=3.0, repeats=4),
+                Segment(position=2, segment_type="cooldown", target_duration_minutes=10.0),
+            ],
+        )
+        # 10 + (3×4) + 10 = 32
+        assert rd.target_duration_minutes == 32
+        assert rd.target_pace_min is None
+        assert rd.target_pace_max is None
+        assert rd.target_hr_min is None
+        assert rd.target_hr_max is None
+
+    def test_empty_run_details_gets_default_segment(self) -> None:
+        """RunDetails without any data gets a minimal 'steady' segment."""
+        rd = RunDetails(run_type="easy")
+        assert rd.segments is not None
+        assert len(rd.segments) == 1
+        assert rd.segments[0].segment_type == "steady"
+        assert rd.segments[0].target_duration_minutes is None
+
+    def test_intervals_still_converted_to_segments(self) -> None:
+        """Intervals are converted to segments first, then _ensure_segments is a no-op."""
+        rd = RunDetails(
+            run_type="intervals",
+            intervals=[
+                RunInterval(type="warmup", duration_minutes=10.0),
+                RunInterval(type="work", duration_minutes=3.0, repeats=4),
+            ],
+        )
+        assert rd.segments is not None
+        assert len(rd.segments) == 2
+        # Top-level duration computed from segments
+        # 10 + (3×4) = 22
+        assert rd.target_duration_minutes == 22
+
+    def test_single_segment_below_5_min_clears_duration(self) -> None:
+        """Duration below 5 minutes is cleared to None (respects RunDetails field constraint)."""
+        rd = RunDetails(
+            run_type="easy",
+            segments=[
+                Segment(position=0, segment_type="steady", target_duration_minutes=3.0),
+            ],
+        )
+        # 3 min < 5 min threshold → target_duration_minutes set to None
+        assert rd.target_duration_minutes is None
+        # But segment still retains its original value
+        assert rd.segments is not None
+        assert rd.segments[0].target_duration_minutes == 3.0
 
 
 class TestNewSegmentFields:

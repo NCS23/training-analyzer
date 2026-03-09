@@ -14,6 +14,7 @@ from app.infrastructure.database.models import (
     TrainingPhaseModel,
     TrainingPlanModel,
 )
+from app.models.segment import Segment
 from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplateDayEntry
 from app.models.weekly_plan import RunDetails, RunInterval
 from app.services.plan_generator import (
@@ -332,7 +333,11 @@ class TestTemplateToEntries:
         assert rd.intervals[1].repeats == 5
 
     def test_template_without_run_details_creates_skeleton(self) -> None:
-        """Without run_details on template entry, a skeleton is created."""
+        """Without run_details on template entry, a skeleton is created.
+
+        The _ensure_segments validator creates a default 'steady' segment,
+        and _populate_intervals derives intervals from it.
+        """
         template = PhaseWeeklyTemplate(
             days=[
                 _day(0, "running", "easy"),
@@ -345,54 +350,63 @@ class TestTemplateToEntries:
         assert rd.run_type == "easy"
         assert rd.target_duration_minutes is None
         assert rd.target_pace_min is None
-        assert rd.intervals is None
+        # _ensure_segments creates a default segment + _populate_intervals derives
+        assert rd.segments is not None
+        assert len(rd.segments) == 1
+        assert rd.segments[0].segment_type == "steady"
+        assert rd.intervals is not None
 
 
 class TestHasExplicitRunDetails:
     def test_skeleton_is_not_explicit(self) -> None:
-        rd = RunDetails(
-            run_type="easy",
-            target_duration_minutes=None,
-            target_pace_min=None,
-            target_pace_max=None,
-            target_hr_min=None,
-            target_hr_max=None,
-            intervals=None,
-        )
+        """A skeleton RunDetails (no targets) is not explicit."""
+        rd = RunDetails(run_type="easy")
+        # Has a default segment but with no target fields → not explicit
         assert _has_explicit_run_details(rd) is False
 
     def test_duration_makes_explicit(self) -> None:
+        """A segment with target_duration_minutes makes it explicit."""
         rd = RunDetails(
             run_type="easy",
-            target_duration_minutes=45,
-            target_pace_min=None,
-            target_pace_max=None,
-            target_hr_min=None,
-            target_hr_max=None,
-            intervals=None,
+            segments=[
+                Segment(
+                    position=0,
+                    segment_type="steady",
+                    target_duration_minutes=45.0,
+                ),
+            ],
         )
         assert _has_explicit_run_details(rd) is True
 
     def test_pace_makes_explicit(self) -> None:
+        """A segment with target_pace_min makes it explicit."""
         rd = RunDetails(
             run_type="tempo",
-            target_duration_minutes=None,
-            target_pace_min="5:00",
-            target_pace_max=None,
-            target_hr_min=None,
-            target_hr_max=None,
-            intervals=None,
+            segments=[
+                Segment(
+                    position=0,
+                    segment_type="steady",
+                    target_pace_min="5:00",
+                ),
+            ],
         )
         assert _has_explicit_run_details(rd) is True
 
-    def test_intervals_make_explicit(self) -> None:
+    def test_multi_segments_make_explicit(self) -> None:
+        """Multiple segments always count as explicit."""
         rd = RunDetails(
             run_type="intervals",
-            target_duration_minutes=None,
-            target_pace_min=None,
-            target_pace_max=None,
-            target_hr_min=None,
-            target_hr_max=None,
+            segments=[
+                Segment(position=0, segment_type="warmup", target_duration_minutes=10.0),
+                Segment(position=1, segment_type="work", target_duration_minutes=3.0, repeats=5),
+            ],
+        )
+        assert _has_explicit_run_details(rd) is True
+
+    def test_intervals_converted_to_segments_make_explicit(self) -> None:
+        """Intervals are converted to segments, making them explicit."""
+        rd = RunDetails(
+            run_type="intervals",
             intervals=[
                 RunInterval(
                     type="work",

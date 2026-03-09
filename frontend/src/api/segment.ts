@@ -86,6 +86,57 @@ export function createEmptySegment(position: number = 0, overrides?: Partial<Seg
 }
 
 /**
+ * Compute top-level RunDetails convenience fields from segments.
+ * Mirrors the backend `_compute_top_level_from_segments` validator.
+ */
+export function segmentsToTopLevel(segments: Segment[]): {
+  target_duration_minutes: number | null;
+  target_pace_min: string | null;
+  target_pace_max: string | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
+} {
+  if (segments.length === 0) {
+    return {
+      target_duration_minutes: null,
+      target_pace_min: null,
+      target_pace_max: null,
+      target_hr_min: null,
+      target_hr_max: null,
+    };
+  }
+
+  if (segments.length === 1) {
+    const seg = segments[0];
+    const dur = seg.target_duration_minutes;
+    return {
+      target_duration_minutes: dur != null && dur >= 5 ? Math.round(dur) : null,
+      target_pace_min: seg.target_pace_min,
+      target_pace_max: seg.target_pace_max,
+      target_hr_min: seg.target_hr_min,
+      target_hr_max: seg.target_hr_max,
+    };
+  }
+
+  // Multi-segment: sum durations (with repeats), clear pace/HR
+  let totalMinutes = 0;
+  let hasAnyDuration = false;
+  for (const seg of segments) {
+    if (seg.target_duration_minutes != null) {
+      totalMinutes += seg.target_duration_minutes * seg.repeats;
+      hasAnyDuration = true;
+    }
+  }
+  return {
+    target_duration_minutes: hasAnyDuration && totalMinutes >= 5 ? Math.round(totalMinutes) : null,
+    target_pace_min: null,
+    target_pace_max: null,
+    target_hr_min: null,
+    target_hr_max: null,
+  };
+}
+
+/**
  * Format a compact summary of work segments (e.g., "4×3′").
  * Returns null if no work segments found.
  */

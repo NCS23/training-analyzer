@@ -34,7 +34,7 @@ export interface RunDetails {
   target_hr_min: number | null;
   target_hr_max: number | null;
   intervals: RunInterval[] | null;
-  segments?: Segment[] | null;
+  segments: Segment[];
 }
 
 export interface PlannedSession {

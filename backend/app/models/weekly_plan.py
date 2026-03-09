@@ -8,7 +8,12 @@ from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.exercise import TemplateExercise
-from app.models.segment import Segment, intervals_to_segments, segments_to_intervals
+from app.models.segment import (
+    Segment,
+    intervals_to_segments,
+    segments_to_intervals,
+    top_level_to_segment,
+)
 from app.models.taxonomy import SEGMENT_TYPE_REGEX, SESSION_TYPE_REGEX
 
 
@@ -55,6 +60,81 @@ class RunDetails(BaseModel):
         """Auto-populate segments from intervals if not explicitly set."""
         if self.segments is None and self.intervals:
             self.segments = intervals_to_segments(self.intervals)
+        return self
+
+    @model_validator(mode="after")
+    def _ensure_segments(self) -> RunDetails:
+        """Guarantee at least one segment exists for every run.
+
+        Priority:
+        1. If segments already present → keep them.
+        2. If top-level fields present → create a 'steady' segment from them.
+        3. Fallback → create a minimal 'steady' segment with no targets.
+        """
+        if self.segments:
+            return self
+
+        has_top_level = (
+            self.target_duration_minutes is not None
+            or self.target_pace_min is not None
+            or self.target_pace_max is not None
+            or self.target_hr_min is not None
+            or self.target_hr_max is not None
+        )
+
+        if has_top_level:
+            self.segments = [
+                top_level_to_segment(
+                    target_duration_minutes=(
+                        float(self.target_duration_minutes)
+                        if self.target_duration_minutes is not None
+                        else None
+                    ),
+                    target_pace_min=self.target_pace_min,
+                    target_pace_max=self.target_pace_max,
+                    target_hr_min=self.target_hr_min,
+                    target_hr_max=self.target_hr_max,
+                )
+            ]
+        else:
+            self.segments = [Segment(position=0, segment_type="steady")]
+
+        return self
+
+    @model_validator(mode="after")
+    def _compute_top_level_from_segments(self) -> RunDetails:
+        """Compute top-level convenience fields from segments.
+
+        Single segment: direct copy of its target fields.
+        Multiple segments: sum durations (× repeats), pace/HR set to None.
+        """
+        if not self.segments:
+            return self
+
+        if len(self.segments) == 1:
+            seg = self.segments[0]
+            dur = seg.target_duration_minutes
+            self.target_duration_minutes = int(dur) if dur is not None and dur >= 5 else None
+            self.target_pace_min = seg.target_pace_min
+            self.target_pace_max = seg.target_pace_max
+            self.target_hr_min = seg.target_hr_min
+            self.target_hr_max = seg.target_hr_max
+        else:
+            # Multi-segment: aggregate duration, clear individual pace/HR
+            total_minutes = 0.0
+            has_any_duration = False
+            for seg in self.segments:
+                if seg.target_duration_minutes is not None:
+                    total_minutes += seg.target_duration_minutes * seg.repeats
+                    has_any_duration = True
+            self.target_duration_minutes = (
+                int(round(total_minutes)) if has_any_duration and total_minutes >= 5 else None
+            )
+            self.target_pace_min = None
+            self.target_pace_max = None
+            self.target_hr_min = None
+            self.target_hr_max = None
+
         return self
 
     @model_validator(mode="after")

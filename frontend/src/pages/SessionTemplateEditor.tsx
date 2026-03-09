@@ -40,6 +40,7 @@ import {
 } from '@/api/session-templates';
 import type { ExerciseCategory } from '@/api/session-templates';
 import type { RunDetails } from '@/api/weekly-plan';
+import { createEmptySegment } from '@/api/segment';
 import { categoryBadgeVariant, trainingTypeOptions } from '@/constants/training';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
@@ -270,6 +271,7 @@ export function SessionTemplateEditorPage() {
           target_hr_min: null,
           target_hr_max: null,
           intervals: null,
+          segments: [createEmptySegment(0, { segment_type: 'steady' })],
         };
 
         if (isEdit) {

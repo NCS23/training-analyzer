@@ -161,9 +161,9 @@ function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry 
   const details = session.run_details;
   const detailStr = formatRunDetails(details);
 
-  // Prefer segments (new) over intervals (legacy)
+  // Only show segment detail list when there are multiple segments
   const segments = details?.segments ?? [];
-  const segmentLines = segments.length > 0 ? formatSegmentsSummary(segments) : null;
+  const segmentLines = segments.length > 1 ? formatSegmentsSummary(segments) : null;
 
   if (!detailStr && !segmentLines && !session.notes) {
     return <span className="text-sm text-[var(--color-text-disabled)]">—</span>;
