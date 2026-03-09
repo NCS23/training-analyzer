@@ -1,4 +1,4 @@
-# Workflow Checklist — Issue #169
+# Workflow Checklist — Issue #159
 
 ## Phase 0: Pre-Code
 - [x] GitHub Issue gelesen (Akzeptanzkriterien + Taskbreakdown)
@@ -11,10 +11,15 @@
 - [x] Issue auf "In Progress" im Project Board gesetzt
 
 ## Phase 2: Implementation
-- [x] CI Workflow fix implementiert
+- [x] Vite manualChunks konfiguriert (vendor-react + vendor-ui Split)
+- [x] rollup-plugin-visualizer als devDependency installiert
 
 ## Phase 3: Quality Gates
-- [x] Keine Frontend/Backend-Aenderungen — nur CI Config
+- [x] ESLint 0 Warnings
+- [x] Prettier check bestanden
+- [x] TypeScript kompiliert
+- [x] Vitest alle Tests gruen (148 tests)
+- [x] Keine UI-Aenderungen — kein Design Review noetig
 
 ## Phase 4: Abschluss (post-push, not validated by hook)
 - [ ] Commit + Push auf Feature-Branch
