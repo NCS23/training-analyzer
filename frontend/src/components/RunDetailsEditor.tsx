@@ -46,6 +46,7 @@ function useDrillExercises() {
 interface SegmentEditorRowProps {
   segment: Segment;
   index: number;
+  canRemove: boolean;
   drillExercises: Exercise[];
   onChange: (index: number, updated: Segment) => void;
   onRemove: (index: number) => void;
@@ -54,6 +55,7 @@ interface SegmentEditorRowProps {
 function SegmentEditorRow({
   segment,
   index,
+  canRemove,
   drillExercises,
   onChange,
   onRemove,
@@ -257,19 +259,21 @@ function SegmentEditorRow({
         />
       </div>
 
-      {/* Delete segment */}
-      <div className="flex justify-end pt-3">
-        <Button
-          variant="destructive-outline"
-          size="sm"
-          onClick={() => onRemove(index)}
-          type="button"
-          aria-label={`Segment ${index + 1} entfernen`}
-        >
-          <Trash2 className="w-4 h-4 mr-1" />
-          Segment entfernen
-        </Button>
-      </div>
+      {/* Delete segment — only if there's more than one */}
+      {canRemove && (
+        <div className="flex justify-end pt-3">
+          <Button
+            variant="destructive-outline"
+            size="sm"
+            onClick={() => onRemove(index)}
+            type="button"
+            aria-label={`Segment ${index + 1} entfernen`}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Segment entfernen
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -320,17 +324,6 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
     });
   };
 
-  // Simple mode: 1 segment → show compact form (Duration, Pace, HR)
-  // Multi mode: >1 segments → show only the segment builder
-  const isSimpleMode = segments.length <= 1;
-  const primarySegment = segments[0];
-
-  /** Update the primary (only) segment in simple mode. */
-  const updatePrimary = (partial: Partial<Segment>) => {
-    const updated = { ...primarySegment, ...partial };
-    emitChange([updated]);
-  };
-
   const handleSegmentChange = (index: number, updated: Segment) => {
     const newSegments = [...segments];
     newSegments[index] = updated;
@@ -355,163 +348,25 @@ export function RunDetailsEditor({ runDetails, runType, onChange }: RunDetailsEd
   };
 
   return (
-    <div className="space-y-3">
-      {/* Simple Mode: compact Duration / Pace / HR fields editing segments[0] */}
-      {isSimpleMode && (
-        <>
-          {/* Duration */}
-          <div>
-            <Label className="text-xs mb-1">Dauer (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={360}
-              value={primarySegment.target_duration_minutes ?? ''}
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                updatePrimary({ target_duration_minutes: val });
-              }}
-              inputSize="sm"
-              placeholder="z.B. 45"
-              aria-label="Dauer in Minuten"
-            />
-          </div>
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Segmente</Label>
 
-          {/* Pace range */}
-          <div>
-            <Label className="text-xs mb-1">Pace (M:SS / km)</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
-                  Von (schnell)
-                </Label>
-                <Input
-                  type="text"
-                  value={primarySegment.target_pace_min ?? ''}
-                  onChange={(e) => updatePrimary({ target_pace_min: e.target.value || null })}
-                  inputSize="sm"
-                  placeholder="4:30"
-                  aria-label="Pace schnell"
-                />
-              </div>
-              <div>
-                <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
-                  Bis (langsam)
-                </Label>
-                <Input
-                  type="text"
-                  value={primarySegment.target_pace_max ?? ''}
-                  onChange={(e) => updatePrimary({ target_pace_max: e.target.value || null })}
-                  inputSize="sm"
-                  placeholder="5:30"
-                  aria-label="Pace langsam"
-                />
-              </div>
-            </div>
-          </div>
+      {segments.map((segment, i) => (
+        <SegmentEditorRow
+          key={i}
+          segment={segment}
+          index={i}
+          canRemove={segments.length > 1}
+          drillExercises={drillExercises}
+          onChange={handleSegmentChange}
+          onRemove={handleSegmentRemove}
+        />
+      ))}
 
-          {/* HR range */}
-          <div>
-            <Label className="text-xs mb-1">Herzfrequenz (bpm)</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Min</Label>
-                <Input
-                  type="number"
-                  min={60}
-                  max={220}
-                  value={primarySegment.target_hr_min ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : null;
-                    updatePrimary({ target_hr_min: val });
-                  }}
-                  inputSize="sm"
-                  placeholder="130"
-                  aria-label="Herzfrequenz Min"
-                />
-              </div>
-              <div>
-                <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Max</Label>
-                <Input
-                  type="number"
-                  min={60}
-                  max={220}
-                  value={primarySegment.target_hr_max ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : null;
-                    updatePrimary({ target_hr_max: val });
-                  }}
-                  inputSize="sm"
-                  placeholder="150"
-                  aria-label="Herzfrequenz Max"
-                />
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Segment builder — always visible */}
-      <div className="border-t border-[var(--color-border-muted)] pt-3 mt-1 space-y-2">
-        <Label className="text-xs font-semibold">Segmente</Label>
-
-        {/* In multi-mode, show all segment rows */}
-        {!isSimpleMode &&
-          segments.map((segment, i) => (
-            <SegmentEditorRow
-              key={i}
-              segment={segment}
-              index={i}
-              drillExercises={drillExercises}
-              onChange={handleSegmentChange}
-              onRemove={handleSegmentRemove}
-            />
-          ))}
-
-        {/* In simple mode, show compact segment summary */}
-        {isSimpleMode && (
-          <div className="rounded-[var(--radius-component-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-medium text-[var(--color-text-base)]">
-                {lapTypeLabels[primarySegment.segment_type] ?? primarySegment.segment_type}
-              </span>
-              {primarySegment.target_duration_minutes != null && (
-                <span className="text-[var(--color-text-muted)]">
-                  {primarySegment.target_duration_minutes} min
-                </span>
-              )}
-              {primarySegment.target_pace_min && (
-                <span className="text-[var(--color-text-muted)]">
-                  {primarySegment.target_pace_min}
-                  {primarySegment.target_pace_max ? `–${primarySegment.target_pace_max}` : ''} /km
-                </span>
-              )}
-              {primarySegment.target_hr_min != null && (
-                <span className="text-[var(--color-text-muted)]">
-                  HR {primarySegment.target_hr_min}
-                  {primarySegment.target_hr_max ? `–${primarySegment.target_hr_max}` : ''}
-                </span>
-              )}
-              {!primarySegment.target_duration_minutes &&
-                !primarySegment.target_pace_min &&
-                primarySegment.target_hr_min == null && (
-                  <span className="text-[var(--color-text-disabled)] italic">keine Vorgaben</span>
-                )}
-            </div>
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSegmentAdd}
-          type="button"
-          className="w-full"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Segment hinzufügen
-        </Button>
-      </div>
+      <Button variant="ghost" size="sm" onClick={handleSegmentAdd} type="button" className="w-full">
+        <Plus className="w-4 h-4 mr-1" />
+        Segment hinzufügen
+      </Button>
     </div>
   );
 }
