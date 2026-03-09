@@ -12,8 +12,6 @@
 
 ## Phase 2: Implementation
 - [ ] Tests geschrieben (Unit/Integration)
-- [ ] Keine hardcodierten Farben/Radii/Shadows (Audit geprueft)
-- [ ] Nordlig DS Komponenten verwendet (keine nativen HTML-Elemente)
 - [ ] TypeScript strict (kein any, kein @ts-ignore)
 
 ## Phase 3: Quality Gates
@@ -21,11 +19,9 @@
 - [ ] Prettier check bestanden
 - [ ] TypeScript kompiliert
 - [ ] Vitest alle Tests gruen
-- [ ] UX/Design Review durchgefuehrt (DESIGN_REVIEW.md Checkliste)
-- [ ] Mobile-First geprueft (375px)
-- [ ] Touch-Targets >= 44x44px
+- [ ] UX/Design Review Report erstellt (siehe .claude/design-review.md)
 
-## Phase 4: Abschluss
+## Phase 4: Abschluss (post-push, not validated by hook)
 - [ ] Commit + Push auf Feature-Branch
 - [ ] CI gruen
 - [ ] GitHub Issue kommentiert

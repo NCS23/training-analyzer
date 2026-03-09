@@ -52,5 +52,7 @@ package-lock.json
 .coverage
 coverage/
 
-# Claude Code workflow (temporary per-session files)
-.claude/workflow-checklist.md
+# Claude Code workflow artifacts are NOT ignored — they get committed for PR visibility:
+# .claude/workflow-checklist.md  → workflow compliance proof
+# .claude/design-review.md      → design review report
+# .claude/screenshots/           → screenshot evidence
