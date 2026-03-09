@@ -12,8 +12,18 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@nordlig/components';
-import { Plus, EllipsisVertical, Copy, Trash2, ClipboardList, Footprints } from 'lucide-react';
+import {
+  Plus,
+  EllipsisVertical,
+  Copy,
+  Trash2,
+  ClipboardList,
+  Footprints,
+  Pencil,
+  Eye,
+} from 'lucide-react';
 import {
   listSessionTemplates,
   deleteSessionTemplate,
@@ -152,13 +162,26 @@ export function SessionTemplatesPage() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        icon={<Eye />}
+                        onSelect={() => navigate(`/plan/templates/${tmpl.id}`)}
+                      >
+                        Anzeigen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        icon={<Pencil />}
+                        onSelect={() => navigate(`/plan/templates/${tmpl.id}?edit=true`)}
+                      >
+                        Bearbeiten
+                      </DropdownMenuItem>
                       <DropdownMenuItem icon={<Copy />} onSelect={() => handleDuplicate(tmpl.id)}>
                         Duplizieren
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         icon={<Trash2 />}
                         onSelect={() => handleDelete(tmpl.id, tmpl.name)}
-                        className="text-[var(--color-text-error)]"
+                        destructive
                       >
                         Löschen
                       </DropdownMenuItem>

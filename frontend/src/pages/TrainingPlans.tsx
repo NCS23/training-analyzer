@@ -33,6 +33,7 @@ import {
   Upload,
   CalendarPlus,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import {
   listTrainingPlans,
@@ -324,6 +325,12 @@ export function TrainingPlansPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
+                        icon={<Eye />}
+                        onSelect={() => navigate(`/plan/programs/${plan.id}`)}
+                      >
+                        Anzeigen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         icon={<Pencil />}
                         onSelect={() => navigate(`/plan/programs/${plan.id}?edit=true`)}
                       >
@@ -340,8 +347,8 @@ export function TrainingPlansPage() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         icon={<Trash2 />}
+                        destructive
                         onSelect={() => openDeleteDialog(plan)}
-                        className="text-[var(--color-text-error)]"
                       >
                         Löschen
                       </DropdownMenuItem>

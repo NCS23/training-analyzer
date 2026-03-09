@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -75,9 +75,10 @@ const RUN_TYPE_OPTIONS = trainingTypeOptions.map((opt) => ({
 export function SessionTemplateEditorPage() {
   const navigate = useNavigate();
   const { templateId } = useParams<{ templateId: string }>();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEdit = templateId != null && templateId !== 'new';
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(() => searchParams.get('edit') === 'true');
   const isEditing = !isEdit || editMode;
 
   // Form state — shared
@@ -109,31 +110,33 @@ export function SessionTemplateEditorPage() {
   }, [sessionType, isEdit]);
 
   // Load existing template for edit mode
-  useEffect(() => {
-    if (!isEdit) return;
-    (async () => {
-      try {
-        const tmpl = await getSessionTemplate(Number(templateId));
-        setTemplateName(tmpl.name);
-        setDescription(tmpl.description ?? '');
-        setSessionType(tmpl.session_type as TemplateSessionType);
+  const loadTemplate = useCallback(async () => {
+    if (!templateId) return;
+    try {
+      const tmpl = await getSessionTemplate(Number(templateId));
+      setTemplateName(tmpl.name);
+      setDescription(tmpl.description ?? '');
+      setSessionType(tmpl.session_type as TemplateSessionType);
 
-        if (tmpl.session_type === 'strength') {
-          if (tmpl.exercises.length > 0) {
-            setExercises(tmpl.exercises.map(apiExerciseToForm));
-          }
-        } else if (tmpl.session_type === 'running' && tmpl.run_details) {
-          setRunType(tmpl.run_details.run_type);
-          setRunDetails(tmpl.run_details);
+      if (tmpl.session_type === 'strength') {
+        if (tmpl.exercises.length > 0) {
+          setExercises(tmpl.exercises.map(apiExerciseToForm));
         }
-      } catch {
-        toast({ title: 'Template nicht gefunden', variant: 'error' });
-        navigate('/plan/templates');
-      } finally {
-        setLoading(false);
+      } else if (tmpl.session_type === 'running' && tmpl.run_details) {
+        setRunType(tmpl.run_details.run_type);
+        setRunDetails(tmpl.run_details);
       }
-    })();
-  }, [isEdit, templateId, navigate, toast]);
+    } catch {
+      toast({ title: 'Template nicht gefunden', variant: 'error' });
+      navigate('/plan/templates');
+    } finally {
+      setLoading(false);
+    }
+  }, [templateId, navigate, toast]);
+
+  useEffect(() => {
+    if (isEdit) loadTemplate();
+  }, [isEdit, loadTemplate]);
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -319,7 +322,9 @@ export function SessionTemplateEditorPage() {
   }
 
   return (
-    <div className="p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6">
+    <div
+      className={`p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6${isEditing ? ' pb-24' : ''}`}
+    >
       {/* Breadcrumbs + Header */}
       <div className="space-y-2 pb-2">
         <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
@@ -919,23 +924,46 @@ export function SessionTemplateEditorPage() {
         </Card>
       )}
 
-      {/* Submit — only in edit mode */}
+      {/* Fixed ActionBar — edit mode */}
       {isEditing && (
-        <div className="sticky bottom-4 z-10">
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={submitting || !templateName.trim()}
-            className="w-full"
-            size="lg"
-          >
-            {submitting ? (
-              <Spinner size="sm" className="mr-2" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {submitting ? 'Speichern...' : isEdit ? 'Template aktualisieren' : 'Template erstellen'}
-          </Button>
+        <div
+          role="toolbar"
+          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
+        >
+          <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
+            Ungespeicherte Änderungen
+          </span>
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (isEdit) {
+                  setEditMode(false);
+                  loadTemplate();
+                } else {
+                  navigate('/plan/templates');
+                }
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={submitting || !templateName.trim()}
+            >
+              {submitting ? (
+                <Spinner size="sm" aria-hidden="true" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1" />
+                  {isEdit ? 'Speichern' : 'Erstellen'}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
     </div>

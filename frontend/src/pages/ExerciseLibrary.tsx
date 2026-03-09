@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@nordlig/components';
 import {
   Plus,
@@ -28,13 +29,16 @@ import {
   Dumbbell,
   Footprints,
   ArrowUpFromLine,
+  Pencil,
+  Eye,
+  Trash2,
   ArrowDownToLine,
   ShieldHalf,
   HeartPulse,
   type LucideIcon,
 } from 'lucide-react';
 import { categoryBadgeVariant } from '@/constants/training';
-import { listExercises, createExercise, toggleFavorite } from '@/api/exercises';
+import { listExercises, createExercise, toggleFavorite, deleteExercise } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
 const categoryOptions = [
@@ -132,6 +136,16 @@ export function ExerciseLibraryPage() {
       await loadExercises();
     } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'error' });
+    }
+  };
+
+  const handleDeleteExercise = async (ex: Exercise) => {
+    try {
+      await deleteExercise(ex.id);
+      toast({ title: `„${ex.name}" gelöscht`, variant: 'success' });
+      await loadExercises();
+    } catch {
+      toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
     }
   };
 
@@ -303,11 +317,35 @@ export function ExerciseLibraryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          icon={<Eye />}
+                          onSelect={() => navigate(`/plan/exercises/${ex.id}`)}
+                        >
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          icon={<Pencil />}
+                          onSelect={() => navigate(`/plan/exercises/${ex.id}?edit=true`)}
+                        >
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           icon={<Star className={ex.is_favorite ? 'fill-current' : ''} />}
                           onSelect={() => handleToggleFavorite(ex)}
                         >
                           {ex.is_favorite ? 'Favorit entfernen' : 'Als Favorit'}
                         </DropdownMenuItem>
+                        {ex.is_custom && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              icon={<Trash2 />}
+                              destructive
+                              onSelect={() => handleDeleteExercise(ex)}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
