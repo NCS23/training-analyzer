@@ -6,7 +6,9 @@ import type { RunDetails, WeeklyPlanEntry } from '@/api/weekly-plan';
 import { createEmptySegment } from '@/api/segment';
 
 /** Create a RunDetails with a default steady segment. */
-function makeRunDetails(overrides: Partial<RunDetails> & { run_type: RunDetails['run_type'] }): RunDetails {
+function makeRunDetails(
+  overrides: Partial<RunDetails> & { run_type: RunDetails['run_type'] },
+): RunDetails {
   const base: RunDetails = {
     run_type: overrides.run_type,
     target_duration_minutes: overrides.target_duration_minutes ?? null,

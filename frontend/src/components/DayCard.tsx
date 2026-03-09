@@ -675,8 +675,7 @@ function SessionDetailDialog({
                   </div>
 
                   {(() => {
-                    const displaySegs =
-                      rd?.segments && rd.segments.length > 1 ? rd.segments : null;
+                    const displaySegs = rd?.segments && rd.segments.length > 1 ? rd.segments : null;
                     return displaySegs ? (
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
