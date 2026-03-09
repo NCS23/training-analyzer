@@ -200,19 +200,17 @@ jobs:
 
       - name: Comment on linked issue
         if: success()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # Extract issue number from commit message — look for (#NNN) pattern
-          # Squash merges use PR number, so also check for "Closes #NNN" in the message
-          ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE 'Closes #[0-9]+' | head -1 | grep -oE '[0-9]+')
-          if [ -z "$ISSUE_NUM" ]; then
-            # Fallback: first (#NNN) in commit message (could be PR number)
-            ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
-          fi
+          set +e
+          # Extract issue number: first (#NNN) in commit title line
+          ISSUE_NUM=$(echo "$COMMIT_MSG" | head -1 | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+          set -e
           if [ -n "$ISSUE_NUM" ]; then
             gh issue comment "$ISSUE_NUM" -R "$REPO" \
               --body "Deployed to production. CI run: $RUN_URL" || true
