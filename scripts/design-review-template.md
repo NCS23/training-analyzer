@@ -1,12 +1,12 @@
 # Design Review — Issue #ISSUE_NUMBER
 
 > Dieser Report wird automatisch vom pre-push Hook validiert.
-> Alle Sektionen muessen ausgefuellt sein. Screenshots muessen existieren.
+> Alle Sektionen müssen ausgefüllt sein. Screenshots müssen existieren.
 
 ## 1. Nordlig DS Compliance
 
-<!-- AUTOMATED: Diese Sektion wird vom Hook automatisch geprueft -->
-<!-- Manuell hier dokumentieren was geprueft wurde -->
+<!-- AUTOMATED: Diese Sektion wird vom Hook automatisch geprüft -->
+<!-- Manuell hier dokumentieren was geprüft wurde -->
 
 - [ ] Keine hardcodierten Farben (bg-white, bg-gray-*, text-red-* etc.)
 - [ ] Keine hardcodierten Radii (rounded-sm/md/lg/xl/2xl)
@@ -17,7 +17,7 @@
 ## 2. Mobile-First Check (375px)
 
 **Screenshot (375px Viewport):**
-<!-- Pfad zum Screenshot einfuegen, z.B.: -->
+<!-- Pfad zum Screenshot einfügen, z.B.: -->
 <!-- screenshot: .claude/screenshots/mobile-375.png -->
 screenshot: SCREENSHOT_PATH_HERE
 
@@ -36,7 +36,7 @@ screenshot: SCREENSHOT_PATH_HERE
 
 - [ ] Container-Padding 24-32px
 - [ ] Sektionen-Abstand 32-64px
-- [ ] Weissraum-Anteil visuell ~30-40%
+- [ ] Weißraum-Anteil visuell ~30-40%
 - [ ] Keine Card-on-Card Schatten
 
 ## 5. Gesamtbewertung
@@ -44,4 +44,4 @@ screenshot: SCREENSHOT_PATH_HERE
 **Verdict:** PASS / FAIL
 
 **Anmerkungen:**
-<!-- Freitext fuer Befunde, Kompromisse, bekannte Einschraenkungen -->
+<!-- Freitext für Befunde, Kompromisse, bekannte Einschränkungen -->

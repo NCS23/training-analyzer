@@ -4,18 +4,18 @@
 
 - [PROJEKT_REGELN.md](docs/PROJEKT_REGELN.md) — Technische Regeln (Frontend, Backend, Testing)
 - [DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) — UX & Design Review Checkliste
-- [DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) — Domaenenmodell (15 Entities, 200+ Felder)
+- [DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) — Domänenmodell (15 Entities, 200+ Felder)
 - [TRAINING_CONTEXT.md](docs/TRAINING_CONTEXT.md) — Trainingskontext (HM Sub-2h)
 
 ---
 
 ## Grundregel: Kein Code ohne Issue
 
-**Es wird NICHTS ohne GitHub Issue gemacht.** Kein Feature, kein Bugfix, kein Refactoring, keine Config-Aenderung.
+**Es wird NICHTS ohne GitHub Issue gemacht.** Kein Feature, kein Bugfix, kein Refactoring, keine Config-Änderung.
 
 - Vor jeder Arbeit MUSS ein Issue existieren oder erstellt werden
 - Das Issue MUSS Akzeptanzkriterien und Taskbreakdown enthalten
-- Stories MUESSEN als Sub-Issue eines Epics angelegt werden
+- Stories MÜSSEN als Sub-Issue eines Epics angelegt werden
 - Der Branch-Name referenziert das Issue (z.B. `feature/E01-S01-csv-upload`)
 - Commits referenzieren das Issue im Body
 - Erst wenn das Issue geschlossen ist, ist die Arbeit abgeschlossen
@@ -24,59 +24,59 @@
 
 ## Pflicht-Workflow (4 Phasen)
 
-Jedes Feature, jeder Bugfix, jede Aenderung durchlaeuft diese Phasen.
-**Keine Abkuerzungen. Keine Ausnahmen.**
+Jedes Feature, jeder Bugfix, jede Änderung durchläuft diese Phasen.
+**Keine Abkürzungen. Keine Ausnahmen.**
 
-### Phase 0: Pre-Code Pflichtlektuere
+### Phase 0: Pre-Code Pflichtlektüre
 
 Vor der ersten Zeile Code:
 
 1. **PROJEKT_REGELN.md lesen** — Mobile-First, Nordlig DS, API-Design, Testing
-2. **DESIGN_REVIEW.md lesen** — 5 Saeulen, 7 Kriterien, Nordlig-Heuristik
+2. **DESIGN_REVIEW.md lesen** — 5 Säulen, 7 Kriterien, Nordlig-Heuristik
 3. **DOMAIN_MODEL.md lesen** — Entities und deren Beziehungen verstehen
-4. Bei UI-Aenderungen: relevante Nordlig DS Komponenten in Storybook pruefen
+4. Bei UI-Änderungen: relevante Nordlig DS Komponenten in Storybook prüfen
 
 ### Phase 1: Issue & Branch
 
-1. **GitHub Issue pruefen** — Akzeptanzkriterien und Taskbreakdown lesen
+1. **GitHub Issue prüfen** — Akzeptanzkriterien und Taskbreakdown lesen
 2. **Issue im Project Board** — Issue muss im "Development Backlog" Project sein
 3. **Sub-Issue Hierarchie** — Neue Stories als Sub-Issue des passenden Epics anlegen
 4. **Branch erstellen** — `feature/E01-S01-csv-upload` oder `fix/hr-zone-calc`
-5. **Scope klaeren** — Nur das umsetzen was im Issue steht, nicht mehr
+5. **Scope klären** — Nur das umsetzen was im Issue steht, nicht mehr
 
 ### Phase 2: Implementation
 
 **Frontend:**
-- Mobile-First: Immer zuerst fuer 375px designen, dann nach oben erweitern
+- Mobile-First: Immer zuerst für 375px designen, dann nach oben erweitern
 - Nordlig DS Komponenten verwenden — KEINE eigenen Buttons, Inputs, Cards etc.
 - Nur `var(--*)` Tokens — KEINE hardcodierten Farben, Spacing, Radii
 - TypeScript strict — keine `any`, keine `@ts-ignore`
-- React Query fuer Server-State, Zustand fuer Client-State
+- React Query für Server-State, Zustand für Client-State
 
 **Backend:**
 - Clean Architecture: Domain → Application → Infrastructure → API
-- Pydantic Models fuer Request/Response Validation
+- Pydantic Models für Request/Response Validation
 - Async/Await konsequent
-- Type Hints ueberall — mypy strict muss bestehen
+- Type Hints überall — mypy strict muss bestehen
 - Tests parallel zur Implementation schreiben
 
-**Fuer beide:**
+**Für beide:**
 - Kleine, fokussierte Commits
-- Tests MUESSEN vor dem Commit gruen sein
+- Tests MÜSSEN vor dem Commit grün sein
 
 ### Phase 3: Quality Gates
 
-**Vor jedem Commit muessen ALLE Gates bestehen:**
+**Vor jedem Commit müssen ALLE Gates bestehen:**
 
 ```bash
-# Frontend (ALLE muessen bestehen)
+# Frontend (ALLE müssen bestehen)
 cd frontend
 npx eslint src/ --max-warnings 0
 npx prettier --check "src/**/*.{ts,tsx,css}"
 npx tsc --noEmit
 npx vitest --run
 
-# Backend (ALLE muessen bestehen)
+# Backend (ALLE müssen bestehen)
 cd backend
 ruff check app/
 ruff format --check app/
@@ -91,20 +91,20 @@ Diese Quality Gates werden durch Hooks in `.claude/hooks/` erzwungen:
 - Nach `git push` wird CI-Monitoring erzwungen
 - Bypass nur mit expliziter User-Genehmigung ("skip checks")
 
-**UX & Design Review (selbst durchgefuehrt):**
+**UX & Design Review (selbst durchgeführt):**
 - DESIGN_REVIEW.md Checkliste durchgehen
-- Auf iPhone-Viewport (375px) pruefen
-- Touch-Targets pruefen (min. 44×44px)
-- Alle Nordlig Gestaltungskriterien pruefen
+- Auf iPhone-Viewport (375px) prüfen
+- Touch-Targets prüfen (min. 44×44px)
+- Alle Nordlig Gestaltungskriterien prüfen
 - Kritische + schwerwiegende Findings VOR Commit fixen
 
 ### Phase 4: Abschluss
 
 1. Commit + Push
-2. CI-Workflow abwarten — MUSS gruen sein
+2. CI-Workflow abwarten — MUSS grün sein
 3. Bei CI-Fehler: lokal fixen, neu pushen
 4. GitHub Issue kommentieren (was wurde gemacht, Review-Ergebnisse)
-5. GitHub Issue schliessen
+5. GitHub Issue schließen
 
 ---
 
@@ -132,7 +132,7 @@ Diese Quality Gates werden durch Hooks in `.claude/hooks/` erzwungen:
 - **Repo:** `NCS23/training-analyzer` (privat)
 - **Issues:** `gh issue list -R NCS23/training-analyzer`
 - **Milestones:** MVP (P0), Release 1.1 (P1), Release 1.2 (P2), Post-Launch (P3-P4)
-- **Project Board:** `gh project view 1 --owner NCS23` (repo-uebergreifend mit NDS)
+- **Project Board:** `gh project view 1 --owner NCS23` (repo-übergreifend mit NDS)
 
 ### Project Board Workflow
 
@@ -144,7 +144,7 @@ Alle Issues werden im **"Development Backlog"** Project verwaltet. Custom Fields
 
 ### Epics & Sub-Issues
 
-Epics sind uebergeordnete Tracking-Issues (#77-#90). Stories werden als **Sub-Issues** angelegt — das gibt automatischen Fortschritts-Tracking im Epic.
+Epics sind übergeordnete Tracking-Issues (#77-#90). Stories werden als **Sub-Issues** angelegt — das gibt automatischen Fortschritts-Tracking im Epic.
 
 ```bash
 # Issues auflisten
@@ -153,7 +153,7 @@ gh issue list -R NCS23/training-analyzer --state open
 # Issue erstellen
 gh issue create -R NCS23/training-analyzer --title "..." --body "..."
 
-# Issue zum Project hinzufuegen
+# Issue zum Project hinzufügen
 gh project item-add 1 --owner NCS23 --url <issue-url>
 
 # Story als Sub-Issue eines Epics verlinken
@@ -171,18 +171,18 @@ gh api repos/NCS23/training-analyzer/issues -X POST \
 
 ### Frontend
 - ❌ `bg-white`, `bg-gray-*`, `text-gray-*` → ✅ `bg-[var(--color-bg-base)]`
-- ❌ `px-4`, `py-2` fuer Komponenten-Spacing → ✅ `p-[var(--spacing-*)]`
+- ❌ `px-4`, `py-2` für Komponenten-Spacing → ✅ `p-[var(--spacing-*)]`
 - ❌ `rounded-md`, `rounded-lg` → ✅ `rounded-[var(--radius-*)]`
 - ❌ `shadow-sm`, `shadow-md` → ✅ `shadow-[var(--shadow-*)]`
 - ❌ Eigene `<button>`, `<input>`, `<select>` → ✅ Nordlig `<Button>`, `<Input>`, `<Select>`
 - ❌ `any` Type → ✅ Explizite Types
-- ❌ `@ts-ignore` → ✅ Problem loesen
+- ❌ `@ts-ignore` → ✅ Problem lösen
 - ❌ Desktop-First Media Queries → ✅ Mobile-First (`min-width`)
 
 ### Backend
 - ❌ `dict` als API Response → ✅ Pydantic Model
 - ❌ Raw SQL → ✅ SQLAlchemy ORM
-- ❌ `# type: ignore` → ✅ Problem loesen
+- ❌ `# type: ignore` → ✅ Problem lösen
 - ❌ Synchrone DB-Operationen → ✅ Async
 - ❌ Hardcodierte Konfiguration → ✅ Pydantic Settings / Environment
 
@@ -192,13 +192,14 @@ gh api repos/NCS23/training-analyzer/issues -X POST \
 
 Ein Feature ist DONE wenn:
 
-- [ ] Alle Akzeptanzkriterien aus dem Issue erfuellt
+- [ ] Alle Akzeptanzkriterien aus dem Issue erfüllt
 - [ ] Frontend: ESLint 0 Warnings, TypeScript kompiliert
 - [ ] Backend: Ruff + Mypy bestehen
-- [ ] Unit Tests geschrieben und gruen (Coverage >= 80%)
-- [ ] UX/Design Review durchgefuehrt (DESIGN_REVIEW.md)
-- [ ] Mobile-First geprueft (375px iPhone SE)
+- [ ] Unit Tests geschrieben und grün (Coverage >= 80%)
+- [ ] UX/Design Review durchgeführt (DESIGN_REVIEW.md)
+- [ ] Mobile-First geprüft (375px iPhone SE)
 - [ ] Touch-Targets >= 44×44px
 - [ ] Nordlig DS Komponenten verwendet (keine eigenen Primitives)
-- [ ] CI-Pipeline gruen
+- [ ] CI-Pipeline grün
 - [ ] GitHub Issue kommentiert und geschlossen
+
