@@ -131,7 +131,7 @@ export function SessionsPage() {
   // Filters
   const [filters, setFilters] = useState<SessionFilters>(EMPTY_FILTERS);
   const [searchInput, setSearchInput] = useState('');
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const loadSessions = useCallback(async (page: number, currentFilters: SessionFilters) => {
     setLoading(true);
