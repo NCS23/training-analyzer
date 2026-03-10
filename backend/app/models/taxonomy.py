@@ -83,6 +83,45 @@ PHASE_FOCUS_TAGS: dict[str, str] = {
     "overtraining_prevention": "Übertrainings-Prävention",
 }
 
+# Legacy focus label migration (YAML-imported plans → canonical keys)
+# Covers both ASCII-ified and proper-umlaut variants.
+FOCUS_LABEL_MIGRATION: dict[str, str] = {
+    "Grundlagenausdauer": "aerobic_base",
+    "Formaufbau": "structural_adaptation",
+    "Verletzungspraevention": "injury_prevention",
+    "Verletzungsprävention": "injury_prevention",
+    "Kraftstabilitaet": "specific_strength",
+    "Kraftstabilität": "specific_strength",
+    "Tempodauerlauf": "tempo_hardness",
+    "Laufoekonomie": "running_economy",
+    "Laufökonomie": "running_economy",
+    "Mentale Haerte": "mental_toughness",
+    "Mentale Härte": "mental_toughness",
+    "Erholung": "regeneration",
+    "Mentale Frische": "mental_preparation",
+}
+
+# Reverse lookup: canonical label → key (for catalog labels stored as German text)
+_LABEL_TO_KEY: dict[str, str] = {v.lower(): k for k, v in PHASE_FOCUS_TAGS.items()}
+_KNOWN_KEYS: frozenset[str] = frozenset(PHASE_FOCUS_TAGS.keys())
+
+
+def normalize_focus_key(value: str) -> str:
+    """Normalize a focus value to its canonical key.
+
+    Handles: canonical keys (pass-through), catalog German labels,
+    and legacy YAML-imported labels.
+    """
+    if value in _KNOWN_KEYS:
+        return value
+    # Try canonical catalog label
+    if key := _LABEL_TO_KEY.get(value.lower()):
+        return key
+    # Try legacy YAML label (case-insensitive)
+    legacy = {k.lower(): v for k, v in FOCUS_LABEL_MIGRATION.items()}
+    return legacy.get(value.lower(), value)
+
+
 # Default focus suggestions per phase type
 PHASE_FOCUS_DEFAULTS: dict[str, dict[str, list[str]]] = {
     "base": {

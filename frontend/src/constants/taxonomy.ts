@@ -61,6 +61,35 @@ export function getFocusLabel(value: string): string {
   return PHASE_FOCUS_TAGS.find((t) => t.value === value)?.label ?? value;
 }
 
+// Reverse lookup: label → canonical key (for migrating legacy data stored as German labels)
+const _labelToKey = new Map<string, string>([
+  // Canonical catalog labels
+  ...PHASE_FOCUS_TAGS.map((t) => [t.label.toLowerCase(), t.value] as [string, string]),
+  // YAML-imported legacy labels (from plan generator / manual YAML files)
+  ['grundlagenausdauer', 'aerobic_base'],
+  ['formaufbau', 'structural_adaptation'],
+  ['verletzungspraevention', 'injury_prevention'],
+  ['verletzungsprävention', 'injury_prevention'],
+  ['kraftstabilitaet', 'specific_strength'],
+  ['kraftstabilität', 'specific_strength'],
+  ['tempodauerlauf', 'tempo_hardness'],
+  ['laufoekonomie', 'running_economy'],
+  ['laufökonomie', 'running_economy'],
+  ['mentale haerte', 'mental_toughness'],
+  ['mentale härte', 'mental_toughness'],
+  ['erholung', 'regeneration'],
+  ['mentale frische', 'mental_preparation'],
+]);
+const _knownKeys = new Set(PHASE_FOCUS_TAGS.map((t) => t.value));
+
+/** Normalize a focus value: if it's already a canonical key, keep it;
+ *  if it's a German label (catalog or legacy YAML), convert to canonical key;
+ *  otherwise pass through as-is. */
+export function normalizeFocusKey(value: string): string {
+  if (_knownKeys.has(value)) return value;
+  return _labelToKey.get(value.toLowerCase()) ?? value;
+}
+
 // Default focus suggestions per phase type
 export const PHASE_FOCUS_DEFAULTS: Record<PhaseType, { primary: string[]; secondary: string[] }> = {
   base: {

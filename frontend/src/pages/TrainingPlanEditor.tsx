@@ -55,7 +55,7 @@ import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEdito
 import { PlanChangeLog } from '@/components/PlanChangeLog';
 import { TrainingPlanReadView } from '@/components/TrainingPlanReadView';
 import { PHASE_TYPES, STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
-import { PHASE_FOCUS_TAGS, PHASE_FOCUS_DEFAULTS } from '@/constants/taxonomy';
+import { PHASE_FOCUS_TAGS, PHASE_FOCUS_DEFAULTS, normalizeFocusKey } from '@/constants/taxonomy';
 
 interface PhaseForm {
   id?: number;
@@ -138,8 +138,8 @@ export function TrainingPlanEditorPage() {
           start_week: p.start_week,
           end_week: p.end_week,
           notes: p.notes ?? '',
-          focus_primary: p.focus?.primary ?? [],
-          focus_secondary: p.focus?.secondary ?? [],
+          focus_primary: (p.focus?.primary ?? []).map(normalizeFocusKey),
+          focus_secondary: (p.focus?.secondary ?? []).map(normalizeFocusKey),
           weekly_template: p.weekly_template ?? null,
           weekly_templates: p.weekly_templates ?? null,
         })),
@@ -490,7 +490,7 @@ export function TrainingPlanEditorPage() {
                             prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort(),
                           )
                         }
-                        className="min-w-[40px]"
+                        className="min-w-[44px] min-h-[44px]"
                       >
                         {day}
                       </Button>

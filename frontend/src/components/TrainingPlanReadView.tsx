@@ -23,7 +23,7 @@ import type {
 import type { RunDetails } from '@/api/weekly-plan';
 import type { Segment } from '@/api/segment';
 import { trainingTypeLabels, trainingTypeBadgeVariant, lapTypeLabels } from '@/constants/training';
-import { getFocusLabel } from '@/constants/taxonomy';
+import { getFocusLabel, normalizeFocusKey } from '@/constants/taxonomy';
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import {
   PHASE_TYPES,
@@ -344,12 +344,12 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
             <div className="flex items-center gap-1.5 flex-wrap mt-2">
               {phase.focus?.primary?.map((tag) => (
                 <Badge key={tag} variant="info" size="xs">
-                  {getFocusLabel(tag)}
+                  {getFocusLabel(normalizeFocusKey(tag))}
                 </Badge>
               ))}
               {phase.focus?.secondary?.map((tag) => (
                 <Badge key={tag} variant="neutral" size="xs">
-                  {getFocusLabel(tag)}
+                  {getFocusLabel(normalizeFocusKey(tag))}
                 </Badge>
               ))}
             </div>
