@@ -52,6 +52,11 @@ package-lock.json
 .coverage
 coverage/
 
+# E2E
+e2e/test-results/
+e2e/playwright-report/
+!e2e/package-lock.json
+
 # Claude Code workflow artifacts are NOT ignored — they get committed for PR visibility:
 # .claude/workflow-checklist.md  → workflow compliance proof
 # .claude/design-review.md      → design review report
