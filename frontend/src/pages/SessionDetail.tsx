@@ -169,7 +169,7 @@ export function SessionDetailPage() {
   const [notes, setNotes] = useState('');
 
   const [savingNotes, setSavingNotes] = useState(false);
-  const notesTimer = useRef<ReturnType<typeof setTimeout>>();
+  const notesTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Delete state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -758,7 +758,10 @@ export function SessionDetailPage() {
               {trainingTypeInfo?.effective && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="cursor-pointer">
+                    <button // ds-ok: Radix PopoverTrigger asChild
+                      type="button"
+                      className="cursor-pointer"
+                    >
                       <Badge
                         variant={trainingTypeBadgeVariant[trainingTypeInfo.effective] ?? 'neutral'}
                         size="xs"
@@ -1435,7 +1438,10 @@ export function SessionDetailPage() {
                             ) : (
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="cursor-pointer">
+                                  <button // ds-ok: Radix PopoverTrigger asChild
+                                    type="button"
+                                    className="cursor-pointer"
+                                  >
                                     <Badge
                                       variant={lapTypeBadgeVariant[effectiveType] ?? 'neutral'}
                                       size="xs"
