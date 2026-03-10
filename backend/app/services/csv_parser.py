@@ -137,7 +137,7 @@ class TrainingCSVParser:
 
         # Gruppiere nach Laps
         for lap_num, lap_df in df.groupby("lap"):
-            lap_analysis = self._analyze_running_lap(lap_df, lap_num)
+            lap_analysis = self._analyze_running_lap(lap_df, int(lap_num))  # type: ignore[arg-type]
             laps_data.append(lap_analysis)
 
         # Classify laps

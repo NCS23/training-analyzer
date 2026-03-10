@@ -24,6 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   Checkbox,
+  MultiSelect,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -54,6 +55,7 @@ import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEdito
 import { PlanChangeLog } from '@/components/PlanChangeLog';
 import { TrainingPlanReadView } from '@/components/TrainingPlanReadView';
 import { PHASE_TYPES, STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
+import { PHASE_FOCUS_TAGS, PHASE_FOCUS_DEFAULTS } from '@/constants/taxonomy';
 
 interface PhaseForm {
   id?: number;
@@ -62,6 +64,8 @@ interface PhaseForm {
   start_week: number;
   end_week: number;
   notes: string;
+  focus_primary: string[];
+  focus_secondary: string[];
   weekly_template: PhaseWeeklyTemplate | null;
   weekly_templates: PhaseWeeklyTemplates | null;
 }
@@ -84,6 +88,7 @@ export function TrainingPlanEditorPage() {
   const [targetEventDate, setTargetEventDate] = useState<Date | undefined>(undefined);
   const [status, setStatus] = useState<PlanStatus>('draft');
   const [goalId, setGoalId] = useState<number | undefined>(undefined);
+  const [restDays, setRestDays] = useState<number[]>([]);
   const [phases, setPhases] = useState<PhaseForm[]>([]);
 
   // UI state
@@ -123,6 +128,7 @@ export function TrainingPlanEditorPage() {
       if (plan.target_event_date) setTargetEventDate(new Date(plan.target_event_date));
       setStatus(plan.status);
       if (plan.goal_id) setGoalId(plan.goal_id);
+      setRestDays(plan.weekly_structure?.rest_days ?? []);
       setWeeklyPlanWeekCount(plan.weekly_plan_week_count ?? 0);
       setPhases(
         plan.phases.map((p) => ({
@@ -132,6 +138,8 @@ export function TrainingPlanEditorPage() {
           start_week: p.start_week,
           end_week: p.end_week,
           notes: p.notes ?? '',
+          focus_primary: p.focus?.primary ?? [],
+          focus_secondary: p.focus?.secondary ?? [],
           weekly_template: p.weekly_template ?? null,
           weekly_templates: p.weekly_templates ?? null,
         })),
@@ -176,6 +184,7 @@ export function TrainingPlanEditorPage() {
           start_date: formatDate(startDate),
           end_date: formatDate(endDate),
           target_event_date: targetEventDate ? formatDate(targetEventDate) : undefined,
+          weekly_structure: restDays.length > 0 ? { rest_days: restDays } : undefined,
           status,
           goal_id: goalId,
         });
@@ -237,6 +246,7 @@ export function TrainingPlanEditorPage() {
           start_date: formatDate(startDate),
           end_date: formatDate(endDate),
           target_event_date: targetEventDate ? formatDate(targetEventDate) : undefined,
+          weekly_structure: restDays.length > 0 ? { rest_days: restDays } : undefined,
           status,
           goal_id: goalId,
           phases: phases.map(phaseFormToParams),
@@ -269,11 +279,19 @@ export function TrainingPlanEditorPage() {
   };
 
   const phaseFormToParams = (phase: PhaseForm): TrainingPhaseCreateParams => {
+    const focus =
+      phase.focus_primary.length > 0 || phase.focus_secondary.length > 0
+        ? {
+            primary: phase.focus_primary,
+            secondary: phase.focus_secondary.length > 0 ? phase.focus_secondary : undefined,
+          }
+        : undefined;
     return {
       name: phase.name,
       phase_type: phase.phase_type,
       start_week: phase.start_week,
       end_week: phase.end_week,
+      focus,
       notes: phase.notes || undefined,
       weekly_template: phase.weekly_template ?? undefined,
       weekly_templates: phase.weekly_templates ?? undefined,
@@ -282,6 +300,7 @@ export function TrainingPlanEditorPage() {
 
   const addNewPhase = () => {
     const lastEnd = phases.length > 0 ? phases[phases.length - 1].end_week : 0;
+    const defaults = PHASE_FOCUS_DEFAULTS['base'];
     setPhases([
       ...phases,
       {
@@ -290,6 +309,8 @@ export function TrainingPlanEditorPage() {
         start_week: lastEnd + 1,
         end_week: lastEnd + 4,
         notes: '',
+        focus_primary: [...defaults.primary],
+        focus_secondary: [...defaults.secondary],
         weekly_template: null,
         weekly_templates: null,
       },
@@ -448,6 +469,38 @@ export function TrainingPlanEditorPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
+                  <Label>Wettkampfdatum</Label>
+                  <DatePicker
+                    value={targetEventDate}
+                    onChange={setTargetEventDate}
+                    inputSize="sm"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Ruhetage</Label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const).map((day, i) => (
+                      <Button
+                        key={day}
+                        variant={restDays.includes(i) ? 'primary' : 'secondary'}
+                        size="sm"
+                        onClick={() =>
+                          setRestDays((prev) =>
+                            prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort(),
+                          )
+                        }
+                        className="min-w-[40px]"
+                      >
+                        {day}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label>Status</Label>
                   <Select
                     options={STATUS_OPTIONS}
@@ -512,7 +565,28 @@ export function TrainingPlanEditorPage() {
                           options={PHASE_TYPES}
                           value={phase.phase_type}
                           onChange={(v) => {
-                            if (v) updatePhaseForm(idx, { phase_type: v as PhaseType });
+                            if (!v) return;
+                            const newType = v as PhaseType;
+                            const oldDefaults = PHASE_FOCUS_DEFAULTS[phase.phase_type];
+                            const newDefaults = PHASE_FOCUS_DEFAULTS[newType];
+                            // Auto-fill focus if empty or still at old defaults
+                            const isPrimaryDefault =
+                              phase.focus_primary.length === 0 ||
+                              JSON.stringify([...phase.focus_primary].sort()) ===
+                                JSON.stringify([...oldDefaults.primary].sort());
+                            const isSecondaryDefault =
+                              phase.focus_secondary.length === 0 ||
+                              JSON.stringify([...phase.focus_secondary].sort()) ===
+                                JSON.stringify([...oldDefaults.secondary].sort());
+                            updatePhaseForm(idx, {
+                              phase_type: newType,
+                              ...(isPrimaryDefault && {
+                                focus_primary: [...newDefaults.primary],
+                              }),
+                              ...(isSecondaryDefault && {
+                                focus_secondary: [...newDefaults.secondary],
+                              }),
+                            });
                           }}
                           inputSize="sm"
                         />
@@ -544,6 +618,31 @@ export function TrainingPlanEditorPage() {
                             updatePhaseForm(idx, { end_week: parseInt(e.target.value, 10) || 1 })
                           }
                           inputSize="sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Primäre Schwerpunkte</Label>
+                        <MultiSelect
+                          options={PHASE_FOCUS_TAGS}
+                          value={phase.focus_primary}
+                          onChange={(values) => updatePhaseForm(idx, { focus_primary: values })}
+                          placeholder="Schwerpunkte wählen…"
+                          inputSize="sm"
+                          aria-label="Primäre Schwerpunkte"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Sekundäre Schwerpunkte</Label>
+                        <MultiSelect
+                          options={PHASE_FOCUS_TAGS}
+                          value={phase.focus_secondary}
+                          onChange={(values) => updatePhaseForm(idx, { focus_secondary: values })}
+                          placeholder="Schwerpunkte wählen…"
+                          inputSize="sm"
+                          aria-label="Sekundäre Schwerpunkte"
                         />
                       </div>
                     </div>

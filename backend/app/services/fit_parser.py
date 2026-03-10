@@ -25,7 +25,7 @@ class TrainingFITParser(TrainingParser):
         training_subtype: Optional[str] = None,
     ) -> dict:
         try:
-            import fitparse
+            import fitparse  # type: ignore[import-untyped]
         except ImportError:
             return {
                 "success": False,
