@@ -1,6 +1,27 @@
 @import '@nordlig/styles';
 @import '@nordlig/styles/dark';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@source "../node_modules/@nordlig/components/dist";
+
+@plugin "tailwindcss-animate";
+
+@theme {
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-base-family-mono);
+
+  --animate-caret-blink: caret-blink 1.2s ease-out infinite;
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
+  }
+}
