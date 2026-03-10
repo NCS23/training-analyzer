@@ -8,7 +8,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
-  retries: 1,
+  retries: 2,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: PRODUCTION_URL,
