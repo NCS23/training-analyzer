@@ -255,6 +255,47 @@ jobs:
             exit 1
           fi
 
+      - name: Frontend SPA Warmup
+        env:
+          PROD_URL: http://training.89.167.78.223.sslip.io
+        run: |
+          echo "Lade SPA-Routen vor um JS-Bundle-Caching sicherzustellen..."
+          FAILED=false
+
+          # Lade index.html und prüfe ob JS-Bundles referenziert werden
+          HTML=$(curl -s "$PROD_URL/" --max-time 15)
+          JS_ASSETS=$(echo "$HTML" | grep -oE 'src="/assets/[^"]+\.js"' | head -5)
+          if [ -z "$JS_ASSETS" ]; then
+            echo "::warning::Keine JS-Assets in index.html gefunden"
+          else
+            echo "JS-Assets gefunden:"
+            echo "$JS_ASSETS"
+
+            # Prüfe ob die JS-Bundles tatsächlich ladbar sind
+            for asset in $(echo "$HTML" | grep -oE '/assets/[^"]+\.js' | head -5); do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL$asset" --max-time 10 2>/dev/null || echo "000")
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "  ✓ $asset"
+              else
+                echo "  ✗ $asset (HTTP $HTTP_CODE)"
+                FAILED=true
+              fi
+            done
+          fi
+
+          if [ "$FAILED" = "true" ]; then
+            echo "::error::Nicht alle JS-Bundles erreichbar — Frontend noch nicht bereit"
+            exit 1
+          fi
+
+          # Warmup: Alle SPA-Routen einmal laden
+          for route in /dashboard /sessions /analyse /plan /profile; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL$route" --max-time 10 2>/dev/null || echo "000")
+            echo "Warmup $route → HTTP $HTTP_CODE"
+          done
+
+          echo "Frontend Warmup abgeschlossen"
+
       - name: Kommentar auf verlinktes Issue
         if: success()
         continue-on-error: true
