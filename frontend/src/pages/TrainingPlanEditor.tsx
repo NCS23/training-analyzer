@@ -469,38 +469,6 @@ export function TrainingPlanEditorPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Wettkampfdatum</Label>
-                  <DatePicker
-                    value={targetEventDate}
-                    onChange={setTargetEventDate}
-                    inputSize="sm"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Ruhetage</Label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {(['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const).map((day, i) => (
-                      <Button
-                        key={day}
-                        variant={restDays.includes(i) ? 'primary' : 'secondary'}
-                        size="sm"
-                        onClick={() =>
-                          setRestDays((prev) =>
-                            prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort(),
-                          )
-                        }
-                        className="min-w-[44px] min-h-[44px]"
-                      >
-                        {day}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
                   <Label>Status</Label>
                   <Select
                     options={STATUS_OPTIONS}
@@ -642,6 +610,7 @@ export function TrainingPlanEditorPage() {
                           onChange={(values) => updatePhaseForm(idx, { focus_secondary: values })}
                           placeholder="Schwerpunkte wählen…"
                           inputSize="sm"
+                          badgeVariant="primary"
                           aria-label="Sekundäre Schwerpunkte"
                         />
                       </div>
