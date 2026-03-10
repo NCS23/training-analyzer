@@ -2,16 +2,16 @@
 # Trainingsplan — YAML Schema-Referenz
 # ============================================================
 #
-# Dieses Dokument dient als vollstaendige Referenz fuer das
+# Dieses Dokument dient als vollständige Referenz für das
 # YAML-Import-Format des Training Analyzers. Es ist so geschrieben,
 # dass sowohl Menschen als auch KI-Systeme es lesen und daraus
-# korrekte Trainingsplaene erzeugen koennen.
+# korrekte Trainingspläne erzeugen können.
 #
-# Import: Einstellungen → Trainingsplaene → Importieren
-# Validierung: Die App prueft das YAML vor dem Import auf Fehler.
+# Import: Einstellungen → Trainingspläne → Importieren
+# Validierung: Die App prüft das YAML vor dem Import auf Fehler.
 #
 # ============================================================
-# SCHEMA-UEBERSICHT
+# SCHEMA-ÜBERSICHT
 # ============================================================
 #
 # Ein Trainingsplan besteht aus:
@@ -33,7 +33,7 @@
 # ============================================================
 #
 # --- Session-Typen (run_type) ---
-# Verwendet fuer: run_type in weekly_template und run_details
+# Verwendet für: run_type in weekly_template und run_details
 #
 #   recovery     — Regenerationslauf (sehr locker, kurz)
 #   easy         — Lockerer Dauerlauf (Grundlage, Zone 2)
@@ -41,29 +41,29 @@
 #   progression  — Steigerungslauf (beginnt locker, endet schnell)
 #   tempo        — Tempodauerlauf (Schwellentempo, 20-40 min)
 #   intervals    — Intervalltraining (strukturierte Belastungen)
-#   repetitions  — Wiederholungslaeufe (kurz + schnell, volle Erholung)
+#   repetitions  — Wiederholungsläufe (kurz + schnell, volle Erholung)
 #   fartlek      — Fahrtspiel (unstrukturierte Tempowechsel)
 #   race         — Wettkampf oder Wettkampfsimulation
 #
 # --- Segment-Typen (intervals[].type) ---
-# Verwendet fuer: type in intervals[] Bloecken
+# Verwendet für: type in intervals[] Blöcken
 #
 #   warmup       — Einlaufen (lockerer Start, 5-15 min)
 #   cooldown     — Auslaufen (lockeres Ende, 5-15 min)
-#   steady       — Gleichmaessiges Tempo (z.B. Dauerlauf-Abschnitt)
+#   steady       — Gleichmäßiges Tempo (z.B. Dauerlauf-Abschnitt)
 #   work         — Belastungsintervall (schnelles Tempo)
 #   recovery_jog — Trabpause zwischen Intervallen
 #   rest         — Gehpause (komplett)
-#   strides      — Steigerungslaeufe (80-100m, 8-10x)
-#   drills       — Lauf-ABC / Technikuebungen
+#   strides      — Steigerungsläufe (80-100m, 8-10x)
+#   drills       — Lauf-ABC / Technikübungen
 #
 # --- Phasentypen (phases[].type) ---
 #
 #   base         — Grundlagenphase (Umfang aufbauen, aerobe Basis)
-#   build        — Aufbauphase (Intensitaet steigern)
-#   peak         — Wettkampfphase (hoechste Intensitaet, Wettkampftempo)
+#   build        — Aufbauphase (Intensität steigern)
+#   peak         — Wettkampfphase (höchste Intensität, Wettkampftempo)
 #   taper        — Tapering (Umfang reduzieren, Frische gewinnen)
-#   transition   — Uebergangsphase (aktive Erholung)
+#   transition   — Übergangsphase (aktive Erholung)
 #
 # --- Trainingstypen (weekly_template[].type) ---
 #
@@ -78,35 +78,35 @@
 # Beispiele: "5:30" = 5 min 30 sek/km, "4:15" = 4 min 15 sek/km
 #
 # target_pace_min = schnelleres Ende der Pace-Range (niedrigerer Wert)
-# target_pace_max = langsameres Ende der Pace-Range (hoeherer Wert)
+# target_pace_max = langsameres Ende der Pace-Range (höherer Wert)
 #
 # Beispiel: target_pace_min: "5:30", target_pace_max: "6:00"
-#   → Laeufer soll zwischen 5:30 und 6:00 min/km laufen
+#   → Läufer soll zwischen 5:30 und 6:00 min/km laufen
 #
 # ============================================================
 # INTERVALL-FELDER
 # ============================================================
 #
-# Jedes Intervall in intervals[] unterstuetzt folgende Felder:
+# Jedes Intervall in intervals[] unterstützt folgende Felder:
 #
 #   type             (PFLICHT) — Segment-Typ (siehe oben)
 #   duration_minutes (BEDINGT) — Dauer in Minuten (>0, max 180)
 #   distance_km      (BEDINGT) — Distanz in km (>0, max 100)
 #     → Mindestens duration_minutes ODER distance_km muss gesetzt sein.
-#     → Beide koennen auch gleichzeitig gesetzt sein.
+#     → Beide können auch gleichzeitig gesetzt sein.
 #   target_pace_min  — Schnelleres Pace-Ende (M:SS)
 #   target_pace_max  — Langsameres Pace-Ende (M:SS)
 #   target_hr_min    — Untere HR-Grenze (60-220 bpm)
 #   target_hr_max    — Obere HR-Grenze (60-220 bpm)
 #   repeats          — Wiederholungen (Standard: 1, max 50)
 #   notes            — Freitext-Notiz (max 500 Zeichen)
-#   exercise_name    — Uebungsname bei drills/strides (max 100 Zeichen)
+#   exercise_name    — Übungsname bei drills/strides (max 100 Zeichen)
 #
-# Verfuegbare Drill-Uebungen (exercise_name):
+# Verfügbare Drill-Übungen (exercise_name):
 #   Kniehebelauf, Anfersen, Skippings, Seitgalopp, Hopserlauf,
-#   Fussgelenksarbeit, Prellhopser, Sprunglauf, Steigerungslauf,
-#   Seitwaerts ueberkreuzen, Seitspruenge, Rueckwaertslaufen,
-#   B-Skip, High Kicks, Wechselspruenge, Vorderfussspruenge
+#   Fußgelenksarbeit, Prellhopser, Sprunglauf, Steigerungslauf,
+#   Seitwärts überkreuzen, Seitsprünge, Rückwärtslaufen,
+#   B-Skip, High Kicks, Wechselsprünge, Vorderfußsprünge
 #
 # ============================================================
 # BEGINN DER VORLAGE
@@ -115,14 +115,14 @@
 # --- Plan-Grunddaten ---
 
 name: "HM Sub-2h Vorbereitung"         # (PFLICHT) Name des Trainingsplans
-description: "16-Wochen Plan fuer den Hamburg Halbmarathon. Periodisierung nach Daniels."
+description: "16-Wochen Plan für den Hamburg Halbmarathon. Periodisierung nach Daniels."
 start_date: 2026-04-06                  # (PFLICHT) Startdatum (YYYY-MM-DD)
 end_date: 2026-07-26                    # (PFLICHT) Enddatum (YYYY-MM-DD)
 target_event_date: 2026-07-26           # Wettkampf-/Zieldatum
 status: draft                           # draft | active | completed | paused (Standard: draft)
 
 # --- Ziel (automatisch erstellt falls nicht vorhanden) ---
-# Wenn ein Ziel mit demselben Titel existiert, wird es verknuepft.
+# Wenn ein Ziel mit demselben Titel existiert, wird es verknüpft.
 # Andernfalls wird ein neues Ziel angelegt.
 
 goal:
@@ -134,7 +134,7 @@ goal:
 
 # Alternativ: Bestehendes Ziel per ID oder Titel referenzieren
 # goal_id: 5                            # Direkte ID-Referenz
-# goal_title: "Hamburg Halbmarathon"     # Titel-Lookup (nur Verknuepfung, kein Auto-Create)
+# goal_title: "Hamburg Halbmarathon"     # Titel-Lookup (nur Verknüpfung, kein Auto-Create)
 
 # --- Wochenstruktur ---
 
@@ -156,12 +156,12 @@ phases:
     start_week: 1
     end_week: 6
     focus:
-      primary: ["endurance", "base_mileage"]
-      secondary: ["strength"]
+      primary: ["aerobic_base", "structural_adaptation"]
+      secondary: ["running_economy", "injury_prevention"]
     target_metrics:
       weekly_volume_min: 30              # km pro Woche (Minimum)
       weekly_volume_max: 45              # km pro Woche (Maximum)
-      quality_sessions_per_week: 1       # Qualitaetssessions (Intervall, Tempo etc.)
+      quality_sessions_per_week: 1       # Qualitätssessions (Intervall, Tempo etc.)
       strength_sessions_per_week: 2      # Kraft-Sessions pro Woche
     notes: "Langsamer Umfangaufbau, max. 10% Steigerung pro Woche."
 
@@ -215,14 +215,14 @@ phases:
     start_week: 7
     end_week: 11
     focus:
-      primary: ["tempo", "threshold"]
-      secondary: ["endurance"]
+      primary: ["lactate_threshold", "tempo_hardness"]
+      secondary: ["specific_strength", "race_pace_intro"]
     target_metrics:
       weekly_volume_min: 40
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
-    notes: "Tempolaeufe und Schwellentraining einfuehren."
+    notes: "Tempoläufe und Schwellentraining einführen."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
       - { day: 1, type: strength }
@@ -241,13 +241,13 @@ phases:
     start_week: 12
     end_week: 14
     focus:
-      primary: ["race_pace", "vo2max"]
+      primary: ["vo2max", "race_pace"]
     target_metrics:
       weekly_volume_min: 45
       weekly_volume_max: 55
       quality_sessions_per_week: 2
       strength_sessions_per_week: 1
-    notes: "Wettkampf-spezifische Einheiten. Hoechste Intensitaet."
+    notes: "Wettkampf-spezifische Einheiten. Höchste Intensität."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
 
@@ -271,7 +271,7 @@ phases:
               target_hr_min: 170
               target_hr_max: 185
               repeats: 5
-              notes: "VO2max-Intervalle, Fokus auf gleichmaessiges Tempo"
+              notes: "VO2max-Intervalle, Fokus auf gleichmäßiges Tempo"
             - type: recovery_jog
               duration_minutes: 2
               target_pace_min: "6:00"
@@ -323,17 +323,17 @@ phases:
     start_week: 15
     end_week: 16
     focus:
-      primary: ["recovery", "sharpening"]
+      primary: ["supercompensation", "fatigue_reduction"]
     target_metrics:
       weekly_volume_min: 20
       weekly_volume_max: 35
       quality_sessions_per_week: 1
       strength_sessions_per_week: 0
-    notes: "Umfang um 40-60% reduzieren. Frische fuer den Wettkampf."
+    notes: "Umfang um 40-60% reduzieren. Frische für den Wettkampf."
     weekly_template:
       - { day: 0, type: running, run_type: easy }
 
-      # ── Beispiel: Steigerungslaeufe (strides) ──
+      # ── Beispiel: Steigerungsläufe (strides) ──
       - day: 1
         type: running
         run_type: easy
@@ -367,12 +367,12 @@ phases:
             - type: drills
               duration_minutes: 1
               exercise_name: "Kniehebelauf"
-              notes: "Knie huefthoch, Vorderfuss-Aufsatz"
+              notes: "Knie hüfthoch, Vorderfuß-Aufsatz"
               repeats: 2
             - type: drills
               duration_minutes: 1
               exercise_name: "Anfersen"
-              notes: "Fersen zum Gesaess, Oberkörper aufrecht"
+              notes: "Fersen zum Gesäß, Oberkörper aufrecht"
               repeats: 2
             - type: drills
               duration_minutes: 1
