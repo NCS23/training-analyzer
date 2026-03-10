@@ -339,28 +339,33 @@ function PhaseCard({ phase }: { phase: TrainingPhase }) {
             </Badge>
           </div>
 
-          {/* Focus Badges */}
-          {(phase.focus?.primary?.length || phase.focus?.secondary?.length) && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              {phase.focus?.primary?.map((tag) => (
-                <Badge key={tag} variant="info" size="xs">
-                  {getFocusLabel(normalizeFocusKey(tag))}
-                </Badge>
-              ))}
-              {phase.focus?.secondary?.map((tag) => (
-                <Badge key={tag} variant="neutral" size="xs">
-                  {getFocusLabel(normalizeFocusKey(tag))}
-                </Badge>
-              ))}
-            </div>
-          )}
-
           {phase.notes && (
             <p className="text-sm text-[var(--color-text-muted)] leading-relaxed mt-1">
               {phase.notes}
             </p>
           )}
         </div>
+
+        {/* Schwerpunkte */}
+        {(phase.focus?.primary?.length || phase.focus?.secondary?.length) && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              Schwerpunkte
+            </h4>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {phase.focus?.primary?.map((tag) => (
+                <Badge key={tag} variant="info" size="xs">
+                  {getFocusLabel(normalizeFocusKey(tag))}
+                </Badge>
+              ))}
+              {phase.focus?.secondary?.map((tag) => (
+                <Badge key={tag} variant="primary" size="xs">
+                  {getFocusLabel(normalizeFocusKey(tag))}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Weekly Template */}
         {(hasTemplate || perWeekMode) && (
