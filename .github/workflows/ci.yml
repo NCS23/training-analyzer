@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   # Frontend Quality Gates
   frontend-lint:
@@ -185,12 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [frontend-build, backend-lint, backend-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: read
-      issues: write
     steps:
-      - uses: actions/checkout@v6
-
       - name: Trigger Coolify deployment
         run: |
           curl -s -X POST "${{ secrets.COOLIFY_URL }}/api/v1/deploy" \
@@ -198,7 +197,65 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"uuid":"${{ secrets.COOLIFY_APP_UUID }}"}'
 
-      - name: Comment on linked issue
+  # Verify deployment is healthy before running E2E tests
+  deploy-verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Warte auf Deployment und prüfe Health
+        id: health
+        env:
+          PROD_URL: http://training.89.167.78.223.sslip.io
+        run: |
+          echo "Polling $PROD_URL/health alle 15 Sekunden (max 5 Minuten)..."
+
+          HEALTHY=false
+          for i in $(seq 1 20); do
+            echo "Versuch $i/20..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              BODY=$(curl -s "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "{}")
+              STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+
+              if [ "$STATUS" = "ok" ]; then
+                echo "Health Check bestanden (Versuch $i)"
+                HEALTHY=true
+                break
+              else
+                echo "HTTP 200 aber Status nicht 'ok': $BODY"
+              fi
+            else
+              echo "HTTP $HTTP_CODE — noch nicht bereit"
+            fi
+
+            sleep 15
+          done
+
+          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
+
+          if [ "$HEALTHY" = "false" ]; then
+            echo "::error::Deployment Health Check fehlgeschlagen nach 5 Minuten"
+            exit 1
+          fi
+
+      - name: Prüfe Frontend liefert HTML
+        env:
+          PROD_URL: http://training.89.167.78.223.sslip.io
+        run: |
+          CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" "$PROD_URL/" --max-time 10)
+          if echo "$CONTENT_TYPE" | grep -q "text/html"; then
+            echo "Frontend liefert HTML aus"
+          else
+            echo "::error::Frontend liefert kein HTML: $CONTENT_TYPE"
+            exit 1
+          fi
+
+      - name: Kommentar auf verlinktes Issue
         if: success()
         continue-on-error: true
         env:
@@ -208,10 +265,153 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set +e
-          # Extract issue number: first (#NNN) in commit title line
           ISSUE_NUM=$(echo "$COMMIT_MSG" | head -1 | grep -oE '#[0-9]+' | head -1 | tr -d '#')
           set -e
           if [ -n "$ISSUE_NUM" ]; then
             gh issue comment "$ISSUE_NUM" -R "$REPO" \
-              --body "Deployed to production. CI run: $RUN_URL" || true
+              --body "Deployed und verifiziert. Health Check bestanden. CI Run: $RUN_URL" || true
+          fi
+
+      - name: Deployment Summary
+        if: always()
+        env:
+          HEALTH_RESULT: ${{ steps.health.outputs.healthy }}
+        run: |
+          echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$HEALTH_RESULT" = "true" ]; then
+            echo "| Status | Healthy |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Status | FAILED |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "URL: http://training.89.167.78.223.sslip.io" >> $GITHUB_STEP_SUMMARY
+
+  # E2E Smoke Tests against production
+  e2e-smoke:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-verify]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke Tests ausführen
+        id: e2e
+        working-directory: e2e
+        env:
+          BASE_URL: http://training.89.167.78.223.sslip.io
+        run: npx playwright test
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: E2E Summary
+        if: always()
+        env:
+          E2E_RESULT: ${{ steps.e2e.outcome }}
+        run: |
+          echo "## E2E Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$E2E_RESULT" = "success" ]; then
+            echo "| Status | Bestanden |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Status | FAILED |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| Viewports | Mobile (375x812) + Desktop (1280x800) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Report | Siehe Artefakt 'e2e-smoke-report' |" >> $GITHUB_STEP_SUMMARY
+
+  # Failure notification — creates GitHub Issue on deploy/verify/e2e failure
+  deploy-notify:
+    name: Failure Notification
+    runs-on: ubuntu-latest
+    needs: [deploy, deploy-verify, e2e-smoke]
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      (needs.deploy.result == 'failure' || needs.deploy-verify.result == 'failure' || needs.e2e-smoke.result == 'failure')
+    steps:
+      - name: Fehlerquelle bestimmen
+        id: failure
+        env:
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          VERIFY_RESULT: ${{ needs.deploy-verify.result }}
+          E2E_RESULT: ${{ needs.e2e-smoke.result }}
+        run: |
+          if [ "$DEPLOY_RESULT" = "failure" ]; then
+            echo "title=[CI] Deploy fehlgeschlagen" >> $GITHUB_OUTPUT
+            echo "detail=Coolify Deployment API-Aufruf fehlgeschlagen." >> $GITHUB_OUTPUT
+          elif [ "$VERIFY_RESULT" = "failure" ]; then
+            echo "title=[CI] Deploy-Verifikation fehlgeschlagen" >> $GITHUB_OUTPUT
+            echo "detail=Health Check der Produktion nach Deploy nicht erfolgreich (5 Min Timeout)." >> $GITHUB_OUTPUT
+          elif [ "$E2E_RESULT" = "failure" ]; then
+            echo "title=[CI] E2E Smoke Tests fehlgeschlagen" >> $GITHUB_OUTPUT
+            echo "detail=Playwright Smoke Tests gegen Produktion fehlgeschlagen." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prüfe ob Issue bereits existiert
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_TITLE: ${{ steps.failure.outputs.title }}
+        run: |
+          EXISTING=$(gh issue list -R "${{ github.repository }}" --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          echo "issue_number=$EXISTING" >> $GITHUB_OUTPUT
+
+      - name: GitHub Issue erstellen oder kommentieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          ISSUE_TITLE: ${{ steps.failure.outputs.title }}
+          ISSUE_DETAIL: ${{ steps.failure.outputs.detail }}
+          EXISTING_ISSUE: ${{ steps.existing.outputs.issue_number }}
+        run: |
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+
+          BODY="## CI Failure
+
+          ${ISSUE_DETAIL}
+
+          **Commit:** \`${SHORT_SHA}\`
+          **CI Run:** ${RUN_URL}
+          **Zeitpunkt:** $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          ### Nächste Schritte
+          1. CI Run Log prüfen
+          2. Produktion manuell testen: http://training.89.167.78.223.sslip.io
+          3. Bei Bedarf: Coolify Dashboard prüfen (Port 8000)"
+
+          if [ -n "$EXISTING_ISSUE" ]; then
+            gh issue comment "$EXISTING_ISSUE" -R "$REPO" \
+              --body "Erneutes Auftreten:
+
+          ${BODY}"
+            echo "Kommentar auf bestehendes Issue #${EXISTING_ISSUE}"
+          else
+            gh issue create -R "$REPO" \
+              --title "$ISSUE_TITLE" \
+              --body "$BODY" \
+              --label "bug"
+            echo "Neues Failure-Issue erstellt"
           fi
