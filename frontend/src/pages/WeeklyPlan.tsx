@@ -60,6 +60,19 @@ import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
 
 // --- Helpers ---
 
+const CATEGORY_LABELS: Record<string, string> = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Legs',
+  core: 'Core',
+  cardio: 'Cardio',
+  drills: 'Drills',
+};
+
+function categoryLabel(key: string): string {
+  return CATEGORY_LABELS[key] ?? key;
+}
+
 function getMondayOfWeek(d: Date): string {
   const copy = new Date(d);
   const day = copy.getDay();
@@ -540,6 +553,24 @@ export function WeeklyPlanPage() {
                   <Moon className="w-3 h-3" /> {stats.rest}× Ruhe
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Category breakdown row */}
+          {compliance?.strength_summary && compliance.strength_summary.categories.length > 0 && (
+            <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-[var(--color-text-muted)]">
+              {compliance.strength_summary.categories.map((cat) => {
+                const fmt = formatTonnage(cat.tonnage_kg);
+                return (
+                  <span key={cat.category} className="inline-flex items-center gap-1">
+                    <span className="capitalize">{categoryLabel(cat.category)}</span>
+                    <span className="font-medium text-[var(--color-text-base)]">
+                      {fmt.value}
+                      <span className="text-[var(--color-text-muted)] font-normal">{fmt.unit}</span>
+                    </span>
+                  </span>
+                );
+              })}
             </div>
           )}
 
