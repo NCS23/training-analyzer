@@ -1,10 +1,11 @@
 /**
  * Inline-Editor für Übungen einer gespeicherten Kraftsession.
- * Wird in SessionDetail angezeigt, wenn der User auf "Übungen bearbeiten" klickt.
+ * Wird in SessionDetail im globalen Bearbeiten-Modus angezeigt.
+ * Die Eltern-Komponente ruft save() über den Ref auf.
  */
-import { useState, useCallback } from 'react';
-import { Button, Input, Select, Badge, Spinner, useToast } from '@nordlig/components';
-import { Plus, Trash2, Save, X, Check, AlertTriangle, Ban } from 'lucide-react';
+import { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { Button, Input, Select, Badge, useToast } from '@nordlig/components';
+import { Plus, Trash2, Check, AlertTriangle, Ban } from 'lucide-react';
 import { updateStrengthExercises } from '@/api/strength';
 import type { ExerciseCategory, SetStatus } from '@/api/strength';
 
@@ -24,17 +25,19 @@ interface ExerciseForm {
   sets: SetForm[];
 }
 
-interface ExerciseData {
+export interface ExerciseData {
   name: string;
   category: string;
   sets: Array<{ reps: number; weight_kg: number; status: string }>;
 }
 
+export interface StrengthExercisesEditorRef {
+  save: () => Promise<ExerciseData[] | null>;
+}
+
 interface StrengthExercisesEditorProps {
   sessionId: number;
   exercises: ExerciseData[];
-  onSave: (exercises: ExerciseData[]) => void;
-  onCancel: () => void;
 }
 
 // --- Helpers ---
@@ -81,15 +84,39 @@ function toForms(exercises: ExerciseData[]): ExerciseForm[] {
 
 // --- Component ---
 
-export function StrengthExercisesEditor({
-  sessionId,
-  exercises: initialExercises,
-  onSave,
-  onCancel,
-}: StrengthExercisesEditorProps) {
+export const StrengthExercisesEditor = forwardRef<
+  StrengthExercisesEditorRef,
+  StrengthExercisesEditorProps
+>(function StrengthExercisesEditor({ sessionId, exercises: initialExercises }, ref) {
   const { toast } = useToast();
   const [exercises, setExercises] = useState<ExerciseForm[]>(() => toForms(initialExercises));
-  const [saving, setSaving] = useState(false);
+
+  // Expose save() to parent via ref
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      const valid = exercises.every((ex) => ex.name.trim().length > 0 && ex.sets.length > 0);
+      if (!valid) {
+        toast({
+          title: 'Jede Übung braucht einen Namen und mindestens einen Satz.',
+          variant: 'error',
+        });
+        return null;
+      }
+
+      const apiExercises = exercises.map((ex) => ({
+        name: ex.name.trim(),
+        category: ex.category,
+        sets: ex.sets.map((s) => ({
+          reps: s.reps,
+          weight_kg: s.weight_kg,
+          status: s.status,
+        })),
+      }));
+
+      const result = await updateStrengthExercises(sessionId, apiExercises);
+      return result.exercises;
+    },
+  }));
 
   const updateExercise = useCallback((exId: string, patch: Partial<ExerciseForm>) => {
     setExercises((prev) => prev.map((ex) => (ex.id === exId ? { ...ex, ...patch } : ex)));
@@ -133,7 +160,7 @@ export function StrengthExercisesEditor({
     setExercises((prev) =>
       prev.map((ex) => {
         if (ex.id !== exId) return ex;
-        if (ex.sets.length <= 1) return ex; // mindestens 1 Satz
+        if (ex.sets.length <= 1) return ex;
         return { ...ex, sets: ex.sets.filter((s) => s.id !== setId) };
       }),
     );
@@ -153,7 +180,7 @@ export function StrengthExercisesEditor({
 
   const removeExercise = useCallback((exId: string) => {
     setExercises((prev) => {
-      if (prev.length <= 1) return prev; // mindestens 1 Übung
+      if (prev.length <= 1) return prev;
       return prev.filter((ex) => ex.id !== exId);
     });
   }, []);
@@ -176,184 +203,129 @@ export function StrengthExercisesEditor({
     );
   }, []);
 
-  const handleSave = async () => {
-    // Validierung
-    const valid = exercises.every((ex) => ex.name.trim().length > 0 && ex.sets.length > 0);
-    if (!valid) {
-      toast({
-        title: 'Jede Übung braucht einen Namen und mindestens einen Satz.',
-        variant: 'error',
-      });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const apiExercises = exercises.map((ex) => ({
-        name: ex.name.trim(),
-        category: ex.category,
-        sets: ex.sets.map((s) => ({
-          reps: s.reps,
-          weight_kg: s.weight_kg,
-          status: s.status,
-        })),
-      }));
-
-      const result = await updateStrengthExercises(sessionId, apiExercises);
-      onSave(result.exercises);
-      toast({ title: 'Übungen gespeichert', variant: 'success' });
-    } catch {
-      toast({ title: 'Speichern fehlgeschlagen', variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {exercises.map((ex, exIdx) => {
-        const StatusIcon = STATUS_ICONS[ex.category] ?? Check;
-        void StatusIcon; // unused, just for clarity
-        return (
-          <div
-            key={ex.id}
-            className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-3 space-y-3"
-          >
-            {/* Übung Header */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[var(--color-text-muted)] shrink-0">
-                {exIdx + 1}.
-              </span>
-              <Input
-                value={ex.name}
-                onChange={(e) => updateExercise(ex.id, { name: e.target.value })}
-                placeholder="Übungsname"
-                className="flex-1"
-              />
-              <Select
-                options={CATEGORY_OPTIONS}
-                value={ex.category}
-                onChange={(val) =>
-                  updateExercise(ex.id, {
-                    category: (val as ExerciseCategory) || 'push',
-                  })
-                }
-                className="w-28 shrink-0"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeExercise(ex.id)}
-                disabled={exercises.length <= 1}
-                aria-label="Übung entfernen"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Sets */}
-            <div className="space-y-1.5">
-              {ex.sets.map((s, sIdx) => {
-                const SIcon = STATUS_ICONS[s.status] ?? Check;
-                return (
-                  <div key={s.id} className="flex items-center gap-2">
-                    <span className="text-xs text-[var(--color-text-muted)] w-5 text-right shrink-0">
-                      {sIdx + 1}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={999}
-                      value={s.reps}
-                      onChange={(e) =>
-                        updateSet(ex.id, s.id, {
-                          reps: Math.max(0, parseInt(e.target.value) || 0),
-                        })
-                      }
-                      className="w-16"
-                      aria-label={`Satz ${sIdx + 1} Wiederholungen`}
-                    />
-                    <span className="text-xs text-[var(--color-text-muted)]">×</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={999}
-                      step={0.5}
-                      value={s.weight_kg}
-                      onChange={(e) =>
-                        updateSet(ex.id, s.id, {
-                          weight_kg: Math.max(0, parseFloat(e.target.value) || 0),
-                        })
-                      }
-                      className="w-20"
-                      aria-label={`Satz ${sIdx + 1} Gewicht`}
-                    />
-                    <span className="text-xs text-[var(--color-text-muted)]">kg</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => cycleStatus(ex.id, s.id)}
-                      className="shrink-0"
-                      aria-label={`Status: ${STATUS_LABELS[s.status]}`}
-                    >
-                      <Badge
-                        variant={
-                          s.status === 'completed'
-                            ? 'success'
-                            : s.status === 'reduced'
-                              ? 'warning'
-                              : 'info'
-                        }
-                        size="xs"
-                      >
-                        <SIcon className="w-3 h-3" />
-                      </Badge>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSet(ex.id, s.id)}
-                      disabled={ex.sets.length <= 1}
-                      aria-label="Satz entfernen"
-                      className="shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                );
-              })}
-              <Button variant="ghost" size="sm" onClick={() => addSet(ex.id)} className="mt-1">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Satz
-              </Button>
-            </div>
+      {exercises.map((ex, exIdx) => (
+        <div
+          key={ex.id}
+          className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-3 space-y-3"
+        >
+          {/* Übung Header */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-[var(--color-text-muted)] shrink-0">
+              {exIdx + 1}.
+            </span>
+            <Input
+              value={ex.name}
+              onChange={(e) => updateExercise(ex.id, { name: e.target.value })}
+              placeholder="Übungsname"
+              className="flex-1"
+            />
+            <Select
+              options={CATEGORY_OPTIONS}
+              value={ex.category}
+              onChange={(val) =>
+                updateExercise(ex.id, {
+                  category: (val as ExerciseCategory) || 'push',
+                })
+              }
+              className="w-28 shrink-0"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => removeExercise(ex.id)}
+              disabled={exercises.length <= 1}
+              aria-label="Übung entfernen"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
-        );
-      })}
+
+          {/* Sets */}
+          <div className="space-y-1.5">
+            {ex.sets.map((s, sIdx) => {
+              const SIcon = STATUS_ICONS[s.status] ?? Check;
+              return (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--color-text-muted)] w-5 text-right shrink-0">
+                    {sIdx + 1}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={999}
+                    value={s.reps}
+                    onChange={(e) =>
+                      updateSet(ex.id, s.id, {
+                        reps: Math.max(0, parseInt(e.target.value) || 0),
+                      })
+                    }
+                    className="w-16"
+                    aria-label={`Satz ${sIdx + 1} Wiederholungen`}
+                  />
+                  <span className="text-xs text-[var(--color-text-muted)]">&times;</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={999}
+                    step={0.5}
+                    value={s.weight_kg}
+                    onChange={(e) =>
+                      updateSet(ex.id, s.id, {
+                        weight_kg: Math.max(0, parseFloat(e.target.value) || 0),
+                      })
+                    }
+                    className="w-20"
+                    aria-label={`Satz ${sIdx + 1} Gewicht`}
+                  />
+                  <span className="text-xs text-[var(--color-text-muted)]">kg</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cycleStatus(ex.id, s.id)}
+                    className="shrink-0"
+                    aria-label={`Status: ${STATUS_LABELS[s.status]}`}
+                  >
+                    <Badge
+                      variant={
+                        s.status === 'completed'
+                          ? 'success'
+                          : s.status === 'reduced'
+                            ? 'warning'
+                            : 'info'
+                      }
+                      size="xs"
+                    >
+                      <SIcon className="w-3 h-3" />
+                    </Badge>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeSet(ex.id, s.id)}
+                    disabled={ex.sets.length <= 1}
+                    aria-label="Satz entfernen"
+                    className="shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              );
+            })}
+            <Button variant="ghost" size="sm" onClick={() => addSet(ex.id)} className="mt-1">
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Satz
+            </Button>
+          </div>
+        </div>
+      ))}
 
       {/* Übung hinzufügen */}
       <Button variant="secondary" size="sm" onClick={addExercise} className="w-full">
         <Plus className="w-4 h-4 mr-1.5" />
         Übung hinzufügen
       </Button>
-
-      {/* Aktionen */}
-      <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border-default)]">
-        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <Spinner size="sm" />
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-1.5" />
-              Speichern
-            </>
-          )}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
-          <X className="w-4 h-4 mr-1.5" />
-          Abbrechen
-        </Button>
-      </div>
 
       {/* Tonnage-Vorschau */}
       {(() => {
@@ -373,4 +345,4 @@ export function StrengthExercisesEditor({
       })()}
     </div>
   );
-}
+});

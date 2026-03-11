@@ -116,6 +116,7 @@ import { de } from 'date-fns/locale';
 import { createTemplateFromSession } from '@/api/session-templates';
 import { GlossaryHint } from '@/components/GlossaryHint';
 import { StrengthExercisesEditor } from '@/components/StrengthExercisesEditor';
+import type { StrengthExercisesEditorRef } from '@/components/StrengthExercisesEditor';
 import { SEGMENT_TYPES } from '@/constants/taxonomy';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
@@ -220,8 +221,8 @@ export function SessionDetailPage() {
   // RPE editing
   const [localRpe, setLocalRpe] = useState<number | null>(null);
 
-  // Strength exercises editing
-  const [editingExercises, setEditingExercises] = useState(false);
+  // Strength exercises editor ref (for save from ActionBar)
+  const exercisesEditorRef = useRef<StrengthExercisesEditorRef>(null);
 
   // Recalculate zones dialog
   const [showRecalcDialog, setShowRecalcDialog] = useState(false);
@@ -1101,31 +1102,17 @@ export function SessionDetailPage() {
       {session.exercises && session.exercises.length > 0 && (
         <section aria-label="Übungen">
           <Card elevation="raised">
-            <CardHeader className="flex items-center justify-between">
+            <CardHeader>
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
                 Übungen ({session.exercises.length})
               </h2>
-              {!editingExercises && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingExercises(true)}
-                  aria-label="Übungen bearbeiten"
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-              )}
             </CardHeader>
             <CardBody className="space-y-4">
-              {editingExercises ? (
+              {isEditing ? (
                 <StrengthExercisesEditor
+                  ref={exercisesEditorRef}
                   sessionId={sessionId}
                   exercises={session.exercises}
-                  onSave={(updatedExercises) => {
-                    setSession((prev) => (prev ? { ...prev, exercises: updatedExercises } : prev));
-                    setEditingExercises(false);
-                  }}
-                  onCancel={() => setEditingExercises(false)}
                 />
               ) : (
                 session.exercises.map(
@@ -1630,7 +1617,28 @@ export function SessionDetailPage() {
             <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
               Abbrechen
             </Button>
-            <Button variant="primary" size="sm" onClick={() => setIsEditing(false)}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                // Save exercises if editor is active
+                if (exercisesEditorRef.current) {
+                  try {
+                    const updated = await exercisesEditorRef.current.save();
+                    if (updated) {
+                      setSession((prev) => (prev ? { ...prev, exercises: updated } : prev));
+                      toast({ title: 'Übungen gespeichert', variant: 'success' });
+                    } else {
+                      return; // Validation failed
+                    }
+                  } catch {
+                    toast({ title: 'Speichern fehlgeschlagen', variant: 'error' });
+                    return;
+                  }
+                }
+                setIsEditing(false);
+              }}
+            >
               Fertig
             </Button>
           </div>
