@@ -298,7 +298,11 @@ export function StrengthSessionPage() {
           <h2 className="text-base font-semibold text-[var(--color-text-base)] mb-4">
             Übungen ({exercises.filter((ex) => ex.name.trim()).length || exercises.length})
           </h2>
-          <ExerciseFormSection exercises={exercises} setExercises={setExercises} />
+          <ExerciseFormSection
+            exercises={exercises}
+            setExercises={setExercises}
+            hideTonnageSummary
+          />
         </CardBody>
       </Card>
 

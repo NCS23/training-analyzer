@@ -3,9 +3,15 @@
  * Wird identisch in StrengthSession.tsx und StrengthExercisesEditor.tsx verwendet.
  * Enthält: Exercise-Name mit DB-Autocomplete, Category-Select, Set-Rows, CRUD-Buttons.
  */
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Button, Input, NumberInput, Select } from '@nordlig/components';
 import { Plus, Trash2 } from 'lucide-react';
+import {
+  calculateTonnage,
+  calculatePerExerciseTonnage,
+  formatTonnage,
+} from '@/hooks/useTonnageCalc';
+import type { ExerciseInput } from '@/api/strength';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 import type { ExerciseCategory, SetStatus } from '@/api/strength';
@@ -34,11 +40,17 @@ const STATUS_SELECT_OPTIONS = [
 interface ExerciseFormSectionProps {
   exercises: ExerciseForm[];
   setExercises: React.Dispatch<React.SetStateAction<ExerciseForm[]>>;
+  /** Hide the built-in tonnage summary (e.g. when the parent has its own). */
+  hideTonnageSummary?: boolean;
 }
 
 // --- Component ---
 
-export function ExerciseFormSection({ exercises, setExercises }: ExerciseFormSectionProps) {
+export function ExerciseFormSection({
+  exercises,
+  setExercises,
+  hideTonnageSummary = false,
+}: ExerciseFormSectionProps) {
   // Library exercises for autocomplete
   const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
   const [activeAutocomplete, setActiveAutocomplete] = useState<string | null>(null);
@@ -155,6 +167,37 @@ export function ExerciseFormSection({ exercises, setExercises }: ExerciseFormSec
     [updateExercise],
   );
 
+  // --- Tonnage ---
+
+  const exerciseInputs: ExerciseInput[] = useMemo(
+    () =>
+      exercises
+        .filter((f) => f.name.trim())
+        .map((f) => ({
+          name: f.name,
+          category: f.category,
+          sets: f.sets.map((s) => ({ reps: s.reps, weight_kg: s.weight_kg, status: s.status })),
+        })),
+    [exercises],
+  );
+
+  const totalTonnage = useMemo(() => calculateTonnage(exerciseInputs), [exerciseInputs]);
+  const perExerciseTonnage = useMemo(
+    () => calculatePerExerciseTonnage(exerciseInputs),
+    [exerciseInputs],
+  );
+  const formattedTonnage = useMemo(() => formatTonnage(totalTonnage), [totalTonnage]);
+
+  // Map exercise names to per-exercise tonnage index
+  const exerciseTonnageByName = useMemo(() => {
+    const map = new Map<string, number>();
+    const named = exercises.filter((f) => f.name.trim());
+    named.forEach((ex, i) => {
+      map.set(ex.id, perExerciseTonnage.get(i) ?? 0);
+    });
+    return map;
+  }, [exercises, perExerciseTonnage]);
+
   // --- Render ---
 
   return (
@@ -230,6 +273,19 @@ export function ExerciseFormSection({ exercises, setExercises }: ExerciseFormSec
               </div>
             </div>
 
+            {/* Per-exercise tonnage */}
+            {(() => {
+              const exTonnage = exerciseTonnageByName.get(exercise.id) ?? 0;
+              if (exTonnage <= 0) return null;
+              const fmt = formatTonnage(exTonnage);
+              return (
+                <div className="text-xs text-[var(--color-text-muted)] tabular-nums">
+                  Tonnage: {fmt.value}
+                  <span className="ml-0.5">{fmt.unit}</span>
+                </div>
+              );
+            })()}
+
             {/* Sets header */}
             <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-center px-1">
               <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">#</span>
@@ -302,6 +358,22 @@ export function ExerciseFormSection({ exercises, setExercises }: ExerciseFormSec
           </div>
         );
       })}
+
+      {/* Tonnage summary */}
+      {!hideTonnageSummary && totalTonnage > 0 && (
+        <div
+          className="rounded-[var(--radius-component-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-4 py-2 flex items-center justify-between"
+          aria-live="polite"
+        >
+          <span className="text-sm text-[var(--color-text-muted)]">Gesamt-Tonnage</span>
+          <span className="text-lg font-semibold text-[var(--color-text-base)] tabular-nums">
+            {formattedTonnage.value}
+            <span className="text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
+              {formattedTonnage.unit}
+            </span>
+          </span>
+        </div>
+      )}
 
       {/* Add exercise button */}
       <div className="flex justify-center">
