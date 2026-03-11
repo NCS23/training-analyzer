@@ -74,6 +74,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   drills: 'Lauf-ABC',
 };
 
+// prettier-ignore
+const SUGGESTIONS_DROPDOWN_CLS = 'absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto'; // ds-ok
+
 // --- Helpers ---
 
 let nextId = 0;
@@ -378,9 +381,7 @@ export const StrengthExercisesEditor = forwardRef<
                       inputSize="md"
                     />
                     {showSuggestions === exercise.id && (
-                      <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto">
-                        {' '}
-                        {/* ds-ok: uses token */}
+                      <div className={SUGGESTIONS_DROPDOWN_CLS}>
                         {getFilteredSuggestions(exercise.name).map((ex) => (
                           <button
                             key={ex.id}
