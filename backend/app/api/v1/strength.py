@@ -177,6 +177,67 @@ async def create_strength_session(
     }
 
 
+@router.patch("/{session_id}/exercises")
+async def update_strength_exercises(
+    session_id: int,
+    exercises_json: str = Form(..., description="JSON-Array der Übungen"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Aktualisiert die Übungen einer bestehenden Krafttraining-Session."""
+    from pydantic import ValidationError
+
+    # Session laden
+    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+    if workout.workout_type != "strength":
+        raise HTTPException(status_code=400, detail="Nur Kraftsessions können bearbeitet werden.")
+
+    # Exercises validieren
+    try:
+        exercises = ExerciseListAdapter.validate_json(exercises_json)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    if len(exercises) == 0:
+        raise HTTPException(status_code=422, detail="Mindestens eine Übung erforderlich.")
+
+    exercises_data = [
+        {
+            "name": ex.name,
+            "category": ex.category.value,
+            "sets": [
+                {"reps": s.reps, "weight_kg": s.weight_kg, "status": s.status.value}
+                for s in ex.sets
+            ],
+        }
+        for ex in exercises
+    ]
+
+    # Update exercises + recalculate metrics
+    workout.exercises_json = json.dumps(exercises_data)  # type: ignore[assignment]
+    metrics = calculate_strength_metrics(exercises_data)
+
+    # Sync exercises to library
+    from app.services.exercise_sync import sync_exercises_from_session
+
+    model_date = workout.date
+    if isinstance(model_date, datetime):
+        session_date = model_date
+    else:
+        session_date = datetime.combine(date.today(), datetime.min.time())
+    await sync_exercises_from_session(db, exercises_data, session_date=session_date)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "session_id": session_id,
+        "exercises": exercises_data,
+        "metrics": metrics,
+    }
+
+
 @router.get("/last-complete")
 async def get_last_complete_session(
     db: AsyncSession = Depends(get_db),

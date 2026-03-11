@@ -105,6 +105,36 @@ export async function getLastCompleteStrengthSession(): Promise<LastCompleteSess
   return response.data;
 }
 
+export interface UpdateExercisesResponse {
+  success: boolean;
+  session_id: number;
+  exercises: Array<{
+    name: string;
+    category: string;
+    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+  }>;
+  metrics: {
+    total_exercises: number;
+    total_sets: number;
+    total_tonnage_kg: number;
+    completed_sets: number;
+  };
+}
+
+export async function updateStrengthExercises(
+  sessionId: number,
+  exercises: ExerciseInput[],
+): Promise<UpdateExercisesResponse> {
+  const formData = new FormData();
+  formData.append('exercises_json', JSON.stringify(exercises));
+  const response = await apiClient.patch<UpdateExercisesResponse>(
+    `/api/v1/sessions/strength/${sessionId}/exercises`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+}
+
 export async function getLastExerciseSets(exerciseName: string): Promise<LastExerciseResponse> {
   const response = await apiClient.get<LastExerciseResponse>(
     '/api/v1/sessions/strength/last-exercises',
