@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -6,9 +6,9 @@ import {
   CardBody,
   Input,
   NumberInput,
+  Select,
   Label,
   Slider,
-  Badge,
   Spinner,
   Alert,
   AlertDescription,
@@ -16,12 +16,8 @@ import {
 import { DatePicker } from '@nordlig/components';
 import {
   ClipboardList,
-  Dumbbell,
   Plus,
   Trash2,
-  Copy,
-  ChevronDown,
-  ChevronUp,
   Save,
   ArrowLeft,
   RotateCcw,
@@ -35,13 +31,9 @@ import type {
   LastCompleteSession,
   SetStatus,
 } from '@/api/strength';
-import { categoryBadgeVariant } from '@/constants/training';
-import { listExercises } from '@/api/exercises';
-import type { Exercise } from '@/api/exercises';
-import { getLastExerciseSets } from '@/api/strength';
 import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
-import { useTonnageCalc, formatTonnage } from '@/hooks/useTonnageCalc';
+import { useTonnageCalc } from '@/hooks/useTonnageCalc';
 
 // --- Types ---
 
@@ -57,10 +49,9 @@ interface ExerciseForm {
   name: string;
   category: ExerciseCategory;
   sets: SetForm[];
-  collapsed: boolean;
 }
 
-const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
+const CATEGORY_SELECT_OPTIONS = [
   { value: 'push', label: 'Push' },
   { value: 'pull', label: 'Pull' },
   { value: 'legs', label: 'Beine' },
@@ -69,14 +60,11 @@ const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
   { value: 'drills', label: 'Lauf-ABC' },
 ];
 
-const CATEGORY_LABELS: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Beine',
-  core: 'Core',
-  cardio: 'Cardio',
-  drills: 'Lauf-ABC',
-};
+const STATUS_SELECT_OPTIONS = [
+  { value: 'completed', label: 'Fertig' },
+  { value: 'reduced', label: 'Reduziert' },
+  { value: 'skipped', label: 'Übersprungen' },
+];
 
 const RPE_LABELS: Record<number, string> = {
   1: 'Sehr leicht',
@@ -101,16 +89,10 @@ function createDefaultSet(): SetForm {
 }
 
 function createDefaultExercise(): ExerciseForm {
-  return {
-    id: genId(),
-    name: '',
-    category: 'push',
-    sets: [createDefaultSet()],
-    collapsed: false,
-  };
+  return { id: genId(), name: '', category: 'push', sets: [createDefaultSet()] };
 }
 
-/** Convert ExerciseForm[] (with id, collapsed) to ExerciseInput[] for tonnage calc + API. */
+/** Convert ExerciseForm[] to ExerciseInput[] for tonnage calc + API. */
 function toExerciseInputs(forms: ExerciseForm[]): ExerciseInput[] {
   return forms
     .filter((f) => f.name.trim())
@@ -142,15 +124,7 @@ export function StrengthSessionPage() {
   // Last session (for clone + tonnage delta)
   const [lastSession, setLastSession] = useState<LastCompleteSession | null>(null);
 
-  // Exercise library for suggestions
-  const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState<string | null>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    listExercises()
-      .then((res) => setLibraryExercises(res.exercises))
-      .catch(() => {});
     listSessionTemplates('strength')
       .then((res) => setAvailableTemplates(res.templates))
       .catch(() => {});
@@ -166,17 +140,6 @@ export function StrengthSessionPage() {
   const tonnage = useTonnageCalc(exerciseInputs);
   const tonnageDelta =
     lastSession && tonnage.total > 0 ? tonnage.total - lastSession.total_tonnage_kg : null;
-
-  // Close suggestions on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
-        setShowSuggestions(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // --- Exercise CRUD ---
 
@@ -234,32 +197,6 @@ export function StrengthSessionPage() {
     );
   }, []);
 
-  // --- Quick-Add: Load last session's sets ---
-
-  const loadLastSets = useCallback(
-    async (exerciseId: string, exerciseName: string) => {
-      if (!exerciseName.trim()) return;
-      try {
-        const res = await getLastExerciseSets(exerciseName);
-        if (res.found && res.exercise) {
-          const loadedSets: SetForm[] = res.exercise.sets.map((s) => ({
-            id: genId(),
-            reps: s.reps,
-            weight_kg: s.weight_kg,
-            status: (s.status as SetStatus) || 'completed',
-          }));
-          updateExercise(exerciseId, {
-            sets: loadedSets,
-            category: (res.exercise.category as ExerciseCategory) || 'push',
-          });
-        }
-      } catch {
-        // Silently fail
-      }
-    },
-    [updateExercise],
-  );
-
   // --- Load from plan ---
 
   const loadFromPlan = useCallback(async (planId: number) => {
@@ -276,7 +213,6 @@ export function StrengthSessionPage() {
           weight_kg: ex.weight_kg ?? 0,
           status: 'completed' as SetStatus,
         })),
-        collapsed: false,
       }));
       if (loadedExercises.length > 0) {
         setExercises(loadedExercises);
@@ -305,7 +241,6 @@ export function StrengthSessionPage() {
         weight_kg: s.weight_kg,
         status: 'completed' as SetStatus,
       })),
-      collapsed: false,
     }));
     if (cloned.length > 0) {
       setExercises(cloned);
@@ -314,37 +249,6 @@ export function StrengthSessionPage() {
       }
     }
   }, [lastSession, exercises]);
-
-  // --- Exercise name suggestions ---
-
-  const getFilteredSuggestions = useCallback(
-    (query: string): Exercise[] => {
-      if (!query.trim()) return libraryExercises.slice(0, 10);
-      const lower = query.toLowerCase();
-      return libraryExercises.filter((ex) => ex.name.toLowerCase().includes(lower)).slice(0, 8);
-    },
-    [libraryExercises],
-  );
-
-  const selectSuggestion = useCallback(
-    (exerciseId: string, exercise: Exercise) => {
-      const categoryMap: Record<string, ExerciseCategory> = {
-        push: 'push',
-        pull: 'pull',
-        legs: 'legs',
-        core: 'core',
-        cardio: 'cardio',
-      };
-      updateExercise(exerciseId, {
-        name: exercise.name,
-        category: categoryMap[exercise.category] ?? 'push',
-      });
-      setShowSuggestions(null);
-      // Auto-load last sets
-      loadLastSets(exerciseId, exercise.name);
-    },
-    [updateExercise, loadLastSets],
-  );
 
   // --- Submit ---
 
@@ -495,257 +399,134 @@ export function StrengthSessionPage() {
       )}
 
       {/* Exercises */}
-      <div className="space-y-4">
-        {exercises.map((exercise, exIndex) => (
-          <Card key={exercise.id} elevation="raised" padding="spacious">
-            <CardBody>
-              <div className="space-y-4">
-                {/* Exercise Header */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Dumbbell className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
-                    <span className="text-xs font-medium text-[var(--color-text-muted)]">
-                      Übung {exIndex + 1}
-                    </span>
-                    {exercise.name && (
-                      <>
-                        <Badge
-                          variant={categoryBadgeVariant[exercise.category] ?? 'neutral'}
-                          size="xs"
-                        >
-                          {CATEGORY_LABELS[exercise.category] ?? exercise.category}
-                        </Badge>
-                        {(tonnage.perExercise.get(exIndex) ?? 0) > 0 && (
-                          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-                            {formatTonnage(tonnage.perExercise.get(exIndex) ?? 0).value}
-                            {formatTonnage(tonnage.perExercise.get(exIndex) ?? 0).unit}
-                          </span>
-                        )}
-                      </>
-                    )}
+      <Card elevation="raised" padding="spacious">
+        <CardBody>
+          <h2 className="text-base font-semibold text-[var(--color-text-base)] mb-4">
+            Übungen ({exercises.filter((ex) => ex.name.trim()).length || exercises.length})
+          </h2>
+
+          <div className="space-y-6">
+            {exercises.map((exercise) => (
+              <div
+                key={exercise.id}
+                className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-4 space-y-4"
+              >
+                {/* Exercise name + category + delete */}
+                <div className="flex items-start gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex-1 min-w-0 basis-full sm:basis-auto">
+                    <Input
+                      value={exercise.name}
+                      onChange={(e) => updateExercise(exercise.id, { name: e.target.value })}
+                      placeholder="Übungsname"
+                      inputSize="md"
+                    />
                   </div>
-                  <div className="flex items-center gap-1">
-                    {exercise.name && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          updateExercise(exercise.id, { collapsed: !exercise.collapsed })
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 sm:w-36 shrink-0">
+                      <Select
+                        options={CATEGORY_SELECT_OPTIONS}
+                        value={exercise.category}
+                        onChange={(val) =>
+                          updateExercise(exercise.id, {
+                            category: (val as ExerciseCategory) || 'push',
+                          })
                         }
-                        aria-label={exercise.collapsed ? 'Aufklappen' : 'Zuklappen'}
-                      >
-                        {exercise.collapsed ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronUp className="w-4 h-4" />
-                        )}
-                      </Button>
-                    )}
+                        inputSize="md"
+                      />
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => removeExercise(exercise.id)}
                       aria-label="Übung entfernen"
                     >
-                      <Trash2 className="w-4 h-4 text-[var(--color-text-error)]" />
+                      <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
                     </Button>
                   </div>
                 </div>
 
-                {/* Exercise Name (with suggestions) */}
-                {!exercise.collapsed && (
-                  <>
-                    <div
-                      className="relative"
-                      ref={showSuggestions === exercise.id ? suggestionsRef : undefined}
+                {/* Sets header */}
+                <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-center px-1">
+                  <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">#</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">Wdh.</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">kg</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">Status</span>
+                  <span className="w-8" />
+                </div>
+
+                {/* Set rows */}
+                {exercise.sets.map((set, setIndex) => (
+                  <div
+                    key={set.id}
+                    className={`grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-center px-1 ${
+                      set.status === 'skipped' ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <span className="text-sm text-[var(--color-text-muted)] w-6 text-center tabular-nums">
+                      {setIndex + 1}
+                    </span>
+                    <NumberInput
+                      value={set.reps}
+                      onChange={(val) => updateSet(exercise.id, set.id, { reps: val })}
+                      min={0}
+                      max={999}
+                      step={1}
+                      inputSize="sm"
+                      decrementLabel="Reps reduzieren"
+                      incrementLabel="Reps erhöhen"
+                    />
+                    <NumberInput
+                      value={set.weight_kg}
+                      onChange={(val) => updateSet(exercise.id, set.id, { weight_kg: val })}
+                      min={0}
+                      max={999}
+                      step={2.5}
+                      inputSize="sm"
+                      decrementLabel="Gewicht reduzieren"
+                      incrementLabel="Gewicht erhöhen"
+                    />
+                    <Select
+                      options={STATUS_SELECT_OPTIONS}
+                      value={set.status}
+                      onChange={(val) =>
+                        updateSet(exercise.id, set.id, {
+                          status: (val as SetStatus) || 'completed',
+                        })
+                      }
+                      inputSize="sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeSet(exercise.id, set.id)}
+                      aria-label={`Satz ${setIndex + 1} entfernen`}
+                      className="!p-1"
                     >
-                      <Input
-                        value={exercise.name}
-                        onChange={(e) => {
-                          updateExercise(exercise.id, { name: e.target.value });
-                          setShowSuggestions(exercise.id);
-                        }}
-                        onFocus={() => setShowSuggestions(exercise.id)}
-                        placeholder="Übungsname (z.B. Bankdrücken)"
-                        inputSize="md"
-                      />
-                      {showSuggestions === exercise.id && (
-                        <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto">
-                          {getFilteredSuggestions(exercise.name).map((ex) => (
-                            <button
-                              key={ex.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2.5 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-muted)] transition-colors duration-150 motion-reduce:transition-none flex items-center justify-between"
-                              onClick={() => selectSuggestion(exercise.id, ex)}
-                            >
-                              <span>{ex.name}</span>
-                              <Badge
-                                variant={categoryBadgeVariant[ex.category] ?? 'neutral'}
-                                size="xs"
-                              >
-                                {CATEGORY_LABELS[ex.category] ?? ex.category}
-                              </Badge>
-                            </button>
-                          ))}
-                          {getFilteredSuggestions(exercise.name).length === 0 && (
-                            <p className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">
-                              Keine Übung gefunden. Name wird neu angelegt.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                      <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
+                    </Button>
+                  </div>
+                ))}
 
-                    {/* Category selector */}
-                    {exercise.name && !libraryExercises.some((l) => l.name === exercise.name) && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-[var(--color-text-muted)]">Kategorie:</span>
-                        {CATEGORY_OPTIONS.map((cat) => (
-                          <button
-                            key={cat.value}
-                            type="button"
-                            onClick={() => updateExercise(exercise.id, { category: cat.value })}
-                            className={`px-2.5 py-1 text-xs rounded-[var(--radius-component-sm)] transition-colors duration-150 motion-reduce:transition-none ${
-                              exercise.category === cat.value
-                                ? 'bg-[var(--color-bg-primary-subtle)] text-[var(--color-primary-1-600)] font-medium'
-                                : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
-                            }`}
-                          >
-                            {cat.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Sets */}
-                    {exercise.name && (
-                      <div className="space-y-2">
-                        {/* Header row */}
-                        <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center px-1">
-                          <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">
-                            #
-                          </span>
-                          <span className="text-xs text-[var(--color-text-muted)]">Reps</span>
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            Gewicht (kg)
-                          </span>
-                          <span className="w-8" />
-                        </div>
-
-                        {/* Set rows */}
-                        {exercise.sets.map((set, setIndex) => (
-                          <div
-                            key={set.id}
-                            className={`grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center rounded-[var(--radius-component-md)] px-1 py-1 ${
-                              set.status === 'skipped' ? 'opacity-50' : ''
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const statusCycle: SetStatus[] = [
-                                  'completed',
-                                  'reduced',
-                                  'skipped',
-                                ];
-                                const currentIdx = statusCycle.indexOf(set.status);
-                                const nextStatus =
-                                  statusCycle[(currentIdx + 1) % statusCycle.length];
-                                updateSet(exercise.id, set.id, { status: nextStatus });
-                              }}
-                              className={`w-6 h-6 rounded-full text-xs font-medium flex items-center justify-center transition-colors duration-150 motion-reduce:transition-none ${
-                                set.status === 'completed'
-                                  ? 'bg-[var(--color-bg-success-subtle)] text-[var(--color-text-success)]'
-                                  : set.status === 'reduced'
-                                    ? 'bg-[var(--color-bg-warning-subtle)] text-[var(--color-text-warning)]'
-                                    : 'bg-[var(--color-bg-surface)] text-[var(--color-text-disabled)]'
-                              }`}
-                              aria-label={`Satz ${setIndex + 1} Status: ${set.status}`}
-                              title="Tippen zum Ändern: Vollständig → Reduziert → Übersprungen"
-                            >
-                              {setIndex + 1}
-                            </button>
-                            <NumberInput
-                              value={set.reps}
-                              onChange={(val) => updateSet(exercise.id, set.id, { reps: val })}
-                              min={0}
-                              max={999}
-                              step={1}
-                              inputSize="sm"
-                              decrementLabel="Reps reduzieren"
-                              incrementLabel="Reps erhöhen"
-                            />
-                            <NumberInput
-                              value={set.weight_kg}
-                              onChange={(val) => updateSet(exercise.id, set.id, { weight_kg: val })}
-                              min={0}
-                              max={999}
-                              step={2.5}
-                              inputSize="sm"
-                              decrementLabel="Gewicht reduzieren"
-                              incrementLabel="Gewicht erhöhen"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeSet(exercise.id, set.id)}
-                              aria-label={`Satz ${setIndex + 1} entfernen`}
-                              className="!p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                            </Button>
-                          </div>
-                        ))}
-
-                        {/* Add set + Quick-Add */}
-                        <div className="flex items-center gap-2 pt-1">
-                          <Button variant="ghost" size="sm" onClick={() => addSet(exercise.id)}>
-                            <Plus className="w-3.5 h-3.5 mr-1" />
-                            Satz
-                          </Button>
-                          {exercise.name.trim() && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => loadLastSets(exercise.id, exercise.name)}
-                            >
-                              <Copy className="w-3.5 h-3.5 mr-1" />
-                              Letzte Session
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Collapsed summary */}
-                {exercise.collapsed && exercise.name && (
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    {exercise.sets.length} Sätze ·{' '}
-                    {exercise.sets
-                      .filter((s) => s.status !== 'skipped')
-                      .reduce((sum, s) => sum + s.reps, 0)}{' '}
-                    Reps ·{' '}
-                    {Math.round(
-                      exercise.sets
-                        .filter((s) => s.status !== 'skipped')
-                        .reduce((sum, s) => sum + s.reps * s.weight_kg, 0),
-                    )}{' '}
-                    kg Tonnage
-                  </p>
-                )}
+                {/* Add set */}
+                <div className="flex justify-center pt-1">
+                  <Button variant="ghost" size="sm" onClick={() => addSet(exercise.id)}>
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Satz hinzufügen
+                  </Button>
+                </div>
               </div>
-            </CardBody>
-          </Card>
-        ))}
+            ))}
 
-        {/* Add exercise button */}
-        <Button variant="secondary" onClick={addExercise} className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
-          Übung hinzufügen
-        </Button>
-      </div>
+            {/* Add exercise button */}
+            <div className="flex justify-center">
+              <Button variant="ghost" onClick={addExercise}>
+                <Plus className="w-4 h-4 mr-2" />
+                Übung hinzufügen
+              </Button>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* RPE + Notes */}
       <Card elevation="raised" padding="spacious">
