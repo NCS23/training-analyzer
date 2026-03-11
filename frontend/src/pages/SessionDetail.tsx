@@ -1101,21 +1101,21 @@ export function SessionDetailPage() {
       {/* Exercises (Strength) */}
       {session.exercises && session.exercises.length > 0 && (
         <section aria-label="Übungen">
-          <Card elevation="raised">
-            <CardHeader>
-              <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Übungen ({session.exercises.length})
-              </h2>
-            </CardHeader>
-            <CardBody className="space-y-4">
-              {isEditing ? (
-                <StrengthExercisesEditor
-                  ref={exercisesEditorRef}
-                  sessionId={sessionId}
-                  exercises={session.exercises}
-                />
-              ) : (
-                session.exercises.map(
+          {isEditing ? (
+            <StrengthExercisesEditor
+              ref={exercisesEditorRef}
+              sessionId={sessionId}
+              exercises={session.exercises}
+            />
+          ) : (
+            <Card elevation="raised">
+              <CardHeader>
+                <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+                  Übungen ({session.exercises.length})
+                </h2>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                {session.exercises.map(
                   (
                     ex: {
                       name: string;
@@ -1191,10 +1191,10 @@ export function SessionDetailPage() {
                       </div>
                     );
                   },
-                )
-              )}
-            </CardBody>
-          </Card>
+                )}
+              </CardBody>
+            </Card>
+          )}
         </section>
       )}
 
