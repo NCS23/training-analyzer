@@ -231,7 +231,7 @@ export function ExerciseFormSection({
                 />
                 {suggestions.length > 0 &&
                   /* prettier-ignore */
-                  <div className="absolute z-20 left-0 right-0 top-full mt-1 rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto"> {/* // ds-ok */}
+                  <div className="absolute z-20 left-0 right-0 top-full mt-1 rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-input-bg)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto"> {/* // ds-ok */}
                     {suggestions.map((s) => (
                       <button
                         key={s.id}
