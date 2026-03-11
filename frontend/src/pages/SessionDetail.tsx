@@ -1102,11 +1102,18 @@ export function SessionDetailPage() {
       {session.exercises && session.exercises.length > 0 && (
         <section aria-label="Übungen">
           {isEditing ? (
-            <StrengthExercisesEditor
-              ref={exercisesEditorRef}
-              sessionId={sessionId}
-              exercises={session.exercises}
-            />
+            <Card elevation="raised" padding="spacious">
+              <CardBody>
+                <h2 className="text-base font-semibold text-[var(--color-text-base)] mb-4">
+                  Übungen ({session.exercises.length})
+                </h2>
+                <StrengthExercisesEditor
+                  ref={exercisesEditorRef}
+                  sessionId={sessionId}
+                  exercises={session.exercises}
+                />
+              </CardBody>
+            </Card>
           ) : (
             <Card elevation="raised">
               <CardHeader>
