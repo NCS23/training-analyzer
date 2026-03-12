@@ -54,6 +54,7 @@ interface ExerciseRowProps {
   onRemove: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function ExerciseRow({
   exercise,
   libraryExercises,

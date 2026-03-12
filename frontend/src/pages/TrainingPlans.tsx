@@ -51,6 +51,7 @@ import type {
 import { YamlValidationResultPanel } from '@/components/YamlValidationResult';
 import { STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function TrainingPlansPage() {
   const navigate = useNavigate();
   const { toast } = useToast();

@@ -31,6 +31,7 @@ import {
 } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function SessionTemplatesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();

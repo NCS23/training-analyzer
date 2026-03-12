@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
   { to: '/profile', label: 'Profil', icon: User },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();

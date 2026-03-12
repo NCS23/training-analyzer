@@ -67,6 +67,7 @@ function ElevationTooltipContent({
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function ElevationProfile({
   points,
   totalAscentM,

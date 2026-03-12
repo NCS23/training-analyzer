@@ -396,7 +396,7 @@ _NAME_MIGRATION: dict[str, str] = {
 }
 
 
-async def _ensure_seed_data(db: AsyncSession) -> None:
+async def _ensure_seed_data(db: AsyncSession) -> None:  # noqa: PLR0912  # TODO: E16 Refactoring
     """Seed default exercises if table is empty, enrich existing un-enriched ones."""
     count_result = await db.execute(select(ExerciseModel.id).limit(1))
     if count_result.scalar_one_or_none() is None:

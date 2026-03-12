@@ -156,6 +156,7 @@ function fallbackZoneColor(key: string): string {
   return 'var(--color-bg-warning-solid)';
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -230,6 +231,7 @@ export function SessionDetailPage() {
   const [recalcMaxHr, setRecalcMaxHr] = useState('');
   const [recalculating, setRecalculating] = useState(false);
 
+  // eslint-disable-next-line complexity -- TODO: E16 Refactoring
   const loadSession = useCallback(async () => {
     if (!sessionId || isNaN(sessionId)) {
       setError('Ungültige Session-ID.');

@@ -652,7 +652,7 @@ def _apply_exercise_replacements(
                         interval["exercise_name"] = replacements[str(ex_name)]
 
 
-def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]
+def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
 
@@ -1135,7 +1135,7 @@ async def get_plan(
 
 
 @router.patch("/{plan_id}", response_model=TrainingPlanResponse)
-async def update_plan(
+async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     plan_id: int,
     data: TrainingPlanUpdate,
     db: AsyncSession = Depends(get_db),
@@ -1448,7 +1448,7 @@ async def create_phase(
     "/{plan_id}/phases/{phase_id}",
     response_model=TrainingPhaseResponse,
 )
-async def update_phase(
+async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     plan_id: int,
     phase_id: int,
     data: TrainingPhaseUpdate,

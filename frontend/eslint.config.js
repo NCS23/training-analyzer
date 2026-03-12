@@ -29,6 +29,16 @@ export default tseslint.config(
         { argsIgnorePattern: "^_" },
       ],
       "no-console": ["warn", { allow: ["warn", "error"] }],
+
+      // Clean Code Regeln (E16-W1)
+      // Thresholds zunächst großzügig — werden nach Refactoring (F1-F4, B1-B2) verschärft
+      complexity: ["warn", { max: 15 }],
+      "max-depth": ["warn", { max: 4 }],
+      "max-params": ["warn", { max: 5 }],
+      "max-lines-per-function": [
+        "warn",
+        { max: 100, skipBlankLines: true, skipComments: true },
+      ],
     },
   },
 );

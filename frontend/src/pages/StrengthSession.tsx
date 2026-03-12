@@ -55,6 +55,7 @@ function toExerciseInputs(forms: ExerciseForm[]): ExerciseInput[] {
 
 // --- Component ---
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function StrengthSessionPage() {
   const navigate = useNavigate();
 

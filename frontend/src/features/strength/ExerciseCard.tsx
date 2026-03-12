@@ -26,6 +26,7 @@ interface ExerciseCardProps {
   exerciseLibrary?: Exercise[];
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function ExerciseCard({
   index,
   exercise,

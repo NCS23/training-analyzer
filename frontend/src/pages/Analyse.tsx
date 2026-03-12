@@ -64,6 +64,7 @@ function formatDuration(seconds: number): string {
 /*  Running Trends Content (inline)                                   */
 /* ------------------------------------------------------------------ */
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);

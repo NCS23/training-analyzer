@@ -177,7 +177,7 @@ def _format_time_seconds(total_sec: int) -> str:
 
 
 @router.get("/{goal_id}/progress", response_model=GoalProgressResponse)
-async def get_goal_progress(
+async def get_goal_progress(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     goal_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> GoalProgressResponse:

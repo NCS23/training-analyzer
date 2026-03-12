@@ -117,6 +117,7 @@ const muscleOptions = Object.entries(muscleLabels)
   .map(([value, label]) => ({ value, label }))
   .sort((a, b) => a.label.localeCompare(b.label, 'de'));
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function ExerciseDetailPage() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();

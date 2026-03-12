@@ -29,6 +29,7 @@ const defaultExercise: ExerciseInput = {
   sets: [{ reps: 8, weight_kg: 0, status: 'completed' }],
 };
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function StrengthForm() {
   const navigate = useNavigate();
 

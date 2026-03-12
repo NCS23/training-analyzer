@@ -123,6 +123,7 @@ describe('DayCard compact card', () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 describe('DayCard per-session detail dialog', () => {
   it('opens session dialog when session row is clicked', async () => {
     const user = userEvent.setup();

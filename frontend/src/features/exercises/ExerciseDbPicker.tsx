@@ -61,6 +61,7 @@ const muscleLabels: Record<string, string> = {
   triceps: 'Trizeps',
 };
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function ExerciseDbPicker({
   open,
   onOpenChange,

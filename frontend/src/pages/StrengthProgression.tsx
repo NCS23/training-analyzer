@@ -81,6 +81,7 @@ function formatDateFull(dateStr: string): string {
 /**
  * Content-only variant (no page wrapper/header) — used inside the combined Trends page.
  */
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRange }) {
   const [exercises, setExercises] = useState<ExerciseListItem[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);

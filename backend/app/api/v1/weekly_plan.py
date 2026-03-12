@@ -228,7 +228,7 @@ async def get_weekly_plan(
     return WeeklyPlanResponse(week_start=week_start, entries=entries)
 
 
-def _sessions_changed(
+def _sessions_changed(  # noqa: PLR0911  # TODO: E16 Refactoring
     old_sessions: list[PlannedSessionModel],
     new_sessions: list[PlannedSession],
 ) -> bool:
@@ -348,7 +348,7 @@ def _diff_day_entry(
 
 
 @router.put("", response_model=WeeklyPlanResponse)
-async def save_weekly_plan(
+async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     data: WeeklyPlanSaveRequest,
     db: AsyncSession = Depends(get_db),
 ) -> WeeklyPlanResponse:
@@ -504,7 +504,7 @@ def _effective_training_type(w: WorkoutModel) -> Optional[str]:
     return None
 
 
-def _determine_status(
+def _determine_status(  # noqa: PLR0911  # TODO: E16 Refactoring
     planned_types: list[str],
     is_rest_day: bool,
     sessions: list[WorkoutModel],
@@ -548,7 +548,7 @@ def _determine_status(
 
 
 @router.get("/compliance", response_model=ComplianceResponse)
-async def get_compliance(
+async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
 ) -> ComplianceResponse:
@@ -818,7 +818,7 @@ async def get_sessions_for_date(
 
 
 @router.post("/sync-to-plan", response_model=SyncToPlanResponse)
-async def sync_to_plan(
+async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: SyncToPlanRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SyncToPlanResponse:

@@ -71,6 +71,7 @@ const categoryIcons: Record<string, LucideIcon> = {
   drills: Footprints,
 };
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function ExerciseLibraryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();

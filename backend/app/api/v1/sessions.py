@@ -236,7 +236,7 @@ async def parse_fit(
 
 
 @router.post("/upload/csv", response_model=SessionUploadResponse, status_code=201)
-async def upload_csv(
+async def upload_csv(  # noqa: PLR0913  # TODO: E16 Refactoring
     csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
     training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
     training_type: TrainingType = Form(..., description="Trainingstyp"),
@@ -350,7 +350,7 @@ async def upload_csv(
 
 
 @router.post("/upload/fit", response_model=SessionUploadResponse, status_code=201)
-async def upload_fit(
+async def upload_fit(  # noqa: PLR0913  # TODO: E16 Refactoring
     fit_file: UploadFile = File(..., description="Garmin/Wahoo FIT File"),
     training_date: date = Form(..., description="Datum des Trainings (YYYY-MM-DD)"),
     training_type: TrainingType = Form(..., description="Trainingstyp"),
