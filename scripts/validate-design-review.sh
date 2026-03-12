@@ -101,7 +101,7 @@ if [ -n "$CHANGED_TSX" ]; then
   # Hardcoded colors
   for f in $CHANGED_TSX; do
     if [ -f "${REPO_ROOT}/${f}" ]; then
-      HITS=$(grep -nE 'bg-(white|black|gray|slate|red|blue|green|yellow|orange|purple|pink)-' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' || true)
+      HITS=$(grep -nE 'bg-(white|black|gray|slate|red|blue|green|yellow|orange|purple|pink)-' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v 'ds-ok' || true)
       if [ -n "$HITS" ]; then
         echo "  Hardcoded colors in $f:"
         echo "$HITS" | while read -r line; do echo "    $line"; done
@@ -113,7 +113,7 @@ if [ -n "$CHANGED_TSX" ]; then
   # Hardcoded radii
   for f in $CHANGED_TSX; do
     if [ -f "${REPO_ROOT}/${f}" ]; then
-      HITS=$(grep -nE 'rounded-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' | grep -v 'rounded-full' || true)
+      HITS=$(grep -nE 'rounded-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v 'ds-ok' | grep -v 'rounded-full' || true)
       if [ -n "$HITS" ]; then
         echo "  Hardcoded radii in $f:"
         echo "$HITS" | while read -r line; do echo "    $line"; done
@@ -125,7 +125,7 @@ if [ -n "$CHANGED_TSX" ]; then
   # Hardcoded shadows
   for f in $CHANGED_TSX; do
     if [ -f "${REPO_ROOT}/${f}" ]; then
-      HITS=$(grep -nE 'shadow-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' | grep -v 'var(--shadow' || true)
+      HITS=$(grep -nE 'shadow-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v 'ds-ok' | grep -v 'var(--shadow' || true)
       if [ -n "$HITS" ]; then
         echo "  Hardcoded shadows in $f:"
         echo "$HITS" | while read -r line; do echo "    $line"; done
@@ -137,7 +137,7 @@ if [ -n "$CHANGED_TSX" ]; then
   # Native HTML elements instead of DS components
   for f in $CHANGED_TSX; do
     if [ -f "${REPO_ROOT}/${f}" ]; then
-      HITS=$(grep -nE '<(button|input|select|textarea)[[:space:]>]' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' | grep -v 'ErrorBoundary' || true)
+      HITS=$(grep -nE '<(button|input|select|textarea)[[:space:]>]' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v 'ds-ok' | grep -v 'ErrorBoundary' || true)
       if [ -n "$HITS" ]; then
         echo "  Native HTML elements in $f (use Nordlig DS components):"
         echo "$HITS" | while read -r line; do echo "    $line"; done
