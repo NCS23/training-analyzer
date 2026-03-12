@@ -239,11 +239,11 @@ export function ExerciseFormSection({
                       <button
                         key={s.id}
                         type="button"
-                        className="w-full text-left px-3 py-2 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none"
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none"
                         onClick={() => selectSuggestion(exercise.id, s)}
                       >
-                        {s.name}
-                        <span className="ml-2 text-xs text-[var(--color-text-muted)]">
+                        <span>{s.name}</span>
+                        <span className="text-xs text-[var(--color-text-muted)] shrink-0 ml-2">
                           {CATEGORY_SELECT_OPTIONS.find((o) => o.value === s.category)?.label ??
                             s.category}
                         </span>
