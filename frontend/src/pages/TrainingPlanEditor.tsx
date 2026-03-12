@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -10,7 +9,6 @@ import {
   Spinner,
   Alert,
   AlertDescription,
-  useToast,
   Breadcrumbs,
   BreadcrumbItem,
   Select,
@@ -32,303 +30,35 @@ import {
   DropdownMenuSeparator,
 } from '@nordlig/components';
 import { Save, ChevronRight, Plus, Trash2, Pencil, EllipsisVertical } from 'lucide-react';
-import {
-  createTrainingPlan,
-  getTrainingPlan,
-  updateTrainingPlan,
-  deleteTrainingPlan,
-  addPhase,
-  updatePhase,
-  deletePhase,
-} from '@/api/training-plans';
-import type {
-  PlanStatus,
-  PhaseType,
-  TrainingPlan,
-  TrainingPhaseCreateParams,
-  PhaseWeeklyTemplate,
-  PhaseWeeklyTemplates,
-} from '@/api/training-plans';
-import { listGoals } from '@/api/goals';
-import type { RaceGoal } from '@/api/goals';
+import type { PhaseType } from '@/api/training-plans';
 import { PhaseWeeklyTemplateEditor } from '@/components/PhaseWeeklyTemplateEditor';
 import { PlanChangeLog } from '@/components/PlanChangeLog';
 import { TrainingPlanReadView } from '@/components/TrainingPlanReadView';
 import { PHASE_TYPES, STATUS_OPTIONS, STATUS_BADGE_VARIANTS } from '@/components/plan-helpers';
-import { PHASE_FOCUS_TAGS, PHASE_FOCUS_DEFAULTS, normalizeFocusKey } from '@/constants/taxonomy';
+import { PHASE_FOCUS_TAGS, PHASE_FOCUS_DEFAULTS } from '@/constants/taxonomy';
+import { usePlanForm } from '@/hooks/usePlanForm';
+import { usePlanSubmit } from '@/hooks/usePlanSubmit';
 
-interface PhaseForm {
-  id?: number;
-  name: string;
-  phase_type: PhaseType;
-  start_week: number;
-  end_week: number;
-  notes: string;
-  focus_primary: string[];
-  focus_secondary: string[];
-  weekly_template: PhaseWeeklyTemplate | null;
-  weekly_templates: PhaseWeeklyTemplates | null;
-}
-
-// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
+// eslint-disable-next-line max-lines-per-function, complexity -- JSX-heavy page component
 export function TrainingPlanEditorPage() {
-  const navigate = useNavigate();
-  const { planId } = useParams<{ planId: string }>();
-  const [searchParams] = useSearchParams();
-  const { toast } = useToast();
-  const isEdit = !!planId;
-  const [editMode, setEditMode] = useState(() => searchParams.get('edit') === 'true');
-  const isEditing = !isEdit || editMode;
-  const [rawPlan, setRawPlan] = useState<TrainingPlan | null>(null);
+  const form = usePlanForm();
+  const submit = usePlanSubmit({
+    planId: form.planId,
+    isEdit: form.isEdit,
+    name: form.name,
+    description: form.description,
+    startDate: form.startDate,
+    endDate: form.endDate,
+    targetEventDate: form.targetEventDate,
+    status: form.status,
+    goalId: form.goalId,
+    restDays: form.restDays,
+    phases: form.phases,
+    navigate: form.navigate,
+    toast: form.toast,
+  });
 
-  // Form state
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [targetEventDate, setTargetEventDate] = useState<Date | undefined>(undefined);
-  const [status, setStatus] = useState<PlanStatus>('draft');
-  const [goalId, setGoalId] = useState<number | undefined>(undefined);
-  const [restDays, setRestDays] = useState<number[]>([]);
-  const [phases, setPhases] = useState<PhaseForm[]>([]);
-
-  // UI state
-  const [loading, setLoading] = useState(isEdit);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [goals, setGoals] = useState<RaceGoal[]>([]);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteWeeklyPlans, setDeleteWeeklyPlans] = useState(false);
-  const [weeklyPlanWeekCount, setWeeklyPlanWeekCount] = useState(0);
-  // Load goals for dropdown
-  useEffect(() => {
-    listGoals()
-      .then((res) => setGoals(res.goals))
-      .catch(() => {});
-  }, []);
-
-  // Pre-fill goalId from URL param
-  useEffect(() => {
-    const gid = searchParams.get('goalId');
-    if (gid && !isEdit) {
-      setGoalId(parseInt(gid, 10));
-    }
-  }, [searchParams, isEdit]);
-
-  // Load existing plan
-  const loadPlan = useCallback(async () => {
-    if (!planId) return;
-    try {
-      const plan = await getTrainingPlan(parseInt(planId, 10));
-      setRawPlan(plan);
-      setName(plan.name);
-      setDescription(plan.description ?? '');
-      setStartDate(new Date(plan.start_date));
-      setEndDate(new Date(plan.end_date));
-      if (plan.target_event_date) setTargetEventDate(new Date(plan.target_event_date));
-      setStatus(plan.status);
-      if (plan.goal_id) setGoalId(plan.goal_id);
-      setRestDays(plan.weekly_structure?.rest_days ?? []);
-      setWeeklyPlanWeekCount(plan.weekly_plan_week_count ?? 0);
-      setPhases(
-        plan.phases.map((p) => ({
-          id: p.id,
-          name: p.name,
-          phase_type: p.phase_type,
-          start_week: p.start_week,
-          end_week: p.end_week,
-          notes: p.notes ?? '',
-          focus_primary: (p.focus?.primary ?? []).map(normalizeFocusKey),
-          focus_secondary: (p.focus?.secondary ?? []).map(normalizeFocusKey),
-          weekly_template: p.weekly_template ?? null,
-          weekly_templates: p.weekly_templates ?? null,
-        })),
-      );
-    } catch {
-      toast({ title: 'Plan konnte nicht geladen werden', variant: 'error' });
-      navigate('/plan/programs');
-    } finally {
-      setLoading(false);
-    }
-  }, [planId, toast, navigate]);
-
-  useEffect(() => {
-    if (isEdit) loadPlan();
-  }, [isEdit, loadPlan]);
-
-  // eslint-disable-next-line complexity -- TODO: E16 Refactoring
-  const handleSave = async () => {
-    if (!name.trim()) {
-      setError('Bitte einen Namen eingeben');
-      return;
-    }
-    if (!startDate || !endDate) {
-      setError('Bitte Start- und Enddatum angeben');
-      return;
-    }
-    if (endDate <= startDate) {
-      setError('Enddatum muss nach Startdatum liegen');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-    try {
-      if (isEdit) {
-        // Update plan metadata
-        const updatedPlan = await updateTrainingPlan(parseInt(planId!, 10), {
-          name: name.trim(),
-          description: description.trim() || undefined,
-          start_date: formatDate(startDate),
-          end_date: formatDate(endDate),
-          target_event_date: targetEventDate ? formatDate(targetEventDate) : undefined,
-          weekly_structure: restDays.length > 0 ? { rest_days: restDays } : undefined,
-          status,
-          goal_id: goalId,
-        });
-
-        // Sync phases: update existing, add new, delete removed
-        const plan = await getTrainingPlan(parseInt(planId!, 10));
-        const existingPhaseIds = new Set(plan.phases.map((p) => p.id));
-        const currentPhaseIds = new Set(phases.filter((p) => p.id).map((p) => p.id!));
-
-        // Delete removed phases
-        for (const ep of plan.phases) {
-          if (!currentPhaseIds.has(ep.id)) {
-            await deletePhase(parseInt(planId!, 10), ep.id);
-          }
-        }
-
-        // Update or create phases
-        let totalRegenerated = 0;
-        let totalSkippedEdited = 0;
-        for (const phase of phases) {
-          const phaseData = phaseFormToParams(phase);
-
-          if (phase.id && existingPhaseIds.has(phase.id)) {
-            const result = await updatePhase(parseInt(planId!, 10), phase.id, phaseData);
-            // eslint-disable-next-line max-depth -- TODO: E16 Refactoring
-            if (result.auto_regeneration) {
-              totalRegenerated += result.auto_regeneration.weeks_regenerated;
-              totalSkippedEdited += result.auto_regeneration.weeks_skipped_edited;
-            }
-          } else {
-            await addPhase(parseInt(planId!, 10), phaseData);
-          }
-        }
-
-        toast({ title: 'Trainingsplan aktualisiert', variant: 'success' });
-
-        // Show auto-generation toast if weekly plans were generated
-        if (updatedPlan.auto_generation_result) {
-          const { weeks_generated } = updatedPlan.auto_generation_result;
-          toast({
-            title: `${weeks_generated} Wochenpläne automatisch erstellt`,
-            variant: 'success',
-          });
-        }
-
-        // Show auto-regeneration toast if template changes triggered regeneration
-        if (totalRegenerated > 0) {
-          const editedNote =
-            totalSkippedEdited > 0 ? ` (${totalSkippedEdited} bearbeitete beibehalten)` : '';
-          toast({
-            title: `${totalRegenerated} Wochenpläne aktualisiert${editedNote}`,
-            variant: 'success',
-          });
-        }
-      } else {
-        // Create new plan with phases
-        await createTrainingPlan({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          start_date: formatDate(startDate),
-          end_date: formatDate(endDate),
-          target_event_date: targetEventDate ? formatDate(targetEventDate) : undefined,
-          weekly_structure: restDays.length > 0 ? { rest_days: restDays } : undefined,
-          status,
-          goal_id: goalId,
-          phases: phases.map(phaseFormToParams),
-        });
-        toast({ title: 'Trainingsplan erstellt', variant: 'success' });
-      }
-      navigate('/plan/programs');
-    } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(detail ?? 'Speichern fehlgeschlagen');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!planId) return;
-    setDeleting(true);
-    try {
-      await deleteTrainingPlan(parseInt(planId, 10), deleteWeeklyPlans);
-      toast({ title: 'Trainingsplan gelöscht', variant: 'success' });
-      navigate('/plan/programs');
-    } catch {
-      toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
-    } finally {
-      setDeleting(false);
-      setShowDeleteDialog(false);
-      setDeleteWeeklyPlans(false);
-    }
-  };
-
-  const phaseFormToParams = (phase: PhaseForm): TrainingPhaseCreateParams => {
-    const focus =
-      phase.focus_primary.length > 0 || phase.focus_secondary.length > 0
-        ? {
-            primary: phase.focus_primary,
-            secondary: phase.focus_secondary.length > 0 ? phase.focus_secondary : undefined,
-          }
-        : undefined;
-    return {
-      name: phase.name,
-      phase_type: phase.phase_type,
-      start_week: phase.start_week,
-      end_week: phase.end_week,
-      focus,
-      notes: phase.notes || undefined,
-      weekly_template: phase.weekly_template ?? undefined,
-      weekly_templates: phase.weekly_templates ?? undefined,
-    };
-  };
-
-  const addNewPhase = () => {
-    const lastEnd = phases.length > 0 ? phases[phases.length - 1].end_week : 0;
-    const defaults = PHASE_FOCUS_DEFAULTS['base'];
-    setPhases([
-      ...phases,
-      {
-        name: `Phase ${phases.length + 1}`,
-        phase_type: 'base',
-        start_week: lastEnd + 1,
-        end_week: lastEnd + 4,
-        notes: '',
-        focus_primary: [...defaults.primary],
-        focus_secondary: [...defaults.secondary],
-        weekly_template: null,
-        weekly_templates: null,
-      },
-    ]);
-  };
-
-  const updatePhaseForm = (idx: number, updates: Partial<PhaseForm>) => {
-    setPhases(phases.map((p, i) => (i === idx ? { ...p, ...updates } : p)));
-  };
-
-  const removePhase = (idx: number) => {
-    setPhases(phases.filter((_, i) => i !== idx));
-  };
-
-  if (loading) {
+  if (form.loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Spinner size="lg" />
@@ -338,7 +68,7 @@ export function TrainingPlanEditorPage() {
 
   return (
     <div
-      className={`p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6${isEditing ? ' pb-24' : ''}`}
+      className={`p-4 pt-8 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-6${form.isEditing ? ' pb-24' : ''}`}
     >
       {/* Breadcrumbs */}
       <div className="space-y-2 pb-2">
@@ -353,20 +83,26 @@ export function TrainingPlanEditorPage() {
               Programme
             </Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>{isEdit ? name || 'Plan' : 'Neuer Plan'}</BreadcrumbItem>
+          <BreadcrumbItem isCurrent>
+            {form.isEdit ? form.name || 'Plan' : 'Neuer Plan'}
+          </BreadcrumbItem>
         </Breadcrumbs>
         <header className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-text-base)]">
-              {!isEdit ? 'Neuer Trainingsplan' : isEditing ? 'Plan bearbeiten' : name}
+              {!form.isEdit
+                ? 'Neuer Trainingsplan'
+                : form.isEditing
+                  ? 'Plan bearbeiten'
+                  : form.name}
             </h1>
-            {isEdit && !isEditing && (
-              <Badge variant={STATUS_BADGE_VARIANTS[status]} size="xs">
-                {STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status}
+            {form.isEdit && !form.isEditing && (
+              <Badge variant={STATUS_BADGE_VARIANTS[form.status]} size="xs">
+                {STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? form.status}
               </Badge>
             )}
           </div>
-          {isEdit && (
+          {form.isEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger>
                 <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
@@ -376,8 +112,8 @@ export function TrainingPlanEditorPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   icon={<Pencil />}
-                  disabled={isEditing}
-                  onSelect={() => setEditMode(true)}
+                  disabled={form.isEditing}
+                  onSelect={() => form.setEditMode(true)}
                 >
                   Bearbeiten
                 </DropdownMenuItem>
@@ -385,7 +121,7 @@ export function TrainingPlanEditorPage() {
                 <DropdownMenuItem
                   icon={<Trash2 />}
                   destructive
-                  onSelect={() => setShowDeleteDialog(true)}
+                  onSelect={() => submit.setShowDeleteDialog(true)}
                 >
                   Löschen
                 </DropdownMenuItem>
@@ -396,24 +132,24 @@ export function TrainingPlanEditorPage() {
       </div>
 
       {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={submit.showDeleteDialog} onOpenChange={submit.setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Trainingsplan löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              „{name}" und alle Phasen werden unwiderruflich gelöscht.
+              „{form.name}" und alle Phasen werden unwiderruflich gelöscht.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {weeklyPlanWeekCount > 0 && (
+          {form.weeklyPlanWeekCount > 0 && (
             <div className="px-[var(--spacing-md)]">
               <label className="inline-flex items-center gap-2 cursor-pointer min-h-[44px]">
                 <Checkbox
-                  checked={deleteWeeklyPlans}
-                  onCheckedChange={(checked) => setDeleteWeeklyPlans(checked === true)}
+                  checked={submit.deleteWeeklyPlans}
+                  onCheckedChange={(checked) => submit.setDeleteWeeklyPlans(checked === true)}
                 />
                 <span className="text-sm text-[var(--color-text-base)]">
-                  {weeklyPlanWeekCount} Wochenpläne ebenfalls löschen
+                  {form.weeklyPlanWeekCount} Wochenpläne ebenfalls löschen
                 </span>
               </label>
             </div>
@@ -421,18 +157,18 @@ export function TrainingPlanEditorPage() {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? <Spinner size="sm" /> : 'Löschen'}
+            <AlertDialogAction onClick={submit.handleDelete} disabled={submit.deleting}>
+              {submit.deleting ? <Spinner size="sm" /> : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Read-Only View */}
-      {!isEditing && rawPlan && <TrainingPlanReadView plan={rawPlan} />}
+      {!form.isEditing && form.rawPlan && <TrainingPlanReadView plan={form.rawPlan} />}
 
       {/* Plan Details (Edit Mode) */}
-      {isEditing && (
+      {form.isEditing && (
         <Card elevation="raised" padding="spacious">
           <CardBody>
             <div className="space-y-4">
@@ -441,8 +177,8 @@ export function TrainingPlanEditorPage() {
                 <Input
                   id="plan-name"
                   placeholder="z.B. HM Sub-2h Vorbereitung"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={form.name}
+                  onChange={(e) => form.setName(e.target.value)}
                   inputSize="sm"
                   autoFocus
                 />
@@ -453,8 +189,8 @@ export function TrainingPlanEditorPage() {
                 <Input
                   id="plan-description"
                   placeholder="Kurze Beschreibung des Plans"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={form.description}
+                  onChange={(e) => form.setDescription(e.target.value)}
                   inputSize="sm"
                 />
               </div>
@@ -462,11 +198,11 @@ export function TrainingPlanEditorPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Startdatum</Label>
-                  <DatePicker value={startDate} onChange={setStartDate} inputSize="sm" />
+                  <DatePicker value={form.startDate} onChange={form.setStartDate} inputSize="sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Enddatum</Label>
-                  <DatePicker value={endDate} onChange={setEndDate} inputSize="sm" />
+                  <DatePicker value={form.endDate} onChange={form.setEndDate} inputSize="sm" />
                 </div>
               </div>
 
@@ -475,9 +211,9 @@ export function TrainingPlanEditorPage() {
                   <Label>Status</Label>
                   <Select
                     options={STATUS_OPTIONS}
-                    value={status}
+                    value={form.status}
                     onChange={(v) => {
-                      if (v) setStatus(v as PlanStatus);
+                      if (v) form.setStatus(v as typeof form.status);
                     }}
                     inputSize="sm"
                   />
@@ -487,10 +223,10 @@ export function TrainingPlanEditorPage() {
                   <Select
                     options={[
                       { value: '', label: 'Kein Ziel' },
-                      ...goals.map((g) => ({ value: g.id.toString(), label: g.title })),
+                      ...form.goals.map((g) => ({ value: g.id.toString(), label: g.title })),
                     ]}
-                    value={goalId?.toString() ?? ''}
-                    onChange={(v) => setGoalId(v ? parseInt(v, 10) : undefined)}
+                    value={form.goalId?.toString() ?? ''}
+                    onChange={(v) => form.setGoalId(v ? parseInt(v, 10) : undefined)}
                     inputSize="sm"
                     placeholder="Kein Ziel"
                   />
@@ -502,21 +238,21 @@ export function TrainingPlanEditorPage() {
       )}
 
       {/* Phases (Edit Mode) */}
-      {isEditing && (
+      {form.isEditing && (
         <Card elevation="raised" padding="spacious">
           <CardBody>
             <h2 className="text-sm font-semibold text-[var(--color-text-base)] mb-4">
-              Phasen ({phases.length})
+              Phasen ({form.phases.length})
             </h2>
 
-            {phases.length === 0 ? (
+            {form.phases.length === 0 ? (
               <p className="text-xs text-[var(--color-text-muted)] text-center py-4">
                 Noch keine Phasen. Füge deine erste Trainingsphase hinzu.
               </p>
             ) : (
               <div className="space-y-3">
-                {/* eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring */}
-                {phases.map((phase, idx) => (
+                {/* eslint-disable-next-line max-lines-per-function -- phase form JSX */}
+                {form.phases.map((phase, idx) => (
                   <div
                     key={phase.id ?? `new-${idx}`}
                     className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-surface)] px-3 pt-3 pb-6 space-y-3"
@@ -526,7 +262,7 @@ export function TrainingPlanEditorPage() {
                         <Label>Name</Label>
                         <Input
                           value={phase.name}
-                          onChange={(e) => updatePhaseForm(idx, { name: e.target.value })}
+                          onChange={(e) => form.updatePhaseForm(idx, { name: e.target.value })}
                           inputSize="sm"
                           placeholder="z.B. Grundlagenaufbau"
                         />
@@ -541,7 +277,6 @@ export function TrainingPlanEditorPage() {
                             const newType = v as PhaseType;
                             const oldDefaults = PHASE_FOCUS_DEFAULTS[phase.phase_type];
                             const newDefaults = PHASE_FOCUS_DEFAULTS[newType];
-                            // Auto-fill focus if empty or still at old defaults
                             const isPrimaryDefault =
                               phase.focus_primary.length === 0 ||
                               JSON.stringify([...phase.focus_primary].sort()) ===
@@ -550,7 +285,7 @@ export function TrainingPlanEditorPage() {
                               phase.focus_secondary.length === 0 ||
                               JSON.stringify([...phase.focus_secondary].sort()) ===
                                 JSON.stringify([...oldDefaults.secondary].sort());
-                            updatePhaseForm(idx, {
+                            form.updatePhaseForm(idx, {
                               phase_type: newType,
                               ...(isPrimaryDefault && {
                                 focus_primary: [...newDefaults.primary],
@@ -574,7 +309,9 @@ export function TrainingPlanEditorPage() {
                           max={52}
                           value={phase.start_week}
                           onChange={(e) =>
-                            updatePhaseForm(idx, { start_week: parseInt(e.target.value, 10) || 1 })
+                            form.updatePhaseForm(idx, {
+                              start_week: parseInt(e.target.value, 10) || 1,
+                            })
                           }
                           inputSize="sm"
                         />
@@ -587,7 +324,9 @@ export function TrainingPlanEditorPage() {
                           max={52}
                           value={phase.end_week}
                           onChange={(e) =>
-                            updatePhaseForm(idx, { end_week: parseInt(e.target.value, 10) || 1 })
+                            form.updatePhaseForm(idx, {
+                              end_week: parseInt(e.target.value, 10) || 1,
+                            })
                           }
                           inputSize="sm"
                         />
@@ -600,7 +339,9 @@ export function TrainingPlanEditorPage() {
                         <MultiSelect
                           options={PHASE_FOCUS_TAGS}
                           value={phase.focus_primary}
-                          onChange={(values) => updatePhaseForm(idx, { focus_primary: values })}
+                          onChange={(values) =>
+                            form.updatePhaseForm(idx, { focus_primary: values })
+                          }
                           placeholder="Schwerpunkte wählen…"
                           inputSize="sm"
                           aria-label="Primäre Schwerpunkte"
@@ -611,7 +352,9 @@ export function TrainingPlanEditorPage() {
                         <MultiSelect
                           options={PHASE_FOCUS_TAGS}
                           value={phase.focus_secondary}
-                          onChange={(values) => updatePhaseForm(idx, { focus_secondary: values })}
+                          onChange={(values) =>
+                            form.updatePhaseForm(idx, { focus_secondary: values })
+                          }
                           placeholder="Schwerpunkte wählen…"
                           inputSize="sm"
                           badgeVariant="primary"
@@ -624,7 +367,7 @@ export function TrainingPlanEditorPage() {
                       <Label>Notizen</Label>
                       <Input
                         value={phase.notes}
-                        onChange={(e) => updatePhaseForm(idx, { notes: e.target.value })}
+                        onChange={(e) => form.updatePhaseForm(idx, { notes: e.target.value })}
                         inputSize="sm"
                         placeholder="Optionale Hinweise zur Phase"
                       />
@@ -637,9 +380,9 @@ export function TrainingPlanEditorPage() {
                       phaseType={phase.phase_type}
                       startWeek={phase.start_week}
                       endWeek={phase.end_week}
-                      onChange={(t) => updatePhaseForm(idx, { weekly_template: t })}
+                      onChange={(t) => form.updatePhaseForm(idx, { weekly_template: t })}
                       onChangeWeeklyTemplates={(wt) =>
-                        updatePhaseForm(idx, { weekly_templates: wt })
+                        form.updatePhaseForm(idx, { weekly_templates: wt })
                       }
                     />
 
@@ -647,7 +390,7 @@ export function TrainingPlanEditorPage() {
                       <Button
                         variant="destructive-outline"
                         size="sm"
-                        onClick={() => removePhase(idx)}
+                        onClick={() => form.removePhase(idx)}
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
                         Phase entfernen
@@ -658,7 +401,7 @@ export function TrainingPlanEditorPage() {
               </div>
             )}
 
-            <Button variant="ghost" size="sm" onClick={addNewPhase} className="w-full mt-2">
+            <Button variant="ghost" size="sm" onClick={form.addNewPhase} className="w-full mt-2">
               <Plus className="w-4 h-4 mr-1" />
               Phase hinzufügen
             </Button>
@@ -667,17 +410,17 @@ export function TrainingPlanEditorPage() {
       )}
 
       {/* Change Log */}
-      {isEdit && planId && <PlanChangeLog planId={parseInt(planId, 10)} />}
+      {form.isEdit && form.planId && <PlanChangeLog planId={parseInt(form.planId, 10)} />}
 
       {/* Error — only in edit mode */}
-      {isEditing && error && (
-        <Alert variant="error" closeable onClose={() => setError(null)}>
-          <AlertDescription>{error}</AlertDescription>
+      {form.isEditing && submit.error && (
+        <Alert variant="error" closeable onClose={() => submit.setError(null)}>
+          <AlertDescription>{submit.error}</AlertDescription>
         </Alert>
       )}
 
       {/* Fixed ActionBar — edit mode */}
-      {isEditing && (
+      {form.isEditing && (
         <div
           role="toolbar"
           className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
@@ -690,23 +433,28 @@ export function TrainingPlanEditorPage() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                if (isEdit) {
-                  setEditMode(false);
-                  loadPlan();
+                if (form.isEdit) {
+                  form.setEditMode(false);
+                  form.loadPlan();
                 } else {
-                  navigate('/plan/programs');
+                  form.navigate('/plan/programs');
                 }
               }}
             >
               Abbrechen
             </Button>
-            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={submit.handleSave}
+              disabled={submit.saving}
+            >
+              {submit.saving ? (
                 <Spinner size="sm" aria-hidden="true" />
               ) : (
                 <>
                   <Save className="w-4 h-4 mr-1" />
-                  {isEdit ? 'Speichern' : 'Erstellen'}
+                  {form.isEdit ? 'Speichern' : 'Erstellen'}
                 </>
               )}
             </Button>

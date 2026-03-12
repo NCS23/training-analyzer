@@ -1,19 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { parseTraining, uploadTraining } from '@/api/training';
-import type { ParsedLap, TrainingParseResponse } from '@/api/training';
-import { getPlannedSessionsForDate } from '@/api/weekly-plan';
-import type { PlannedSessionOption } from '@/api/weekly-plan';
+import { Link } from 'react-router-dom';
+import type { ParsedLap } from '@/api/training';
 import { trainingTypeOptions, lapTypeOptions } from '@/constants/training';
-import type { ExerciseInput } from '@/api/strength';
-import { createStrengthSession, getLastCompleteStrengthSession } from '@/api/strength';
-import type { LastCompleteSession } from '@/api/strength';
-import type { Exercise } from '@/api/exercises';
-import { listExercises } from '@/api/exercises';
-import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
-import type { SessionTemplateSummary } from '@/api/session-templates';
 import { ExerciseCard } from '@/features/strength/ExerciseCard';
-import { useTonnageCalc, formatTonnage } from '@/hooks/useTonnageCalc';
+import { useUploadForm } from '@/hooks/useUploadForm';
+import { usePlannedSessionLinking } from '@/hooks/usePlannedSessionLinking';
+import { useStrengthUpload } from '@/hooks/useStrengthUpload';
 import {
   Plus,
   ChevronRight,
@@ -48,289 +39,24 @@ import {
 } from '@nordlig/components';
 
 /* ------------------------------------------------------------------ */
-/*  Types & Defaults                                                   */
-/* ------------------------------------------------------------------ */
-
-type TrainingType = 'running' | 'strength';
-
-const defaultExercise: ExerciseInput = {
-  name: '',
-  category: 'push',
-  sets: [{ reps: 8, weight_kg: 0, status: 'completed' }],
-};
-
-/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
+// eslint-disable-next-line max-lines-per-function, complexity -- JSX-heavy page component
 export default function UploadPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Pre-select strength if navigated with state
-  const preselect = (location.state as { preselect?: string } | null)?.preselect;
-
-  // Wizard step: 0 = Upload, 1 = Prüfen (only for running)
-  const [step, setStep] = useState(0);
-
-  // Shared state
-  const [trainingType, setTrainingType] = useState<TrainingType>(
-    preselect === 'strength' ? 'strength' : 'running',
-  );
-  const [trainingDate, setTrainingDate] = useState<Date>(new Date());
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rpe, setRpe] = useState(5);
-
-  // Running: review step
-  const [parseResult, setParseResult] = useState<TrainingParseResponse | null>(null);
-  const [lapOverrides, setLapOverrides] = useState<Record<number, string>>({});
-  const [trainingTypeOverride, setTrainingTypeOverride] = useState<string | null>(null);
-
-  // Planned session linking
-  const [plannedSessions, setPlannedSessions] = useState<PlannedSessionOption[]>([]);
-  const [selectedPlannedId, setSelectedPlannedId] = useState<number | null>(null);
-
-  // Strength state
-  const [duration, setDuration] = useState(60);
-  const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
-  const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
-  const [availableTemplates, setAvailableTemplates] = useState<SessionTemplateSummary[]>([]);
-  const [lastSession, setLastSession] = useState<LastCompleteSession | null>(null);
-  const [loadingPlan, setLoadingPlan] = useState(false);
-
-  const isRunning = trainingType === 'running';
-  const isStrength = trainingType === 'strength';
-
-  // Tonnage calculation (strength only)
-  const namedExercises = exercises.filter((ex) => ex.name.trim());
-  const tonnage = useTonnageCalc(namedExercises);
-  const tonnageDelta =
-    lastSession && tonnage.total > 0 ? tonnage.total - lastSession.total_tonnage_kg : null;
-
-  /* ---- Data loading ---- */
-
-  // Load planned sessions for selected date
-  useEffect(() => {
-    const dateStr = trainingDate.toISOString().split('T')[0];
-    getPlannedSessionsForDate(dateStr)
-      .then(setPlannedSessions)
-      .catch(() => setPlannedSessions([]));
-    setSelectedPlannedId(null);
-  }, [trainingDate]);
-
-  // Load strength data when switching to strength mode
-  useEffect(() => {
-    if (trainingType === 'strength') {
-      listExercises()
-        .then((res) => setExerciseLibrary(res.exercises))
-        .catch(() => {});
-      listSessionTemplates('strength')
-        .then((res) => setAvailableTemplates(res.templates))
-        .catch(() => {});
-      getLastCompleteStrengthSession()
-        .then((res) => {
-          if (res.found && res.session) setLastSession(res.session);
-        })
-        .catch(() => {});
-    }
-  }, [trainingType]);
-
-  /* ---- Running handlers ---- */
-
-  const handleFileUpload = (files: File[]) => {
-    if (files[0]) setCsvFile(files[0]);
-  };
-
-  const handleFileRemove = () => setCsvFile(null);
-
-  const handleNext = async () => {
-    if (!csvFile) {
-      setError('Bitte Datei auswählen');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await parseTraining({
-        csvFile,
-        trainingDate: trainingDate.toISOString().split('T')[0],
-        trainingType,
-        notes: notes || undefined,
-      });
-
-      if (result.success && result.data) {
-        setParseResult(result);
-        const initialOverrides: Record<number, string> = {};
-        if (result.data.laps) {
-          for (const lap of result.data.laps) {
-            initialOverrides[lap.lap_number] = lap.suggested_type || 'unclassified';
-          }
-        }
-        setLapOverrides(initialOverrides);
-        setTrainingTypeOverride(result.metadata?.training_type_auto || null);
-        setStep(1);
-      } else {
-        setError(result.errors?.join(', ') || 'Analyse fehlgeschlagen');
-      }
-    } catch (err) {
-      setError('Netzwerkfehler: ' + (err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateRunning = async () => {
-    if (!csvFile) return;
-
-    setCreating(true);
-    setError(null);
-
-    try {
-      const result = await uploadTraining({
-        csvFile,
-        trainingDate: trainingDate.toISOString().split('T')[0],
-        trainingType,
-        notes: notes || undefined,
-        rpe,
-        lapOverrides: Object.keys(lapOverrides).length > 0 ? lapOverrides : undefined,
-        trainingTypeOverride: trainingTypeOverride || undefined,
-        plannedEntryId: selectedPlannedId ?? undefined,
-      });
-
-      if (result.success && result.session_id) {
-        navigate(`/sessions/${result.session_id}`, { state: { uploaded: true } });
-      } else {
-        setError(result.errors?.join(', ') || 'Upload fehlgeschlagen');
-      }
-    } catch (err) {
-      setError('Netzwerkfehler: ' + (err as Error).message);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleBack = () => {
-    setStep(0);
-    setParseResult(null);
-    setLapOverrides({});
-    setTrainingTypeOverride(null);
-    setError(null);
-  };
-
-  /* ---- Strength handlers ---- */
-
-  const handleExerciseChange = useCallback((idx: number, updated: ExerciseInput) => {
-    setExercises((prev) => {
-      const next = [...prev];
-      next[idx] = updated;
-      return next;
-    });
-  }, []);
-
-  const handleExerciseRemove = useCallback((idx: number) => {
-    setExercises((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
-
-  const handleAddExercise = useCallback(() => {
-    setExercises((prev) => [
-      ...prev,
-      { ...defaultExercise, sets: [{ reps: 8, weight_kg: 0, status: 'completed' }] },
-    ]);
-  }, []);
-
-  const handleCloneLastSession = useCallback(() => {
-    if (!lastSession) return;
-    const hasContent = exercises.some((ex) => ex.name.trim());
-    if (hasContent && !window.confirm('Aktuelle Eingabe überschreiben?')) return;
-
-    setExercises(
-      lastSession.exercises.map((ex) => ({
-        name: ex.name,
-        category: ex.category,
-        sets: ex.sets.map((s) => ({ ...s, status: 'completed' as const })),
-      })),
-    );
-    if (lastSession.duration_minutes) {
-      setDuration(lastSession.duration_minutes);
-    }
-  }, [lastSession, exercises]);
-
-  const handleLoadFromPlan = useCallback(async (planId: number) => {
-    setLoadingPlan(true);
-    try {
-      const plan = await getSessionTemplate(planId);
-      const loaded: ExerciseInput[] = plan.exercises.map((ex) => ({
-        name: ex.name,
-        category: ex.category,
-        sets: Array.from({ length: ex.sets }, () => ({
-          reps: ex.reps,
-          weight_kg: ex.weight_kg ?? 0,
-          status: 'completed' as const,
-        })),
-      }));
-      if (loaded.length > 0) setExercises(loaded);
-    } catch {
-      setError('Plan konnte nicht geladen werden.');
-    } finally {
-      setLoadingPlan(false);
-    }
-  }, []);
-
-  const canSubmitStrength =
-    exercises.length > 0 && exercises.every((ex) => ex.name.trim().length > 0);
-
-  const handleCreateStrength = useCallback(async () => {
-    if (!canSubmitStrength) return;
-
-    setCreating(true);
-    setError(null);
-
-    try {
-      const result = await createStrengthSession({
-        date: trainingDate.toISOString().split('T')[0],
-        duration_minutes: duration,
-        exercises,
-        notes: notes.trim() || undefined,
-        rpe,
-        trainingFile: csvFile || undefined,
-        plannedEntryId: selectedPlannedId ?? undefined,
-      });
-
-      if (result.success) {
-        navigate(`/sessions/${result.session_id}`, { state: { uploaded: true } });
-      }
-    } catch (err) {
-      setError('Fehler beim Speichern: ' + (err as Error).message);
-    } finally {
-      setCreating(false);
-    }
-  }, [
-    canSubmitStrength,
-    trainingDate,
-    duration,
-    exercises,
-    notes,
-    rpe,
-    csvFile,
-    selectedPlannedId,
-    navigate,
-  ]);
-
-  /* ---- Derived data for review step ---- */
-  const laps = parseResult?.data?.laps;
-  const autoType = parseResult?.metadata?.training_type_auto;
-  const effectiveType = trainingTypeOverride || autoType;
-
-  const formatted = formatTonnage(tonnage.total);
-
-  /* ---- Render ---- */
+  const form = useUploadForm();
+  const planned = usePlannedSessionLinking(form.trainingDate);
+  const strength = useStrengthUpload({
+    trainingType: form.trainingType,
+    trainingDate: form.trainingDate,
+    notes: form.notes,
+    rpe: form.rpe,
+    csvFile: form.csvFile,
+    selectedPlannedId: planned.selectedPlannedId,
+    navigate: form.navigate,
+    setCreating: form.setCreating,
+    setError: form.setError,
+  });
 
   return (
     <div className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-10 max-w-5xl mx-auto space-y-6">
@@ -355,7 +81,7 @@ export default function UploadPage() {
       </div>
 
       {/* Type Selector — visible in step 0 */}
-      {step === 0 && (
+      {form.step === 0 && (
         <Card elevation="raised">
           <CardBody>
             <div className="space-y-1.5">
@@ -365,9 +91,9 @@ export default function UploadPage() {
                   { value: 'running', label: 'Laufen' },
                   { value: 'strength', label: 'Kraft' },
                 ]}
-                value={trainingType}
+                value={form.trainingType}
                 onChange={(val) => {
-                  if (val) setTrainingType(val as TrainingType);
+                  if (val) form.setTrainingType(val as 'running' | 'strength');
                 }}
                 placeholder="Typ wählen"
               />
@@ -377,14 +103,14 @@ export default function UploadPage() {
       )}
 
       {/* Error */}
-      {error && (
-        <Alert variant="error" closeable onClose={() => setError(null)}>
-          <AlertDescription>{error}</AlertDescription>
+      {form.error && (
+        <Alert variant="error" closeable onClose={() => form.setError(null)}>
+          <AlertDescription>{form.error}</AlertDescription>
         </Alert>
       )}
 
       {/* ============== Step 0: Import / Create ============== */}
-      {step === 0 && (
+      {form.step === 0 && (
         <>
           {/* Card 1: Training Meta */}
           <Card elevation="raised">
@@ -394,40 +120,40 @@ export default function UploadPage() {
             <CardBody className="space-y-4">
               <FileUpload
                 accept=".csv,.fit"
-                onUpload={handleFileUpload}
-                onRemove={handleFileRemove}
+                onUpload={form.handleFileUpload}
+                onRemove={form.handleFileRemove}
                 instructionText={
-                  csvFile
-                    ? csvFile.name
-                    : isStrength
+                  form.csvFile
+                    ? form.csvFile.name
+                    : form.isStrength
                       ? 'Optional: Datei von Sportuhr hochladen'
                       : 'Datei hier ablegen oder klicken'
                 }
                 subText={
-                  isStrength
+                  form.isStrength
                     ? 'CSV, FIT — Herzfrequenz wird automatisch übernommen'
                     : 'Unterstützt: CSV, Garmin/Wahoo FIT'
                 }
               />
 
-              <div className={`grid grid-cols-1 gap-4 ${isStrength ? 'sm:grid-cols-2' : ''}`}>
+              <div className={`grid grid-cols-1 gap-4 ${form.isStrength ? 'sm:grid-cols-2' : ''}`}>
                 <div className="space-y-1.5">
                   <Label>Datum</Label>
                   <DatePicker
-                    value={trainingDate}
+                    value={form.trainingDate}
                     onChange={(date) => {
-                      if (date) setTrainingDate(date);
+                      if (date) form.setTrainingDate(date);
                     }}
                     maxDate={new Date()}
                     placeholder="Datum wählen"
                   />
                 </div>
-                {isStrength && (
+                {form.isStrength && (
                   <div className="space-y-1.5">
                     <Label>Dauer (min)</Label>
                     <NumberInput
-                      value={duration}
-                      onChange={setDuration}
+                      value={strength.duration}
+                      onChange={strength.setDuration}
                       min={1}
                       max={300}
                       step={5}
@@ -444,7 +170,7 @@ export default function UploadPage() {
                 <Select
                   options={[
                     { value: '', label: 'Keine Zuordnung' },
-                    ...plannedSessions.map((ps) => {
+                    ...planned.plannedSessions.map((ps) => {
                       const typeLabel = ps.training_type === 'running' ? 'Laufen' : 'Kraft';
                       const detail = ps.run_type
                         ? ` — ${ps.run_type}`
@@ -457,11 +183,11 @@ export default function UploadPage() {
                       };
                     }),
                   ]}
-                  value={selectedPlannedId != null ? String(selectedPlannedId) : ''}
-                  onChange={(val) => setSelectedPlannedId(val ? Number(val) : null)}
+                  value={planned.selectedPlannedId != null ? String(planned.selectedPlannedId) : ''}
+                  onChange={(val) => planned.setSelectedPlannedId(val ? Number(val) : null)}
                   placeholder="Keine Zuordnung"
                 />
-                {plannedSessions.length === 0 && (
+                {planned.plannedSessions.length === 0 && (
                   <p className="text-[10px] text-[var(--color-text-disabled)]">
                     Keine geplanten Sessions für diesen Tag
                   </p>
@@ -469,10 +195,10 @@ export default function UploadPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>RPE (Anstrengung): {rpe}</Label>
+                <Label>RPE (Anstrengung): {form.rpe}</Label>
                 <Slider
-                  value={[rpe]}
-                  onValueChange={([val]) => setRpe(val)}
+                  value={[form.rpe]}
+                  onValueChange={([val]) => form.setRpe(val)}
                   min={1}
                   max={10}
                   step={1}
@@ -484,36 +210,36 @@ export default function UploadPage() {
           </Card>
 
           {/* Card 2: Templates + Clone (Strength only) */}
-          {isStrength && (availableTemplates.length > 0 || lastSession) && (
+          {form.isStrength && (strength.availableTemplates.length > 0 || strength.lastSession) && (
             <Card elevation="raised">
               <CardBody className="space-y-3">
-                {availableTemplates.length > 0 && (
+                {strength.availableTemplates.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap">
                     <ClipboardList className="w-4 h-4 text-[var(--color-text-muted)] shrink-0" />
                     <span className="text-sm text-[var(--color-text-muted)]">Aus Plan laden:</span>
-                    {loadingPlan && <Spinner size="sm" />}
-                    {availableTemplates.map((tpl) => (
+                    {strength.loadingPlan && <Spinner size="sm" />}
+                    {strength.availableTemplates.map((tpl) => (
                       <Button
                         key={tpl.id}
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleLoadFromPlan(tpl.id)}
-                        disabled={loadingPlan}
+                        onClick={() => strength.handleLoadFromPlan(tpl.id)}
+                        disabled={strength.loadingPlan}
                       >
                         {tpl.name}
                       </Button>
                     ))}
                   </div>
                 )}
-                {lastSession && (
+                {strength.lastSession && (
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={handleCloneLastSession}
+                    onClick={strength.handleCloneLastSession}
                     className="w-full"
                   >
                     <RotateCcw className="w-4 h-4 mr-1.5" />
-                    Letztes Training übernehmen ({lastSession.date})
+                    Letztes Training übernehmen ({strength.lastSession.date})
                   </Button>
                 )}
               </CardBody>
@@ -521,37 +247,37 @@ export default function UploadPage() {
           )}
 
           {/* Card 3: Exercises (Strength only) */}
-          {isStrength && (
+          {form.isStrength && (
             <Card elevation="raised">
               <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                    Übungen ({exercises.length})
+                    Übungen ({strength.exercises.length})
                   </h2>
-                  {tonnage.total > 0 && (
+                  {strength.tonnage.total > 0 && (
                     <div className="flex items-center gap-1.5" aria-live="polite">
                       <span className="text-xs text-[var(--color-text-muted)]">Tonnage</span>
                       <span className="text-sm font-semibold tabular-nums text-[var(--color-text-base)]">
-                        {formatted.value}
+                        {strength.formatted.value}
                         <span className="text-xs font-normal text-[var(--color-text-muted)] ml-0.5">
-                          {formatted.unit}
+                          {strength.formatted.unit}
                         </span>
                       </span>
-                      {tonnageDelta !== null && tonnageDelta !== 0 && (
+                      {strength.tonnageDelta !== null && strength.tonnageDelta !== 0 && (
                         <span
                           className={`text-xs flex items-center gap-0.5 ${
-                            tonnageDelta > 0
+                            strength.tonnageDelta > 0
                               ? 'text-[var(--color-text-success)]'
                               : 'text-[var(--color-text-error)]'
                           }`}
                         >
-                          {tonnageDelta > 0 ? (
+                          {strength.tonnageDelta > 0 ? (
                             <TrendingUp className="w-3 h-3" />
                           ) : (
                             <TrendingDown className="w-3 h-3" />
                           )}
-                          {tonnageDelta > 0 ? '+' : ''}
-                          {Math.round(tonnageDelta)} kg
+                          {strength.tonnageDelta > 0 ? '+' : ''}
+                          {Math.round(strength.tonnageDelta)} kg
                         </span>
                       )}
                     </div>
@@ -559,18 +285,23 @@ export default function UploadPage() {
                 </div>
               </CardHeader>
               <CardBody className="space-y-4">
-                {exercises.map((ex, idx) => (
+                {strength.exercises.map((ex, idx) => (
                   <ExerciseCard
                     key={idx}
                     index={idx}
                     exercise={ex}
-                    onChange={handleExerciseChange}
-                    onRemove={handleExerciseRemove}
-                    canRemove={exercises.length > 1}
-                    exerciseLibrary={exerciseLibrary}
+                    onChange={strength.handleExerciseChange}
+                    onRemove={strength.handleExerciseRemove}
+                    canRemove={strength.exercises.length > 1}
+                    exerciseLibrary={strength.exerciseLibrary}
                   />
                 ))}
-                <Button variant="ghost" size="sm" onClick={handleAddExercise} className="w-full">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={strength.handleAddExercise}
+                  className="w-full"
+                >
                   <Plus className="w-3.5 h-3.5 mr-1" />
                   Übung hinzufügen
                 </Button>
@@ -585,8 +316,8 @@ export default function UploadPage() {
             </CardHeader>
             <CardBody>
               <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={form.notes}
+                onChange={(e) => form.setNotes(e.target.value)}
                 rows={2}
                 placeholder="Wie war das Training? (optional)"
               />
@@ -594,10 +325,14 @@ export default function UploadPage() {
           </Card>
 
           {/* Submit (Running) */}
-          {isRunning && (
+          {form.isRunning && (
             <div className="flex justify-end">
-              <Button variant="primary" onClick={handleNext} disabled={!csvFile || loading}>
-                {loading ? (
+              <Button
+                variant="primary"
+                onClick={form.handleNext}
+                disabled={!form.csvFile || form.loading}
+              >
+                {form.loading ? (
                   <span className="flex items-center gap-2">
                     <Spinner size="sm" aria-hidden="true" />
                     Analysiere...
@@ -610,14 +345,14 @@ export default function UploadPage() {
           )}
 
           {/* Submit (Strength) */}
-          {isStrength && (
+          {form.isStrength && (
             <div className="flex justify-end">
               <Button
                 variant="primary"
-                onClick={handleCreateStrength}
-                disabled={!canSubmitStrength || creating}
+                onClick={strength.handleCreateStrength}
+                disabled={!strength.canSubmitStrength || form.creating}
               >
-                {creating ? (
+                {form.creating ? (
                   <span className="flex items-center gap-2">
                     <Spinner size="sm" aria-hidden="true" />
                     Speichere...
@@ -632,7 +367,7 @@ export default function UploadPage() {
       )}
 
       {/* ============== Running: Step 1 — Review ============== */}
-      {isRunning && step === 1 && parseResult && (
+      {form.isRunning && form.step === 1 && form.parseResult && (
         <>
           <Card elevation="raised">
             <CardHeader>
@@ -648,15 +383,15 @@ export default function UploadPage() {
                 <Label>Trainingstyp</Label>
                 <Select
                   options={trainingTypeOptions}
-                  value={effectiveType ?? undefined}
-                  onChange={(val) => setTrainingTypeOverride(val ?? null)}
+                  value={form.effectiveType ?? undefined}
+                  onChange={(val) => form.setTrainingTypeOverride(val ?? null)}
                   placeholder="Typ wählen"
                 />
               </div>
 
-              {laps && laps.length > 0 && (
+              {form.laps && form.laps.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label>Laps ({laps.length})</Label>
+                  <Label>Laps ({form.laps.length})</Label>
                   <div className="overflow-x-auto rounded-[var(--radius-component-md)] border border-[var(--color-border-default)]">
                     <Table>
                       <TableHeader>
@@ -669,9 +404,11 @@ export default function UploadPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {laps.map((lap: ParsedLap) => {
+                        {form.laps.map((lap: ParsedLap) => {
                           const effectiveLapType =
-                            lapOverrides[lap.lap_number] || lap.suggested_type || 'unclassified';
+                            form.lapOverrides[lap.lap_number] ||
+                            lap.suggested_type ||
+                            'unclassified';
                           return (
                             <TableRow key={lap.lap_number}>
                               <TableCell className="font-medium text-[var(--color-text-muted)]">
@@ -683,7 +420,7 @@ export default function UploadPage() {
                                   value={effectiveLapType}
                                   onChange={(val) => {
                                     if (val) {
-                                      setLapOverrides((prev) => ({
+                                      form.setLapOverrides((prev) => ({
                                         ...prev,
                                         [lap.lap_number]: val,
                                       }));
@@ -713,11 +450,15 @@ export default function UploadPage() {
 
           {/* Submit */}
           <div className="flex justify-between">
-            <Button variant="secondary" onClick={handleBack} disabled={creating}>
+            <Button variant="secondary" onClick={form.handleBack} disabled={form.creating}>
               Zurück
             </Button>
-            <Button variant="primary" onClick={handleCreateRunning} disabled={creating}>
-              {creating ? (
+            <Button
+              variant="primary"
+              onClick={() => form.handleCreateRunning(planned.selectedPlannedId)}
+              disabled={form.creating}
+            >
+              {form.creating ? (
                 <span className="flex items-center gap-2">
                   <Spinner size="sm" aria-hidden="true" />
                   Erstelle Session...
