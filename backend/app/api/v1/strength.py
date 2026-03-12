@@ -36,7 +36,7 @@ async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Opt
     result = await db.execute(select(AthleteModel).limit(1))
     athlete = result.scalar_one_or_none()
     if athlete and athlete.resting_hr and athlete.max_hr:
-        return int(athlete.resting_hr), int(athlete.max_hr)  # type: ignore[arg-type]
+        return athlete.resting_hr, athlete.max_hr
     return None, None
 
 
@@ -166,7 +166,7 @@ async def create_strength_session(
 
     return {
         "success": True,
-        "session_id": int(workout.id),  # type: ignore[arg-type]
+        "session_id": workout.id,
         "metrics": metrics,
         "file_data": {
             "has_file": file_summary is not None,
@@ -215,7 +215,7 @@ async def update_strength_exercises(
     ]
 
     # Update exercises + recalculate metrics
-    workout.exercises_json = json.dumps(exercises_data)  # type: ignore[assignment]
+    workout.exercises_json = json.dumps(exercises_data)
     metrics = calculate_strength_metrics(exercises_data)
 
     # Sync exercises to library
@@ -264,13 +264,11 @@ async def get_last_complete_session(
     return {
         "found": True,
         "session": {
-            "id": int(workout.id),  # type: ignore[arg-type]
-            "date": session_date.isoformat(),  # type: ignore[union-attr]
+            "id": workout.id,
+            "date": session_date.isoformat(),
             "exercises": exercises_raw,
             "total_tonnage_kg": metrics["total_tonnage_kg"],
-            "duration_minutes": (
-                (int(workout.duration_sec) // 60) if workout.duration_sec else None  # type: ignore[arg-type]
-            ),
+            "duration_minutes": ((workout.duration_sec // 60) if workout.duration_sec else None),
         },
     }
 
@@ -312,7 +310,7 @@ async def get_last_exercises(
                             )
                             for s in ex["sets"]
                         ],
-                        session_date=session_date,  # type: ignore[arg-type]
+                        session_date=session_date,
                     ),
                 }
 
@@ -343,7 +341,7 @@ async def _load_strength_sessions(db: AsyncSession) -> list[dict]:
         )
         sessions.append(
             {
-                "id": int(w.id),  # type: ignore[arg-type]
+                "id": w.id,
                 "date": date_str,
                 "exercises": json.loads(str(w.exercises_json)),
             }
@@ -445,7 +443,7 @@ async def get_tonnage_trend(
         )
         sessions.append(
             {
-                "id": int(w.id),  # type: ignore[arg-type]
+                "id": w.id,
                 "date": date_str,
                 "exercises": json.loads(str(w.exercises_json)),
             }

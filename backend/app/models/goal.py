@@ -61,8 +61,8 @@ class RaceGoalResponse(BaseModel):
         plan_summary: Optional[TrainingPlanSummaryForGoal] = None,
     ) -> RaceGoalResponse:
         """Build response from DB model."""
-        target_secs = int(goal.target_time_seconds)  # type: ignore[arg-type]
-        distance = float(goal.distance_km)  # type: ignore[arg-type]
+        target_secs = goal.target_time_seconds
+        distance = goal.distance_km
 
         # Format target time
         hours = target_secs // 3600
@@ -81,15 +81,15 @@ class RaceGoalResponse(BaseModel):
 
         # Days until race
         race_dt = goal.race_date
-        race_d = race_dt.date() if isinstance(race_dt, datetime) else race_dt  # type: ignore[assignment]
+        race_d = race_dt.date() if isinstance(race_dt, datetime) else race_dt
         days = (race_d - date.today()).days
 
         training_plan_id: Optional[int] = None
         if goal.training_plan_id is not None:
-            training_plan_id = int(goal.training_plan_id)  # type: ignore[arg-type]
+            training_plan_id = goal.training_plan_id
 
         return RaceGoalResponse(
-            id=int(goal.id),  # type: ignore[arg-type]
+            id=goal.id,
             title=str(goal.title),
             race_date=race_d.isoformat(),
             distance_km=distance,
@@ -100,8 +100,8 @@ class RaceGoalResponse(BaseModel):
             days_until=days,
             training_plan_id=training_plan_id,
             training_plan_summary=plan_summary,
-            created_at=goal.created_at.isoformat() if goal.created_at else "",  # type: ignore[union-attr]
-            updated_at=goal.updated_at.isoformat() if goal.updated_at else "",  # type: ignore[union-attr]
+            created_at=goal.created_at.isoformat() if goal.created_at else "",
+            updated_at=goal.updated_at.isoformat() if goal.updated_at else "",
         )
 
 

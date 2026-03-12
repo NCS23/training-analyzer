@@ -57,22 +57,22 @@ class ExerciseResponse(BaseModel):
     @classmethod
     def from_db(cls, model: ExerciseModel) -> ExerciseResponse:
         return cls(
-            id=int(model.id),  # type: ignore[arg-type]
+            id=model.id,
             name=str(model.name),
             category=str(model.category),
             is_favorite=bool(model.is_favorite),
             is_custom=bool(model.is_custom),
-            usage_count=int(model.usage_count),  # type: ignore[arg-type]
-            last_used_at=model.last_used_at,  # type: ignore[arg-type]
-            instructions=_parse_json_list(model.instructions_json),  # type: ignore[arg-type]
-            primary_muscles=_parse_json_list(model.primary_muscles_json),  # type: ignore[arg-type]
-            secondary_muscles=_parse_json_list(model.secondary_muscles_json),  # type: ignore[arg-type]
-            image_urls=_parse_json_list(model.image_urls_json),  # type: ignore[arg-type]
-            equipment=model.equipment,  # type: ignore[arg-type]
-            level=model.level,  # type: ignore[arg-type]
-            force=model.force,  # type: ignore[arg-type]
-            mechanic=model.mechanic,  # type: ignore[arg-type]
-            exercise_db_id=model.exercise_db_id,  # type: ignore[arg-type]
+            usage_count=model.usage_count,
+            last_used_at=model.last_used_at,
+            instructions=_parse_json_list(model.instructions_json),
+            primary_muscles=_parse_json_list(model.primary_muscles_json),
+            secondary_muscles=_parse_json_list(model.secondary_muscles_json),
+            image_urls=_parse_json_list(model.image_urls_json),
+            equipment=model.equipment,
+            level=model.level,
+            force=model.force,
+            mechanic=model.mechanic,
+            exercise_db_id=model.exercise_db_id,
         )
 
 

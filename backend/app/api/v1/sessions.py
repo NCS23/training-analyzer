@@ -88,9 +88,8 @@ async def _auto_match_planned_entry(
     if workout.planned_entry_id is not None:
         return  # Already linked
 
-    workout_date = workout.date
-    if isinstance(workout_date, datetime):
-        workout_date = workout_date.date()
+    workout_dt = workout.date
+    workout_date = workout_dt.date() if isinstance(workout_dt, datetime) else workout_dt
 
     # Find the Monday of the week
     week_start = workout_date - timedelta(days=workout_date.weekday())
@@ -117,7 +116,7 @@ async def _auto_match_planned_entry(
     for session in session_result.scalars().all():
         expected = type_map.get(str(session.training_type), str(session.training_type))
         if str(workout.workout_type) == expected:
-            workout.planned_entry_id = session.id  # type: ignore[assignment]
+            workout.planned_entry_id = session.id
             await db.commit()
             return
 
@@ -127,7 +126,7 @@ async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Opt
     result = await db.execute(select(AthleteModel).limit(1))
     athlete = result.scalar_one_or_none()
     if athlete and athlete.resting_hr and athlete.max_hr:
-        return int(athlete.resting_hr), int(athlete.max_hr)  # type: ignore[arg-type]
+        return athlete.resting_hr, athlete.max_hr
     return None, None
 
 
@@ -264,7 +263,7 @@ async def _save_and_respond(
 ) -> SessionUploadResponse:
     """Speichert Workout in DB und erstellt Response."""
     if form.planned_entry_id is not None:
-        workout.planned_entry_id = form.planned_entry_id  # type: ignore[assignment]
+        workout.planned_entry_id = form.planned_entry_id
 
     db.add(workout)
     await db.commit()
@@ -278,7 +277,7 @@ async def _save_and_respond(
 
     return SessionUploadResponse(
         success=True,
-        session_id=int(workout.id),  # type: ignore[arg-type]
+        session_id=workout.id,
         data={
             "laps": parsed["laps"],
             "summary": parsed["summary"],
@@ -492,16 +491,8 @@ async def _get_athlete_elevation_factors(
     result = await db.execute(select(AthleteModel).limit(1))
     athlete = result.scalar_one_or_none()
     if athlete:
-        gain = (
-            float(athlete.elevation_gain_factor)
-            if athlete.elevation_gain_factor is not None
-            else None
-        )  # type: ignore[arg-type]
-        loss = (
-            float(athlete.elevation_loss_factor)
-            if athlete.elevation_loss_factor is not None
-            else None
-        )  # type: ignore[arg-type]
+        gain = athlete.elevation_gain_factor if athlete.elevation_gain_factor is not None else None
+        loss = athlete.elevation_loss_factor if athlete.elevation_loss_factor is not None else None
         return gain, loss
     return None, None
 
@@ -553,8 +544,8 @@ async def get_working_zones(
         return {"hr_zones_working": None}
 
     # Use session's stored athlete settings (historized), fallback to current
-    resting_hr: Optional[int] = workout.athlete_resting_hr  # type: ignore[assignment]
-    max_hr: Optional[int] = workout.athlete_max_hr  # type: ignore[assignment]
+    resting_hr: Optional[int] = workout.athlete_resting_hr
+    max_hr: Optional[int] = workout.athlete_max_hr
     if resting_hr is None or max_hr is None:
         resting_hr, max_hr = await _get_athlete_hr_settings(db)
 
@@ -592,13 +583,13 @@ async def update_lap_overrides(
             lap["user_override"] = override_map[lap_num]
 
     # Save updated laps back to DB
-    workout.laps_json = json.dumps(laps_raw)  # type: ignore[assignment]
+    workout.laps_json = json.dumps(laps_raw)
     await db.commit()
     await db.refresh(workout)
 
     # Build response with working-laps aggregation (use session's stored settings)
-    resting_hr: Optional[int] = workout.athlete_resting_hr  # type: ignore[assignment]
-    max_hr: Optional[int] = workout.athlete_max_hr  # type: ignore[assignment]
+    resting_hr: Optional[int] = workout.athlete_resting_hr
+    max_hr: Optional[int] = workout.athlete_max_hr
     if resting_hr is None or max_hr is None:
         resting_hr, max_hr = await _get_athlete_hr_settings(db)
     gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
@@ -635,7 +626,7 @@ async def update_training_type(
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
-    workout.training_type_override = body.training_type  # type: ignore[assignment]
+    workout.training_type_override = body.training_type
     await db.commit()
     await db.refresh(workout)
 
@@ -656,7 +647,7 @@ async def update_notes(
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
-    workout.notes = body.notes  # type: ignore[assignment]
+    workout.notes = body.notes
     await db.commit()
     await db.refresh(workout)
 
@@ -677,7 +668,7 @@ async def update_rpe(
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
-    workout.rpe = body.rpe  # type: ignore[assignment]
+    workout.rpe = body.rpe
     await db.commit()
     await db.refresh(workout)
 
@@ -698,7 +689,7 @@ async def update_date(
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
 
-    workout.date = body.date  # type: ignore[assignment]
+    workout.date = datetime.combine(body.date, datetime.min.time())
     await db.commit()
     await db.refresh(workout)
 
@@ -728,7 +719,7 @@ async def update_planned_entry(
         if not ps_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Geplante Session nicht gefunden.")
 
-    workout.planned_entry_id = body.planned_entry_id  # type: ignore[assignment]
+    workout.planned_entry_id = body.planned_entry_id
     await db.commit()
     await db.refresh(workout)
 
@@ -785,12 +776,12 @@ async def recalculate_session_zones(
     if not new_zones:
         raise HTTPException(status_code=400, detail="Zonen konnten nicht berechnet werden.")
 
-    workout.hr_zones_json = json.dumps(new_zones)  # type: ignore[assignment]
+    workout.hr_zones_json = json.dumps(new_zones)
     # Update athlete snapshot on session
     if resting_hr:
-        workout.athlete_resting_hr = resting_hr  # type: ignore[assignment]
+        workout.athlete_resting_hr = resting_hr
     if max_hr:
-        workout.athlete_max_hr = max_hr  # type: ignore[assignment]
+        workout.athlete_max_hr = max_hr
 
     await db.commit()
     return {
@@ -821,7 +812,7 @@ def _extract_hr_from_stored_data(workout: WorkoutModel) -> list[int]:
     if workout.csv_data:
         try:
             result = csv_parser.parse(
-                workout.csv_data.encode("utf-8"),  # type: ignore[union-attr]
+                workout.csv_data.encode("utf-8"),
                 TrainingType(str(workout.workout_type)),
                 None,
             )

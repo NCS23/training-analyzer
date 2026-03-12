@@ -180,8 +180,9 @@ known-first-party = ["app"]
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = false
+warn_return_any = false  # TODO: enable after json.loads() return types are handled
 warn_unused_configs = true
+warn_unused_ignores = false  # TODO: enable when local/CI mypy envs are aligned
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true

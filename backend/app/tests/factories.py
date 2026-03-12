@@ -1,7 +1,7 @@
 """Test data factories for domain entities."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from app.domain.entities.workout import Workout
 
@@ -33,12 +33,12 @@ def make_workout(  # noqa: PLR0913  # TODO: E16 Refactoring
     )
 
 
-def make_running_workout(**overrides) -> Workout:  # type: ignore[no-untyped-def]
+def make_running_workout(**overrides: Any) -> Workout:
     """Create a running workout."""
     return make_workout(workout_type="running", **overrides)
 
 
-def make_strength_workout(**overrides) -> Workout:  # type: ignore[no-untyped-def]
+def make_strength_workout(**overrides: Any) -> Workout:
     """Create a strength workout."""
     return make_workout(
         workout_type="strength",

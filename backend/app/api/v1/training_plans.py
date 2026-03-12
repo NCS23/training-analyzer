@@ -3,7 +3,7 @@
 import contextlib
 import json
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -59,12 +59,12 @@ router = APIRouter(prefix="/training-plans")
 # --- Helpers ---
 
 
-def _parse_json(raw: Optional[str]) -> Optional[dict]:  # type: ignore[type-arg]
+def _parse_json(raw: Optional[str]) -> Optional[dict[str, Any]]:
     """Parse a JSON string or return None."""
     if not raw:
         return None
     try:
-        return json.loads(raw)  # type: ignore[no-any-return]
+        return json.loads(raw)
     except (json.JSONDecodeError, ValueError):
         return None
 
@@ -98,19 +98,19 @@ def _phase_to_response(
         weekly_templates = PhaseWeeklyTemplates(**raw_templates)
 
     return TrainingPhaseResponse(
-        id=int(phase.id),  # type: ignore[arg-type]
-        training_plan_id=int(phase.training_plan_id),  # type: ignore[arg-type]
+        id=phase.id,
+        training_plan_id=phase.training_plan_id,
         name=str(phase.name),
         phase_type=str(phase.phase_type),
-        start_week=int(phase.start_week),  # type: ignore[arg-type]
-        end_week=int(phase.end_week),  # type: ignore[arg-type]
+        start_week=phase.start_week,
+        end_week=phase.end_week,
         focus=focus,
         target_metrics=target_metrics,
         weekly_template=weekly_template,
         weekly_templates=weekly_templates,
         notes=str(phase.notes) if phase.notes else None,
         auto_regeneration=auto_regeneration,
-        created_at=phase.created_at.isoformat() if phase.created_at else "",  # type: ignore[union-attr]
+        created_at=phase.created_at.isoformat() if phase.created_at else "",
     )
 
 
@@ -134,7 +134,7 @@ async def _get_goal_summary(
         return None
 
     # Format target time (#152)
-    target_secs = int(row.target_time_seconds) if row.target_time_seconds else None  # type: ignore[union-attr]
+    target_secs = int(row.target_time_seconds) if row.target_time_seconds else None
     time_fmt: Optional[str] = None
     if target_secs:
         hours = target_secs // 3600
@@ -145,16 +145,16 @@ async def _get_goal_summary(
     # Days until race (#152)
     days_until: Optional[int] = None
     race_date_iso: Optional[str] = None
-    if row.race_date:  # type: ignore[union-attr]
-        race_dt = row.race_date  # type: ignore[union-attr]
+    if row.race_date:
+        race_dt = row.race_date
         if hasattr(race_dt, "date"):
             race_dt = race_dt.date()
         race_date_iso = race_dt.isoformat()
         days_until = (race_dt - date.today()).days
 
     return GoalSummary(
-        id=int(row.id),  # type: ignore[arg-type]
-        title=str(row.title),  # type: ignore[arg-type]
+        id=row.id,
+        title=row.title,
         race_date=race_date_iso,
         target_time_formatted=time_fmt,
         days_until=days_until,
@@ -175,7 +175,7 @@ async def _plan_to_response(
     phases = [_phase_to_response(p) for p in result.scalars().all()]
 
     # Goal summary
-    g_id = int(plan.goal_id) if plan.goal_id else None  # type: ignore[arg-type]
+    g_id = plan.goal_id if plan.goal_id else None
     goal_summary = await _get_goal_summary(db, g_id)
 
     # Weekly structure
@@ -193,21 +193,21 @@ async def _plan_to_response(
     weekly_plan_week_count = wp_result.scalar() or 0
 
     return TrainingPlanResponse(
-        id=int(plan.id),  # type: ignore[arg-type]
+        id=plan.id,
         name=str(plan.name),
         description=str(plan.description) if plan.description else None,
-        goal_id=int(plan.goal_id) if plan.goal_id else None,  # type: ignore[arg-type]
-        start_date=plan.start_date.isoformat() if plan.start_date else "",  # type: ignore[union-attr]
-        end_date=plan.end_date.isoformat() if plan.end_date else "",  # type: ignore[union-attr]
-        target_event_date=plan.target_event_date.isoformat() if plan.target_event_date else None,  # type: ignore[union-attr]
+        goal_id=plan.goal_id if plan.goal_id else None,
+        start_date=plan.start_date.isoformat() if plan.start_date else "",
+        end_date=plan.end_date.isoformat() if plan.end_date else "",
+        target_event_date=plan.target_event_date.isoformat() if plan.target_event_date else None,
         weekly_structure=weekly_structure,
         status=str(plan.status),
         phases=phases,
         goal_summary=goal_summary,
         weekly_plan_week_count=weekly_plan_week_count,
         auto_generation_result=auto_generation_result,
-        created_at=plan.created_at.isoformat() if plan.created_at else "",  # type: ignore[union-attr]
-        updated_at=plan.updated_at.isoformat() if plan.updated_at else "",  # type: ignore[union-attr]
+        created_at=plan.created_at.isoformat() if plan.created_at else "",
+        updated_at=plan.updated_at.isoformat() if plan.updated_at else "",
     )
 
 
@@ -227,9 +227,7 @@ async def _plan_to_summary(
     goal_title: Optional[str] = None
     if plan.goal_id:
         goal_result = await db.execute(
-            select(RaceGoalModel.title).where(
-                RaceGoalModel.id == int(plan.goal_id)  # type: ignore[arg-type]
-            )
+            select(RaceGoalModel.title).where(RaceGoalModel.id == plan.goal_id)
         )
         row = goal_result.scalar_one_or_none()
         if row:
@@ -244,16 +242,16 @@ async def _plan_to_summary(
     weekly_plan_week_count = wp_result.scalar() or 0
 
     return TrainingPlanSummary(
-        id=int(plan.id),  # type: ignore[arg-type]
+        id=plan.id,
         name=str(plan.name),
         status=str(plan.status),
-        start_date=plan.start_date.isoformat() if plan.start_date else "",  # type: ignore[union-attr]
-        end_date=plan.end_date.isoformat() if plan.end_date else "",  # type: ignore[union-attr]
+        start_date=plan.start_date.isoformat() if plan.start_date else "",
+        end_date=plan.end_date.isoformat() if plan.end_date else "",
         phase_count=phase_count,
         weekly_plan_week_count=weekly_plan_week_count,
         goal_title=goal_title,
-        created_at=plan.created_at.isoformat() if plan.created_at else "",  # type: ignore[union-attr]
-        updated_at=plan.updated_at.isoformat() if plan.updated_at else "",  # type: ignore[union-attr]
+        created_at=plan.created_at.isoformat() if plan.created_at else "",
+        updated_at=plan.updated_at.isoformat() if plan.updated_at else "",
     )
 
 
@@ -328,15 +326,15 @@ def _changelog_to_response(entry: PlanChangeLogModel) -> PlanChangeLogEntry:
     if entry.details_json:
         details = _parse_json(str(entry.details_json))
     return PlanChangeLogEntry(
-        id=int(entry.id),  # type: ignore[arg-type]
-        plan_id=int(entry.plan_id),  # type: ignore[arg-type]
+        id=entry.id,
+        plan_id=entry.plan_id,
         change_type=str(entry.change_type),
         category=str(entry.category) if entry.category else None,
         summary=str(entry.summary),
         details=details,
         reason=str(entry.reason) if entry.reason else None,
         created_by=str(entry.created_by) if entry.created_by else None,
-        created_at=entry.created_at.isoformat() if entry.created_at else "",  # type: ignore[union-attr]
+        created_at=entry.created_at.isoformat() if entry.created_at else "",
     )
 
 
@@ -386,7 +384,7 @@ async def create_plan(
         )
         existing_goal = existing_result.scalar_one_or_none()
         if existing_goal:
-            goal_id = int(existing_goal.id)  # type: ignore[arg-type]
+            goal_id = existing_goal.id
         else:
             # Create new goal — race_date defaults to target_event_date or end_date
             race_date = data.goal.race_date or data.target_event_date or data.end_date
@@ -401,7 +399,7 @@ async def create_plan(
             )
             db.add(new_goal)
             await db.flush()
-            goal_id = int(new_goal.id)  # type: ignore[arg-type]
+            goal_id = new_goal.id
 
     weekly_structure_json: Optional[str] = None
     if data.weekly_structure:
@@ -426,8 +424,8 @@ async def create_plan(
     if data.phases:
         for phase_data in data.phases:
             phase = _create_phase_model(
-                int(plan.id),
-                phase_data,  # type: ignore[arg-type]
+                plan.id,
+                phase_data,
             )
             db.add(phase)
 
@@ -436,11 +434,11 @@ async def create_plan(
         goal_result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == goal_id))
         goal_obj = goal_result.scalar_one_or_none()
         if goal_obj:
-            goal_obj.training_plan_id = plan.id  # type: ignore[assignment]
+            goal_obj.training_plan_id = plan.id
 
     await log_plan_change(
         db,
-        int(plan.id),  # type: ignore[arg-type]
+        plan.id,
         "plan_created",
         f"Trainingsplan '{data.name}' erstellt",
         details={
@@ -652,7 +650,7 @@ def _apply_exercise_replacements(
                         interval["exercise_name"] = replacements[str(ex_name)]
 
 
-def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]  # noqa: C901, PLR0912  # TODO: E16 Refactoring
+def _yaml_to_plan_create(data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
 
@@ -695,7 +693,7 @@ def _yaml_to_plan_create(data: dict) -> dict:  # type: ignore[type-arg]  # noqa:
                             rd["run_type"] = SESSION_TYPE_MIGRATION[str(rd["run_type"])]
                         intervals = rd.get("intervals")
                         if isinstance(intervals, list):
-                            migrated: list[dict] = []  # type: ignore[type-arg]
+                            migrated: list[dict[str, Any]] = []
                             for iv in intervals:
                                 if isinstance(iv, dict) and iv.get("type"):
                                     seg_t = str(iv["type"])
@@ -965,9 +963,7 @@ async def _load_generation_context(
     goal: Optional[RaceGoalModel] = None
     if plan.goal_id:
         goal_result = await db.execute(
-            select(RaceGoalModel).where(
-                RaceGoalModel.id == int(plan.goal_id)  # type: ignore[arg-type]
-            )
+            select(RaceGoalModel).where(RaceGoalModel.id == plan.goal_id)
         )
         goal = goal_result.scalar_one_or_none()
 
@@ -1186,45 +1182,45 @@ async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
 
     if data.name is not None:
         _track("name", plan.name, data.name)
-        plan.name = data.name  # type: ignore[assignment]
+        plan.name = data.name
     if data.description is not None:
         _track("description", plan.description, data.description)
-        plan.description = data.description  # type: ignore[assignment]
+        plan.description = data.description
     if data.start_date is not None:
         _track("start_date", plan.start_date, data.start_date)
-        plan.start_date = data.start_date  # type: ignore[assignment]
+        plan.start_date = data.start_date
     if data.end_date is not None:
         _track("end_date", plan.end_date, data.end_date)
-        plan.end_date = data.end_date  # type: ignore[assignment]
+        plan.end_date = data.end_date
     if data.target_event_date is not None:
         _track("target_event_date", plan.target_event_date, data.target_event_date)
-        plan.target_event_date = data.target_event_date  # type: ignore[assignment]
+        plan.target_event_date = data.target_event_date
     if data.weekly_structure is not None:
         _track(
             "weekly_structure",
             plan.weekly_structure_json,
             json.dumps(data.weekly_structure.model_dump()),
         )
-        plan.weekly_structure_json = json.dumps(data.weekly_structure.model_dump())  # type: ignore[assignment]
+        plan.weekly_structure_json = json.dumps(data.weekly_structure.model_dump())
     old_status = str(plan.status)
     if data.status is not None:
         _track("status", plan.status, data.status)
-        plan.status = data.status  # type: ignore[assignment]
+        plan.status = data.status
 
     # S09: Update goal link
     if data.goal_id is not None:
         old_goal_id = plan.goal_id
         _track("goal_id", old_goal_id, data.goal_id)
-        plan.goal_id = data.goal_id  # type: ignore[assignment]
+        plan.goal_id = data.goal_id
 
         # Remove old bidirectional link
         if old_goal_id:
             old_goal_result = await db.execute(
-                select(RaceGoalModel).where(RaceGoalModel.id == int(old_goal_id))  # type: ignore[arg-type]
+                select(RaceGoalModel).where(RaceGoalModel.id == old_goal_id)
             )
             old_goal = old_goal_result.scalar_one_or_none()
             if old_goal and old_goal.training_plan_id == plan.id:
-                old_goal.training_plan_id = None  # type: ignore[assignment]
+                old_goal.training_plan_id = None
 
         # Set new bidirectional link
         if data.goal_id:
@@ -1233,11 +1229,11 @@ async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             )
             new_goal = new_goal_result.scalar_one_or_none()
             if new_goal:
-                new_goal.training_plan_id = plan.id  # type: ignore[assignment]
+                new_goal.training_plan_id = plan.id
 
     category = "structure" if changed_structure else "meta" if changed_meta else "meta"
 
-    plan.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    plan.updated_at = datetime.utcnow()
     await log_plan_change(
         db,
         plan_id,
@@ -1323,11 +1319,11 @@ async def delete_plan(
     # Remove bidirectional link from goal
     if plan.goal_id:
         goal_result = await db.execute(
-            select(RaceGoalModel).where(RaceGoalModel.id == int(plan.goal_id))  # type: ignore[arg-type]
+            select(RaceGoalModel).where(RaceGoalModel.id == plan.goal_id)
         )
         goal = goal_result.scalar_one_or_none()
         if goal and goal.training_plan_id == plan.id:
-            goal.training_plan_id = None  # type: ignore[assignment]
+            goal.training_plan_id = None
 
     # Delete all phases
     phase_result = await db.execute(
@@ -1347,17 +1343,15 @@ async def delete_plan(
             )
             session_ids: list[int] = []
             for session in sessions_result.scalars().all():
-                session_ids.append(int(session.id))  # type: ignore[arg-type]
+                session_ids.append(session.id)
                 await db.delete(session)
             # Clear workout references to deleted sessions
             if session_ids:
                 workout_result = await db.execute(
-                    select(WorkoutModel).where(
-                        WorkoutModel.planned_entry_id.in_(session_ids)  # type: ignore[union-attr]
-                    )
+                    select(WorkoutModel).where(WorkoutModel.planned_entry_id.in_(session_ids))
                 )
                 for workout in workout_result.scalars().all():
-                    workout.planned_entry_id = None  # type: ignore[assignment]
+                    workout.planned_entry_id = None
             await db.delete(day)
     else:
         # Detach weekly plan days from deleted plan (prevent orphaned plan_id)
@@ -1491,7 +1485,7 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             }
         )
         has_structure_change = True
-        phase.name = data.name  # type: ignore[assignment]
+        phase.name = data.name
     if data.phase_type is not None:
         phase_changes.append(
             {
@@ -1502,41 +1496,41 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             }
         )
         has_structure_change = True
-        phase.phase_type = data.phase_type  # type: ignore[assignment]
+        phase.phase_type = data.phase_type
     if data.start_week is not None:
         phase_changes.append(
             {
                 "field": "start_week",
-                "from": int(phase.start_week),
+                "from": phase.start_week,
                 "to": data.start_week,
                 "label": _PHASE_LABELS["start_week"],
             }
-        )  # type: ignore[arg-type]
+        )
         has_structure_change = True
-        phase.start_week = data.start_week  # type: ignore[assignment]
+        phase.start_week = data.start_week
     if data.end_week is not None:
         phase_changes.append(
             {
                 "field": "end_week",
-                "from": int(phase.end_week),
+                "from": phase.end_week,
                 "to": data.end_week,
                 "label": _PHASE_LABELS["end_week"],
             }
-        )  # type: ignore[arg-type]
+        )
         has_structure_change = True
-        phase.end_week = data.end_week  # type: ignore[assignment]
+        phase.end_week = data.end_week
     if data.focus is not None:
         has_content_change = True
-        phase.focus_json = json.dumps(data.focus.model_dump())  # type: ignore[assignment]
+        phase.focus_json = json.dumps(data.focus.model_dump())
     if data.target_metrics is not None:
         has_content_change = True
-        phase.target_metrics_json = json.dumps(data.target_metrics.model_dump())  # type: ignore[assignment]
+        phase.target_metrics_json = json.dumps(data.target_metrics.model_dump())
     if data.weekly_template is not None:
         has_content_change = True
-        phase.weekly_template_json = json.dumps(data.weekly_template.model_dump())  # type: ignore[assignment]
+        phase.weekly_template_json = json.dumps(data.weekly_template.model_dump())
     if data.weekly_templates is not None:
         has_content_change = True
-        phase.weekly_templates_json = json.dumps(data.weekly_templates.model_dump())  # type: ignore[assignment]
+        phase.weekly_templates_json = json.dumps(data.weekly_templates.model_dump())
     if data.notes is not None:
         phase_changes.append(
             {
@@ -1546,7 +1540,7 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
                 "label": _PHASE_LABELS["notes"],
             }
         )
-        phase.notes = data.notes  # type: ignore[assignment]
+        phase.notes = data.notes
 
     phase_category = (
         "structure" if has_structure_change else "content" if has_content_change else "meta"
@@ -1585,8 +1579,8 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             )
             plan_start = plan_start - timedelta(days=plan_start.weekday())  # Monday
 
-            phase_start_week = int(phase.start_week)  # type: ignore[arg-type]
-            phase_end_week = int(phase.end_week)  # type: ignore[arg-type]
+            phase_start_week = phase.start_week
+            phase_end_week = phase.end_week
             phase_week_starts: list[date] = []
             for wn in range(phase_start_week, phase_end_week + 1):
                 ws = plan_start + timedelta(weeks=wn - 1)
@@ -1702,7 +1696,7 @@ async def get_changelog(
     # Build base filter
     base_filter = PlanChangeLogModel.plan_id == plan_id
     if category:
-        base_filter = base_filter & (PlanChangeLogModel.category == category)  # type: ignore[assignment]
+        base_filter = base_filter & (PlanChangeLogModel.category == category)
 
     # Total count
     count_result = await db.execute(select(func.count(PlanChangeLogModel.id)).where(base_filter))
@@ -1742,7 +1736,7 @@ async def update_changelog_reason(
     if not entry:
         raise HTTPException(status_code=404, detail="Changelog-Eintrag nicht gefunden")
 
-    entry.reason = data.reason  # type: ignore[assignment]
+    entry.reason = data.reason
     await db.commit()
     await db.refresh(entry)
     return _changelog_to_response(entry)

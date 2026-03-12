@@ -67,7 +67,8 @@ def calculate_zone_distribution(
     total = len(hr_values)
 
     if use_karvonen:
-        zones = calculate_karvonen_zones(resting_hr, max_hr)  # type: ignore[arg-type]
+        assert resting_hr is not None and max_hr is not None
+        zones = calculate_karvonen_zones(resting_hr, max_hr)
         counts = [0] * len(zones)
 
         for hr in hr_values:
