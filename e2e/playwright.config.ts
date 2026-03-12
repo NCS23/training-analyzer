@@ -4,6 +4,7 @@ const PRODUCTION_URL =
   process.env.BASE_URL || "http://training.89.167.78.223.sslip.io";
 
 export default defineConfig({
+  globalSetup: "./global-setup.ts",
   testDir: "./smoke",
   timeout: 30_000,
   expect: { timeout: 10_000 },
