@@ -1,25 +1,26 @@
-# Design Review — Issue #195
+# Design Review — Issue #199
 
-> Shared ExerciseFormSection für identische Übungs-UI
+> Mobile-First Set-Row Layout + Labels für Übungsformular
 
 ## 1. Nordlig DS Compliance
 
 - [x] Keine hardcodierten Farben (bg-white, bg-gray-*, text-red-* etc.)
 - [x] Keine hardcodierten Radii (rounded-sm/md/lg/xl/2xl)
 - [x] Keine hardcodierten Shadows (shadow-sm/md/lg) — `shadow-[var(--shadow-md)]` verwendet DS-Token (ds-ok)
-- [x] Keine nativen HTML-Elemente — Autocomplete-Suggestions verwenden `<button type="button">` als List-Items (kein DS-Button-Pattern, akzeptabel)
+- [x] Keine nativen HTML-Elemente — Autocomplete-Suggestions verwenden `<button type="button">` als List-Items (akzeptabel)
 - [x] Nur Level-3/4 Tokens verwendet (keine L1/L2)
 
 ## 2. Mobile-First Check (375px)
 
 **Screenshot (375px Viewport):**
-screenshot: .claude/screenshots/mobile-375-exercises.png
+screenshot: .claude/screenshots/mobile-375-exercise-edit.png
 
 **Befunde:**
-- Layout bricht nicht — Exercise-Name wraps korrekt (flex-wrap sm:flex-nowrap)
+- Layout bricht nicht — Set-Rows wrappen auf Mobile korrekt (3-Spalten + Status/Delete in Zeile 2)
 - Kein horizontaler Overflow
 - Text ist lesbar (min. 14px)
-- Set-Rows passen auf 375px mit NumberInput (+/-) + Status-Select + Trash
+- NumberInput-Werte (Reps, Weight) auf Mobile sichtbar und bedienbar
+- Labels "Übungsname" und "Kategorie" sichtbar auf beiden Seiten
 
 ## 3. Touch Targets
 
@@ -39,7 +40,8 @@ screenshot: .claude/screenshots/mobile-375-exercises.png
 **Verdict:** PASS
 
 **Anmerkungen:**
-- Erstell- und Bearbeitungsseite verwenden dieselbe ExerciseFormSection-Komponente
-- Visuell und funktional 100% identisch — Divergenz durch shared Component ausgeschlossen
-- Übungs-Autocomplete aus DB funktioniert in beiden Kontexten
-- 468 Zeilen duplizierter Code entfernt
+- Formular-Hintergründe: --color-input-bg (#fff) statt --color-bg-base (#e2e8f0)
+- Set-Row-Grid responsive: Mobile 3-Spalten mit Wrapping, Desktop 5-Spalten einzeilig
+- Labels für Übungsname und Kategorie ergänzt
+- hideTonnageSummary im Editor aktiviert
+- Button "Letztes Training übernehmen" wrapping-sicher

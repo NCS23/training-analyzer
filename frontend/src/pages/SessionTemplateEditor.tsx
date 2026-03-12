@@ -571,10 +571,9 @@ export function SessionTemplateEditorPage() {
                           placeholder="Übungsname (z.B. Kniebeugen)"
                           inputSize="md"
                         />
-                        {showSuggestions === exercise.id && (
-                          <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto">
-                            {' '}
-                            {/* // ds-ok */}
+                        {showSuggestions === exercise.id &&
+                          /* prettier-ignore */
+                          <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto"> {/* // ds-ok */}
                             {getFilteredSuggestions(exercise.name).map((ex) => (
                               <button
                                 key={ex.id}
@@ -596,8 +595,7 @@ export function SessionTemplateEditorPage() {
                                 Keine Übung gefunden.
                               </p>
                             )}
-                          </div>
-                        )}
+                          </div>}
                       </div>
 
                       {/* Category + Type selector */}
