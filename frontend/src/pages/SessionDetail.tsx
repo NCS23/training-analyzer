@@ -202,7 +202,8 @@ export function SessionDetailPage() {
               {editing.trainingTypeInfo?.effective && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="cursor-pointer"> {/* ds-ok: Radix PopoverTrigger asChild */}
+                    {/* prettier-ignore */}
+                    <button type="button" className="cursor-pointer">{/* ds-ok: Radix PopoverTrigger asChild */}
                       <Badge
                         variant={
                           trainingTypeBadgeVariant[editing.trainingTypeInfo.effective] ?? 'neutral'
