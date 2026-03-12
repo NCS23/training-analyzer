@@ -127,10 +127,8 @@ class SessionResponse(BaseModel):
         if model.exercises_json:
             exercises = json.loads(str(model.exercises_json))
 
-        model_date = model.date  # type: ignore[assignment]
-        session_date: date = (
-            model_date.date() if isinstance(model_date, datetime) else model_date  # type: ignore[assignment]
-        )
+        model_date = model.date
+        session_date: date = model_date.date() if isinstance(model_date, datetime) else model_date
 
         # Training Type Info
         training_type = None
@@ -140,9 +138,7 @@ class SessionResponse(BaseModel):
             training_type = TrainingTypeInfo(
                 auto=auto_type,
                 confidence=(
-                    int(model.training_type_confidence)  # type: ignore[arg-type]
-                    if model.training_type_confidence
-                    else None
+                    model.training_type_confidence if model.training_type_confidence else None
                 ),
                 override=override_type,
                 effective=override_type or auto_type,
@@ -152,30 +148,30 @@ class SessionResponse(BaseModel):
         segments = laps_to_segments(laps) if laps else None
 
         return cls(
-            id=int(model.id),  # type: ignore[arg-type]
+            id=model.id,
             date=session_date,
             workout_type=str(model.workout_type),
             subtype=model.subtype if model.subtype is None else str(model.subtype),
             training_type=training_type,
-            duration_sec=int(model.duration_sec) if model.duration_sec else None,  # type: ignore[arg-type]
-            distance_km=float(model.distance_km) if model.distance_km else None,  # type: ignore[arg-type]
+            duration_sec=model.duration_sec if model.duration_sec else None,
+            distance_km=model.distance_km if model.distance_km else None,
             pace=str(model.pace) if model.pace else None,
-            hr_avg=int(model.hr_avg) if model.hr_avg else None,  # type: ignore[arg-type]
-            hr_max=int(model.hr_max) if model.hr_max else None,  # type: ignore[arg-type]
-            hr_min=int(model.hr_min) if model.hr_min else None,  # type: ignore[arg-type]
-            cadence_avg=int(model.cadence_avg) if model.cadence_avg else None,  # type: ignore[arg-type]
+            hr_avg=model.hr_avg if model.hr_avg else None,
+            hr_max=model.hr_max if model.hr_max else None,
+            hr_min=model.hr_min if model.hr_min else None,
+            cadence_avg=model.cadence_avg if model.cadence_avg else None,
             notes=str(model.notes) if model.notes else None,
-            rpe=int(model.rpe) if model.rpe else None,  # type: ignore[arg-type]
+            rpe=model.rpe if model.rpe else None,
             laps=laps,
             segments=segments,
             hr_zones=hr_zones,
             exercises=exercises,
             has_gps=bool(model.has_gps),
-            planned_entry_id=int(model.planned_entry_id) if model.planned_entry_id else None,  # type: ignore[arg-type]
-            athlete_resting_hr=int(model.athlete_resting_hr) if model.athlete_resting_hr else None,  # type: ignore[arg-type]
-            athlete_max_hr=int(model.athlete_max_hr) if model.athlete_max_hr else None,  # type: ignore[arg-type]
-            created_at=model.created_at,  # type: ignore[arg-type]
-            updated_at=model.updated_at,  # type: ignore[arg-type]
+            planned_entry_id=model.planned_entry_id if model.planned_entry_id else None,
+            athlete_resting_hr=model.athlete_resting_hr if model.athlete_resting_hr else None,
+            athlete_max_hr=model.athlete_max_hr if model.athlete_max_hr else None,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
         )
 
 
@@ -196,10 +192,8 @@ class SessionListItem(BaseModel):
 
     @classmethod
     def from_db(cls, model: WorkoutModel) -> SessionListItem:
-        model_date = model.date  # type: ignore[assignment]
-        session_date: date = (
-            model_date.date() if isinstance(model_date, datetime) else model_date  # type: ignore[assignment]
-        )
+        model_date = model.date
+        session_date: date = model_date.date() if isinstance(model_date, datetime) else model_date
 
         # Training Type Info
         training_type = None
@@ -209,9 +203,7 @@ class SessionListItem(BaseModel):
             training_type = TrainingTypeInfo(
                 auto=auto_type,
                 confidence=(
-                    int(model.training_type_confidence)  # type: ignore[arg-type]
-                    if model.training_type_confidence
-                    else None
+                    model.training_type_confidence if model.training_type_confidence else None
                 ),
                 override=override_type,
                 effective=override_type or auto_type,
@@ -229,15 +221,15 @@ class SessionListItem(BaseModel):
             total_tonnage_kg = m["total_tonnage_kg"]
 
         return cls(
-            id=int(model.id),  # type: ignore[arg-type]
+            id=model.id,
             date=session_date,
             workout_type=str(model.workout_type),
             subtype=model.subtype if model.subtype is None else str(model.subtype),
             training_type=training_type,
-            duration_sec=int(model.duration_sec) if model.duration_sec else None,  # type: ignore[arg-type]
-            distance_km=float(model.distance_km) if model.distance_km else None,  # type: ignore[arg-type]
+            duration_sec=model.duration_sec if model.duration_sec else None,
+            distance_km=model.distance_km if model.distance_km else None,
             pace=str(model.pace) if model.pace else None,
-            hr_avg=int(model.hr_avg) if model.hr_avg else None,  # type: ignore[arg-type]
+            hr_avg=model.hr_avg if model.hr_avg else None,
             exercises_count=exercises_count,
             total_tonnage_kg=total_tonnage_kg,
         )

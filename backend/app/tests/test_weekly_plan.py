@@ -446,7 +446,7 @@ async def _create_workout(
     db.add(workout)
     await db.commit()
     await db.refresh(workout)
-    return int(workout.id)  # type: ignore[arg-type]
+    return workout.id
 
 
 @pytest.mark.anyio

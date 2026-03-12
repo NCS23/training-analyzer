@@ -38,14 +38,14 @@ class AthleteSettingsResponse(BaseModel):
         cls, model: AthleteModel, zones: Optional[list[dict]] = None
     ) -> AthleteSettingsResponse:
         return cls(
-            id=int(model.id),  # type: ignore[arg-type]
-            resting_hr=int(model.resting_hr) if model.resting_hr else None,  # type: ignore[arg-type]
-            max_hr=int(model.max_hr) if model.max_hr else None,  # type: ignore[arg-type]
+            id=model.id,
+            resting_hr=model.resting_hr if model.resting_hr else None,
+            max_hr=model.max_hr if model.max_hr else None,
             elevation_gain_factor=float(model.elevation_gain_factor)
             if model.elevation_gain_factor
-            else 10.0,  # type: ignore[arg-type]
+            else 10.0,
             elevation_loss_factor=float(model.elevation_loss_factor)
             if model.elevation_loss_factor
-            else 5.0,  # type: ignore[arg-type]
+            else 5.0,
             karvonen_zones=zones,
         )

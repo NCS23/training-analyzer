@@ -33,8 +33,8 @@ async def get_settings(
     zones = None
     if athlete.resting_hr and athlete.max_hr:
         zones = calculate_karvonen_zones(
-            int(athlete.resting_hr),  # type: ignore[arg-type]
-            int(athlete.max_hr),  # type: ignore[arg-type]
+            athlete.resting_hr,
+            athlete.max_hr,
         )
     return AthleteSettingsResponse.from_db(athlete, zones)
 
@@ -48,13 +48,13 @@ async def update_settings(
     athlete = await _get_or_create_athlete(db)
 
     if body.resting_hr is not None:
-        athlete.resting_hr = body.resting_hr  # type: ignore[assignment]
+        athlete.resting_hr = body.resting_hr
     if body.max_hr is not None:
-        athlete.max_hr = body.max_hr  # type: ignore[assignment]
+        athlete.max_hr = body.max_hr
     if body.elevation_gain_factor is not None:
-        athlete.elevation_gain_factor = body.elevation_gain_factor  # type: ignore[assignment]
+        athlete.elevation_gain_factor = body.elevation_gain_factor
     if body.elevation_loss_factor is not None:
-        athlete.elevation_loss_factor = body.elevation_loss_factor  # type: ignore[assignment]
+        athlete.elevation_loss_factor = body.elevation_loss_factor
 
     await db.commit()
     await db.refresh(athlete)
@@ -62,7 +62,7 @@ async def update_settings(
     zones = None
     if athlete.resting_hr and athlete.max_hr:
         zones = calculate_karvonen_zones(
-            int(athlete.resting_hr),  # type: ignore[arg-type]
-            int(athlete.max_hr),  # type: ignore[arg-type]
+            athlete.resting_hr,
+            athlete.max_hr,
         )
     return AthleteSettingsResponse.from_db(athlete, zones)

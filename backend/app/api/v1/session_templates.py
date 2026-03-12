@@ -42,15 +42,15 @@ def _model_to_response(tmpl: SessionTemplateModel) -> SessionTemplateResponse:
     run_details = _parse_run_details(str(tmpl.run_details_json) if tmpl.run_details_json else None)
 
     return SessionTemplateResponse(
-        id=int(tmpl.id),  # type: ignore[arg-type]
+        id=tmpl.id,
         name=str(tmpl.name),
         description=str(tmpl.description) if tmpl.description else None,
         session_type=str(tmpl.session_type),
         exercises=exercises,
         run_details=run_details,
         is_template=bool(tmpl.is_template),
-        created_at=tmpl.created_at,  # type: ignore[arg-type]
-        updated_at=tmpl.updated_at,  # type: ignore[arg-type]
+        created_at=tmpl.created_at,
+        updated_at=tmpl.updated_at,
     )
 
 
@@ -66,14 +66,14 @@ def _model_to_summary(tmpl: SessionTemplateModel) -> SessionTemplateSummary:
             run_type = run_details.run_type
 
     return SessionTemplateSummary(
-        id=int(tmpl.id),  # type: ignore[arg-type]
+        id=tmpl.id,
         name=str(tmpl.name),
         session_type=str(tmpl.session_type),
         exercise_count=len(exercises),
         total_sets=sum(ex.get("sets", 0) for ex in exercises),
         run_type=run_type,
-        created_at=tmpl.created_at,  # type: ignore[arg-type]
-        updated_at=tmpl.updated_at,  # type: ignore[arg-type]
+        created_at=tmpl.created_at,
+        updated_at=tmpl.updated_at,
     )
 
 
@@ -170,13 +170,13 @@ async def update_template(
         raise HTTPException(status_code=404, detail="Template nicht gefunden")
 
     if data.name is not None:
-        tmpl.name = data.name  # type: ignore[assignment]
+        tmpl.name = data.name
     if data.description is not None:
-        tmpl.description = data.description  # type: ignore[assignment]
+        tmpl.description = data.description
     if data.exercises is not None:
-        tmpl.exercises_json = json.dumps([ex.model_dump() for ex in data.exercises])  # type: ignore[assignment]
+        tmpl.exercises_json = json.dumps([ex.model_dump() for ex in data.exercises])
     if data.run_details is not None:
-        tmpl.run_details_json = json.dumps(data.run_details.model_dump())  # type: ignore[assignment]
+        tmpl.run_details_json = json.dumps(data.run_details.model_dump())
 
     await db.commit()
     await db.refresh(tmpl)

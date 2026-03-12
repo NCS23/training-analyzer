@@ -50,7 +50,7 @@ def _ensure_columns_exist(conn):
                 # columns can be added to tables that already have rows.
                 default_clause = ""
                 if col.server_default is not None and hasattr(col.server_default, "arg"):
-                    default_text = getattr(col.server_default.arg, "text", col.server_default.arg)  # type: ignore[union-attr]
+                    default_text = getattr(col.server_default.arg, "text", col.server_default.arg)
                     raw = str(default_text)
                     # Quote string defaults for PostgreSQL (booleans/numbers are fine unquoted)
                     if (

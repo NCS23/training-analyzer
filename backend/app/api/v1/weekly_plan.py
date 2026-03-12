@@ -66,7 +66,7 @@ async def _get_template_names(
             SessionTemplateModel.id.in_(template_ids)
         )
     )
-    return {row.id: str(row.name) for row in result.all()}  # type: ignore[union-attr]
+    return {row.id: str(row.name) for row in result.all()}
 
 
 async def _get_template_exercise_counts(
@@ -83,15 +83,15 @@ async def _get_template_exercise_counts(
     )
     counts: dict[int, int] = {}
     for row in result.all():
-        ex_json = row.exercises_json  # type: ignore[union-attr]
+        ex_json = row.exercises_json
         if ex_json:
             try:
                 exercises = json.loads(str(ex_json))
-                counts[row.id] = len(exercises)  # type: ignore[union-attr]
+                counts[row.id] = len(exercises)
             except (json.JSONDecodeError, TypeError):
-                counts[row.id] = 0  # type: ignore[union-attr]
+                counts[row.id] = 0
         else:
-            counts[row.id] = 0  # type: ignore[union-attr]
+            counts[row.id] = 0
     return counts
 
 
@@ -132,7 +132,7 @@ async def _load_days_with_sessions(
     if not days:
         return {}
 
-    day_ids = [int(d.id) for d in days.values()]  # type: ignore[arg-type]
+    day_ids = [d.id for d in days.values()]
     session_result = await db.execute(
         select(PlannedSessionModel)
         .where(PlannedSessionModel.day_id.in_(day_ids))
@@ -150,7 +150,7 @@ async def _load_days_with_sessions(
 
     result: dict[int, tuple[WeeklyPlanDayModel, list[PlannedSessionModel]]] = {}
     for dow, day in days.items():
-        day_id = int(day.id)  # type: ignore[arg-type]
+        day_id = day.id
         result[dow] = (day, sessions_by_day_id.get(day_id, []))
 
     return result
@@ -170,10 +170,10 @@ def _build_entry_from_db(
     for s in sessions:
         run_details = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
         exercises = _parse_exercises(str(s.exercises_json) if s.exercises_json else None)
-        tid = int(s.template_id) if s.template_id else None
+        tid = s.template_id if s.template_id else None
         session_list.append(
             PlannedSession(
-                id=int(s.id),  # type: ignore[arg-type]
+                id=s.id,
                 position=int(s.position),
                 training_type=str(s.training_type),
                 template_id=tid,
@@ -213,7 +213,7 @@ async def get_weekly_plan(
     for _day, sessions in days_data.values():
         for s in sessions:
             if s.template_id is not None:
-                template_ids.append(int(s.template_id))
+                template_ids.append(s.template_id)
     template_names = await _get_template_names(db, template_ids)
 
     # Build full 7-day response
@@ -386,7 +386,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
         edited = False
 
         if old_day and old_day.plan_id:
-            plan_id = int(old_day.plan_id)
+            plan_id = old_day.plan_id
             edited = (
                 True if _has_content_changed(old_day, old_sessions, entry) else bool(old_day.edited)
             )
@@ -431,7 +431,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
         old_sessions = old[1] if old else []
 
         if old_day and old_day.plan_id and _has_content_changed(old_day, old_sessions, entry):
-            pid = int(old_day.plan_id)
+            pid = old_day.plan_id
             day_changes = _diff_day_entry(old_day, old_sessions, entry)
             if day_changes:
                 if pid not in changed_plan_days:
@@ -482,7 +482,7 @@ async def clear_weekly_plan(
     days = day_result.scalars().all()
 
     if days:
-        day_ids = [int(d.id) for d in days]  # type: ignore[arg-type]
+        day_ids = [d.id for d in days]
         session_result = await db.execute(
             select(PlannedSessionModel).where(PlannedSessionModel.day_id.in_(day_ids))
         )
@@ -577,10 +577,9 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
     # Group workouts by day_of_week
     workouts_by_day: dict[int, list[WorkoutModel]] = {d: [] for d in range(7)}
     for w in all_workouts:
-        workout_date = w.date
-        if isinstance(workout_date, datetime):
-            workout_date = workout_date.date()
-        day_idx = (workout_date - week_start).days  # type: ignore[operator]
+        workout_dt = w.date
+        w_date = workout_dt.date() if isinstance(workout_dt, datetime) else workout_dt
+        day_idx = (w_date - week_start).days
         if 0 <= day_idx <= 6:
             workouts_by_day[day_idx].append(w)
 
@@ -591,7 +590,7 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
     for _dow, (_day, db_sessions) in days_data.items():
         for s in db_sessions:
             if str(s.training_type) == "strength" and s.template_id:
-                tid = int(s.template_id)
+                tid = s.template_id
                 strength_template_ids.append(tid)
 
     template_names = await _get_template_names(db, strength_template_ids)
@@ -600,9 +599,9 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
     for _dow, (_day, db_sessions) in days_data.items():
         for s in db_sessions:
             if str(s.training_type) == "strength":
-                s_tid: Optional[int] = int(s.template_id) if s.template_id else None
-                tname = template_names.get(s_tid) if s_tid else None  # type: ignore[arg-type]
-                planned_session_template_map[int(s.id)] = (tname or "", s_tid)  # type: ignore[arg-type]
+                s_tid: Optional[int] = s.template_id if s.template_id else None
+                tname = template_names.get(s_tid) if s_tid else None
+                planned_session_template_map[s.id] = (tname or "", s_tid)
 
     # Build compliance entries
     entries: list[ComplianceDayEntry] = []
@@ -635,7 +634,7 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
                         planned_run_type = rd.run_type
                 # #149: First planned strength session's template info
                 if str(s.training_type) == "strength" and planned_template_name is None:
-                    p_tid: Optional[int] = int(s.template_id) if s.template_id else None
+                    p_tid: Optional[int] = s.template_id if s.template_id else None
                     if p_tid:
                         planned_template_name = template_names.get(p_tid)
                         planned_exercise_count = template_exercise_counts.get(p_tid)
@@ -668,19 +667,19 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
 
             # Resolve template name via planned_entry_id
             if w.planned_entry_id:
-                entry_id = int(w.planned_entry_id)  # type: ignore[arg-type]
+                entry_id = w.planned_entry_id
                 if entry_id in planned_session_template_map:
                     tpl_name = planned_session_template_map[entry_id][0] or None
 
             actual.append(
                 ActualSession(
-                    session_id=int(w.id),  # type: ignore[arg-type]
+                    session_id=w.id,
                     workout_type=str(w.workout_type),
                     training_type_effective=_effective_training_type(w),
                     duration_sec=int(w.duration_sec) if w.duration_sec else None,
                     distance_km=float(w.distance_km) if w.distance_km else None,
                     pace=str(w.pace) if w.pace else None,
-                    planned_entry_id=int(w.planned_entry_id) if w.planned_entry_id else None,  # type: ignore[arg-type]
+                    planned_entry_id=w.planned_entry_id if w.planned_entry_id else None,
                     total_tonnage_kg=tonnage_kg,
                     exercise_count=ex_count,
                     set_count=set_count,
@@ -798,16 +797,16 @@ async def get_sessions_for_date(
     sessions = session_result.scalars().all()
 
     # Get template names
-    template_ids = [int(s.template_id) for s in sessions if s.template_id]
+    template_ids = [s.template_id for s in sessions if s.template_id]
     template_names = await _get_template_names(db, template_ids)
 
     result: list[PlannedSessionOption] = []
     for s in sessions:
         rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
-        tid = int(s.template_id) if s.template_id else None
+        tid = s.template_id if s.template_id else None
         result.append(
             PlannedSessionOption(
-                id=int(s.id),  # type: ignore[arg-type]
+                id=s.id,
                 training_type=str(s.training_type),
                 run_type=rd.run_type if rd else None,
                 template_name=template_names.get(tid) if tid else None,
@@ -843,13 +842,13 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
 
     # Compute plan-relative week number (1-indexed)
     plan_start = plan.start_date
-    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())  # type: ignore[operator]
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())
     week_number = ((week_start - plan_start_monday).days // 7) + 1
 
     # Find phase for this week
     phase: TrainingPhaseModel | None = None
     for p in phases:
-        if int(p.start_week) <= week_number <= int(p.end_week):  # type: ignore[arg-type]
+        if int(p.start_week) <= week_number <= int(p.end_week):
             phase = p
             break
 
@@ -867,7 +866,7 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     for _, (_, db_sessions) in days_data.items():
         for s in db_sessions:
             if s.template_id:
-                sync_template_ids.append(int(s.template_id))
+                sync_template_ids.append(s.template_id)
     sync_template_names = await _get_template_names(db, sync_template_ids)
 
     # Build PhaseWeeklyTemplate from weekly plan (multi-session)
@@ -881,7 +880,7 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
                 for s in db_sessions:
                     rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
                     ex = _parse_exercises(str(s.exercises_json) if s.exercises_json else None)
-                    s_tid = int(s.template_id) if s.template_id else None
+                    s_tid = s.template_id if s.template_id else None
                     template_sessions.append(
                         PhaseWeeklyTemplateSessionEntry(
                             position=int(s.position),
@@ -914,13 +913,13 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     template = PhaseWeeklyTemplate(days=template_days)
 
     # Compute week key within phase (1-indexed)
-    week_in_phase = week_number - int(phase.start_week)  # type: ignore[arg-type]
+    week_in_phase = week_number - phase.start_week
     week_key = str(week_in_phase + 1)
 
     # Update phase template
     template_dict = template.model_dump()
     if data.apply_to_all_weeks:
-        phase.weekly_template_json = json.dumps(template_dict)  # type: ignore[assignment]
+        phase.weekly_template_json = json.dumps(template_dict)
     else:
         existing_overrides: dict[str, object] = {}
         if phase.weekly_templates_json:
@@ -930,12 +929,12 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             except (json.JSONDecodeError, ValueError):
                 pass
         existing_overrides[week_key] = template_dict
-        phase.weekly_templates_json = json.dumps({"weeks": existing_overrides})  # type: ignore[assignment]
+        phase.weekly_templates_json = json.dumps({"weeks": existing_overrides})
 
     # Reset edited flag on synced days
     for _dow, (db_day, _sessions) in days_data.items():
         if db_day.plan_id and int(db_day.plan_id) == data.plan_id:
-            db_day.edited = False  # type: ignore[assignment]
+            db_day.edited = False
 
     await log_plan_change(
         db,
@@ -955,7 +954,7 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     await db.commit()
 
     return SyncToPlanResponse(
-        phase_id=int(phase.id),  # type: ignore[arg-type]
+        phase_id=phase.id,
         phase_name=str(phase.name),
         week_key=week_key,
         apply_to_all_weeks=data.apply_to_all_weeks,

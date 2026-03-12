@@ -7,7 +7,7 @@ fully populated WeeklyPlanEntry data with RunDetails.
 import json
 import math
 from datetime import date, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from app.infrastructure.database.models import RaceGoalModel, TrainingPhaseModel, TrainingPlanModel
 from app.models.segment import Segment
@@ -20,7 +20,7 @@ from app.models.weekly_plan import PlannedSession, RunDetails, WeeklyPlanEntry
 # run_types: list of run types to distribute across available days.
 # strength: default number of strength sessions per week.
 # long_run_volume_pct: percentage of weekly volume for the long run.
-PHASE_DEFAULTS: dict[str, dict] = {  # type: ignore[type-arg]
+PHASE_DEFAULTS: dict[str, dict[str, Any]] = {
     "base": {
         "run_types": ["easy", "easy", "easy", "long_run"],
         "strength": 2,
@@ -87,17 +87,17 @@ def _get_phase_for_week(
 ) -> Optional[TrainingPhaseModel]:
     """Find the phase covering a given week number."""
     for phase in phases:
-        if int(phase.start_week) <= week_number <= int(phase.end_week):  # type: ignore[arg-type]
+        if phase.start_week <= week_number <= phase.end_week:
             return phase
     return None
 
 
-def _parse_target_metrics(phase: TrainingPhaseModel) -> dict:  # type: ignore[type-arg]
+def _parse_target_metrics(phase: TrainingPhaseModel) -> dict[str, Any]:
     """Parse phase target_metrics_json into a dict."""
     if not phase.target_metrics_json:
         return {}
     try:
-        return json.loads(str(phase.target_metrics_json))  # type: ignore[no-any-return]
+        return json.loads(str(phase.target_metrics_json))
     except (json.JSONDecodeError, ValueError):
         return {}
 
@@ -428,8 +428,8 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
         metrics = _parse_target_metrics(phase)
 
         # Compute week position within phase (needed for per-week templates + volume)
-        phase_start_week = int(phase.start_week)  # type: ignore[arg-type]
-        phase_end_week = int(phase.end_week)  # type: ignore[arg-type]
+        phase_start_week = phase.start_week
+        phase_end_week = phase.end_week
         phase_duration = max(1, phase_end_week - phase_start_week + 1)
         week_in_phase = week_number - phase_start_week  # 0-indexed
 

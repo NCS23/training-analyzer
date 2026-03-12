@@ -16,7 +16,7 @@ VALID_RAW: dict[str, Any] = {
 }
 
 
-def _has_code(issues: list, code: str) -> bool:  # type: ignore[type-arg]
+def _has_code(issues: list[Any], code: str) -> bool:
     return any(i.code == code for i in issues)
 
 
@@ -751,8 +751,8 @@ class TestIntervalNewFieldsValidation:
 
 
 def _minimal_plan(
-    intervals: list[dict],  # type: ignore[type-arg]
-) -> dict:  # type: ignore[type-arg]
+    intervals: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Helper: create a minimal valid plan dict with given intervals."""
     return {
         "name": "Test",

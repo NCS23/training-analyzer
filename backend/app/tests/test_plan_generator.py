@@ -2,7 +2,7 @@
 
 import json
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 from httpx import AsyncClient
@@ -30,14 +30,14 @@ from app.services.plan_generator import (
 # --- Helpers ---
 
 
-def _first_run_details(entry):  # type: ignore[no-untyped-def]
+def _first_run_details(entry: Any) -> Any:
     """Get run_details from the first session of an entry (or None)."""
     if entry.sessions:
         return entry.sessions[0].run_details
     return None
 
 
-def _first_training_type(entry):  # type: ignore[no-untyped-def]
+def _first_training_type(entry: Any) -> Optional[str]:
     """Get training_type from the first session of an entry (or None)."""
     if entry.sessions:
         return entry.sessions[0].training_type
@@ -72,8 +72,8 @@ def _make_phase(
     phase_type: str = "base",
     start_week: int = 1,
     end_week: int = 4,
-    metrics: Optional[dict] = None,
-    weekly_template: Optional[dict] = None,
+    metrics: Optional[dict[str, Any]] = None,
+    weekly_template: Optional[dict[str, Any]] = None,
 ) -> TrainingPhaseModel:
     phase = TrainingPhaseModel(
         training_plan_id=plan_id,
@@ -433,22 +433,22 @@ async def test_generate_basic(db_session: AsyncSession) -> None:
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         6,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 30,
             "weekly_volume_max": 45,
         },
     )
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "build",
         7,
         12,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 40,
             "weekly_volume_max": 55,
         },
@@ -482,16 +482,16 @@ async def test_generate_with_goal_pace(db_session: AsyncSession) -> None:
     goal = _make_goal(db_session)
     await db_session.flush()
 
-    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=int(goal.id))  # type: ignore[arg-type]
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=goal.id)
     await db_session.flush()
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         4,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 30,
             "weekly_volume_max": 40,
         },
@@ -532,11 +532,11 @@ async def test_generate_without_goal(db_session: AsyncSession) -> None:
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         4,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 30,
             "weekly_volume_max": 40,
         },
@@ -574,11 +574,11 @@ async def test_generate_volume_progression(db_session: AsyncSession) -> None:
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         12,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 20,
             "weekly_volume_max": 50,
         },
@@ -625,11 +625,11 @@ async def test_generate_phase_type_sessions(db_session: AsyncSession) -> None:
     # Peak phase should have intervals + tempo
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "peak",
         1,
         4,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 45,
             "weekly_volume_max": 55,
         },
@@ -684,11 +684,11 @@ async def test_generate_with_template(db_session: AsyncSession) -> None:
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "build",
         1,
         4,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 30,
             "weekly_volume_max": 40,
         },
@@ -730,16 +730,16 @@ async def test_generate_template_with_volume(db_session: AsyncSession) -> None:
     goal = _make_goal(db_session)
     await db_session.flush()
 
-    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=int(goal.id))  # type: ignore[arg-type]
+    plan = _make_plan(db_session, start="2026-04-06", end="2026-05-03", goal_id=goal.id)
     await db_session.flush()
 
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "build",
         1,
         4,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 35,
             "weekly_volume_max": 45,
         },
@@ -786,11 +786,11 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
     # Phase 1: with template
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         6,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 30,
             "weekly_volume_max": 40,
         },
@@ -799,11 +799,11 @@ async def test_generate_mixed_phases(db_session: AsyncSession) -> None:
     # Phase 2: without template (fallback to PHASE_DEFAULTS)
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "build",
         7,
         12,
-        {  # type: ignore[arg-type]
+        {
             "weekly_volume_min": 40,
             "weekly_volume_max": 55,
         },
@@ -981,7 +981,7 @@ async def test_generate_preserves_template_run_details(db_session: AsyncSession)
     }
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         3,
@@ -1045,7 +1045,7 @@ async def test_generate_fills_skeleton_run_details(db_session: AsyncSession) -> 
     }
     _make_phase(
         db_session,
-        int(plan.id),
+        plan.id,
         "base",
         1,
         2,

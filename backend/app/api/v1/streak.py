@@ -54,6 +54,7 @@ async def get_streak(
 
     # Compute longest streak ever
     longest_streak = 0
+    last_date: str | None = None
     if training_dates:
         sorted_dates = sorted(training_dates.keys())
         streak = 1
@@ -64,9 +65,7 @@ async def get_streak(
                 longest_streak = max(longest_streak, streak)
                 streak = 1
         longest_streak = max(longest_streak, streak)
-
-    # Last training date
-    last_date = sorted_dates[-1].isoformat() if training_dates else None  # type: ignore[possibly-undefined]
+        last_date = sorted_dates[-1].isoformat()
 
     # Streak at risk: had training yesterday but not today
     streak_at_risk = (

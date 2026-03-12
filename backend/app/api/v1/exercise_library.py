@@ -439,7 +439,7 @@ async def _ensure_seed_data(db: AsyncSession) -> None:  # noqa: PLR0912  # TODO:
     for exercise in result_all.scalars().all():
         new_name = _NAME_MIGRATION.get(str(exercise.name))
         if new_name:
-            exercise.name = new_name  # type: ignore[assignment]
+            exercise.name = new_name
             changed = True
 
     if changed:
@@ -481,15 +481,15 @@ async def _ensure_seed_data(db: AsyncSession) -> None:  # noqa: PLR0912  # TODO:
 
 def _apply_enrichment(model: ExerciseModel, enrichment: dict[str, Optional[str]]) -> None:
     """Apply enrichment data to an ExerciseModel."""
-    model.instructions_json = enrichment.get("instructions_json")  # type: ignore[assignment]
-    model.primary_muscles_json = enrichment.get("primary_muscles_json")  # type: ignore[assignment]
-    model.secondary_muscles_json = enrichment.get("secondary_muscles_json")  # type: ignore[assignment]
-    model.image_urls_json = enrichment.get("image_urls_json")  # type: ignore[assignment]
-    model.equipment = enrichment.get("equipment")  # type: ignore[assignment]
-    model.level = enrichment.get("level")  # type: ignore[assignment]
-    model.force = enrichment.get("force")  # type: ignore[assignment]
-    model.mechanic = enrichment.get("mechanic")  # type: ignore[assignment]
-    model.exercise_db_id = enrichment.get("exercise_db_id")  # type: ignore[assignment]
+    model.instructions_json = enrichment.get("instructions_json")
+    model.primary_muscles_json = enrichment.get("primary_muscles_json")
+    model.secondary_muscles_json = enrichment.get("secondary_muscles_json")
+    model.image_urls_json = enrichment.get("image_urls_json")
+    model.equipment = enrichment.get("equipment")
+    model.level = enrichment.get("level")
+    model.force = enrichment.get("force")
+    model.mechanic = enrichment.get("mechanic")
+    model.exercise_db_id = enrichment.get("exercise_db_id")
 
 
 @router.get("", response_model=ExerciseListResponse)
@@ -668,7 +668,7 @@ async def update_exercise(
                 status_code=409,
                 detail="Übung mit diesem Namen existiert bereits.",
             )
-        exercise.name = body.name  # type: ignore[assignment]
+        exercise.name = body.name
 
     if body.category is not None:
         if body.category not in VALID_CATEGORIES:
@@ -676,25 +676,25 @@ async def update_exercise(
                 status_code=400,
                 detail=f"Ungültige Kategorie. Erlaubt: {', '.join(sorted(VALID_CATEGORIES))}",
             )
-        exercise.category = body.category  # type: ignore[assignment]
+        exercise.category = body.category
 
     if body.is_favorite is not None:
-        exercise.is_favorite = body.is_favorite  # type: ignore[assignment]
+        exercise.is_favorite = body.is_favorite
 
     if body.instructions is not None:
-        exercise.instructions_json = json.dumps(body.instructions)  # type: ignore[assignment]
+        exercise.instructions_json = json.dumps(body.instructions)
 
     if body.primary_muscles is not None:
-        exercise.primary_muscles_json = json.dumps(body.primary_muscles)  # type: ignore[assignment]
+        exercise.primary_muscles_json = json.dumps(body.primary_muscles)
 
     if body.secondary_muscles is not None:
-        exercise.secondary_muscles_json = json.dumps(body.secondary_muscles)  # type: ignore[assignment]
+        exercise.secondary_muscles_json = json.dumps(body.secondary_muscles)
 
     if body.level is not None:
-        exercise.level = body.level  # type: ignore[assignment]
+        exercise.level = body.level
 
     if body.equipment is not None:
-        exercise.equipment = body.equipment  # type: ignore[assignment]
+        exercise.equipment = body.equipment
 
     await db.commit()
     await db.refresh(exercise)
@@ -713,7 +713,7 @@ async def toggle_favorite(
     if not exercise:
         raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
 
-    exercise.is_favorite = not exercise.is_favorite  # type: ignore[assignment]
+    exercise.is_favorite = not exercise.is_favorite
     await db.commit()
     await db.refresh(exercise)
 

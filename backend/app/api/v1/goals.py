@@ -42,7 +42,7 @@ async def _get_plan_summary(
     if not row:
         return None
     return TrainingPlanSummaryForGoal(
-        id=int(row.id),  # type: ignore[arg-type]
+        id=int(row.id),
         name=str(row.name),
         status=str(row.status),
     )
@@ -53,7 +53,7 @@ async def _goal_to_response(
     goal: RaceGoalModel,
 ) -> RaceGoalResponse:
     """Build RaceGoalResponse with optional plan summary."""
-    tp_id = int(goal.training_plan_id) if goal.training_plan_id else None  # type: ignore[arg-type]
+    tp_id = goal.training_plan_id if goal.training_plan_id else None
     plan_summary = await _get_plan_summary(db, tp_id)
     return RaceGoalResponse.from_db(goal, plan_summary=plan_summary)
 
@@ -121,15 +121,15 @@ async def update_goal(
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden.")
 
     if body.title is not None:
-        goal.title = body.title  # type: ignore[assignment]
+        goal.title = body.title
     if body.race_date is not None:
-        goal.race_date = datetime.combine(body.race_date, datetime.min.time())  # type: ignore[assignment]
+        goal.race_date = datetime.combine(body.race_date, datetime.min.time())
     if body.distance_km is not None:
-        goal.distance_km = body.distance_km  # type: ignore[assignment]
+        goal.distance_km = body.distance_km
     if body.target_time_seconds is not None:
-        goal.target_time_seconds = body.target_time_seconds  # type: ignore[assignment]
+        goal.target_time_seconds = body.target_time_seconds
     if body.is_active is not None:
-        goal.is_active = body.is_active  # type: ignore[assignment]
+        goal.is_active = body.is_active
 
     await db.commit()
     await db.refresh(goal)
@@ -193,8 +193,8 @@ async def get_goal_progress(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refact
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden.")
 
     goal_response = await _goal_to_response(db, goal)
-    distance = float(goal.distance_km)  # type: ignore[arg-type]
-    target_secs = int(goal.target_time_seconds)  # type: ignore[arg-type]
+    distance = goal.distance_km
+    target_secs = goal.target_time_seconds
     target_pace_sec = target_secs / distance if distance > 0 else 0
 
     # Fetch recent running sessions (last 8 weeks for trend) with pace data

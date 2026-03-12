@@ -30,9 +30,9 @@ async def sync_exercises_from_session(
         existing = result.scalar_one_or_none()
 
         if existing:
-            existing.usage_count = (existing.usage_count or 0) + 1  # type: ignore[assignment]
+            existing.usage_count = (existing.usage_count or 0) + 1
             if session_date:
-                existing.last_used_at = session_date  # type: ignore[assignment]
+                existing.last_used_at = session_date
         else:
             db.add(
                 ExerciseModel(

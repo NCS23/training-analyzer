@@ -29,7 +29,9 @@ class ClaudeProvider(AIProvider):
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            return response.content[0].text  # type: ignore[union-attr]
+            return response.content[
+                0
+            ].text  # Anthropic SDK: ContentBlock.text may not exist on all variants
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
 
@@ -46,7 +48,9 @@ class ClaudeProvider(AIProvider):
                 messages=[{"role": "user", "content": message}],
             )
 
-            return response.content[0].text  # type: ignore[union-attr]
+            return response.content[
+                0
+            ].text  # Anthropic SDK: ContentBlock.text may not exist on all variants
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
 
