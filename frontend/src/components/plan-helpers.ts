@@ -44,7 +44,7 @@ export const STATUS_BADGE_VARIANTS: Record<PlanStatus, 'neutral' | 'info' | 'suc
     paused: 'warning',
   };
 
-export const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+export { DAY_LABELS } from '@/constants/plan';
 
 export function formatDateDE(d: Date | string | undefined | null): string {
   if (!d) return '—';

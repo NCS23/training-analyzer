@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@nordlig/components';
-
-const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+import { DAY_LABELS } from '@/constants/plan';
 
 interface MoveSessionDialogProps {
   open: boolean;

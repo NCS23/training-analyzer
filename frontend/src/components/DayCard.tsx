@@ -53,6 +53,7 @@ import type {
 import type { Segment } from '@/api/segment';
 import { createEmptySegment } from '@/api/segment';
 import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
+import { DAY_LABELS, RUN_TYPE_LABELS, SESSION_TYPE_OPTIONS } from '@/constants/plan';
 import { lapTypeLabels } from '@/constants/training';
 import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
@@ -63,20 +64,6 @@ import { StrengthExerciseEditor } from './StrengthExerciseEditor';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
 
 // --- Constants ---
-
-const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-const RUN_TYPE_LABELS: Record<string, string> = {
-  recovery: 'Regeneration',
-  easy: 'Lockerer Lauf',
-  long_run: 'Langer Lauf',
-  progression: 'Steigerungslauf',
-  tempo: 'Tempolauf',
-  intervals: 'Intervalle',
-  repetitions: 'Repetitions',
-  fartlek: 'Fahrtspiel',
-  race: 'Wettkampf',
-};
 
 const RUN_TYPE_OPTIONS = [
   { value: 'recovery', label: 'Regeneration' },
@@ -95,11 +82,6 @@ const INITIAL_TYPE_OPTIONS = [
   { value: 'running', label: 'Laufen' },
   { value: 'strength', label: 'Kraft' },
   { value: 'rest', label: 'Ruhetag' },
-];
-
-const SESSION_TYPE_OPTIONS = [
-  { value: 'running', label: 'Laufen' },
-  { value: 'strength', label: 'Kraft' },
 ];
 
 const MAX_SESSIONS = 3;

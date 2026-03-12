@@ -32,6 +32,15 @@ export const trainingTypeOptions = Object.entries(trainingTypeLabels).map(([valu
   label,
 }));
 
+export const CATEGORY_LABELS: Record<string, string> = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Beine',
+  core: 'Core',
+  cardio: 'Cardio',
+  drills: 'Lauf-ABC',
+};
+
 export const categoryBadgeVariant: Record<string, BadgeVariant> = {
   push: 'accent-bold',
   pull: 'primary',
