@@ -125,7 +125,7 @@ if [ -n "$CHANGED_TSX" ]; then
   # Hardcoded shadows
   for f in $CHANGED_TSX; do
     if [ -f "${REPO_ROOT}/${f}" ]; then
-      HITS=$(grep -nE 'shadow-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' || true)
+      HITS=$(grep -nE 'shadow-(sm|md|lg|xl|2xl)' "${REPO_ROOT}/${f}" 2>/dev/null | grep -v '// ds-ok' | grep -v 'var(--shadow' || true)
       if [ -n "$HITS" ]; then
         echo "  Hardcoded shadows in $f:"
         echo "$HITS" | while read -r line; do echo "    $line"; done
