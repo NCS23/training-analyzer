@@ -14,6 +14,10 @@ export const RUN_TYPE_LABELS: Record<string, string> = {
   race: 'Wettkampf',
 };
 
+export const RUN_TYPE_OPTIONS: { value: string; label: string }[] = Object.entries(
+  RUN_TYPE_LABELS,
+).map(([value, label]) => ({ value, label }));
+
 export const SESSION_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'running', label: 'Laufen' },
   { value: 'strength', label: 'Kraft' },
