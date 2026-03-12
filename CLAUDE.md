@@ -6,6 +6,7 @@
 - [DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) — UX & Design Review Checkliste
 - [DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) — Domänenmodell (15 Entities, 200+ Felder)
 - [TRAINING_CONTEXT.md](docs/TRAINING_CONTEXT.md) — Trainingskontext (HM Sub-2h)
+- [CLEAN_CODE.md](docs/CLEAN_CODE.md) — Clean Code & SOLID Regeln
 
 ---
 
@@ -34,7 +35,8 @@ Vor der ersten Zeile Code:
 1. **PROJEKT_REGELN.md lesen** — Mobile-First, Nordlig DS, API-Design, Testing
 2. **DESIGN_REVIEW.md lesen** — 5 Säulen, 7 Kriterien, Nordlig-Heuristik
 3. **DOMAIN_MODEL.md lesen** — Entities und deren Beziehungen verstehen
-4. Bei UI-Änderungen: relevante Nordlig DS Komponenten in Storybook prüfen
+4. **CLEAN_CODE.md lesen** — Clean Code & SOLID Regeln, Grenzwerte
+5. Bei UI-Änderungen: relevante Nordlig DS Komponenten in Storybook prüfen
 
 ### Phase 1: Issue & Branch
 
@@ -63,6 +65,13 @@ Vor der ersten Zeile Code:
 **Für beide:**
 - Kleine, fokussierte Commits
 - Tests MÜSSEN vor dem Commit grün sein
+- **Clean Code Regeln einhalten (CLEAN_CODE.md):**
+  - Funktionen < 80 Zeilen (hart: < 150)
+  - Komponenten < 500 Zeilen
+  - Max 5 Parameter pro Funktion (sonst Parameter-Objekt)
+  - Cyclomatic Complexity < 10 (hart: < 15)
+  - Keine Code-Duplikation (DRY)
+  - Single Responsibility: Eine Klasse/Komponente = ein Grund sich zu ändern
 
 ### Phase 3: Quality Gates
 
@@ -186,6 +195,14 @@ gh api repos/NCS23/training-analyzer/issues -X POST \
 - ❌ Synchrone DB-Operationen → ✅ Async
 - ❌ Hardcodierte Konfiguration → ✅ Pydantic Settings / Environment
 
+### Clean Code (beide)
+- ❌ Funktion > 80 Zeilen → ✅ In Hilfsfunktionen aufbrechen
+- ❌ > 5 Parameter → ✅ Parameter-Objekt (DTO / Props Interface)
+- ❌ Duplizierter Code → ✅ Extrahieren und importieren
+- ❌ God-Component > 500 Zeilen → ✅ Custom Hooks + Sub-Components
+- ❌ 10+ useState in einer Komponente → ✅ useReducer oder Custom Hooks
+- ❌ Neues `# type: ignore` / `// eslint-disable` / `# noqa` ohne Begründung → ✅ Problem lösen
+
 ---
 
 ## Definition of Done
@@ -200,6 +217,9 @@ Ein Feature ist DONE wenn:
 - [ ] Mobile-First geprüft (375px iPhone SE)
 - [ ] Touch-Targets >= 44×44px
 - [ ] Nordlig DS Komponenten verwendet (keine eigenen Primitives)
+- [ ] Clean Code: Keine neue Funktion > 80 Zeilen, keine neue Komponente > 500 Zeilen
+- [ ] Clean Code: Keine neuen `# type: ignore`, `// eslint-disable`, `# noqa` ohne Begründung
+- [ ] Clean Code: Keine duplizierten Konstanten/Logik
 - [ ] CI-Pipeline grün
 - [ ] GitHub Issue kommentiert und geschlossen
 
