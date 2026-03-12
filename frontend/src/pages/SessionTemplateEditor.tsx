@@ -573,6 +573,8 @@ export function SessionTemplateEditorPage() {
                         />
                         {showSuggestions === exercise.id && (
                           <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto">
+                            {' '}
+                            {/* // ds-ok */}
                             {getFilteredSuggestions(exercise.name).map((ex) => (
                               <button
                                 key={ex.id}

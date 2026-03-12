@@ -4,7 +4,7 @@
  * Enthält: Exercise-Name mit DB-Autocomplete, Category-Select, Set-Rows, CRUD-Buttons.
  */
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Button, Input, NumberInput, Select } from '@nordlig/components';
+import { Button, Input, Label, NumberInput, Select } from '@nordlig/components';
 import { Plus, Trash2 } from 'lucide-react';
 import {
   calculateTonnage,
@@ -212,11 +212,14 @@ export function ExerciseFormSection({
             className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-4 space-y-4"
           >
             {/* Exercise name + category + delete */}
-            <div className="flex items-start gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex items-end gap-2 flex-wrap sm:flex-nowrap">
               <div
                 className="flex-1 min-w-0 basis-full sm:basis-auto relative"
                 ref={activeAutocomplete === exercise.id ? autocompleteRef : undefined}
               >
+                <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+                  Übungsname
+                </Label>
                 <Input
                   value={exercise.name}
                   onChange={(e) => {
@@ -248,8 +251,11 @@ export function ExerciseFormSection({
                     ))}
                   </div>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 <div className="w-32 sm:w-36 shrink-0">
+                  <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
+                    Kategorie
+                  </Label>
                   <Select
                     options={CATEGORY_SELECT_OPTIONS}
                     value={exercise.category}
@@ -266,7 +272,7 @@ export function ExerciseFormSection({
                   size="sm"
                   onClick={() => removeExercise(exercise.id)}
                   aria-label="Übung entfernen"
-                  className="!p-1"
+                  className="!p-1 mb-1"
                 >
                   <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
                 </Button>
@@ -287,23 +293,23 @@ export function ExerciseFormSection({
             })()}
 
             {/* Sets header */}
-            <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-center px-1">
-              <span className="text-xs text-[var(--color-text-muted)] w-6 text-center">#</span>
+            <div className="grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto] gap-2 items-center px-1">
+              <span className="text-xs text-[var(--color-text-muted)] text-center">#</span>
               <span className="text-xs text-[var(--color-text-muted)]">Wdh.</span>
               <span className="text-xs text-[var(--color-text-muted)]">kg</span>
-              <span className="text-xs text-[var(--color-text-muted)]">Status</span>
-              <span className="w-8" />
+              <span className="hidden sm:block text-xs text-[var(--color-text-muted)]">Status</span>
+              <span className="hidden sm:block w-8" />
             </div>
 
             {/* Set rows */}
             {exercise.sets.map((set, setIndex) => (
               <div
                 key={set.id}
-                className={`grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 items-center px-1 ${
+                className={`grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto] gap-x-2 gap-y-2 items-center px-1 ${
                   set.status === 'skipped' ? 'opacity-50' : ''
                 }`}
               >
-                <span className="text-sm text-[var(--color-text-muted)] w-6 text-center tabular-nums">
+                <span className="text-sm text-[var(--color-text-muted)] text-center tabular-nums row-span-2 sm:row-span-1 self-start pt-2 sm:pt-0 sm:self-center">
                   {setIndex + 1}
                 </span>
                 <NumberInput
@@ -326,25 +332,29 @@ export function ExerciseFormSection({
                   decrementLabel="Gewicht reduzieren"
                   incrementLabel="Gewicht erhöhen"
                 />
-                <Select
-                  options={STATUS_SELECT_OPTIONS}
-                  value={set.status}
-                  onChange={(val) =>
-                    updateSet(exercise.id, set.id, {
-                      status: (val as SetStatus) || 'completed',
-                    })
-                  }
-                  inputSize="sm"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeSet(exercise.id, set.id)}
-                  aria-label={`Satz ${setIndex + 1} entfernen`}
-                  className="!p-1"
-                >
-                  <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
-                </Button>
+                <div className="col-start-2 col-span-1 sm:col-start-auto sm:col-span-1">
+                  <Select
+                    options={STATUS_SELECT_OPTIONS}
+                    value={set.status}
+                    onChange={(val) =>
+                      updateSet(exercise.id, set.id, {
+                        status: (val as SetStatus) || 'completed',
+                      })
+                    }
+                    inputSize="sm"
+                  />
+                </div>
+                <div className="col-start-3 sm:col-start-auto flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeSet(exercise.id, set.id)}
+                    aria-label={`Satz ${setIndex + 1} entfernen`}
+                    className="!p-1"
+                  >
+                    <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
+                  </Button>
+                </div>
               </div>
             ))}
 

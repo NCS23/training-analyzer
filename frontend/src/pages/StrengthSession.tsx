@@ -287,8 +287,8 @@ export function StrengthSessionPage() {
       {/* Clone last session */}
       {lastSession && (
         <Button variant="secondary" size="sm" onClick={handleCloneLastSession} className="w-full">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Letztes Training übernehmen ({lastSession.date})
+          <RotateCcw className="w-4 h-4 mr-2 shrink-0" />
+          <span className="text-left">Letztes Training übernehmen ({lastSession.date})</span>
         </Button>
       )}
 
