@@ -1,19 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@nordlig/components';
 import { Dumbbell, Footprints, Loader2 } from 'lucide-react';
+import { RUN_TYPE_LABELS } from '@/constants/plan';
 import { listSessionTemplates, type SessionTemplateSummary } from '@/api/session-templates';
-
-const RUN_TYPE_LABELS: Record<string, string> = {
-  recovery: 'Regeneration',
-  easy: 'Lockerer Lauf',
-  long_run: 'Langer Lauf',
-  progression: 'Steigerungslauf',
-  tempo: 'Tempolauf',
-  intervals: 'Intervalle',
-  repetitions: 'Repetitions',
-  fartlek: 'Fahrtspiel',
-  race: 'Wettkampf',
-};
 
 interface TemplatePickerDialogProps {
   open: boolean;

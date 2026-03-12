@@ -3,6 +3,7 @@
  * `SessionTemplateEditor` (full-page) and `StrengthExerciseEditor` (inline).
  */
 import type { ExerciseCategory, ExerciseType, TemplateExercise } from '@/api/session-templates';
+export { CATEGORY_LABELS } from '@/constants/training';
 
 // --- Internal form state ---
 
@@ -28,15 +29,6 @@ export const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
   { value: 'cardio', label: 'Cardio' },
   { value: 'drills', label: 'Lauf-ABC' },
 ];
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Beine',
-  core: 'Core',
-  cardio: 'Cardio',
-  drills: 'Lauf-ABC',
-};
 
 export const EXERCISE_TYPE_OPTIONS: { value: ExerciseType; label: string }[] = [
   { value: 'kraft', label: 'Kraft' },

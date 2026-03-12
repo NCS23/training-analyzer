@@ -37,11 +37,10 @@ import type { TemplateExercise } from '@/api/session-templates';
 import { getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
 import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
+import { DAY_LABELS, SESSION_TYPE_OPTIONS } from '@/constants/plan';
 import { RunDetailsEditor } from './RunDetailsEditor';
 import { StrengthExerciseEditor } from './StrengthExerciseEditor';
 import { TemplatePickerDialog } from './TemplatePickerDialog';
-
-const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 type DayType =
   | 'rest'
@@ -76,11 +75,6 @@ const RUN_TYPE_OPTIONS: { value: RunType; label: string }[] = [
   { value: 'repetitions', label: 'Repetitions' },
   { value: 'fartlek', label: 'Fartlek' },
   { value: 'race', label: 'Wettkampf' },
-];
-
-const SESSION_TYPE_OPTIONS = [
-  { value: 'running', label: 'Laufen' },
-  { value: 'strength', label: 'Kraft' },
 ];
 
 const DAY_TYPE_OPTIONS = [

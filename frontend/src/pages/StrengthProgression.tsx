@@ -29,7 +29,7 @@ import {
   getPersonalRecords,
   getTonnageTrend,
 } from '@/api/progression';
-import { categoryBadgeVariant } from '@/constants/training';
+import { CATEGORY_LABELS, categoryBadgeVariant } from '@/constants/training';
 import type {
   ExerciseListItem,
   ExerciseHistoryResponse,
@@ -45,15 +45,6 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   '28': '4 Wochen',
   '90': '3 Monate',
   '180': '6 Monate',
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Beine',
-  core: 'Core',
-  cardio: 'Cardio',
-  drills: 'Lauf-ABC',
 };
 
 const PR_TYPE_LABELS: Record<string, string> = {

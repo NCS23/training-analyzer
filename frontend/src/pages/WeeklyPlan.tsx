@@ -54,20 +54,13 @@ import {
 } from '@/api/weekly-plan';
 import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
+import { RUN_TYPE_LABELS } from '@/constants/plan';
+import { CATEGORY_LABELS } from '@/constants/training';
 import { DayCard } from '@/components/DayCard';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
 
 // --- Helpers ---
-
-const CATEGORY_LABELS: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Legs',
-  core: 'Core',
-  cardio: 'Cardio',
-  drills: 'Drills',
-};
 
 function categoryLabel(key: string): string {
   return CATEGORY_LABELS[key] ?? key;
@@ -102,18 +95,6 @@ function formatDateRange(weekStart: string): string {
   }
   return `${startDay}. ${startMonth} – ${endDay}. ${endMonth}`;
 }
-
-const RUN_TYPE_LABELS: Record<string, string> = {
-  recovery: 'Regeneration',
-  easy: 'Lockerer Lauf',
-  long_run: 'Langer Lauf',
-  progression: 'Steigerungslauf',
-  tempo: 'Tempolauf',
-  intervals: 'Intervalle',
-  repetitions: 'Repetitions',
-  fartlek: 'Fahrtspiel',
-  race: 'Wettkampf',
-};
 
 // --- Component ---
 
