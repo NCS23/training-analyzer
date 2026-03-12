@@ -287,8 +287,8 @@ export function StrengthSessionPage() {
       {/* Clone last session */}
       {lastSession && (
         <Button variant="secondary" size="sm" onClick={handleCloneLastSession} className="w-full">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Letztes Training übernehmen ({lastSession.date})
+          <RotateCcw className="w-4 h-4 mr-2 shrink-0" />
+          <span className="text-left">Letztes Training übernehmen ({lastSession.date})</span>
         </Button>
       )}
 
@@ -343,7 +343,7 @@ export function StrengthSessionPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Wie lief das Training?"
                 rows={3}
-                className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
+                className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
               />
             </div>
           </div>

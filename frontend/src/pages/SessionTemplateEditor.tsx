@@ -466,7 +466,7 @@ export function SessionTemplateEditorPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Fokus, Ziele, Hinweise…"
                   rows={2}
-                  className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
+                  className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-base)] placeholder:text-[var(--color-text-disabled)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] transition-colors duration-150 motion-reduce:transition-none resize-none"
                 />
               </div>
             </div>
@@ -571,8 +571,9 @@ export function SessionTemplateEditorPage() {
                           placeholder="Übungsname (z.B. Kniebeugen)"
                           inputSize="md"
                         />
-                        {showSuggestions === exercise.id && (
-                          <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto">
+                        {showSuggestions === exercise.id &&
+                          /* prettier-ignore */
+                          <div className="absolute z-10 mt-1 w-full rounded-[var(--radius-component-md)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto"> {/* // ds-ok */}
                             {getFilteredSuggestions(exercise.name).map((ex) => (
                               <button
                                 key={ex.id}
@@ -594,8 +595,7 @@ export function SessionTemplateEditorPage() {
                                 Keine Übung gefunden.
                               </p>
                             )}
-                          </div>
-                        )}
+                          </div>}
                       </div>
 
                       {/* Category + Type selector */}

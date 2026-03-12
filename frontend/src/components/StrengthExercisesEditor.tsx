@@ -80,5 +80,7 @@ export const StrengthExercisesEditor = forwardRef<
     },
   }));
 
-  return <ExerciseFormSection exercises={exercises} setExercises={setExercises} />;
+  return (
+    <ExerciseFormSection exercises={exercises} setExercises={setExercises} hideTonnageSummary />
+  );
 });
