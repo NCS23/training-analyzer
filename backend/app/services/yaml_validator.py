@@ -249,7 +249,7 @@ def _check_phases(
         _check_phase_coverage(parsed_ranges, total_weeks, warnings)
 
 
-def _check_weekly_template(
+def _check_weekly_template(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     days: list[object],
     phase_name: str,
     phase_loc: str,
@@ -388,7 +388,7 @@ def _check_weekly_template(
                             )
 
 
-def _check_type_value(
+def _check_type_value(  # noqa: PLR0913  # TODO: E16 Refactoring
     value: str,
     valid_set: frozenset[str],
     migration_map: dict[str, str],

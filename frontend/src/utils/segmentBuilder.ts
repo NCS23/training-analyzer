@@ -82,6 +82,7 @@ function newAccumulator(lat: number, lng: number): SegmentAccumulator {
 /*  Build pace segments                                                */
 /* ------------------------------------------------------------------ */
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 export function buildPaceSegments(points: GPSPoint[], segmentLengthM = 100): RouteSegment[] {
   if (points.length < 2) return [];
 

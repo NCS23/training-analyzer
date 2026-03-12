@@ -29,7 +29,7 @@ class TrainingParser(ABC):
         ...
 
 
-def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> list[dict]:
+def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> list[dict]:  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     """Classify laps based on training subtype and metrics.
 
     Shared between CSV and FIT parsers. Adds suggested_type,
@@ -80,17 +80,16 @@ def classify_laps(laps: list[dict], training_subtype: Optional[str] = None) -> l
             suggested_type = "recovery_jog"
             confidence = "high"
 
-        else:
-            # Fallback: heuristic based on metrics
-            if is_first and avg_hr and avg_hr < 140:
-                suggested_type = "warmup"
-                confidence = "low"
-            elif is_last and avg_hr and avg_hr < 150:
-                suggested_type = "cooldown"
-                confidence = "low"
-            elif avg_hr and avg_hr > 165:
-                suggested_type = "work"
-                confidence = "low"
+        # Fallback: heuristic based on metrics
+        elif is_first and avg_hr and avg_hr < 140:
+            suggested_type = "warmup"
+            confidence = "low"
+        elif is_last and avg_hr and avg_hr < 150:
+            suggested_type = "cooldown"
+            confidence = "low"
+        elif avg_hr and avg_hr > 165:
+            suggested_type = "work"
+            confidence = "low"
 
         lap["suggested_type"] = suggested_type
         lap["confidence"] = confidence

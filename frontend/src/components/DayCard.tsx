@@ -151,6 +151,7 @@ function isDayInPast(weekStart: string, dayOfWeek: number): boolean {
 
 // --- Card-level session row (compact, clickable) ---
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 function SessionCardRow({ session, onClick }: { session: PlannedSession; onClick: () => void }) {
   const typeKey = getSessionTypeKey(session);
   const iconColor = TYPE_ICON_COLORS[typeKey] ?? TYPE_ICON_COLORS.empty;
@@ -394,6 +395,7 @@ interface SessionDetailDialogProps {
   onMoveSession?: (targetDay: number) => void;
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 function SessionDetailDialog({
   open,
   onOpenChange,
@@ -900,6 +902,7 @@ interface RestDayDialogProps {
   onMoveRestDay?: (targetDay: number) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function RestDayDialog({
   open,
   onOpenChange,
@@ -1042,6 +1045,7 @@ interface DayCardProps {
   onMoveRestDay?: (targetDay: number) => void;
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function DayCard({
   entry,
   weekStart,

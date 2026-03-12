@@ -38,6 +38,7 @@ const MOCK_ENTRIES = [
   },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 describe('PlanChangeLog', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -57,8 +57,7 @@ def get_exercise_history(
                     total_reps += reps
                     tonnage += reps * weight
 
-                    if weight > max_weight:
-                        max_weight = weight
+                    max_weight = max(max_weight, weight)
                     if weight > best_set_weight or (
                         weight == best_set_weight and reps > best_set_reps
                     ):
@@ -84,7 +83,7 @@ def get_exercise_history(
     return history
 
 
-def detect_personal_records(
+def detect_personal_records(  # noqa: PLR0912  # TODO: E16 Refactoring
     sessions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Erkennt persoenliche Bestleistungen ueber alle Uebungen.
@@ -301,8 +300,7 @@ def get_all_exercise_names(
             for s in ex.get("sets", []):
                 if s.get("status", "completed") != "skipped":
                     weight = s.get("weight_kg", 0.0)
-                    if weight > entry["last_max_weight_kg"]:
-                        entry["last_max_weight_kg"] = weight
+                    entry["last_max_weight_kg"] = max(entry["last_max_weight_kg"], weight)
 
     # Sort by session count (most used first)
     return sorted(exercises.values(), key=lambda x: x["session_count"], reverse=True)

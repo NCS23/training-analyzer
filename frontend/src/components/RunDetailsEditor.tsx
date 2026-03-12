@@ -52,6 +52,7 @@ interface SegmentEditorRowProps {
   onRemove: (index: number) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function SegmentEditorRow({
   segment,
   index,

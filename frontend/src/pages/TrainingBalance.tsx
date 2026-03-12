@@ -45,6 +45,7 @@ const INSIGHT_COLORS = {
 /*  Content-only variant — used inside the combined Analyse page.     */
 /* ------------------------------------------------------------------ */
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function TrainingBalanceContent({ days }: { days?: number }) {
   const [internalDays, setInternalDays] = useState(28);
   const effectiveDays = days ?? internalDays;

@@ -72,6 +72,7 @@ const RUN_TYPE_OPTIONS = trainingTypeOptions.map((opt) => ({
 
 // --- Component ---
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function SessionTemplateEditorPage() {
   const navigate = useNavigate();
   const { templateId } = useParams<{ templateId: string }>();
@@ -490,6 +491,7 @@ export function SessionTemplateEditorPage() {
             Übungen ({exercises.filter((e) => e.name.trim()).length})
           </h2>
 
+          {/* eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring */}
           {exercises.map((exercise, exIndex) => (
             <Card key={exercise.id} elevation="raised" padding="spacious">
               <CardBody>

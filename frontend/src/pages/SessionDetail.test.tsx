@@ -125,6 +125,7 @@ async function clickDropdownItem(user: ReturnType<typeof userEvent.setup>, itemT
   await user.click(item);
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 describe('SessionDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();

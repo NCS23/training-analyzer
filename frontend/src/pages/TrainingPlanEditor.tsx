@@ -70,6 +70,7 @@ interface PhaseForm {
   weekly_templates: PhaseWeeklyTemplates | null;
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function TrainingPlanEditorPage() {
   const navigate = useNavigate();
   const { planId } = useParams<{ planId: string }>();
@@ -156,6 +157,7 @@ export function TrainingPlanEditorPage() {
     if (isEdit) loadPlan();
   }, [isEdit, loadPlan]);
 
+  // eslint-disable-next-line complexity -- TODO: E16 Refactoring
   const handleSave = async () => {
     if (!name.trim()) {
       setError('Bitte einen Namen eingeben');
@@ -209,6 +211,7 @@ export function TrainingPlanEditorPage() {
 
           if (phase.id && existingPhaseIds.has(phase.id)) {
             const result = await updatePhase(parseInt(planId!, 10), phase.id, phaseData);
+            // eslint-disable-next-line max-depth -- TODO: E16 Refactoring
             if (result.auto_regeneration) {
               totalRegenerated += result.auto_regeneration.weeks_regenerated;
               totalSkippedEdited += result.auto_regeneration.weeks_skipped_edited;
@@ -512,6 +515,7 @@ export function TrainingPlanEditorPage() {
               </p>
             ) : (
               <div className="space-y-3">
+                {/* eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring */}
                 {phases.map((phase, idx) => (
                   <div
                     key={phase.id ?? `new-${idx}`}

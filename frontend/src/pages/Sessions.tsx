@@ -121,6 +121,7 @@ function hasActiveFilters(filters: SessionFilters): boolean {
 
 /* ─── Main Component ─── */
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function SessionsPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -308,6 +309,7 @@ export function SessionsPage() {
       ) : (
         <>
           <div className="space-y-2.5">
+            {/* eslint-disable-next-line complexity -- TODO: E16 Refactoring */}
             {sessions.map((session) => {
               const effectiveType = session.training_type?.effective;
               return (

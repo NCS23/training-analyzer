@@ -187,6 +187,7 @@ interface TemplateSessionEditorProps {
   onMakeRest?: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 function TemplateSessionEditor({
   session,
   canRemove,
@@ -467,6 +468,7 @@ interface Props {
   onChangeWeeklyTemplates: (templates: PhaseWeeklyTemplates | null) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function PhaseWeeklyTemplateEditor({
   template,
   weeklyTemplates,

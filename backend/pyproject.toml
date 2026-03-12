@@ -147,16 +147,29 @@ select = [
     "I",   # isort
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
+    "C90", # mccabe complexity (E16-W1)
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
+    "PLR", # pylint refactor rules (E16-W1)
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
     "UP045", # Optional[X] -> X | None — CI-Runner nutzt Python 3.9, Pydantic evaluiert zur Runtime
+    "PLR2004", # magic value comparisons — zu viele false positives (620×), nicht sinnvoll für Domain-Code
 ]
+
+[tool.ruff.lint.mccabe]
+# Zunächst großzügig — wird nach E16 Refactoring auf 10 gesenkt
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+# Zunächst großzügig — wird nach E16 Refactoring verschärft
+max-args = 8
+max-branches = 12
+max-returns = 6
+max-statements = 50
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__.py

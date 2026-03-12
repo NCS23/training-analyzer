@@ -14,6 +14,7 @@ interface PlanContextBarProps {
   weekStart: string;
 }
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 export function PlanContextBar({ planId, weekStart }: PlanContextBarProps) {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);

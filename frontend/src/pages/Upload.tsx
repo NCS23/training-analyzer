@@ -63,6 +63,7 @@ const defaultExercise: ExerciseInput = {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export default function UploadPage() {
   const navigate = useNavigate();
   const location = useLocation();

@@ -12,6 +12,7 @@ interface Props {
 /** Value for the "create new" option in the exercise Select. */
 const CREATE_NEW = '__create_new__';
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function YamlValidationResultPanel({
   result,
   filename,

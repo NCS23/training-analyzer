@@ -19,7 +19,7 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def calculate_km_splits(
+def calculate_km_splits(  # noqa: PLR0915  # TODO: E16 Refactoring
     gps_track: dict,
     gain_factor: Optional[float] = None,
     loss_factor: Optional[float] = None,
@@ -187,7 +187,7 @@ def _calc_corrected_pace(
     return corrected
 
 
-def _build_split(
+def _build_split(  # noqa: PLR0913  # TODO: E16 Refactoring
     km_number: int,
     distance_km: float,
     duration_sec: int,

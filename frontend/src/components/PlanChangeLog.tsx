@@ -201,6 +201,7 @@ function DayChangesPanel({ days }: { days: DayChange[] }) {
   );
 }
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 function ChangelogDetailsPanel({ entry }: { entry: PlanChangeLogEntry }) {
   const details = entry.details;
   if (!details) return null;
@@ -255,6 +256,7 @@ interface PlanChangeLogProps {
   planId: number;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function PlanChangeLog({ planId }: PlanChangeLogProps) {
   const { toast } = useToast();
   const [entries, setEntries] = useState<PlanChangeLogEntry[]>([]);

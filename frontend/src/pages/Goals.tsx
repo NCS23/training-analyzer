@@ -45,6 +45,7 @@ function parseTimeToSeconds(timeStr: string): number | null {
   return null;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function GoalsPage() {
   const { toast } = useToast();
 

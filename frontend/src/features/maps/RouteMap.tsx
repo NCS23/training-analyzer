@@ -108,6 +108,7 @@ function buildPointTooltip(
   return dist;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function RouteMap({
   points,
   height = '300px',

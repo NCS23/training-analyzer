@@ -233,7 +233,7 @@ def _build_run_details(
     )
 
 
-def _distribute_days(
+def _distribute_days(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     run_types: list[str],
     strength_count: int,
     rest_days: list[int],
@@ -372,7 +372,7 @@ def _distribute_days(
 # --- Main Generator ---
 
 
-def generate_weekly_plans(
+def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     plan: TrainingPlanModel,
     phases: list[TrainingPhaseModel],
     rest_days: list[int],

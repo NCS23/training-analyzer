@@ -52,6 +52,7 @@ function formatRunDetails(details: RunDetails | null | undefined): string {
   return parts.join(' · ');
 }
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 function formatSegmentDetail(seg: Segment): string {
   const typeLabel = lapTypeLabels[seg.segment_type] ?? seg.segment_type;
   const parts: string[] = [];
@@ -125,6 +126,7 @@ function calcDurationWeeks(startDate: string, endDate: string): number {
 
 // --- Sub-Components ---
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 function SessionDetails({ session }: { session: PhaseWeeklyTemplateSessionEntry }) {
   if (session.training_type === 'strength') {
     const exercises = session.exercises;
@@ -316,6 +318,7 @@ function PerWeekTabs({
   );
 }
 
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 function PhaseCard({ phase }: { phase: TrainingPhase }) {
   const totalWeeks = phase.end_week - phase.start_week + 1;
   const hasTemplate = phase.weekly_template && phase.weekly_template.days.length === 7;
@@ -401,6 +404,7 @@ interface TrainingPlanReadViewProps {
   plan: TrainingPlan;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function TrainingPlanReadView({ plan }: TrainingPlanReadViewProps) {
   const weekNumber =
     plan.status === 'active' ? getWeekNumber(plan.start_date, getCurrentWeekStart()) : 0;

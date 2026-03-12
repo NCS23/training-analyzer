@@ -31,6 +31,7 @@ async function getMocks() {
   };
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 describe('StrengthSessionPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();

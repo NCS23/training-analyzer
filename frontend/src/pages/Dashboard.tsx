@@ -49,6 +49,7 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function DashboardPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -234,6 +235,7 @@ export function DashboardPage() {
 
       {/* Goal Progress Card */}
       {goalProgress &&
+        // eslint-disable-next-line complexity -- TODO: E16 Refactoring
         (() => {
           const isAhead = goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec <= 0;
           const isBehind = goalProgress.pace_gap_sec !== null && goalProgress.pace_gap_sec > 0;

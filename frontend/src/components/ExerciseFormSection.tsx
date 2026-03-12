@@ -46,6 +46,7 @@ interface ExerciseFormSectionProps {
 
 // --- Component ---
 
+// eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function ExerciseFormSection({
   exercises,
   setExercises,
@@ -202,6 +203,7 @@ export function ExerciseFormSection({
 
   return (
     <div className="space-y-6">
+      {/* eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring */}
       {exercises.map((exercise) => {
         const suggestions =
           activeAutocomplete === exercise.id ? getFilteredSuggestions(exercise.name) : [];

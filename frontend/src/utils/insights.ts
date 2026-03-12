@@ -76,6 +76,7 @@ function secondsInZonesBelow(zones: Record<string, HRZone>, maxZone: number): nu
  * Generates rule-based insights with actionable advice.
  * Uses the user's personal Karvonen zones when available.
  */
+// eslint-disable-next-line complexity -- TODO: E16 Refactoring
 export function generateInsights(session: SessionDetail): Insight[] {
   const insights: Insight[] = [];
   const effectiveType = session.training_type?.effective;

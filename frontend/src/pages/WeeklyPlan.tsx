@@ -117,6 +117,7 @@ const RUN_TYPE_LABELS: Record<string, string> = {
 
 // --- Component ---
 
+// eslint-disable-next-line complexity, max-lines-per-function -- TODO: E16 Refactoring
 export function WeeklyPlanPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -410,6 +411,7 @@ export function WeeklyPlanPage() {
           if (s.training_type === 'strength') strength++;
           else if (s.training_type === 'running') {
             running++;
+            // eslint-disable-next-line max-depth -- TODO: E16 Refactoring
             if (s.run_details?.target_duration_minutes) {
               totalMinutes += s.run_details.target_duration_minutes;
             }
