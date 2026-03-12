@@ -56,7 +56,7 @@ import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { RUN_TYPE_LABELS } from '@/constants/plan';
 import { CATEGORY_LABELS } from '@/constants/training';
-import { DayCard } from '@/components/DayCard';
+import { DayCard } from '@/components/day-card';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
 
