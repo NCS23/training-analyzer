@@ -52,6 +52,27 @@ export interface TonnageTrendResponse {
   trend_direction: 'up' | 'down' | 'stable' | null;
 }
 
+export interface CategoryTonnageItem {
+  category: string;
+  tonnage_kg: number;
+  exercise_count: number;
+  set_count: number;
+}
+
+export interface WeeklyCategoryTonnage {
+  week: string;
+  week_start: string;
+  categories: CategoryTonnageItem[];
+  total_tonnage_kg: number;
+}
+
+export interface CategoryTonnageTrendResponse {
+  weeks: WeeklyCategoryTonnage[];
+  aggregated: CategoryTonnageItem[];
+  total_tonnage_kg: number;
+  period_days: number;
+}
+
 export interface ExerciseListItem {
   name: string;
   category: string;
@@ -91,6 +112,16 @@ export async function getPersonalRecords(sessionId?: number): Promise<PersonalRe
 export async function getTonnageTrend(days: number = 90): Promise<TonnageTrendResponse> {
   const response = await apiClient.get<TonnageTrendResponse>(
     '/api/v1/sessions/strength/tonnage-trend',
+    { params: { days } },
+  );
+  return response.data;
+}
+
+export async function getCategoryTonnageTrend(
+  days: number = 90,
+): Promise<CategoryTonnageTrendResponse> {
+  const response = await apiClient.get<CategoryTonnageTrendResponse>(
+    '/api/v1/sessions/strength/category-tonnage-trend',
     { params: { days } },
   );
   return response.data;

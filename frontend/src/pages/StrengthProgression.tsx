@@ -28,13 +28,16 @@ import {
   getExerciseProgression,
   getPersonalRecords,
   getTonnageTrend,
+  getCategoryTonnageTrend,
 } from '@/api/progression';
 import { CATEGORY_LABELS, categoryBadgeVariant } from '@/constants/training';
+import { CategoryTonnageChart } from '@/components/analysis/CategoryTonnageChart';
 import type {
   ExerciseListItem,
   ExerciseHistoryResponse,
   PersonalRecord,
   TonnageTrendResponse,
+  CategoryTonnageTrendResponse,
 } from '@/api/progression';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -79,6 +82,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
   const [history, setHistory] = useState<ExerciseHistoryResponse | null>(null);
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [tonnageTrend, setTonnageTrend] = useState<TonnageTrendResponse | null>(null);
+  const [categoryTonnage, setCategoryTonnage] = useState<CategoryTonnageTrendResponse | null>(null);
   const [internalTimeRange, setInternalTimeRange] = useState<TimeRange>('90');
   const effectiveTimeRange = timeRange ?? internalTimeRange;
   const [loading, setLoading] = useState(true);
@@ -90,14 +94,16 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
     setLoading(true);
     setError(null);
     try {
-      const [exerciseRes, prRes, tonnageRes] = await Promise.all([
+      const [exerciseRes, prRes, tonnageRes, catTonnageRes] = await Promise.all([
         getExerciseList(),
         getPersonalRecords(),
         getTonnageTrend(parseInt(effectiveTimeRange, 10)),
+        getCategoryTonnageTrend(parseInt(effectiveTimeRange, 10)),
       ]);
       setExercises(exerciseRes.exercises);
       setPrs(prRes.records);
       setTonnageTrend(tonnageRes);
+      setCategoryTonnage(catTonnageRes);
 
       // Auto-select first exercise
       if (exerciseRes.exercises.length > 0 && !selectedExercise) {
@@ -431,6 +437,9 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
           </CardBody>
         </Card>
       )}
+
+      {/* Category Tonnage (#151) */}
+      <CategoryTonnageChart data={categoryTonnage} />
 
       {/* Personal Records */}
       {Object.keys(prsByExercise).length > 0 && (

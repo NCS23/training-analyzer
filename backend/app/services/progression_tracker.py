@@ -267,6 +267,75 @@ def calculate_weekly_tonnage(
     return result
 
 
+def calculate_weekly_category_tonnage(
+    sessions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Berechnet woechentliche Tonnage aufgeschluesselt nach Kategorie.
+
+    Kombiniert die Logik von calculate_weekly_tonnage() und
+    calculate_category_tonnage() fuer Multi-Wochen-Kategorie-Analyse.
+
+    Args:
+        sessions: Liste von Session-Dicts mit keys: id, date, exercises
+
+    Returns:
+        Dict mit weeks (pro Woche + Kategorien), aggregated, total_tonnage_kg
+    """
+    from app.services.tonnage_calculator import calculate_category_tonnage
+
+    weeks: dict[str, dict[str, Any]] = {}
+
+    for session in sessions:
+        exercises_raw = session.get("exercises", [])
+        if not exercises_raw:
+            continue
+
+        session_date = session["date"]
+        dt = (
+            datetime.strptime(session_date, "%Y-%m-%d")
+            if isinstance(session_date, str)
+            else session_date
+        )
+
+        week_key = dt.strftime("%G-W%V")
+        week_start = dt - timedelta(days=dt.weekday())
+
+        if week_key not in weeks:
+            weeks[week_key] = {
+                "week": week_key,
+                "week_start": week_start.strftime("%Y-%m-%d"),
+                "exercises": [],
+            }
+        weeks[week_key]["exercises"].extend(exercises_raw)
+
+    # Per-week category breakdown
+    week_results = []
+    all_exercises: list[dict[str, Any]] = []
+    for week_key in sorted(weeks.keys()):
+        w = weeks[week_key]
+        cats = calculate_category_tonnage(w["exercises"])
+        total = round(sum(c["tonnage_kg"] for c in cats), 1)
+        week_results.append(
+            {
+                "week": w["week"],
+                "week_start": w["week_start"],
+                "categories": cats,
+                "total_tonnage_kg": total,
+            }
+        )
+        all_exercises.extend(w["exercises"])
+
+    # Aggregated across all weeks
+    aggregated = calculate_category_tonnage(all_exercises)
+    grand_total = round(sum(c["tonnage_kg"] for c in aggregated), 1)
+
+    return {
+        "weeks": week_results,
+        "aggregated": aggregated,
+        "total_tonnage_kg": grand_total,
+    }
+
+
 def get_all_exercise_names(
     sessions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
