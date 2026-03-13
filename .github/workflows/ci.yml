@@ -211,23 +211,27 @@ jobs:
         env:
           PROD_URL: http://training.89.167.78.223.sslip.io
         run: |
-          echo "Polling $PROD_URL/health alle 15 Sekunden (max 5 Minuten)..."
+          echo "Warte 30s damit Coolify den Build starten kann..."
+          sleep 30
+
+          echo "Polling $PROD_URL/health alle 15 Sekunden (max 6 Minuten)..."
 
           HEALTHY=false
-          for i in $(seq 1 20); do
-            echo "Versuch $i/20..."
+          for i in $(seq 1 24); do
+            echo "Versuch $i/24..."
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "000")
 
             if [ "$HTTP_CODE" = "200" ]; then
               BODY=$(curl -s "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "{}")
               STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+              DB_OK=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('db', False))" 2>/dev/null || echo "False")
 
-              if [ "$STATUS" = "ok" ]; then
-                echo "Health Check bestanden (Versuch $i)"
+              if [ "$STATUS" = "ok" ] && [ "$DB_OK" = "True" ]; then
+                echo "Health Check bestanden inkl. DB (Versuch $i)"
                 HEALTHY=true
                 break
               else
-                echo "HTTP 200 aber Status nicht 'ok': $BODY"
+                echo "HTTP 200 aber noch nicht voll bereit: $BODY"
               fi
             else
               echo "HTTP $HTTP_CODE — noch nicht bereit"
@@ -239,7 +243,7 @@ jobs:
           echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
 
           if [ "$HEALTHY" = "false" ]; then
-            echo "::error::Deployment Health Check fehlgeschlagen nach 5 Minuten"
+            echo "::error::Deployment Health Check fehlgeschlagen nach 6 Minuten"
             exit 1
           fi
 

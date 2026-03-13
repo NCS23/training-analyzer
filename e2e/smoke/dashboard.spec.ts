@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Dashboard", () => {
   test("lädt und zeigt Inhalt", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Kein Error-Boundary sichtbar
     await expect(
@@ -18,7 +18,7 @@ test.describe("Dashboard", () => {
 
   test("zeigt App-Branding", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Zwei Logos existieren: Sidebar (hidden auf Mobile) + TopBar (hidden auf Desktop)
     // Prüfe, dass mindestens eines sichtbar ist

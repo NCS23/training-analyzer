@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Sessions", () => {
   test("Sessions-Seite lädt", async ({ page }) => {
     await page.goto("/sessions");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Kein Error-Boundary
     await expect(

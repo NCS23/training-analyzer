@@ -5,10 +5,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.infrastructure.database.session import init_db
+from app.infrastructure.database.session import async_session_maker, init_db
 from app.routers import training
 
 
@@ -52,4 +53,9 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "environment": settings.environment}
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:
+        return {"status": "degraded", "environment": settings.environment, "db": False}
+    return {"status": "ok", "environment": settings.environment, "db": True}
