@@ -267,3 +267,38 @@ def laps_to_template_segments(laps: list[LapResponse]) -> list[Segment]:
             updates["target_pace_min"] = seg.actual_pace_formatted
         result.append(seg.model_copy(update=updates) if updates else seg)
     return result
+
+
+# --- Soll/Ist-Vergleich Models (#138) ---
+
+
+class SegmentDelta(BaseModel):
+    """Delta zwischen Soll und Ist fuer eine einzelne Metrik."""
+
+    pace_delta_seconds: int | None = None
+    pace_delta_formatted: str | None = None
+    hr_avg_delta: int | None = None
+    duration_delta_seconds: float | None = None
+    distance_delta_km: float | None = None
+
+
+class MatchedSegment(BaseModel):
+    """Ein gematchtes Segment-Paar im Soll/Ist-Vergleich."""
+
+    position: int
+    segment_type: str
+    match_quality: str  # "matched" | "unmatched_planned" | "unmatched_actual"
+    planned: Segment | None = None
+    actual: Segment | None = None
+    delta: SegmentDelta | None = None
+
+
+class ComparisonResponse(BaseModel):
+    """Vollstaendiger Soll/Ist-Vergleich fuer eine Session."""
+
+    planned_entry_id: int
+    planned_run_type: str | None = None
+    segments: list[MatchedSegment]
+    has_mismatch: bool
+    planned_count: int
+    actual_count: int

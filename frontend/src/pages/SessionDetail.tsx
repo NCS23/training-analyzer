@@ -59,6 +59,7 @@ import {
   SessionSplitsSection,
   SessionExercisesSection,
   SessionEditFields,
+  SessionComparisonSection,
 } from '@/components/session-detail';
 
 const workoutTypeHeadings: Record<string, string> = {
@@ -359,6 +360,9 @@ export function SessionDetailPage() {
       {hrZones && Object.keys(hrZones).length > 0 && (
         <SessionHRZonesSection hrZones={hrZones} workingHrZones={workingHrZones} />
       )}
+
+      {/* Soll/Ist-Vergleich */}
+      {data.comparison && <SessionComparisonSection comparison={data.comparison} />}
 
       {/* Laps / Km Splits */}
       {(data.localLaps.length > 0 || kmSplits) && (

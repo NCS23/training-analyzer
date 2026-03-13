@@ -412,6 +412,41 @@ export async function recalculateSessionZones(
   return response.data;
 }
 
+// --- Soll/Ist-Vergleich (#138) ---
+
+export interface SegmentDelta {
+  pace_delta_seconds: number | null;
+  pace_delta_formatted: string | null;
+  hr_avg_delta: number | null;
+  duration_delta_seconds: number | null;
+  distance_delta_km: number | null;
+}
+
+export interface MatchedSegment {
+  position: number;
+  segment_type: string;
+  match_quality: 'matched' | 'unmatched_planned' | 'unmatched_actual';
+  planned: import('./segment').Segment | null;
+  actual: import('./segment').Segment | null;
+  delta: SegmentDelta | null;
+}
+
+export interface ComparisonResponse {
+  planned_entry_id: number;
+  planned_run_type: string | null;
+  segments: MatchedSegment[];
+  has_mismatch: boolean;
+  planned_count: number;
+  actual_count: number;
+}
+
+export async function getSessionComparison(sessionId: number): Promise<ComparisonResponse> {
+  const response = await apiClient.get<ComparisonResponse>(
+    `/api/v1/sessions/${sessionId}/comparison`,
+  );
+  return response.data;
+}
+
 export async function healthCheck(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/health');
   return response.data;
