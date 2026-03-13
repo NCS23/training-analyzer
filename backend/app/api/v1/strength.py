@@ -471,3 +471,43 @@ async def get_tonnage_trend(
         "avg_weekly_tonnage_kg": avg,
         "trend_direction": trend_direction,
     }
+
+
+@router.get("/category-tonnage-trend")
+async def get_category_tonnage_trend(
+    days: int = Query(default=90, ge=7, le=365, description="Zeitraum in Tagen"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Woechentliche Tonnage nach Kategorie (push/pull/legs/core/...)."""
+    from app.services.progression_tracker import calculate_weekly_category_tonnage
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    query = (
+        select(WorkoutModel)
+        .where(WorkoutModel.workout_type == "strength")
+        .where(WorkoutModel.exercises_json.isnot(None))
+        .where(WorkoutModel.date >= cutoff)
+        .order_by(WorkoutModel.date.asc())
+    )
+    result = await db.execute(query)
+    workouts = result.scalars().all()
+
+    sessions = []
+    for w in workouts:
+        if not w.exercises_json:
+            continue
+        model_date = w.date
+        date_str = (
+            model_date.date().isoformat() if isinstance(model_date, datetime) else str(model_date)
+        )
+        sessions.append(
+            {
+                "id": w.id,
+                "date": date_str,
+                "exercises": json.loads(str(w.exercises_json)),
+            }
+        )
+
+    data = calculate_weekly_category_tonnage(sessions)
+    data["period_days"] = days
+    return data
