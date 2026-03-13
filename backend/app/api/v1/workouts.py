@@ -11,6 +11,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import WorkoutModel
 from app.infrastructure.database.session import get_db
@@ -40,9 +41,10 @@ async def upload_workout(csv_file: UploadFile = File(...), db: AsyncSession = De
         # Parse CSV (simplified - improve this based on actual Apple Watch format)
         workout_data = await parse_apple_watch_csv(csv_text)
 
-        # Analyze with AI
+        # Analyze with AI (User-Key → .env Fallback)
         try:
-            ai_analysis = await ai_service.analyze_workout(workout_data)
+            claude_key = await resolve_claude_api_key(db)
+            ai_analysis = await ai_service.analyze_workout(workout_data, api_key=claude_key)
         except Exception as e:
             ai_analysis = f"AI analysis failed: {str(e)}"
 

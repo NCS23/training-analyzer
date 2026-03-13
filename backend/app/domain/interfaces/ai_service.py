@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 
 class AIProvider(ABC):
     @abstractmethod
-    async def analyze_workout(self, workout_data: dict) -> str:
+    async def analyze_workout(self, workout_data: dict, api_key: str | None = None) -> str:
         pass
 
     @abstractmethod
-    async def chat(self, message: str, context: dict) -> str:
+    async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
         pass
 
     @property
@@ -16,5 +16,5 @@ class AIProvider(ABC):
         pass
 
     @abstractmethod
-    def is_available(self) -> bool:
+    def is_available(self, api_key: str | None = None) -> bool:
         pass

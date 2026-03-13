@@ -72,6 +72,10 @@ class AthleteModel(Base):
     elevation_gain_factor: Mapped[float | None] = mapped_column(Float, server_default="10.0")
     elevation_loss_factor: Mapped[float | None] = mapped_column(Float, server_default="5.0")
 
+    # Verschlüsselte API Keys (User-konfiguriert via UI)
+    encrypted_claude_api_key: Mapped[str | None] = mapped_column(Text, default=None)
+    encrypted_openai_api_key: Mapped[str | None] = mapped_column(Text, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

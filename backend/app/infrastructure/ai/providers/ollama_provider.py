@@ -18,7 +18,7 @@ class OllamaProvider(AIProvider):
         self.model = settings.ollama_model
         self.timeout = 120.0
 
-    async def analyze_workout(self, workout_data: dict) -> str:
+    async def analyze_workout(self, workout_data: dict, _api_key: str | None = None) -> str:
         """Analyze workout using Ollama"""
         prompt = self._build_workout_analysis_prompt(workout_data)
 
@@ -42,7 +42,7 @@ class OllamaProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}") from e
 
-    async def chat(self, message: str, context: dict) -> str:
+    async def chat(self, message: str, context: dict, _api_key: str | None = None) -> str:
         """Chat with Ollama"""
         system_prompt = self._build_system_prompt(context)
         full_prompt = f"{system_prompt}\n\nUser: {message}\n\nAssistant:"
@@ -67,7 +67,7 @@ class OllamaProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}") from e
 
-    def is_available(self) -> bool:
+    def is_available(self, _api_key: str | None = None) -> bool:
         """Check if Ollama server is available"""
         try:
             with httpx.Client(timeout=5.0) as client:

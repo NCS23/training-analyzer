@@ -13,16 +13,24 @@ from app.domain.interfaces.ai_service import AIProvider
 class ClaudeProvider(AIProvider):
     """Anthropic Claude AI Provider"""
 
-    def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
+    def __init__(self) -> None:
+        self.default_api_key = settings.claude_api_key
+        self.client = anthropic.Anthropic(api_key=self.default_api_key)
         self.model = settings.claude_model
 
-    async def analyze_workout(self, workout_data: dict) -> str:
+    def _get_client(self, api_key: str | None = None) -> anthropic.Anthropic:
+        """Client zurückgeben, optional mit anderem API Key."""
+        if api_key and api_key != self.default_api_key:
+            return anthropic.Anthropic(api_key=api_key)
+        return self.client
+
+    async def analyze_workout(self, workout_data: dict, api_key: str | None = None) -> str:
         """Analyze workout using Claude"""
+        client = self._get_client(api_key)
         prompt = self._build_workout_analysis_prompt(workout_data)
 
         try:
-            response = self.client.messages.create(
+            response = client.messages.create(
                 model=self.model,
                 max_tokens=1000,
                 temperature=0.3,
@@ -33,12 +41,13 @@ class ClaudeProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
 
-    async def chat(self, message: str, context: dict) -> str:
+    async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
         """Chat with Claude"""
+        client = self._get_client(api_key)
         system_prompt = self._build_system_prompt(context)
 
         try:
-            response = self.client.messages.create(
+            response = client.messages.create(
                 model=self.model,
                 max_tokens=2000,
                 temperature=0.3,
@@ -50,15 +59,18 @@ class ClaudeProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
 
-    def is_available(self) -> bool:
+    def is_available(self, api_key: str | None = None) -> bool:
         """Check if Claude API is available"""
-        if not settings.claude_api_key:
+        key = api_key or self.default_api_key
+        if not key:
             return False
 
         try:
-            # Quick test
-            self.client.messages.create(
-                model=self.model, max_tokens=10, messages=[{"role": "user", "content": "test"}]
+            client = self._get_client(api_key)
+            client.messages.create(
+                model=self.model,
+                max_tokens=10,
+                messages=[{"role": "user", "content": "test"}],
             )
             return True
         except Exception:
