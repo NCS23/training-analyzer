@@ -631,8 +631,12 @@ async def create_exercise(
         is_favorite=False,
     )
 
-    # Try to enrich from free-exercise-db
+    # Try to enrich from free-exercise-db, then Claude API fallback
     enrichment = enrich_exercise_model(body.name)
+    if not enrichment:
+        from app.services.exercise_ai_enrichment import generate_exercise_enrichment
+
+        enrichment = await generate_exercise_enrichment(body.name, body.category)
     if enrichment:
         _apply_enrichment(exercise, enrichment)
 
@@ -761,6 +765,15 @@ async def enrich_exercise(
         enrichment = enrich_exercise_model_by_id(body.exercise_db_id)
     else:
         enrichment = enrich_exercise_model(str(exercise.name))
+
+    if not enrichment:
+        # Fallback: Claude API für Anreicherung nutzen
+        from app.services.exercise_ai_enrichment import generate_exercise_enrichment
+
+        enrichment = await generate_exercise_enrichment(
+            str(exercise.name),
+            str(exercise.category),
+        )
 
     if not enrichment:
         raise HTTPException(
