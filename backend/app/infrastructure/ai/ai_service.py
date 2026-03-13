@@ -68,12 +68,12 @@ class AIService:
             except Exception as e:
                 print(f"⚠️  Failed to initialize fallback {fallback_name}: {e}")
 
-    async def analyze_workout(self, workout_data: dict) -> str:
-        """
-        Analyze workout with automatic fallback
+    async def analyze_workout(self, workout_data: dict, api_key: str | None = None) -> str:
+        """Analyze workout with automatic fallback.
 
         Args:
             workout_data: Dictionary with workout metrics
+            api_key: Optionaler User-API-Key (überschreibt .env)
 
         Returns:
             AI analysis text
@@ -82,9 +82,9 @@ class AIService:
             Exception: If all providers fail
         """
         # Try primary provider
-        if self.primary_provider and self.primary_provider.is_available():
+        if self.primary_provider and self.primary_provider.is_available(api_key):
             try:
-                result = await self.primary_provider.analyze_workout(workout_data)
+                result = await self.primary_provider.analyze_workout(workout_data, api_key)
                 return f"[{self.primary_provider.name}] {result}"
             except Exception as e:
                 print(f"Primary provider failed: {e}")
@@ -101,21 +101,21 @@ class AIService:
 
         raise Exception("All AI providers failed")
 
-    async def chat(self, message: str, context: dict) -> str:
-        """
-        Chat with AI with automatic fallback
+    async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
+        """Chat with AI with automatic fallback.
 
         Args:
             message: User message
             context: Conversation context
+            api_key: Optionaler User-API-Key (überschreibt .env)
 
         Returns:
             AI response text
         """
         # Try primary provider
-        if self.primary_provider and self.primary_provider.is_available():
+        if self.primary_provider and self.primary_provider.is_available(api_key):
             try:
-                return await self.primary_provider.chat(message, context)
+                return await self.primary_provider.chat(message, context, api_key)
             except Exception as e:
                 print(f"Primary provider failed: {e}")
 

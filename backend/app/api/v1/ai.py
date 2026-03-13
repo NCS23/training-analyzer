@@ -4,10 +4,13 @@ AI API Endpoints
 Manage AI providers and chat functionality.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
+from app.infrastructure.database.session import get_db
 
 router = APIRouter()
 
@@ -35,26 +38,11 @@ async def get_providers():
 
 
 @router.post("/ai/chat")
-async def chat(request: ChatRequest):
-    """
-    Chat with AI trainer
-
-    **Request:**
-    ```json
-    {
-        "message": "Was sollte ich diese Woche trainieren?",
-        "context": {
-            "recent_workouts": [...],
-            "training_plan": "..."
-        }
-    }
-    ```
-
-    **Returns:**
-    AI response text
-    """
+async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+    """Chat with AI trainer (User-Key → .env Fallback)."""
     try:
-        response = await ai_service.chat(request.message, request.context)
+        claude_key = await resolve_claude_api_key(db)
+        response = await ai_service.chat(request.message, request.context, api_key=claude_key)
         return {
             "success": True,
             "message": response,

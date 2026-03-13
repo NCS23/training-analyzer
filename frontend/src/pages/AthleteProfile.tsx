@@ -13,6 +13,8 @@ import {
   useToast,
 } from '@nordlig/components';
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
+import { useApiKeySettings } from '@/hooks/useApiKeySettings';
+import { ApiKeyCard } from '@/components/settings/ApiKeyCard';
 
 // Karvonen zone definitions — mirrors backend/app/services/hr_zone_calculator.py
 const KARVONEN_ZONES = [
@@ -37,6 +39,7 @@ function calculateKarvonenZones(rhr: number, mhr: number) {
 // eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
 export function AthleteProfilePage() {
   const { toast } = useToast();
+  const apiKeys = useApiKeySettings();
 
   // HR state
   const [restingHr, setRestingHr] = useState('');
@@ -73,11 +76,12 @@ export function AthleteProfilePage() {
 
   useEffect(() => {
     loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
   }, []);
 
   const loadSettings = async () => {
     try {
-      const settings = await getAthleteSettings();
+      const [settings] = await Promise.all([getAthleteSettings(), apiKeys.loadKeys()]);
       const rhr = settings.resting_hr?.toString() || '';
       const mhr = settings.max_hr?.toString() || '';
       const gf = settings.elevation_gain_factor.toString();
@@ -167,7 +171,7 @@ export function AthleteProfilePage() {
           Athletenprofil
         </h1>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          Herzfrequenz-Zonen und Höhenkorrektur konfigurieren.
+          Herzfrequenz-Zonen, Höhenkorrektur und API-Schlüssel konfigurieren.
         </p>
       </header>
 
@@ -312,6 +316,9 @@ export function AthleteProfilePage() {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* API Keys */}
+      <ApiKeyCard keys={apiKeys} />
     </div>
   );
 }
