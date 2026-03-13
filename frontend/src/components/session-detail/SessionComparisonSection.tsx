@@ -13,7 +13,7 @@ import {
 } from '@nordlig/components';
 import type { ComparisonResponse, MatchedSegment } from '@/api/training';
 import type { Segment } from '@/api/segment';
-import { lapTypeLabels } from '@/constants/training';
+import { lapTypeLabels, lapTypeBadgeVariant } from '@/constants/training';
 
 interface SessionComparisonSectionProps {
   comparison: ComparisonResponse;
@@ -91,7 +91,7 @@ function SegmentRow({ seg }: { seg: MatchedSegment }) {
         {seg.position + 1}
       </TableCell>
       <TableCell>
-        <Badge variant="neutral" size="xs">
+        <Badge variant={lapTypeBadgeVariant[seg.segment_type] ?? 'neutral'} size="xs">
           {d.typeLabel}
         </Badge>
       </TableCell>
