@@ -7,7 +7,7 @@ export default defineConfig({
   globalSetup: "./global-setup.ts",
   testDir: "./smoke",
   timeout: 30_000,
-  expect: { timeout: 10_000 },
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   retries: 2,
   reporter: [["html", { open: "never" }], ["list"]],

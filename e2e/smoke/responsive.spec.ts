@@ -5,7 +5,7 @@ test.describe("Responsive Layout", () => {
     test.skip(testInfo.project.name === "desktop", "Nur Mobile");
 
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // BottomNav enthält die 5 Navigations-Links
     const bottomNav = page.locator("nav").filter({
@@ -23,7 +23,7 @@ test.describe("Responsive Layout", () => {
     test.skip(testInfo.project.name === "desktop", "Nur Mobile");
 
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Sidebar hat class "hidden lg:flex" — auf Mobile nicht sichtbar
     // Prüfen über den Sidebar-spezifischen User-Chip "NC"
@@ -37,7 +37,7 @@ test.describe("Responsive Layout", () => {
     test.skip(testInfo.project.name === "mobile", "Nur Desktop");
 
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Sidebar mit "Training Analyzer" Branding und User-Chip
     const sidebar = page.locator("nav").filter({
@@ -58,7 +58,7 @@ test.describe("Responsive Layout", () => {
     test.skip(testInfo.project.name === "mobile", "Nur Desktop");
 
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // BottomNav hat class "lg:hidden" — auf Desktop nicht sichtbar
     const bottomNav = page.locator("nav").filter({

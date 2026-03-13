@@ -1,6 +1,6 @@
 """Tests for Streak Tracking (Issue #58)."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -10,9 +10,10 @@ from app.infrastructure.database.models import WorkoutModel
 
 
 async def _add_session(db: AsyncSession, days_ago: int) -> None:
-    """Add a training session N days ago."""
+    """Add a training session N days ago (uses date.today() for consistency with streak API)."""
+    target_date = date.today() - timedelta(days=days_ago)
     workout = WorkoutModel(
-        date=datetime.utcnow() - timedelta(days=days_ago),
+        date=datetime(target_date.year, target_date.month, target_date.day, 12, 0),
         workout_type="running",
         duration_sec=2700,
         distance_km=5.0,
@@ -104,5 +105,5 @@ async def test_calendar_heatmap(client: AsyncClient, db_session: AsyncSession) -
     # Should have exactly 2 entries
     assert len(calendar) == 2
     # Today should have count 2
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = date.today().isoformat()
     assert calendar.get(today_str) == 2

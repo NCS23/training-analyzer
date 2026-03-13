@@ -211,6 +211,9 @@ jobs:
         env:
           PROD_URL: http://training.89.167.78.223.sslip.io
         run: |
+          echo "Warte 30s auf Coolify Build-Start..."
+          sleep 30
+
           echo "Polling $PROD_URL/health alle 15 Sekunden (max 5 Minuten)..."
 
           HEALTHY=false
@@ -222,12 +225,14 @@ jobs:
               BODY=$(curl -s "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "{}")
               STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
 
-              if [ "$STATUS" = "ok" ]; then
-                echo "Health Check bestanden (Versuch $i)"
+              DB=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('database',''))" 2>/dev/null || echo "")
+
+              if [ "$STATUS" = "ok" ] && [ "$DB" = "True" ]; then
+                echo "Health Check bestanden (Versuch $i) — DB verbunden"
                 HEALTHY=true
                 break
               else
-                echo "HTTP 200 aber Status nicht 'ok': $BODY"
+                echo "HTTP 200 aber status='$STATUS', database='$DB': $BODY"
               fi
             else
               echo "HTTP $HTTP_CODE — noch nicht bereit"
