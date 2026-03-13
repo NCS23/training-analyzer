@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -5,11 +6,14 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.infrastructure.database.session import init_db
+from app.infrastructure.database.session import engine, init_db
 from app.routers import training
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -52,4 +56,13 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "environment": settings.environment}
+    db_ok = False
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        logger.warning("Health check: DB-Verbindung fehlgeschlagen")
+
+    status = "ok" if db_ok else "degraded"
+    return {"status": status, "environment": settings.environment, "database": db_ok}

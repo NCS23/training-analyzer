@@ -12,7 +12,7 @@ test.describe("Navigation", () => {
   for (const { path, name } of pages) {
     test(`${name} (${path}) ist erreichbar`, async ({ page }) => {
       await page.goto(path);
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("domcontentloaded");
 
       // Richtige URL
       await expect(page).toHaveURL(new RegExp(path));
@@ -29,7 +29,7 @@ test.describe("Navigation", () => {
 
   test("404-Seite bei unbekannter Route", async ({ page }) => {
     await page.goto("/diese-seite-gibt-es-nicht");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Sollte eine 404-Anzeige haben (oder Redirect)
     // Mindestens: kein weißer Screen
