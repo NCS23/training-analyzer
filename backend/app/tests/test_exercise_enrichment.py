@@ -1,6 +1,7 @@
 """Tests für Exercise Enrichment Service."""
 
 import json
+from unittest.mock import patch
 
 from httpx import AsyncClient
 
@@ -196,13 +197,77 @@ class TestExerciseEnrichmentAPI:
         assert data["instructions"] is not None
         assert data["primary_muscles"] is not None
 
-    async def test_enrich_endpoint_unknown_exercise(self, client: AsyncClient) -> None:
-        """POST /exercises/{id}/enrich returns 404 for unknown exercise."""
+    async def test_enrich_endpoint_unknown_exercise_no_api_key(self, client: AsyncClient) -> None:
+        """POST /exercises/{id}/enrich returns 404 when no DB match and no API key."""
         create_response = await client.post(
             "/api/v1/exercises",
             json={"name": "ZZZ Unknown Custom", "category": "core"},
         )
         exercise_id = create_response.json()["id"]
 
-        response = await client.post(f"/api/v1/exercises/{exercise_id}/enrich")
+        with patch("app.services.exercise_ai_enrichment.settings") as mock_settings:
+            mock_settings.claude_api_key = ""
+            response = await client.post(f"/api/v1/exercises/{exercise_id}/enrich")
         assert response.status_code == 404
+
+    async def test_enrich_endpoint_claude_fallback(self, client: AsyncClient) -> None:
+        """POST /exercises/{id}/enrich uses Claude API when no DB match."""
+        create_response = await client.post(
+            "/api/v1/exercises",
+            json={"name": "Spezialübung XYZ", "category": "core"},
+        )
+        exercise_id = create_response.json()["id"]
+
+        mock_enrichment = {
+            "instructions_json": json.dumps(["Schritt 1", "Schritt 2"]),
+            "primary_muscles_json": json.dumps(["abdominals"]),
+            "secondary_muscles_json": json.dumps([]),
+            "image_urls_json": json.dumps([]),
+            "equipment": "body_only",
+            "level": "intermediate",
+            "force": "static",
+            "mechanic": "isolation",
+            "exercise_db_id": None,
+        }
+
+        with patch(
+            "app.services.exercise_ai_enrichment.generate_exercise_enrichment",
+            return_value=mock_enrichment,
+        ):
+            response = await client.post(f"/api/v1/exercises/{exercise_id}/enrich")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["instructions"] == ["Schritt 1", "Schritt 2"]
+        assert data["primary_muscles"] == ["abdominals"]
+        assert data["equipment"] == "body_only"
+        assert data["exercise_db_id"] is None
+
+    async def test_create_exercise_claude_fallback(self, client: AsyncClient) -> None:
+        """POST /exercises uses Claude fallback for unknown exercises."""
+        mock_enrichment = {
+            "instructions_json": json.dumps(["Ausführung 1"]),
+            "primary_muscles_json": json.dumps(["quadriceps"]),
+            "secondary_muscles_json": json.dumps(["glutes"]),
+            "image_urls_json": json.dumps([]),
+            "equipment": "body_only",
+            "level": "beginner",
+            "force": "push",
+            "mechanic": "compound",
+            "exercise_db_id": None,
+        }
+
+        with patch(
+            "app.services.exercise_ai_enrichment.generate_exercise_enrichment",
+            return_value=mock_enrichment,
+        ):
+            response = await client.post(
+                "/api/v1/exercises",
+                json={"name": "Einzigartige Übung 123", "category": "legs"},
+            )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["instructions"] == ["Ausführung 1"]
+        assert data["primary_muscles"] == ["quadriceps"]
+        assert data["equipment"] == "body_only"
