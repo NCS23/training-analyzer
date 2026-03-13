@@ -16,6 +16,7 @@ from app.infrastructure.database.models import (
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
+from app.models.segment import ComparisonResponse, laps_to_segments
 from app.models.session import (
     DateUpdateRequest,
     LapOverrideRequest,
@@ -33,10 +34,12 @@ from app.models.session import (
     TrainingTypeOverrideRequest,
 )
 from app.models.training import TrainingSubType, TrainingType
+from app.models.weekly_plan import RunDetails
 from app.services.csv_parser import TrainingCSVParser
 from app.services.fit_parser import TrainingFITParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
 from app.services.km_split_calculator import calculate_km_splits, calculate_session_gap
+from app.services.segment_matcher import build_comparison
 from app.services.training_type_classifier import classify_training_type
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -553,6 +556,65 @@ async def get_working_zones(
     gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
     _, hr_zones = _calculate_working_laps_metrics(laps_raw, resting_hr, max_hr, gps_track)
     return {"hr_zones_working": hr_zones}
+
+
+@router.get("/{session_id}/comparison", response_model=ComparisonResponse)
+async def get_session_comparison(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> ComparisonResponse:
+    """Soll/Ist-Vergleich: matcht geplante Segmente mit tatsächlichen Laps."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if workout.planned_entry_id is None:
+        raise HTTPException(status_code=404, detail="Session hat keine zugeordnete Planung.")
+
+    # Load planned session
+    ps_query = select(PlannedSessionModel).where(PlannedSessionModel.id == workout.planned_entry_id)
+    ps_result = await db.execute(ps_query)
+    planned_session = ps_result.scalar_one_or_none()
+
+    if not planned_session or not planned_session.run_details_json:
+        raise HTTPException(
+            status_code=404, detail="Geplante Session oder Run-Details nicht gefunden."
+        )
+
+    # Parse planned segments
+    run_details = _parse_run_details(str(planned_session.run_details_json))
+    if not run_details or not run_details.segments:
+        raise HTTPException(status_code=404, detail="Keine geplanten Segmente vorhanden.")
+
+    # Parse actual laps → segments
+    actual_segments = []
+    if workout.laps_json:
+        from app.models.session import LapResponse as LapResponseCls
+
+        laps_raw = json.loads(str(workout.laps_json))
+        laps = [LapResponseCls(**lap) for lap in laps_raw]
+        actual_segments = laps_to_segments(laps)
+
+    return build_comparison(
+        planned_segments=run_details.segments,
+        actual_segments=actual_segments,
+        planned_entry_id=workout.planned_entry_id,
+        planned_run_type=run_details.run_type,
+    )
+
+
+def _parse_run_details(raw: str | None) -> RunDetails | None:
+    """Parse run_details_json string to RunDetails model."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return RunDetails(**data)
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 
 @router.patch("/{session_id}/laps", response_model=LapOverrideResponse)

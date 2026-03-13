@@ -1,7 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getSession, getSessionTrack, getWorkingZones, getKmSplits } from '@/api/training';
-import type { SessionDetail, LapDetail, HRZone, GPSTrack, KmSplit } from '@/api/training';
+import {
+  getSession,
+  getSessionTrack,
+  getWorkingZones,
+  getKmSplits,
+  getSessionComparison,
+} from '@/api/training';
+import type {
+  SessionDetail,
+  LapDetail,
+  HRZone,
+  GPSTrack,
+  KmSplit,
+  ComparisonResponse,
+} from '@/api/training';
 import { useToast } from '@nordlig/components';
 
 export interface SessionData {
@@ -17,6 +30,7 @@ export interface SessionData {
   sessionGap: string | null;
   workingHrZones: Record<string, HRZone> | null;
   setWorkingHrZones: React.Dispatch<React.SetStateAction<Record<string, HRZone> | null>>;
+  comparison: ComparisonResponse | null;
   reload: () => Promise<void>;
 }
 
@@ -33,6 +47,7 @@ export function useSessionData(sessionId: number): SessionData {
   const [kmSplits, setKmSplits] = useState<KmSplit[] | null>(null);
   const [sessionGap, setSessionGap] = useState<string | null>(null);
   const [workingHrZones, setWorkingHrZones] = useState<Record<string, HRZone> | null>(null);
+  const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
 
   // eslint-disable-next-line complexity -- loading multiple dependent resources
   const loadSession = useCallback(async () => {
@@ -80,6 +95,16 @@ export function useSessionData(sessionId: number): SessionData {
           // working HR zones are optional
         }
       }
+
+      // Soll/Ist-Vergleich laden (nur wenn planned_entry_id vorhanden)
+      if (data.planned_entry_id != null) {
+        try {
+          const compData = await getSessionComparison(sessionId);
+          setComparison(compData);
+        } catch {
+          // comparison is optional
+        }
+      }
     } catch {
       setError('Session konnte nicht geladen werden.');
     } finally {
@@ -112,6 +137,7 @@ export function useSessionData(sessionId: number): SessionData {
     sessionGap,
     workingHrZones,
     setWorkingHrZones,
+    comparison,
     reload: loadSession,
   };
 }
