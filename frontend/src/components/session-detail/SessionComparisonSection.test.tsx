@@ -51,20 +51,6 @@ describe('SessionComparisonSection — layout', () => {
     expect(screen.getByRole('table')).toBeDefined();
   });
 
-  it('renders run type badge when present', () => {
-    render(
-      <SessionComparisonSection
-        comparison={makeComparison({ planned_run_type: 'easy', segments: [makeMatched()] })}
-      />,
-    );
-    expect(screen.getByText('easy')).toBeDefined();
-  });
-
-  it('does not render run type badge when null', () => {
-    render(<SessionComparisonSection comparison={makeComparison({ segments: [makeMatched()] })} />);
-    expect(screen.queryByText('easy')).toBeNull();
-  });
-
   it('shows mismatch alert when has_mismatch is true', () => {
     const comparison = makeComparison({
       has_mismatch: true,

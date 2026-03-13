@@ -110,19 +110,14 @@ export function SessionComparisonSection({ comparison }: SessionComparisonSectio
   return (
     <section aria-label="Soll/Ist-Vergleich">
       <Card elevation="raised">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
             Soll/Ist-Vergleich
           </h2>
-          {comparison.planned_run_type && (
-            <Badge variant="neutral" size="xs">
-              {comparison.planned_run_type}
-            </Badge>
-          )}
         </CardHeader>
 
         {comparison.has_mismatch && (
-          <div className="px-[var(--spacing-card-padding-normal)] pb-3">
+          <div className="pb-3 -mt-1">
             <Alert variant="info">
               <AlertDescription>
                 Segment-Anzahl weicht ab: {comparison.planned_count} geplant,{' '}
