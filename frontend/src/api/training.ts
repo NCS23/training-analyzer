@@ -260,8 +260,22 @@ export interface SessionDetail {
   planned_entry_id: number | null;
   athlete_resting_hr: number | null;
   athlete_max_hr: number | null;
+  ai_analysis: SessionAnalysis | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SessionAnalysis {
+  session_id: number;
+  provider: string;
+  summary: string;
+  intensity_rating: string;
+  intensity_text: string;
+  hr_zone_assessment: string;
+  plan_comparison: string | null;
+  fatigue_indicators: string | null;
+  recommendations: string[];
+  cached: boolean;
 }
 
 export async function updateTrainingType(
@@ -409,6 +423,18 @@ export async function recalculateSessionZones(
     `/api/v1/sessions/${sessionId}/recalculate-zones`,
     params ?? {},
   );
+  return response.data;
+}
+
+// --- KI Session-Analyse (#32) ---
+
+export async function analyzeSession(
+  sessionId: number,
+  forceRefresh = false,
+): Promise<SessionAnalysis> {
+  const response = await apiClient.post<SessionAnalysis>(`/api/v1/sessions/${sessionId}/analyze`, {
+    force_refresh: forceRefresh,
+  });
   return response.data;
 }
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
@@ -101,6 +102,7 @@ class SessionResponse(BaseModel):
     planned_entry_id: Optional[int] = None  # S10: Soll/Ist-Link
     athlete_resting_hr: Optional[int] = None
     athlete_max_hr: Optional[int] = None
+    ai_analysis: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 
@@ -147,6 +149,12 @@ class SessionResponse(BaseModel):
         # Convert laps to unified segments (#133)
         segments = laps_to_segments(laps) if laps else None
 
+        # Gecachte AI-Analyse
+        ai_analysis = None
+        if model.ai_analysis:
+            with contextlib.suppress(json.JSONDecodeError):
+                ai_analysis = json.loads(str(model.ai_analysis))
+
         return cls(
             id=model.id,
             date=session_date,
@@ -170,6 +178,7 @@ class SessionResponse(BaseModel):
             planned_entry_id=model.planned_entry_id if model.planned_entry_id else None,
             athlete_resting_hr=model.athlete_resting_hr if model.athlete_resting_hr else None,
             athlete_max_hr=model.athlete_max_hr if model.athlete_max_hr else None,
+            ai_analysis=ai_analysis,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
