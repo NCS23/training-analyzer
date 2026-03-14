@@ -1,0 +1,15 @@
+# Default: Alle Änderungen brauchen Review von @NCS23
+* @NCS23
+
+# Frontend
+/frontend/ @NCS23
+
+# Backend
+/backend/ @NCS23
+
+# CI/CD & Infrastruktur
+/.github/ @NCS23
+/docker-compose*.yml @NCS23
+
+# E2E Tests
+/e2e/ @NCS23
