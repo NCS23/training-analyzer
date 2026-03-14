@@ -60,6 +60,7 @@ import {
   SessionExercisesSection,
   SessionEditFields,
   SessionComparisonSection,
+  SessionAIAnalysis,
 } from '@/components/session-detail';
 
 const workoutTypeHeadings: Record<string, string> = {
@@ -329,6 +330,15 @@ export function SessionDetailPage() {
           </Card>
         </section>
       )}
+
+      {/* KI-Analyse (#32) */}
+      <SessionAIAnalysis
+        sessionId={sessionId}
+        cachedAnalysis={session.ai_analysis ?? null}
+        onAnalysisLoaded={(analysis) =>
+          data.setSession((prev) => (prev ? { ...prev, ai_analysis: analysis } : prev))
+        }
+      />
 
       {/* Exercises (Strength) */}
       {session.exercises && session.exercises.length > 0 && (

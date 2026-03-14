@@ -16,6 +16,7 @@ from app.infrastructure.database.models import (
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
+from app.models.ai_analysis import AnalyzeRequest, SessionAnalysisResponse
 from app.models.segment import ComparisonResponse, laps_to_segments
 from app.models.session import (
     DateUpdateRequest,
@@ -803,6 +804,26 @@ async def delete_session(
 
     await db.delete(workout)
     await db.commit()
+
+
+@router.post("/{session_id}/analyze", response_model=SessionAnalysisResponse)
+async def analyze_session(
+    session_id: int,
+    body: Optional[AnalyzeRequest] = None,
+    db: AsyncSession = Depends(get_db),
+) -> SessionAnalysisResponse:
+    """KI-gestützte Analyse einer Session (Cache-First)."""
+    from app.services.session_analysis_service import (
+        analyze_session as run_analysis,
+    )
+
+    force = body.force_refresh if body else False
+    try:
+        return await run_analysis(session_id, db, force_refresh=force)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI-Analyse fehlgeschlagen: {e}") from e
 
 
 @router.post("/{session_id}/recalculate-zones")
