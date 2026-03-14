@@ -1,9 +1,11 @@
 """Exercise Library API Endpoints."""
 
 import json
+import shutil
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -394,6 +396,27 @@ _NAME_MIGRATION: dict[str, str] = {
     "Ausfallschritte": "Ausfallschritte",
     "Trizeps-Pushdown": "Trizeps-Pushdown",
 }
+
+
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "static" / "uploads" / "exercises"
+_ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
+_MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+async def _validate_image_file(file: UploadFile) -> tuple[bytes, str]:
+    """Validiert und liest eine Bild-Datei. Gibt (content, extension) zurück."""
+    if not file.content_type or file.content_type not in _ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Nur JPG/PNG-Bilder werden akzeptiert.",
+        )
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Bild-Datei ist leer.")
+    if len(content) > _MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail="Bild darf maximal 5 MB groß sein.")
+    ext = ".png" if file.content_type == "image/png" else ".jpg"
+    return content, ext
 
 
 async def _ensure_seed_data(db: AsyncSession) -> None:  # noqa: PLR0912  # TODO: E16 Refactoring
@@ -787,3 +810,73 @@ async def enrich_exercise(
     await db.refresh(exercise)
 
     return ExerciseResponse.from_db(exercise)
+
+
+@router.post("/{exercise_id}/images", response_model=ExerciseResponse)
+async def upload_exercise_images(
+    exercise_id: int,
+    image_0: UploadFile = File(..., description="Startposition (Pflicht)"),
+    image_1: UploadFile | None = File(None, description="Endposition (Optional)"),
+    db: AsyncSession = Depends(get_db),
+) -> ExerciseResponse:
+    """Lädt Bilder für eine Custom-Übung hoch (Start- und optional Endposition)."""
+    result = await db.execute(select(ExerciseModel).where(ExerciseModel.id == exercise_id))
+    exercise = result.scalar_one_or_none()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
+    if not exercise.is_custom:
+        raise HTTPException(
+            status_code=400,
+            detail="Bilder können nur für Custom-Übungen hochgeladen werden.",
+        )
+
+    # Validate files
+    content_0, ext_0 = await _validate_image_file(image_0)
+    files_to_write: list[tuple[bytes, str, int]] = [(content_0, ext_0, 0)]
+
+    if image_1 is not None:
+        content_1, ext_1 = await _validate_image_file(image_1)
+        files_to_write.append((content_1, ext_1, 1))
+
+    # Write files — remove old directory first to clean stale images
+    upload_dir = UPLOAD_DIR / str(exercise_id)
+    if upload_dir.exists():
+        shutil.rmtree(upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    image_urls: list[str] = []
+    for content, ext, idx in files_to_write:
+        file_path = upload_dir / f"{idx}{ext}"
+        file_path.write_bytes(content)
+        image_urls.append(f"/static/uploads/exercises/{exercise_id}/{idx}{ext}")
+
+    exercise.image_urls_json = json.dumps(image_urls)
+    await db.commit()
+    await db.refresh(exercise)
+
+    return ExerciseResponse.from_db(exercise)
+
+
+@router.delete("/{exercise_id}/images", status_code=204)
+async def delete_exercise_images(
+    exercise_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Löscht alle hochgeladenen Bilder einer Custom-Übung."""
+    result = await db.execute(select(ExerciseModel).where(ExerciseModel.id == exercise_id))
+    exercise = result.scalar_one_or_none()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
+    if not exercise.is_custom:
+        raise HTTPException(
+            status_code=400,
+            detail="Bilder können nur für Custom-Übungen gelöscht werden.",
+        )
+
+    # Remove files
+    upload_dir = UPLOAD_DIR / str(exercise_id)
+    if upload_dir.exists():
+        shutil.rmtree(upload_dir)
+
+    exercise.image_urls_json = None
+    await db.commit()

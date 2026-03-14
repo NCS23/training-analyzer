@@ -80,6 +80,26 @@ export async function deleteExercise(exerciseId: number): Promise<void> {
   await apiClient.delete(`/api/v1/exercises/${exerciseId}`);
 }
 
+export async function uploadExerciseImages(
+  exerciseId: number,
+  files: { start: File; end?: File },
+): Promise<Exercise> {
+  const formData = new FormData();
+  formData.append('image_0', files.start);
+  if (files.end) {
+    formData.append('image_1', files.end);
+  }
+  const response = await apiClient.post<Exercise>(
+    `/api/v1/exercises/${exerciseId}/images`,
+    formData,
+  );
+  return response.data;
+}
+
+export async function deleteExerciseImages(exerciseId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/exercises/${exerciseId}/images`);
+}
+
 export async function enrichExercise(exerciseId: number, exerciseDbId?: string): Promise<Exercise> {
   const body = exerciseDbId ? { exercise_db_id: exerciseDbId } : undefined;
   const response = await apiClient.post<Exercise>(`/api/v1/exercises/${exerciseId}/enrich`, body);

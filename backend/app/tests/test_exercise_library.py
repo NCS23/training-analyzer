@@ -1,5 +1,7 @@
 """Tests fuer Exercise Library API."""
 
+import io
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -188,6 +190,159 @@ class TestExerciseLibraryAPI:
         assert response.status_code == 404
 
         response = await client.delete("/api/v1/exercises/99999")
+        assert response.status_code == 404
+
+
+def _make_jpeg(size: int = 100) -> bytes:
+    """Erzeugt minimale gültige JPEG-Bytes."""
+    # JPEG SOI marker + JFIF header + padding
+    header = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+    return header + b"\x00" * max(0, size - len(header)) + b"\xff\xd9"
+
+
+def _make_png(size: int = 100) -> bytes:
+    """Erzeugt minimale gültige PNG-Bytes."""
+    header = b"\x89PNG\r\n\x1a\n"
+    return header + b"\x00" * max(0, size - len(header))
+
+
+class TestExerciseImageUpload:
+    """Tests für den Bild-Upload bei Custom-Übungen."""
+
+    async def _create_custom_exercise(self, client: AsyncClient) -> int:
+        """Erstellt eine Custom-Übung und gibt die ID zurück."""
+        response = await client.post(
+            "/api/v1/exercises",
+            json={"name": "Upload Test Übung", "category": "push"},
+        )
+        assert response.status_code == 201
+        return response.json()["id"]
+
+    async def test_upload_one_image(self, client: AsyncClient) -> None:
+        """Upload eines einzelnen Bildes setzt image_urls."""
+        exercise_id = await self._create_custom_exercise(client)
+        jpeg_data = _make_jpeg()
+
+        response = await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={"image_0": ("start.jpg", io.BytesIO(jpeg_data), "image/jpeg")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["image_urls"]) == 1
+        assert "/static/uploads/exercises/" in data["image_urls"][0]
+
+    async def test_upload_two_images(self, client: AsyncClient) -> None:
+        """Upload von zwei Bildern setzt beide image_urls."""
+        exercise_id = await self._create_custom_exercise(client)
+        jpeg_data = _make_jpeg()
+        png_data = _make_png()
+
+        response = await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={
+                "image_0": ("start.jpg", io.BytesIO(jpeg_data), "image/jpeg"),
+                "image_1": ("end.png", io.BytesIO(png_data), "image/png"),
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["image_urls"]) == 2
+
+    async def test_upload_rejects_non_custom(self, client: AsyncClient) -> None:
+        """Upload für Standard-Übungen wird abgelehnt."""
+        # Seed defaults
+        await client.get("/api/v1/exercises")
+        list_resp = await client.get("/api/v1/exercises")
+        default_ex = next(ex for ex in list_resp.json()["exercises"] if not ex["is_custom"])
+
+        response = await client.post(
+            f"/api/v1/exercises/{default_ex['id']}/images",
+            files={"image_0": ("test.jpg", io.BytesIO(_make_jpeg()), "image/jpeg")},
+        )
+        assert response.status_code == 400
+
+    async def test_upload_rejects_invalid_type(self, client: AsyncClient) -> None:
+        """Upload mit ungültigem Dateityp wird abgelehnt."""
+        exercise_id = await self._create_custom_exercise(client)
+
+        response = await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={"image_0": ("test.gif", io.BytesIO(b"GIF89a"), "image/gif")},
+        )
+        assert response.status_code == 400
+
+    async def test_upload_rejects_oversized(self, client: AsyncClient) -> None:
+        """Upload > 5 MB wird abgelehnt."""
+        exercise_id = await self._create_custom_exercise(client)
+        big_data = _make_jpeg(6 * 1024 * 1024)
+
+        response = await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={"image_0": ("big.jpg", io.BytesIO(big_data), "image/jpeg")},
+        )
+        assert response.status_code == 400
+
+    async def test_reupload_replaces_images(self, client: AsyncClient) -> None:
+        """Re-Upload ersetzt bestehende Bilder."""
+        exercise_id = await self._create_custom_exercise(client)
+        jpeg_data = _make_jpeg()
+
+        # Erster Upload: 2 Bilder
+        await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={
+                "image_0": ("s.jpg", io.BytesIO(jpeg_data), "image/jpeg"),
+                "image_1": ("e.jpg", io.BytesIO(jpeg_data), "image/jpeg"),
+            },
+        )
+
+        # Re-Upload: nur 1 Bild
+        response = await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={"image_0": ("new.jpg", io.BytesIO(jpeg_data), "image/jpeg")},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["image_urls"]) == 1
+
+    async def test_delete_images(self, client: AsyncClient) -> None:
+        """DELETE löscht Bilder und setzt image_urls auf null."""
+        exercise_id = await self._create_custom_exercise(client)
+
+        # Upload
+        await client.post(
+            f"/api/v1/exercises/{exercise_id}/images",
+            files={"image_0": ("s.jpg", io.BytesIO(_make_jpeg()), "image/jpeg")},
+        )
+
+        # Delete
+        response = await client.delete(f"/api/v1/exercises/{exercise_id}/images")
+        assert response.status_code == 204
+
+        # Verify
+        get_resp = await client.get(f"/api/v1/exercises/{exercise_id}")
+        assert get_resp.json()["image_urls"] is None
+
+    async def test_delete_rejects_non_custom(self, client: AsyncClient) -> None:
+        """Delete für Standard-Übungen wird abgelehnt."""
+        await client.get("/api/v1/exercises")
+        list_resp = await client.get("/api/v1/exercises")
+        default_ex = next(ex for ex in list_resp.json()["exercises"] if not ex["is_custom"])
+
+        response = await client.delete(f"/api/v1/exercises/{default_ex['id']}/images")
+        assert response.status_code == 400
+
+    async def test_upload_not_found(self, client: AsyncClient) -> None:
+        """Upload auf nicht-existente Übung gibt 404."""
+        response = await client.post(
+            "/api/v1/exercises/99999/images",
+            files={"image_0": ("s.jpg", io.BytesIO(_make_jpeg()), "image/jpeg")},
+        )
+        assert response.status_code == 404
+
+    async def test_delete_not_found(self, client: AsyncClient) -> None:
+        """Delete auf nicht-existente Übung gibt 404."""
+        response = await client.delete("/api/v1/exercises/99999/images")
         assert response.status_code == 404
 
 
