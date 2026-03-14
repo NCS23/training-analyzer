@@ -18,16 +18,16 @@ test.describe("Dashboard", () => {
 
   test("zeigt App-Branding", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.waitForLoadState("domcontentloaded");
 
-    // Zwei Logos: Sidebar (Desktop) + TopBar (Mobile) — je nach Viewport ist nur eines sichtbar
-    const logos = page.locator('img[alt="Training Analyzer"]');
-    const count = await logos.count();
-    expect(count).toBeGreaterThan(0);
+    // Warten bis React gemountet hat und mindestens ein Logo im DOM ist
+    const logo = page.locator('img[alt="Training Analyzer"]');
+    await logo.first().waitFor({ state: "attached", timeout: 15_000 });
 
+    // Mindestens ein Logo muss sichtbar sein (Sidebar auf Desktop, TopBar auf Mobile)
+    const count = await logo.count();
     let anyVisible = false;
     for (let i = 0; i < count; i++) {
-      if (await logos.nth(i).isVisible()) {
+      if (await logo.nth(i).isVisible()) {
         anyVisible = true;
         break;
       }
