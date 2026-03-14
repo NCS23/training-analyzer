@@ -43,6 +43,7 @@ import { getExercise, toggleFavorite, updateExercise, deleteExercise } from '@/a
 import type { Exercise } from '@/api/exercises';
 import { MuscleMap } from '@/features/exercises/MuscleMap';
 import { ExerciseDbPicker } from '@/features/exercises/ExerciseDbPicker';
+import { ExerciseImageUpload } from '@/features/exercises/ExerciseImageUpload';
 
 const categoryLabels: Record<string, string> = {
   push: 'Push',
@@ -565,30 +566,22 @@ export function ExerciseDetailPage() {
         )
       )}
 
-      {/* 3. Images */}
-      {exercise.image_urls && exercise.image_urls.length > 0 && (
+      {/* 3. Images (View + Upload für Custom-Übungen) */}
+      {(exercise.image_urls?.length || (isEditing && exercise.is_custom)) && (
         <Card elevation="raised" padding="spacious">
           <CardHeader>
             <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Ausführung</h2>
           </CardHeader>
           <CardBody>
-            <div className="grid grid-cols-2 gap-4">
-              {exercise.image_urls.map((url, idx) => (
-                <div key={idx} className="space-y-1.5">
-                  <div className="rounded-[var(--radius-component-md)] overflow-hidden bg-[var(--color-bg-subtle)]">
-                    <img
-                      src={url}
-                      alt={`${exercise.name} — ${idx === 0 ? 'Startposition' : 'Endposition'}`}
-                      className="w-full h-auto object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <p className="text-xs text-[var(--color-text-muted)] text-center">
-                    {idx === 0 ? 'Startposition' : 'Endposition'}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <ExerciseImageUpload
+              exerciseId={exercise.id}
+              existingUrls={exercise.image_urls}
+              isCustom={exercise.is_custom}
+              isEditing={isEditing}
+              onImagesUpdated={(updated) =>
+                setExercise((prev) => (prev ? { ...prev, ...updated } : prev))
+              }
+            />
           </CardBody>
         </Card>
       )}

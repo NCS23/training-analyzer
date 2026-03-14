@@ -23,6 +23,8 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=production
       - ALLOWED_ORIGINS=["http://training.89.167.78.223.sslip.io","https://training.89.167.78.223.sslip.io"]
+    volumes:
+      - exercise_uploads:/app/static/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,3 +47,4 @@ services:
 
 volumes:
   postgres_data:
+  exercise_uploads:
