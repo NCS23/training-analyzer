@@ -20,10 +20,18 @@ test.describe("Dashboard", () => {
     await page.goto("/dashboard");
     await page.waitForLoadState("domcontentloaded");
 
-    // Mindestens ein Logo mit alt="Training Analyzer" muss sichtbar sein
-    // (Sidebar auf Desktop, TopBar auf Mobile)
-    await expect(
-      page.locator('img[alt="Training Analyzer"]').first(),
-    ).toBeVisible();
+    // Zwei Logos: Sidebar (Desktop) + TopBar (Mobile) — je nach Viewport ist nur eines sichtbar
+    const logos = page.locator('img[alt="Training Analyzer"]');
+    const count = await logos.count();
+    expect(count).toBeGreaterThan(0);
+
+    let anyVisible = false;
+    for (let i = 0; i < count; i++) {
+      if (await logos.nth(i).isVisible()) {
+        anyVisible = true;
+        break;
+      }
+    }
+    expect(anyVisible).toBeTruthy();
   });
 });
