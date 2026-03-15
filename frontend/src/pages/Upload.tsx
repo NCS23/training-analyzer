@@ -119,7 +119,7 @@ export default function UploadPage() {
             </CardHeader>
             <CardBody className="space-y-4">
               <FileUpload
-                accept=".csv,.fit"
+                accept=".csv,.fit,application/octet-stream"
                 onUpload={form.handleFileUpload}
                 onRemove={form.handleFileRemove}
                 instructionText={
