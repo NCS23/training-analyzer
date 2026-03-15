@@ -61,10 +61,18 @@ function PromptBlock({ label, content }: { label: string; content: string }) {
 
 function DetailTitle({ detail }: { detail: AILogDetail }) {
   if (detail.workout_id != null && detail.session_date) {
-    return <>Eintrag #{detail.id} — Session vom {detail.session_date}</>;
+    return (
+      <>
+        Eintrag #{detail.id} — Session vom {detail.session_date}
+      </>
+    );
   }
   if (detail.context_label) {
-    return <>Eintrag #{detail.id} — {detail.context_label}</>;
+    return (
+      <>
+        Eintrag #{detail.id} — {detail.context_label}
+      </>
+    );
   }
   return <>Eintrag #{detail.id}</>;
 }
