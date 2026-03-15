@@ -1,6 +1,17 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -219,6 +230,22 @@ class PlannedSessionModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class AIAnalysisLogModel(Base):
+    __tablename__ = "ai_analysis_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    workout_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    provider: Mapped[str] = mapped_column(String(100))
+    system_prompt: Mapped[str] = mapped_column(Text)
+    user_prompt: Mapped[str] = mapped_column(Text)
+    raw_response: Mapped[str] = mapped_column(Text)
+    parsed_ok: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    duration_ms: Mapped[int | None] = mapped_column(Integer, default=None)
 
 
 class PlanChangeLogModel(Base):

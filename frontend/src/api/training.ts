@@ -473,6 +473,42 @@ export async function getSessionComparison(sessionId: number): Promise<Compariso
   return response.data;
 }
 
+// --- KI Debug Log (#261) ---
+
+export interface AILogEntry {
+  id: number;
+  workout_id: number;
+  created_at: string;
+  provider: string;
+  parsed_ok: boolean;
+  duration_ms: number | null;
+  session_date: string;
+  session_type: string;
+}
+
+export interface AILogDetail extends AILogEntry {
+  system_prompt: string;
+  user_prompt: string;
+  raw_response: string;
+}
+
+export interface AILogListResponse {
+  items: AILogEntry[];
+  total: number;
+}
+
+export async function fetchAILog(limit = 20, offset = 0): Promise<AILogListResponse> {
+  const response = await apiClient.get<AILogListResponse>('/api/v1/ai/log', {
+    params: { limit, offset },
+  });
+  return response.data;
+}
+
+export async function fetchAILogDetail(logId: number): Promise<AILogDetail> {
+  const response = await apiClient.get<AILogDetail>(`/api/v1/ai/log/${logId}`);
+  return response.data;
+}
+
 export async function healthCheck(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/health');
   return response.data;
