@@ -236,9 +236,11 @@ class AIAnalysisLogModel(Base):
     __tablename__ = "ai_analysis_log"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    workout_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True
+    workout_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True, default=None
     )
+    use_case: Mapped[str] = mapped_column(String(50), server_default="session_analysis")
+    context_label: Mapped[str | None] = mapped_column(String(200), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     provider: Mapped[str] = mapped_column(String(100))
     system_prompt: Mapped[str] = mapped_column(Text)

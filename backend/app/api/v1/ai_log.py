@@ -17,13 +17,15 @@ class AILogListEntry(BaseModel):
     """Kurzform fuer Liste."""
 
     id: int
-    workout_id: int
+    workout_id: int | None
+    use_case: str
+    context_label: str | None
     created_at: datetime
     provider: str
     parsed_ok: bool
     duration_ms: int | None
-    session_date: str
-    session_type: str
+    session_date: str | None
+    session_type: str | None
 
 
 class AILogDetail(AILogListEntry):
@@ -52,10 +54,10 @@ async def list_ai_logs(
     count_result = await db.execute(select(func.count(AIAnalysisLogModel.id)))
     total = count_result.scalar_one()
 
-    # Logs mit Workout-Daten joinen
+    # Logs mit optionalem Workout LEFT JOIN
     stmt = (
         select(AIAnalysisLogModel, WorkoutModel.date, WorkoutModel.workout_type)
-        .join(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
+        .outerjoin(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
         .order_by(AIAnalysisLogModel.created_at.desc())
         .offset(offset)
         .limit(limit)
@@ -65,17 +67,26 @@ async def list_ai_logs(
 
     items = []
     for log, w_date, w_type in rows:
-        session_date = w_date.date().isoformat() if isinstance(w_date, datetime) else str(w_date)
+        session_date = None
+        session_type = None
+        if w_date is not None:
+            session_date = (
+                w_date.date().isoformat() if isinstance(w_date, datetime) else str(w_date)
+            )
+            session_type = str(w_type) if w_type else None
+
         items.append(
             AILogListEntry(
                 id=log.id,
                 workout_id=log.workout_id,
+                use_case=log.use_case,
+                context_label=log.context_label,
                 created_at=log.created_at,
                 provider=log.provider,
                 parsed_ok=log.parsed_ok,
                 duration_ms=log.duration_ms,
                 session_date=session_date,
-                session_type=str(w_type),
+                session_type=session_type,
             )
         )
 
@@ -90,7 +101,7 @@ async def get_ai_log_detail(
     """Einzelner Log-Eintrag mit vollem Prompt und Response."""
     stmt = (
         select(AIAnalysisLogModel, WorkoutModel.date, WorkoutModel.workout_type)
-        .join(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
+        .outerjoin(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
         .where(AIAnalysisLogModel.id == log_id)
     )
     result = await db.execute(stmt)
@@ -100,17 +111,23 @@ async def get_ai_log_detail(
         raise HTTPException(status_code=404, detail="Log-Eintrag nicht gefunden")
 
     log, w_date, w_type = row
-    session_date = w_date.date().isoformat() if isinstance(w_date, datetime) else str(w_date)
+    session_date = None
+    session_type = None
+    if w_date is not None:
+        session_date = w_date.date().isoformat() if isinstance(w_date, datetime) else str(w_date)
+        session_type = str(w_type) if w_type else None
 
     return AILogDetail(
         id=log.id,
         workout_id=log.workout_id,
+        use_case=log.use_case,
+        context_label=log.context_label,
         created_at=log.created_at,
         provider=log.provider,
         parsed_ok=log.parsed_ok,
         duration_ms=log.duration_ms,
         session_date=session_date,
-        session_type=str(w_type),
+        session_type=session_type,
         system_prompt=log.system_prompt,
         user_prompt=log.user_prompt,
         raw_response=log.raw_response,

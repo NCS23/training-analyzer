@@ -17,13 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
-    AIAnalysisLogModel,
     AthleteModel,
     PlannedSessionModel,
     RaceGoalModel,
     WorkoutModel,
 )
 from app.models.ai_analysis import SessionAnalysisResponse
+from app.services.ai_log_service import AICallData, log_ai_call
 
 logger = logging.getLogger(__name__)
 
@@ -66,16 +66,18 @@ async def analyze_session(
     analysis = _parse_analysis_json(raw, session_id, provider)
     parsed_ok = analysis.summary != raw[:500]  # Fallback hat raw als summary
     workout.ai_analysis = json.dumps(analysis.model_dump())
-    db.add(
-        AIAnalysisLogModel(
-            workout_id=session_id,
+    await log_ai_call(
+        db,
+        AICallData(
+            use_case="session_analysis",
             provider=provider,
             system_prompt=system_prompt,
             user_prompt=prompt,
             raw_response=raw,
             parsed_ok=parsed_ok,
             duration_ms=duration_ms,
-        )
+            workout_id=session_id,
+        ),
     )
     await db.commit()
 

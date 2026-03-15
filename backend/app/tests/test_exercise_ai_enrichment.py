@@ -1,7 +1,7 @@
 """Tests für Claude API Fallback bei Übungs-Anreicherung."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -167,21 +167,62 @@ class TestGenerateExerciseEnrichment:
         with (
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
+            patch(
+                "app.services.exercise_ai_enrichment.log_ai_call", new_callable=AsyncMock
+            ) as mock_log,
+        ):
+            mock_settings.claude_model = "claude-sonnet-4-20250514"
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_db = AsyncMock()
+
+            result = await generate_exercise_enrichment("Bankdrücken", "push", "test-key", mock_db)
+
+        assert result is not None
+        instructions = result["instructions_json"]
+        assert instructions is not None
+        assert json.loads(instructions) == ["Schritt 1", "Schritt 2"]
+        primary = result["primary_muscles_json"]
+        assert primary is not None
+        assert json.loads(primary) == ["chest", "triceps"]
+        assert result["equipment"] == "barbell"
+        assert result["exercise_db_id"] is None
+        mock_log.assert_awaited_once()
+        call_data = mock_log.call_args[0][1]  # AICallData ist 2. positional arg
+        assert call_data.use_case == "exercise_enrichment"
+        assert call_data.parsed_ok is True
+
+    @pytest.mark.asyncio
+    async def test_successful_api_call_without_db(self) -> None:
+        """Ohne DB-Session wird kein Log geschrieben."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "instructions": ["Schritt 1"],
+                        "primary_muscles": ["chest"],
+                    }
+                )
+            )
+        ]
+
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+
+        with (
+            patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
+            patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
+            patch(
+                "app.services.exercise_ai_enrichment.log_ai_call", new_callable=AsyncMock
+            ) as mock_log,
         ):
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
 
-            result = await generate_exercise_enrichment("Bankdrücken", "push", "test-key")
+            result = await generate_exercise_enrichment("Test", "push", "test-key")
 
         assert result is not None
-        instructions_json = result["instructions_json"]
-        assert instructions_json is not None
-        assert json.loads(instructions_json) == ["Schritt 1", "Schritt 2"]
-        primary_json = result["primary_muscles_json"]
-        assert primary_json is not None
-        assert json.loads(primary_json) == ["chest", "triceps"]
-        assert result["equipment"] == "barbell"
-        assert result["exercise_db_id"] is None
+        mock_log.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_api_error_returns_none(self) -> None:
@@ -202,7 +243,7 @@ class TestGenerateExerciseEnrichment:
 
     @pytest.mark.asyncio
     async def test_invalid_json_response_returns_none(self) -> None:
-        """Ungültiges JSON von der API gibt None zurück."""
+        """Ungültiges JSON von der API gibt None zurück und wird geloggt."""
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text="Das ist kein JSON")]
 
@@ -212,13 +253,19 @@ class TestGenerateExerciseEnrichment:
         with (
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
+            patch(
+                "app.services.exercise_ai_enrichment.log_ai_call", new_callable=AsyncMock
+            ) as mock_log,
         ):
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
+            mock_db = AsyncMock()
 
-            result = await generate_exercise_enrichment("Test", "push", "test-key")
+            result = await generate_exercise_enrichment("Test", "push", "test-key", mock_db)
 
         assert result is None
+        mock_log.assert_awaited_once()
+        assert mock_log.call_args[0][1].parsed_ok is False
 
     @pytest.mark.asyncio
     async def test_valid_json_but_invalid_content_returns_none(self) -> None:
@@ -241,10 +288,16 @@ class TestGenerateExerciseEnrichment:
         with (
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
+            patch(
+                "app.services.exercise_ai_enrichment.log_ai_call", new_callable=AsyncMock
+            ) as mock_log,
         ):
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
+            mock_db = AsyncMock()
 
-            result = await generate_exercise_enrichment("Test", "push", "test-key")
+            result = await generate_exercise_enrichment("Test", "push", "test-key", mock_db)
 
         assert result is None
+        mock_log.assert_awaited_once()
+        assert mock_log.call_args[0][1].parsed_ok is False
