@@ -256,136 +256,226 @@ def _check_weekly_template(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     errors: list[YamlValidationIssue],
     warnings: list[YamlValidationIssue],
 ) -> None:
-    """Validate a weekly_template day list."""
+    """Validate a weekly_template day list.
+
+    Supports both legacy flat format (day/type/rest) and current sessions[] format
+    (day_of_week/sessions/is_rest_day).
+    """
     seen_days: dict[int, int] = {}
+
+    # 7-day completeness check
+    if len([d for d in days if isinstance(d, dict)]) != 7:
+        day_count = len([d for d in days if isinstance(d, dict)])
+        warnings.append(
+            YamlValidationIssue(
+                code="weekly_template_day_count",
+                level="warning",
+                message=(
+                    f"In '{phase_name}': weekly_template hat {day_count} Tage, "
+                    "erwartet werden 7 (Mo-So). Fehlende Tage werden als Ruhetage behandelt."
+                ),
+                location=f"{phase_loc}.weekly_template",
+            )
+        )
+
     for j, day_entry in enumerate(days):
         if not isinstance(day_entry, dict):
             continue
         day_loc = f"{phase_loc}.weekly_template[{j}]"
-        dow = day_entry.get("day")
+
+        # Support both "day" (legacy) and "day_of_week" (current)
+        dow = day_entry.get("day_of_week") if "day_of_week" in day_entry else day_entry.get("day")
         if isinstance(dow, int):
             if dow in seen_days:
                 warnings.append(
                     YamlValidationIssue(
                         code="duplicate_day_of_week",
                         level="warning",
-                        message=f"In '{phase_name}': Tag {dow} ist doppelt definiert (Eintrag {seen_days[dow] + 1} und {j + 1}).",
+                        message=f"In '{phase_name}': Tag {_dow_name(dow)} ist doppelt definiert (Eintrag {seen_days[dow] + 1} und {j + 1}).",
                         location=day_loc,
                     )
                 )
             seen_days[dow] = j
 
-        # training_type check
-        training_type = day_entry.get("type")
-        if (
-            training_type
-            and not day_entry.get("rest")
-            and str(training_type) not in _VALID_TRAINING_TYPES
-        ):
-            errors.append(
+        is_rest = day_entry.get("is_rest_day") or day_entry.get("rest")
+
+        # Current format: sessions[] array
+        sessions = day_entry.get("sessions")
+        if isinstance(sessions, list) and not is_rest:
+            for s_idx, session in enumerate(sessions):
+                if not isinstance(session, dict):
+                    continue
+                s_loc = f"{day_loc}.sessions[{s_idx}]"
+                _check_session_entry(session, s_loc, phase_name, dow, errors, warnings)
+        elif not is_rest:
+            # Legacy flat format: type/run_type/run_details directly on day
+            _check_flat_day_entry(day_entry, day_loc, phase_name, dow, errors, warnings)
+
+
+def _check_session_entry(
+    session: dict[str, object],
+    loc: str,
+    phase_name: str,
+    dow: object,
+    errors: list[YamlValidationIssue],
+    warnings: list[YamlValidationIssue],
+) -> None:
+    """Validate a single session entry within sessions[]."""
+    training_type = session.get("training_type")
+    if training_type and str(training_type) not in _VALID_TRAINING_TYPES:
+        errors.append(
+            YamlValidationIssue(
+                code="invalid_training_type",
+                level="error",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}: "
+                    f"Trainingstyp '{training_type}' ist ungueltig. "
+                    f"Erlaubt: {', '.join(sorted(_VALID_TRAINING_TYPES))}."
+                ),
+                location=f"{loc}.training_type",
+            )
+        )
+
+    run_type = session.get("run_type")
+    if run_type:
+        _check_type_value(
+            str(run_type),
+            SESSION_TYPES,
+            SESSION_TYPE_MIGRATION,
+            "run_type",
+            "invalid_run_type",
+            "legacy_run_type",
+            phase_name,
+            dow,
+            loc,
+            errors,
+            warnings,
+        )
+
+    rd = session.get("run_details")
+    if isinstance(rd, dict):
+        _check_run_details(rd, loc, phase_name, dow, run_type, errors, warnings)
+
+
+def _check_flat_day_entry(
+    day_entry: dict[str, object],
+    day_loc: str,
+    phase_name: str,
+    dow: object,
+    errors: list[YamlValidationIssue],
+    warnings: list[YamlValidationIssue],
+) -> None:
+    """Validate a legacy flat day entry (type/run_type/run_details on day level)."""
+    training_type = day_entry.get("type")
+    if training_type and str(training_type) not in _VALID_TRAINING_TYPES:
+        errors.append(
+            YamlValidationIssue(
+                code="invalid_training_type",
+                level="error",
+                message=(
+                    f"In '{phase_name}', Tag {_dow_name(dow)}: "
+                    f"Trainingstyp '{training_type}' ist ungueltig. "
+                    f"Erlaubt: {', '.join(sorted(_VALID_TRAINING_TYPES))}."
+                ),
+                location=f"{day_loc}.type",
+            )
+        )
+
+    outer_run_type = day_entry.get("run_type")
+    if outer_run_type:
+        _check_type_value(
+            str(outer_run_type),
+            SESSION_TYPES,
+            SESSION_TYPE_MIGRATION,
+            "run_type",
+            "invalid_run_type",
+            "legacy_run_type",
+            phase_name,
+            dow,
+            day_loc,
+            errors,
+            warnings,
+        )
+
+    rd = day_entry.get("run_details")
+    if isinstance(rd, dict):
+        _check_run_details(rd, day_loc, phase_name, dow, outer_run_type, errors, warnings)
+
+
+def _check_run_details(
+    rd: dict[str, object],
+    parent_loc: str,
+    phase_name: str,
+    dow: object,
+    outer_run_type: object,
+    errors: list[YamlValidationIssue],
+    warnings: list[YamlValidationIssue],
+) -> None:
+    """Validate run_details block (shared by flat and sessions[] format)."""
+    # run_type consistency
+    if outer_run_type:
+        inner_run_type = rd.get("run_type")
+        if inner_run_type and str(outer_run_type) != str(inner_run_type):
+            warnings.append(
                 YamlValidationIssue(
-                    code="invalid_training_type",
-                    level="error",
-                    message=(
-                        f"In '{phase_name}', Tag {_dow_name(dow)}: "
-                        f"Trainingstyp '{training_type}' ist ungueltig. "
-                        f"Erlaubt: {', '.join(sorted(_VALID_TRAINING_TYPES))}."
-                    ),
-                    location=f"{day_loc}.type",
+                    code="run_type_mismatch",
+                    level="warning",
+                    message=f"In '{phase_name}', Tag {_dow_name(dow)}: run_type '{outer_run_type}' widerspricht run_details.run_type '{inner_run_type}'.",
+                    location=f"{parent_loc}.run_type",
                 )
             )
 
-        # run_type check (outer)
-        outer_run_type = day_entry.get("run_type")
-        if outer_run_type:
-            _check_type_value(
-                str(outer_run_type),
-                SESSION_TYPES,
-                SESSION_TYPE_MIGRATION,
-                "run_type",
-                "invalid_run_type",
-                "legacy_run_type",
-                phase_name,
-                dow,
-                day_loc,
-                errors,
-                warnings,
-            )
+    # run_details.run_type check
+    inner_rt = rd.get("run_type")
+    if inner_rt:
+        _check_type_value(
+            str(inner_rt),
+            SESSION_TYPES,
+            SESSION_TYPE_MIGRATION,
+            "run_details.run_type",
+            "invalid_run_type",
+            "legacy_run_type",
+            phase_name,
+            dow,
+            parent_loc,
+            errors,
+            warnings,
+        )
 
-        rd = day_entry.get("run_details")
+    _check_pace_fields(rd, f"{parent_loc}.run_details", warnings)
 
-        # run_type consistency
-        if isinstance(rd, dict) and outer_run_type:
-            inner_run_type = rd.get("run_type")
-            if inner_run_type and str(outer_run_type) != str(inner_run_type):
-                warnings.append(
-                    YamlValidationIssue(
-                        code="run_type_mismatch",
-                        level="warning",
-                        message=f"In '{phase_name}', Tag {_dow_name(dow)}: run_type '{outer_run_type}' widerspricht run_details.run_type '{inner_run_type}'.",
-                        location=f"{day_loc}.run_type",
+    # Interval checks
+    intervals = rd.get("intervals")
+    if isinstance(intervals, list):
+        for k, interval in enumerate(intervals):
+            if isinstance(interval, dict):
+                iv_loc = f"{parent_loc}.run_details.intervals[{k}]"
+                seg_type = interval.get("type")
+                if seg_type:
+                    _check_segment_type(
+                        str(seg_type),
+                        phase_name,
+                        dow,
+                        k,
+                        parent_loc,
+                        errors,
+                        warnings,
                     )
-                )
-
-        # run_details checks
-        if isinstance(rd, dict):
-            # run_details.run_type check
-            inner_rt = rd.get("run_type")
-            if inner_rt:
-                _check_type_value(
-                    str(inner_rt),
-                    SESSION_TYPES,
-                    SESSION_TYPE_MIGRATION,
-                    "run_details.run_type",
-                    "invalid_run_type",
-                    "legacy_run_type",
-                    phase_name,
-                    dow,
-                    day_loc,
-                    errors,
-                    warnings,
-                )
-
-            _check_pace_fields(rd, f"{day_loc}.run_details", warnings)
-
-            # Interval checks
-            intervals = rd.get("intervals")
-            if isinstance(intervals, list):
-                for k, interval in enumerate(intervals):
-                    if isinstance(interval, dict):
-                        iv_loc = f"{day_loc}.run_details.intervals[{k}]"
-                        # Segment type check
-                        seg_type = interval.get("type")
-                        if seg_type:
-                            _check_segment_type(
-                                str(seg_type),
-                                phase_name,
-                                dow,
-                                k,
-                                day_loc,
-                                errors,
-                                warnings,
-                            )
-                        _check_pace_fields(
-                            interval,
-                            iv_loc,
-                            warnings,
+                _check_pace_fields(interval, iv_loc, warnings)
+                has_dur = interval.get("duration_minutes") is not None
+                has_dist = interval.get("distance_km") is not None
+                if not has_dur and not has_dist:
+                    errors.append(
+                        YamlValidationIssue(
+                            code="interval_missing_target",
+                            level="error",
+                            message=(
+                                f"Intervall {k} in Phase '{phase_name}' Tag {dow}: "
+                                "duration_minutes oder distance_km muss gesetzt sein."
+                            ),
+                            location=iv_loc,
                         )
-                        # Require at least duration_minutes or distance_km
-                        has_dur = interval.get("duration_minutes") is not None
-                        has_dist = interval.get("distance_km") is not None
-                        if not has_dur and not has_dist:
-                            errors.append(
-                                YamlValidationIssue(
-                                    code="interval_missing_target",
-                                    level="error",
-                                    message=(
-                                        f"Intervall {k} in Phase '{phase_name}' Tag {dow}: "
-                                        "duration_minutes oder distance_km muss gesetzt sein."
-                                    ),
-                                    location=iv_loc,
-                                )
-                            )
+                    )
 
 
 def _check_type_value(  # noqa: PLR0913  # TODO: E16 Refactoring
@@ -609,10 +699,29 @@ def _check_phase_coverage(
 # ---------------------------------------------------------------------------
 
 
+def _extract_from_run_details(
+    rd: object,
+    loc_prefix: str,
+    results: list[tuple[str, str]],
+) -> None:
+    """Extract exercise_name references from a run_details block."""
+    if not isinstance(rd, dict):
+        return
+    intervals = rd.get("intervals")
+    if not isinstance(intervals, list):
+        return
+    for k, interval in enumerate(intervals):
+        if isinstance(interval, dict):
+            ex_name = interval.get("exercise_name")
+            if ex_name and isinstance(ex_name, str) and ex_name.strip():
+                results.append((str(ex_name).strip(), f"{loc_prefix}.intervals[{k}]"))
+
+
 def extract_exercise_names(raw: dict[str, object]) -> list[tuple[str, str]]:
     """Extract all exercise_name values with their YAML locations.
 
     Returns a list of (exercise_name, location_string) tuples.
+    Supports both current sessions[] format and legacy flat format.
     Pure function — no DB access.
     """
     results: list[tuple[str, str]] = []
@@ -628,16 +737,23 @@ def extract_exercise_names(raw: dict[str, object]) -> list[tuple[str, str]]:
         for j, day_entry in enumerate(wt):
             if not isinstance(day_entry, dict):
                 continue
-            rd = day_entry.get("run_details")
-            if not isinstance(rd, dict):
-                continue
-            intervals = rd.get("intervals")
-            if not isinstance(intervals, list):
-                continue
-            for k, interval in enumerate(intervals):
-                if isinstance(interval, dict):
-                    ex_name = interval.get("exercise_name")
-                    if ex_name and isinstance(ex_name, str) and ex_name.strip():
-                        loc = f"phases[{i}].weekly_template[{j}].intervals[{k}]"
-                        results.append((str(ex_name).strip(), loc))
+            day_loc = f"phases[{i}].weekly_template[{j}]"
+
+            # Current format: sessions[]
+            sessions = day_entry.get("sessions")
+            if isinstance(sessions, list):
+                for s_idx, session in enumerate(sessions):
+                    if isinstance(session, dict):
+                        _extract_from_run_details(
+                            session.get("run_details"),
+                            f"{day_loc}.sessions[{s_idx}].run_details",
+                            results,
+                        )
+            else:
+                # Legacy flat format
+                _extract_from_run_details(
+                    day_entry.get("run_details"),
+                    f"{day_loc}.run_details",
+                    results,
+                )
     return results

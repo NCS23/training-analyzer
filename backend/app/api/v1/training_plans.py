@@ -3,10 +3,12 @@
 import contextlib
 import json
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -620,11 +622,28 @@ async def _auto_create_unknown_exercises(
     return created
 
 
+def _replace_in_run_details(rd: object, replacements: dict[str, str]) -> None:
+    """Replace exercise_name values in a run_details block (in-place)."""
+    if not isinstance(rd, dict):
+        return
+    intervals = rd.get("intervals")
+    if not isinstance(intervals, list):
+        return
+    for interval in intervals:
+        if isinstance(interval, dict):
+            ex_name = interval.get("exercise_name")
+            if ex_name and str(ex_name) in replacements:
+                interval["exercise_name"] = replacements[str(ex_name)]
+
+
 def _apply_exercise_replacements(
     raw: dict[str, object],
     replacements: dict[str, str],
 ) -> None:
-    """Replace exercise_name values in a parsed YAML dict (in-place)."""
+    """Replace exercise_name values in a parsed YAML dict (in-place).
+
+    Supports both current sessions[] format and legacy flat format.
+    """
     phases = raw.get("phases")
     if not isinstance(phases, list):
         return
@@ -637,20 +656,91 @@ def _apply_exercise_replacements(
         for day_entry in wt:
             if not isinstance(day_entry, dict):
                 continue
-            rd = day_entry.get("run_details")
-            if not isinstance(rd, dict):
-                continue
-            intervals = rd.get("intervals")
-            if not isinstance(intervals, list):
-                continue
-            for interval in intervals:
-                if isinstance(interval, dict):
-                    ex_name = interval.get("exercise_name")
-                    if ex_name and str(ex_name) in replacements:
-                        interval["exercise_name"] = replacements[str(ex_name)]
+            # Current format: sessions[]
+            sessions = day_entry.get("sessions")
+            if isinstance(sessions, list):
+                for session in sessions:
+                    if isinstance(session, dict):
+                        _replace_in_run_details(session.get("run_details"), replacements)
+            else:
+                # Legacy flat format
+                _replace_in_run_details(day_entry.get("run_details"), replacements)
 
 
-def _yaml_to_plan_create(data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0912  # TODO: E16 Refactoring
+def _migrate_run_details(rd: dict[str, Any]) -> dict[str, Any]:
+    """Auto-migrate legacy types in run_details."""
+    rd = dict(rd)
+    if rd.get("run_type") and str(rd["run_type"]) in SESSION_TYPE_MIGRATION:
+        rd["run_type"] = SESSION_TYPE_MIGRATION[str(rd["run_type"])]
+    intervals = rd.get("intervals")
+    if isinstance(intervals, list):
+        migrated: list[dict[str, Any]] = []
+        for iv in intervals:
+            if isinstance(iv, dict) and iv.get("type"):
+                seg_t = str(iv["type"])
+                if seg_t in SEGMENT_TYPE_MIGRATION:
+                    iv = dict(iv)
+                    iv["type"] = SEGMENT_TYPE_MIGRATION[seg_t]
+            migrated.append(iv)
+        rd["intervals"] = migrated
+    return rd
+
+
+def _map_yaml_day_entry(day_entry: dict[str, Any]) -> dict[str, Any]:
+    """Map a single YAML day entry to PhaseWeeklyTemplateDayEntry format.
+
+    Supports both current sessions[] format and legacy flat format.
+    """
+    # Detect format: current uses "day_of_week", legacy uses "day"
+    day_of_week = day_entry.get("day_of_week", day_entry.get("day", 0))
+    is_rest = day_entry.get("is_rest_day", day_entry.get("rest", False))
+    notes = day_entry.get("notes")
+
+    # Current format: sessions[] already present
+    sessions_raw = day_entry.get("sessions")
+    if isinstance(sessions_raw, list) and not is_rest:
+        sessions = []
+        for s in sessions_raw:
+            if not isinstance(s, dict):
+                continue
+            s = dict(s)
+            # Auto-migrate legacy run_type in session
+            if s.get("run_type") and str(s["run_type"]) in SESSION_TYPE_MIGRATION:
+                s["run_type"] = SESSION_TYPE_MIGRATION[str(s["run_type"])]
+            rd = s.get("run_details")
+            if isinstance(rd, dict):
+                s["run_details"] = _migrate_run_details(rd)
+            sessions.append(s)
+        return {
+            "day_of_week": day_of_week,
+            "is_rest_day": bool(is_rest),
+            "sessions": sessions,
+            "notes": notes,
+        }
+
+    # Legacy flat format: type/run_type/run_details on day level
+    training_type = day_entry.get("type") if not is_rest else None
+    run_type = day_entry.get("run_type") if training_type == "running" else None
+
+    if run_type and str(run_type) in SESSION_TYPE_MIGRATION:
+        run_type = SESSION_TYPE_MIGRATION[str(run_type)]
+
+    rd = day_entry.get("run_details")
+    if isinstance(rd, dict):
+        rd = _migrate_run_details(rd)
+
+    return {
+        "day_of_week": day_of_week,
+        "training_type": training_type,
+        "is_rest_day": bool(is_rest),
+        "run_type": run_type,
+        "template_id": None,
+        "notes": notes,
+        "run_details": rd if isinstance(rd, dict) else day_entry.get("run_details"),
+    }
+
+
+def _yaml_to_plan_create(data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901  # TODO: E16 Refactoring
     """Map YAML fields to TrainingPlanCreate schema fields."""
     result = {k: v for k, v in data.items() if k not in ("phases", "goal_title")}
 
@@ -670,57 +760,33 @@ def _yaml_to_plan_create(data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901,
             if "type" in mapped and "phase_type" not in mapped:
                 mapped["phase_type"] = mapped.pop("type")
 
-            # Convert YAML weekly_template shorthand to PhaseWeeklyTemplate
+            # Convert YAML weekly_template list to PhaseWeeklyTemplate
             if "weekly_template" in mapped and isinstance(mapped["weekly_template"], list):
                 days = []
                 for day_entry in mapped["weekly_template"]:
                     if not isinstance(day_entry, dict):
                         continue
-                    day_of_week = day_entry.get("day", 0)
-                    is_rest = day_entry.get("rest", False)
-                    training_type = day_entry.get("type") if not is_rest else None
-                    run_type = day_entry.get("run_type") if training_type == "running" else None
-
-                    # Auto-migrate legacy run_type
-                    if run_type and str(run_type) in SESSION_TYPE_MIGRATION:
-                        run_type = SESSION_TYPE_MIGRATION[str(run_type)]
-
-                    # Auto-migrate run_details
-                    rd = day_entry.get("run_details")
-                    if isinstance(rd, dict):
-                        rd = dict(rd)
-                        if rd.get("run_type") and str(rd["run_type"]) in SESSION_TYPE_MIGRATION:
-                            rd["run_type"] = SESSION_TYPE_MIGRATION[str(rd["run_type"])]
-                        intervals = rd.get("intervals")
-                        if isinstance(intervals, list):
-                            migrated: list[dict[str, Any]] = []
-                            for iv in intervals:
-                                if isinstance(iv, dict) and iv.get("type"):
-                                    seg_t = str(iv["type"])
-                                    if seg_t in SEGMENT_TYPE_MIGRATION:
-                                        iv = dict(iv)
-                                        iv["type"] = SEGMENT_TYPE_MIGRATION[seg_t]
-                                migrated.append(iv)
-                            rd["intervals"] = migrated
-
-                    days.append(
-                        {
-                            "day_of_week": day_of_week,
-                            "training_type": training_type,
-                            "is_rest_day": bool(is_rest),
-                            "run_type": run_type,
-                            "template_id": None,
-                            "notes": day_entry.get("notes"),
-                            "run_details": rd
-                            if isinstance(rd, dict)
-                            else day_entry.get("run_details"),
-                        }
-                    )
+                    days.append(_map_yaml_day_entry(day_entry))
                 mapped["weekly_template"] = {"days": days}
 
             result["phases"].append(mapped)
 
     return result
+
+
+_TEMPLATE_PATH = Path(__file__).parent.parent.parent / "static" / "template-trainingsplan.yaml"
+
+
+@router.get("/template")
+async def get_template_yaml() -> FileResponse:
+    """Download a YAML template file for training plan import."""
+    if not _TEMPLATE_PATH.exists():
+        raise HTTPException(status_code=404, detail="Template-Datei nicht gefunden.")
+    return FileResponse(
+        path=str(_TEMPLATE_PATH),
+        media_type="application/x-yaml",
+        filename="template-trainingsplan.yaml",
+    )
 
 
 @router.post("/validate-yaml", response_model=YamlValidationResult)

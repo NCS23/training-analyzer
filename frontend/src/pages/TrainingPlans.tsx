@@ -31,6 +31,7 @@ import {
   Trash2,
   CalendarRange,
   Upload,
+  Download,
   CalendarPlus,
   Pencil,
   Eye,
@@ -40,6 +41,7 @@ import {
   deleteTrainingPlan,
   importTrainingPlanYaml,
   validateTrainingPlanYaml,
+  downloadTemplateYaml,
   generateWeeklyPlans,
   getGenerationPreview,
 } from '@/api/training-plans';
@@ -184,6 +186,18 @@ export function TrainingPlansPage() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadTemplateYaml();
+    } catch {
+      toast({
+        title: 'Download fehlgeschlagen',
+        description: 'Die Vorlage konnte nicht heruntergeladen werden.',
+        variant: 'error',
+      });
+    }
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -266,6 +280,9 @@ export function TrainingPlansPage() {
                   disabled={importing || validating}
                 >
                   YAML importieren
+                </DropdownMenuItem>
+                <DropdownMenuItem icon={<Download />} onSelect={handleDownloadTemplate}>
+                  Vorlage herunterladen
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
