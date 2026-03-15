@@ -281,10 +281,7 @@ export function TrainingPlansPage() {
                 >
                   YAML importieren
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  icon={<Download />}
-                  onSelect={handleDownloadTemplate}
-                >
+                <DropdownMenuItem icon={<Download />} onSelect={handleDownloadTemplate}>
                   Vorlage herunterladen
                 </DropdownMenuItem>
               </DropdownMenuContent>
