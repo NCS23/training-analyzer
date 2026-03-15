@@ -44,7 +44,7 @@ class ClaudeProvider(AIProvider):
     async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
         """Chat with Claude"""
         client = self._get_client(api_key)
-        system_prompt = self._build_system_prompt(context)
+        system_prompt = context.get("system_prompt") or self._build_system_prompt(context)
 
         try:
             response = client.messages.create(
