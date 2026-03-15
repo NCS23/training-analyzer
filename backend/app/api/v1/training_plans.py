@@ -774,7 +774,9 @@ def _yaml_to_plan_create(data: dict[str, Any]) -> dict[str, Any]:  # noqa: C901 
     return result
 
 
-_TEMPLATE_PATH = Path(__file__).parent.parent.parent / "static" / "template-trainingsplan.yaml"
+_TEMPLATE_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent / "static" / "template-trainingsplan.yaml"
+)
 
 
 @router.get("/template")
