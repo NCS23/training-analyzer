@@ -910,20 +910,30 @@ def _extract_hr_from_stored_data(workout: WorkoutModel) -> list[int]:
 
 
 def _extract_hr_values_from_result(result: dict) -> list[int]:
-    """Extrahiert HR-Werte aus dem Parse-Ergebnis fuer die Zonen-Berechnung."""
-    # Aus HR-Timeseries (Krafttraining)
+    """Extrahiert HR-Werte aus dem Parse-Ergebnis fuer die Zonen-Berechnung.
+
+    Prioritaet: GPS-Track (per-Sekunde) > HR-Timeseries (Kraft) > Lap-Durchschnitte.
+    """
+    # 1. GPS-Track (per-Sekunde HR — beste Qualitaet)
+    gps_track = result.get("gps_track")
+    if gps_track:
+        points = gps_track.get("points", [])
+        hr_values = [int(p["hr"]) for p in points if p.get("hr") is not None]
+        if hr_values:
+            return hr_values
+
+    # 2. HR-Timeseries (Krafttraining)
     timeseries = result.get("hr_timeseries", [])
     if timeseries:
         return [int(p["hr_bpm"]) for p in timeseries if p.get("hr_bpm")]
 
-    # Aus Laps (Lauftraining) — verwende avg_hr_bpm pro Lap, gewichtet nach Dauer
+    # 3. Fallback: Lap-Durchschnitte gewichtet nach Dauer (ungenau)
     laps = result.get("laps", [])
     hr_values = []
     for lap in laps:
         avg_hr = lap.get("avg_hr_bpm")
         duration = lap.get("duration_seconds", 0)
         if avg_hr and duration > 0:
-            # Simuliere Sekundenwerte mit dem Durchschnitts-HR
             hr_values.extend([int(avg_hr)] * duration)
     return hr_values
 
