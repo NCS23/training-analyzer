@@ -9,7 +9,7 @@ import {
   Alert,
   AlertDescription,
 } from '@nordlig/components';
-import { Sparkles, RefreshCw, Lightbulb, AlertTriangle } from 'lucide-react';
+import { Sparkles, RefreshCw, Lightbulb } from 'lucide-react';
 import { analyzeSession } from '@/api/training';
 import type { SessionAnalysis } from '@/api/training';
 
@@ -71,7 +71,7 @@ function AnalysisContent({
   error: string | null;
 }) {
   return (
-    <Card>
+    <Card elevation="raised">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -106,7 +106,6 @@ function AnalysisContent({
           )}
           {analysis.fatigue_indicators && (
             <Alert variant="warning">
-              <AlertTriangle className="w-4 h-4" />
               <AlertDescription>{analysis.fatigue_indicators}</AlertDescription>
             </Alert>
           )}
@@ -146,7 +145,7 @@ export function SessionAIAnalysis({
 
   if (!cachedAnalysis && !loading) {
     return (
-      <Card>
+      <Card elevation="raised">
         <CardBody>
           <div className="flex flex-col items-center gap-3 py-4">
             <Sparkles className="w-8 h-8 text-[var(--color-text-primary)]" />
@@ -166,7 +165,7 @@ export function SessionAIAnalysis({
 
   if (loading) {
     return (
-      <Card>
+      <Card elevation="raised">
         <CardBody>
           <div className="flex flex-col items-center gap-3 py-6">
             <Spinner size="md" />
