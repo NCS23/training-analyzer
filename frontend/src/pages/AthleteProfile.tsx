@@ -322,21 +322,22 @@ export function AthleteProfilePage() {
       <ApiKeyCard keys={apiKeys} />
 
       {/* KI Debug Log Link */}
-      <Card elevation="raised" padding="spacious">
-        <CardBody className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold">KI Analyse-Log</h3>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Alle KI-Anfragen und -Antworten einsehen
-            </p>
-          </div>
-          <Link to="/ki-log">
-            <Button variant="secondary" size="sm">
-              Log öffnen
-            </Button>
-          </Link>
-        </CardBody>
-      </Card>
+      <Link
+        to="/ki-log"
+        className="block rounded-[var(--radius-component-md)] hover:opacity-80 transition-opacity"
+      >
+        <Card elevation="raised" padding="spacious">
+          <CardBody className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold">KI Analyse-Log</h3>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Alle KI-Anfragen und -Antworten einsehen
+              </p>
+            </div>
+            <span className="text-[var(--color-text-muted)] shrink-0">&rsaquo;</span>
+          </CardBody>
+        </Card>
+      </Link>
     </div>
   );
 }
