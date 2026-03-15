@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Card,
   CardHeader,
@@ -319,6 +320,23 @@ export function AthleteProfilePage() {
 
       {/* API Keys */}
       <ApiKeyCard keys={apiKeys} />
+
+      {/* KI Debug Log Link */}
+      <Card elevation="raised" padding="spacious">
+        <CardBody className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">KI Analyse-Log</h3>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Alle KI-Anfragen und -Antworten einsehen
+            </p>
+          </div>
+          <Link to="/ki-log">
+            <Button variant="secondary" size="sm">
+              Log öffnen
+            </Button>
+          </Link>
+        </CardBody>
+      </Card>
     </div>
   );
 }

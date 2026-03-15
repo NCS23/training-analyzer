@@ -7,6 +7,7 @@ die JSON-Antwort des AI-Providers.
 import contextlib
 import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
+    AIAnalysisLogModel,
     AthleteModel,
     PlannedSessionModel,
     RaceGoalModel,
@@ -55,12 +57,26 @@ async def analyze_session(
     system_prompt = _build_system_prompt(context)
     api_key = await resolve_claude_api_key(db)
 
+    t0 = time.monotonic()
     raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    duration_ms = int((time.monotonic() - t0) * 1000)
     provider = ai_service.get_active_provider() or "unknown"
 
-    # Parsen + Cache speichern
+    # Parsen + Cache speichern + Log schreiben
     analysis = _parse_analysis_json(raw, session_id, provider)
+    parsed_ok = analysis.summary != raw[:500]  # Fallback hat raw als summary
     workout.ai_analysis = json.dumps(analysis.model_dump())
+    db.add(
+        AIAnalysisLogModel(
+            workout_id=session_id,
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+            raw_response=raw,
+            parsed_ok=parsed_ok,
+            duration_ms=duration_ms,
+        )
+    )
     await db.commit()
 
     return analysis
