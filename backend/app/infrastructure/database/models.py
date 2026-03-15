@@ -35,6 +35,9 @@ class WorkoutModel(Base):
     # Strength training
     exercises_json: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # HR Timeseries (per-second HR data, e.g. from FIT files without GPS)
+    hr_timeseries_json: Mapped[str | None] = mapped_column(Text, default=None)
+
     # GPS
     gps_track_json: Mapped[str | None] = mapped_column(Text, default=None)
     has_gps: Mapped[bool] = mapped_column(default=False, server_default="false")
