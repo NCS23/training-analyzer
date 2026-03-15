@@ -116,7 +116,7 @@ export function StrengthForm() {
         </CardHeader>
         <CardBody className="space-y-4">
           <FileUpload
-            accept=".csv,.fit"
+            accept=".csv,.fit,application/octet-stream"
             onUpload={(files) => {
               if (files[0]) setTrainingFile(files[0]);
             }}
