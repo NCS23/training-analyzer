@@ -22,6 +22,7 @@ import { createStrengthSession } from '@/api/strength';
 import type { Exercise } from '@/api/exercises';
 import { listExercises } from '@/api/exercises';
 import { ExerciseCard } from './ExerciseCard';
+import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 
 const defaultExercise: ExerciseInput = {
   name: '',
@@ -82,7 +83,7 @@ export function StrengthForm() {
 
     try {
       const result = await createStrengthSession({
-        date: date.toISOString().split('T')[0],
+        date: formatLocalDate(date),
         duration_minutes: duration,
         exercises,
         notes: notes.trim() || undefined,

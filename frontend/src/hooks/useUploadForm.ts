@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { parseTraining, uploadTraining } from '@/api/training';
 import type { TrainingParseResponse } from '@/api/training';
+import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 
 type TrainingType = 'running' | 'strength';
 
@@ -55,7 +56,7 @@ export function useUploadForm() {
     try {
       const result = await parseTraining({
         csvFile,
-        trainingDate: trainingDate.toISOString().split('T')[0],
+        trainingDate: formatLocalDate(trainingDate),
         trainingType,
         notes: notes || undefined,
       });
@@ -98,7 +99,7 @@ export function useUploadForm() {
       try {
         const result = await uploadTraining({
           csvFile,
-          trainingDate: trainingDate.toISOString().split('T')[0],
+          trainingDate: formatLocalDate(trainingDate),
           trainingType,
           notes: notes || undefined,
           rpe,

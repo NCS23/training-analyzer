@@ -11,6 +11,7 @@ import { listExercises } from '@/api/exercises';
 import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
 import { useTonnageCalc, formatTonnage } from '@/hooks/useTonnageCalc';
+import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 
 const defaultExercise: ExerciseInput = {
   name: '',
@@ -141,7 +142,7 @@ export function useStrengthUpload({
     setError(null);
     try {
       const result = await createStrengthSession({
-        date: trainingDate.toISOString().split('T')[0],
+        date: formatLocalDate(trainingDate),
         duration_minutes: duration,
         exercises,
         notes: notes.trim() || undefined,
