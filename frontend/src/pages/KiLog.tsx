@@ -13,6 +13,15 @@ import {
 import { fetchAILog, fetchAILogDetail } from '@/api/training';
 import type { AILogEntry, AILogDetail } from '@/api/training';
 
+const USE_CASE_LABELS: Record<string, string> = {
+  session_analysis: 'Session-Analyse',
+  exercise_enrichment: 'Übungs-Anreicherung',
+};
+
+function getUseCaseLabel(useCase: string): string {
+  return USE_CASE_LABELS[useCase] ?? useCase;
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('de-DE', {
     day: '2-digit',
@@ -37,15 +46,35 @@ function PromptBlock({ label, content }: { label: string; content: string }) {
         {expanded || !isLong ? content : `${preview}...`}
       </pre>
       {isLong && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-[var(--color-text-link)] hover:underline"
+          className="text-xs"
         >
           {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
-        </button>
+        </Button>
       )}
     </div>
   );
+}
+
+function DetailTitle({ detail }: { detail: AILogDetail }) {
+  if (detail.workout_id != null && detail.session_date) {
+    return (
+      <>
+        Eintrag #{detail.id} — Session vom {detail.session_date}
+      </>
+    );
+  }
+  if (detail.context_label) {
+    return (
+      <>
+        Eintrag #{detail.id} — {detail.context_label}
+      </>
+    );
+  }
+  return <>Eintrag #{detail.id}</>;
 }
 
 function LogDetail({ logId, onClose }: { logId: number; onClose: () => void }) {
@@ -74,13 +103,14 @@ function LogDetail({ logId, onClose }: { logId: number; onClose: () => void }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold">
-            Analyse #{detail.id} — Session vom {detail.session_date}
+            <DetailTitle detail={detail} />
           </h3>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Schließen
           </Button>
         </div>
-        <div className="flex gap-2 mt-1 text-xs text-[var(--color-text-muted)]">
+        <div className="flex flex-wrap gap-2 mt-1 text-xs text-[var(--color-text-muted)]">
+          <Badge variant="info">{getUseCaseLabel(detail.use_case)}</Badge>
           <span>{detail.provider}</span>
           <span>&middot;</span>
           <span>{formatDate(detail.created_at)}</span>
@@ -101,6 +131,24 @@ function LogDetail({ logId, onClose }: { logId: number; onClose: () => void }) {
   );
 }
 
+function ContextCell({ entry }: { entry: AILogEntry }) {
+  if (entry.workout_id != null && entry.session_date) {
+    return (
+      <Link
+        to={`/sessions/${entry.workout_id}`}
+        onClick={(e) => e.stopPropagation()}
+        className="text-[var(--color-text-link)] hover:underline"
+      >
+        {entry.session_date} ({entry.session_type})
+      </Link>
+    );
+  }
+  if (entry.context_label) {
+    return <span>{entry.context_label}</span>;
+  }
+  return <span className="text-[var(--color-text-muted)]">&mdash;</span>;
+}
+
 function LogTable({
   entries,
   onSelect,
@@ -116,7 +164,8 @@ function LogTable({
             <thead>
               <tr className="border-b border-[var(--color-border-subtle)] text-left text-xs text-[var(--color-text-muted)] uppercase tracking-wide">
                 <th className="px-4 py-3">Datum</th>
-                <th className="px-4 py-3">Session</th>
+                <th className="px-4 py-3">Typ</th>
+                <th className="px-4 py-3">Kontext</th>
                 <th className="px-4 py-3">Provider</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Dauer</th>
@@ -131,13 +180,10 @@ function LogTable({
                 >
                   <td className="px-4 py-3 whitespace-nowrap">{formatDate(entry.created_at)}</td>
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/sessions/${entry.workout_id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[var(--color-text-link)] hover:underline"
-                    >
-                      {entry.session_date} ({entry.session_type})
-                    </Link>
+                    <Badge variant="info">{getUseCaseLabel(entry.use_case)}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ContextCell entry={entry} />
                   </td>
                   <td className="px-4 py-3 text-[var(--color-text-muted)]">{entry.provider}</td>
                   <td className="px-4 py-3">

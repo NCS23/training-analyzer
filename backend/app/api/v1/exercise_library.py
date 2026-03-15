@@ -661,7 +661,7 @@ async def create_exercise(
         from app.services.exercise_ai_enrichment import generate_exercise_enrichment
 
         api_key = await resolve_claude_api_key(db)
-        enrichment = await generate_exercise_enrichment(body.name, body.category, api_key)
+        enrichment = await generate_exercise_enrichment(body.name, body.category, api_key, db)
     if enrichment:
         _apply_enrichment(exercise, enrichment)
 
@@ -801,6 +801,7 @@ async def enrich_exercise(
             str(exercise.name),
             str(exercise.category),
             api_key,
+            db,
         )
 
     if not enrichment:

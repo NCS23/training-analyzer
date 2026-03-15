@@ -6,11 +6,14 @@ Anleitungen, Muskelgruppen und Metadaten für eine Übung.
 
 import json
 import logging
+import time
 from typing import Optional
 
 import anthropic
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.services.ai_log_service import AICallData, log_ai_call
 from app.services.exercise_enrichment import VALID_MUSCLES
 
 logger = logging.getLogger(__name__)
@@ -130,6 +133,7 @@ async def generate_exercise_enrichment(
     exercise_name: str,
     category: str,
     api_key: str = "",
+    db: AsyncSession | None = None,
 ) -> Optional[dict[str, Optional[str]]]:
     """Generiere Übungs-Anreicherung über Claude API.
 
@@ -139,21 +143,25 @@ async def generate_exercise_enrichment(
 
     Args:
         api_key: Resolved API-Key (via ``resolve_claude_api_key``).
+        db: DB-Session fuer KI-Logging (optional).
     """
     if not api_key:
         logger.debug("Claude API Key nicht konfiguriert — Fallback übersprungen")
         return None
 
     prompt = _build_prompt(exercise_name, category)
+    system_prompt = "Fitness-Experte: Übungs-Anreicherung"
 
     try:
         client = anthropic.Anthropic(api_key=api_key)
+        t0 = time.monotonic()
         response = client.messages.create(
             model=settings.claude_model,
             max_tokens=1000,
             temperature=0.2,
             messages=[{"role": "user", "content": prompt}],
         )
+        duration_ms = int((time.monotonic() - t0) * 1000)
         raw_text = response.content[0].text  # type: ignore[union-attr]
     except Exception:
         logger.exception("Claude API Fehler bei Übungs-Anreicherung für '%s'", exercise_name)
@@ -168,9 +176,40 @@ async def generate_exercise_enrichment(
             exercise_name,
             raw_text[:200],
         )
+        if db:
+            await log_ai_call(
+                db,
+                AICallData(
+                    use_case="exercise_enrichment",
+                    provider=f"claude ({settings.claude_model})",
+                    system_prompt=system_prompt,
+                    user_prompt=prompt,
+                    raw_response=raw_text,
+                    parsed_ok=False,
+                    duration_ms=duration_ms,
+                    context_label=exercise_name,
+                ),
+            )
         return None
 
     result = _validate_and_normalize(data)
+    parsed_ok = result is not None
+
+    if db:
+        await log_ai_call(
+            db,
+            AICallData(
+                use_case="exercise_enrichment",
+                provider=f"claude ({settings.claude_model})",
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                raw_response=raw_text,
+                parsed_ok=parsed_ok,
+                duration_ms=duration_ms,
+                context_label=exercise_name,
+            ),
+        )
+
     if result:
         logger.info("Claude AI Enrichment erfolgreich für '%s'", exercise_name)
     return result

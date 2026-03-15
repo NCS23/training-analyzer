@@ -477,13 +477,15 @@ export async function getSessionComparison(sessionId: number): Promise<Compariso
 
 export interface AILogEntry {
   id: number;
-  workout_id: number;
+  workout_id: number | null;
+  use_case: string;
+  context_label: string | null;
   created_at: string;
   provider: string;
   parsed_ok: boolean;
   duration_ms: number | null;
-  session_date: string;
-  session_type: string;
+  session_date: string | null;
+  session_type: string | null;
 }
 
 export interface AILogDetail extends AILogEntry {
