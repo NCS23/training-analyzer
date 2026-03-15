@@ -182,7 +182,7 @@ class TestPromptBuilding:
         workout = await _create_test_workout(db_session)
         from app.services.session_analysis_service import AnalysisContext
 
-        ctx = AnalysisContext(history=[], race_goal=None, planned_session=None)
+        ctx = AnalysisContext(history=[], race_goal=None, planned_session=None, athlete=None)
         prompt = _build_analysis_prompt(workout, ctx)
 
         assert "10.5" in prompt  # Distanz
@@ -195,7 +195,7 @@ class TestPromptBuilding:
         workout = await _create_test_workout(db_session)
         from app.services.session_analysis_service import AnalysisContext
 
-        ctx = AnalysisContext(history=[], race_goal=None, planned_session=None)
+        ctx = AnalysisContext(history=[], race_goal=None, planned_session=None, athlete=None)
         prompt = _build_analysis_prompt(workout, ctx)
 
         assert "## Laps" in prompt
@@ -215,7 +215,7 @@ class TestPromptBuilding:
             "target_time_min": 120,
             "target_pace": "5:41",
         }
-        ctx = AnalysisContext(history=[], race_goal=goal, planned_session=None)
+        ctx = AnalysisContext(history=[], race_goal=goal, planned_session=None, athlete=None)
         prompt = _build_analysis_prompt(workout, ctx)
 
         assert "Hamburg HM" in prompt

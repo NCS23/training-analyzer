@@ -44,7 +44,7 @@ class OllamaProvider(AIProvider):
 
     async def chat(self, message: str, context: dict, _api_key: str | None = None) -> str:
         """Chat with Ollama"""
-        system_prompt = self._build_system_prompt(context)
+        system_prompt = context.get("system_prompt") or self._build_system_prompt(context)
         full_prompt = f"{system_prompt}\n\nUser: {message}\n\nAssistant:"
 
         try:
