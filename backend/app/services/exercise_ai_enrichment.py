@@ -129,21 +129,25 @@ def _validate_and_normalize(data: dict) -> Optional[dict]:
 async def generate_exercise_enrichment(
     exercise_name: str,
     category: str,
+    api_key: str = "",
 ) -> Optional[dict[str, Optional[str]]]:
     """Generiere Übungs-Anreicherung über Claude API.
 
     Fallback wenn free-exercise-db keinen Match hat.
     Gibt DB-ready Column-Values zurück (gleiches Format wie
     ``exercise_enrichment._to_db_columns``), oder ``None`` bei Fehler.
+
+    Args:
+        api_key: Resolved API-Key (via ``resolve_claude_api_key``).
     """
-    if not settings.claude_api_key:
+    if not api_key:
         logger.debug("Claude API Key nicht konfiguriert — Fallback übersprungen")
         return None
 
     prompt = _build_prompt(exercise_name, category)
 
     try:
-        client = anthropic.Anthropic(api_key=settings.claude_api_key)
+        client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
             model=settings.claude_model,
             max_tokens=1000,

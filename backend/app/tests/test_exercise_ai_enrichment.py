@@ -138,10 +138,8 @@ class TestGenerateExerciseEnrichment:
     @pytest.mark.asyncio
     async def test_no_api_key_returns_none(self) -> None:
         """Ohne API-Key wird sofort None zurückgegeben."""
-        with patch("app.services.exercise_ai_enrichment.settings") as mock_settings:
-            mock_settings.claude_api_key = ""
-            result = await generate_exercise_enrichment("Test Übung", "push")
-            assert result is None
+        result = await generate_exercise_enrichment("Test Übung", "push", "")
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_successful_api_call(self) -> None:
@@ -170,11 +168,10 @@ class TestGenerateExerciseEnrichment:
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
         ):
-            mock_settings.claude_api_key = "test-key"
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
 
-            result = await generate_exercise_enrichment("Bankdrücken", "push")
+            result = await generate_exercise_enrichment("Bankdrücken", "push", "test-key")
 
         assert result is not None
         instructions_json = result["instructions_json"]
@@ -196,11 +193,10 @@ class TestGenerateExerciseEnrichment:
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
         ):
-            mock_settings.claude_api_key = "test-key"
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
 
-            result = await generate_exercise_enrichment("Test", "push")
+            result = await generate_exercise_enrichment("Test", "push", "test-key")
 
         assert result is None
 
@@ -217,11 +213,10 @@ class TestGenerateExerciseEnrichment:
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
         ):
-            mock_settings.claude_api_key = "test-key"
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
 
-            result = await generate_exercise_enrichment("Test", "push")
+            result = await generate_exercise_enrichment("Test", "push", "test-key")
 
         assert result is None
 
@@ -247,10 +242,9 @@ class TestGenerateExerciseEnrichment:
             patch("app.services.exercise_ai_enrichment.settings") as mock_settings,
             patch("app.services.exercise_ai_enrichment.anthropic") as mock_anthropic,
         ):
-            mock_settings.claude_api_key = "test-key"
             mock_settings.claude_model = "claude-sonnet-4-20250514"
             mock_anthropic.Anthropic.return_value = mock_client
 
-            result = await generate_exercise_enrichment("Test", "push")
+            result = await generate_exercise_enrichment("Test", "push", "test-key")
 
         assert result is None
