@@ -21,224 +21,261 @@ weekly_structure:
 phases:
   # Phase 1: Aufbau & Stabilisierung (KW06-08)
   - name: "Aufbau & Stabilisierung"
-    type: base
+    phase_type: base
     start_week: 1
     end_week: 3
+    focus:
+      primary: [aerobic_base, structural_adaptation]
+      secondary: [running_economy, injury_prevention]
     notes: "Wiedereinstieg nach Winterpause. Tempo vor Progression - Struktur zuerst stabilisieren."
     weekly_template:
       # Montag: Ruhetag
-      - day: 0
-        rest: true
+      - day_of_week: 0
+        is_rest_day: true
       # Dienstag: Kraft (kniedominant)
-      - day: 1
-        type: strength
+      - day_of_week: 1
+        sessions:
+          - position: 0
+            training_type: strength
         notes: "Kniebeugen 2x6@16kg, Bankdrücken 2x6@18kg, Core, Ruderzug"
       # Mittwoch: Qualität (Intervalle)
-      - day: 2
-        type: running
-        run_type: intervals
-        run_details:
-          run_type: intervals
-          target_duration_minutes: 40
-          intervals:
-            - type: warmup
-              duration_minutes: 10
-              target_pace_min: "7:00"
-              target_pace_max: "7:30"
-              repeats: 1
-            - type: work
-              duration_minutes: 3
-              target_pace_min: "6:21"
-              target_pace_max: "6:31"
-              repeats: 5
-            - type: recovery_jog
-              duration_minutes: 2
-              target_pace_min: "7:30"
-              target_pace_max: "8:00"
-              repeats: 5
-            - type: cooldown
-              duration_minutes: 5
-              target_pace_min: "7:00"
-              target_pace_max: "7:30"
-              repeats: 1
+      - day_of_week: 2
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: intervals
+            run_details:
+              run_type: intervals
+              target_duration_minutes: 40
+              intervals:
+                - type: warmup
+                  duration_minutes: 10
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 1
+                - type: work
+                  duration_minutes: 3
+                  target_pace_min: "6:21"
+                  target_pace_max: "6:31"
+                  repeats: 5
+                - type: recovery_jog
+                  duration_minutes: 2
+                  target_pace_min: "7:30"
+                  target_pace_max: "8:00"
+                  repeats: 5
+                - type: cooldown
+                  duration_minutes: 5
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 1
       # Donnerstag: Lockerer Lauf
-      - day: 3
-        type: running
-        run_type: easy
-        run_details:
-          run_type: easy
-          target_duration_minutes: 50
-          target_pace_min: "7:00"
-          target_pace_max: "7:30"
-          target_hr_max: 150
-      # Freitag: Kraft (hueftdominant)
-      - day: 4
-        type: strength
+      - day_of_week: 3
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: easy
+            run_details:
+              run_type: easy
+              target_duration_minutes: 50
+              target_pace_min: "7:00"
+              target_pace_max: "7:30"
+              target_hr_max: 150
+      # Freitag: Kraft (hüftdominant)
+      - day_of_week: 4
+        sessions:
+          - position: 0
+            training_type: strength
         notes: "Kreuzheben 3x6@16kg, Brustpresse, Bauch, Rudern Ergometer"
       # Samstag: Longrun
-      - day: 5
-        type: running
-        run_type: long_run
-        run_details:
-          run_type: long_run
-          target_duration_minutes: 80
-          target_pace_min: "6:30"
-          target_pace_max: "6:50"
-          target_hr_min: 150
-          target_hr_max: 160
+      - day_of_week: 5
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: long_run
+            run_details:
+              run_type: long_run
+              target_duration_minutes: 80
+              target_pace_min: "6:30"
+              target_pace_max: "6:50"
+              target_hr_min: 150
+              target_hr_max: 160
       # Sonntag: Ruhetag
-      - day: 6
-        rest: true
+      - day_of_week: 6
+        is_rest_day: true
 
   # Phase 2: Spezifisch (KW09-11)
   - name: "Spezifische Vorbereitung"
-    type: build
+    phase_type: build
     start_week: 4
     end_week: 6
+    focus:
+      primary: [lactate_threshold, tempo_hardness]
+      secondary: [specific_strength, race_pace_intro]
     notes: "Annäherung an Wettkampftempo 5:41/km. Longrun mit Tempo-Passagen."
     weekly_template:
       # Montag: Ruhetag
-      - day: 0
-        rest: true
+      - day_of_week: 0
+        is_rest_day: true
       # Dienstag: Kraft (kniedominant)
-      - day: 1
-        type: strength
+      - day_of_week: 1
+        sessions:
+          - position: 0
+            training_type: strength
         notes: "Gewichte beibehalten, kein Steigern mehr"
       # Mittwoch: Spezifische Intervalle
-      - day: 2
-        type: running
-        run_type: intervals
-        run_details:
-          run_type: intervals
-          target_duration_minutes: 50
-          intervals:
-            - type: warmup
-              duration_minutes: 10
-              target_pace_min: "6:30"
-              target_pace_max: "7:00"
-              repeats: 1
-            - type: work
-              duration_minutes: 4
-              target_pace_min: "5:40"
-              target_pace_max: "5:50"
-              repeats: 5
-            - type: recovery_jog
-              duration_minutes: 2
-              target_pace_min: "7:00"
-              target_pace_max: "7:30"
-              repeats: 5
-            - type: cooldown
-              duration_minutes: 5
-              target_pace_min: "6:30"
-              target_pace_max: "7:00"
-              repeats: 1
+      - day_of_week: 2
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: intervals
+            run_details:
+              run_type: intervals
+              target_duration_minutes: 50
+              intervals:
+                - type: warmup
+                  duration_minutes: 10
+                  target_pace_min: "6:30"
+                  target_pace_max: "7:00"
+                  repeats: 1
+                - type: work
+                  duration_minutes: 4
+                  target_pace_min: "5:40"
+                  target_pace_max: "5:50"
+                  repeats: 5
+                - type: recovery_jog
+                  duration_minutes: 2
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 5
+                - type: cooldown
+                  duration_minutes: 5
+                  target_pace_min: "6:30"
+                  target_pace_max: "7:00"
+                  repeats: 1
       # Donnerstag: Lockerer Lauf
-      - day: 3
-        type: running
-        run_type: easy
-        run_details:
-          run_type: easy
-          target_duration_minutes: 50
-          target_pace_min: "6:30"
-          target_pace_max: "7:00"
-          target_hr_max: 150
-      # Freitag: Kraft (hueftdominant)
-      - day: 4
-        type: strength
+      - day_of_week: 3
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: easy
+            run_details:
+              run_type: easy
+              target_duration_minutes: 50
+              target_pace_min: "6:30"
+              target_pace_max: "7:00"
+              target_hr_max: 150
+      # Freitag: Kraft (hüftdominant)
+      - day_of_week: 4
+        sessions:
+          - position: 0
+            training_type: strength
         notes: "Kreuzheben, Brustpresse, Bauch — Gewichte halten"
       # Samstag: Longrun mit Tempo-Passage
-      - day: 5
-        type: running
-        run_type: long_run
-        run_details:
-          run_type: long_run
-          target_duration_minutes: 100
-          intervals:
-            - type: steady
-              duration_minutes: 60
-              target_pace_min: "6:20"
-              target_pace_max: "6:40"
-              repeats: 1
-            - type: work
-              duration_minutes: 25
-              target_pace_min: "5:45"
-              target_pace_max: "6:00"
-              repeats: 1
-            - type: cooldown
-              duration_minutes: 15
-              target_pace_min: "6:30"
-              target_pace_max: "7:00"
-              repeats: 1
+      - day_of_week: 5
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: long_run
+            run_details:
+              run_type: long_run
+              target_duration_minutes: 100
+              intervals:
+                - type: steady
+                  duration_minutes: 60
+                  target_pace_min: "6:20"
+                  target_pace_max: "6:40"
+                  repeats: 1
+                - type: work
+                  duration_minutes: 25
+                  target_pace_min: "5:45"
+                  target_pace_max: "6:00"
+                  repeats: 1
+                - type: cooldown
+                  duration_minutes: 15
+                  target_pace_min: "6:30"
+                  target_pace_max: "7:00"
+                  repeats: 1
       # Sonntag: Ruhetag
-      - day: 6
-        rest: true
+      - day_of_week: 6
+        is_rest_day: true
 
   # Phase 3: Tapering (KW12-13)
   - name: "Tapering"
-    type: taper
+    phase_type: taper
     start_week: 7
     end_week: 8
+    focus:
+      primary: [supercompensation, fatigue_reduction]
+      secondary: [mental_preparation, race_preparation]
     notes: "Umfang -40%, Intensität erhalten. Form kommt in der Erholung!"
     weekly_template:
       # Montag: Ruhetag
-      - day: 0
-        rest: true
+      - day_of_week: 0
+        is_rest_day: true
       # Dienstag: Kraft leicht
-      - day: 1
-        type: strength
+      - day_of_week: 1
+        sessions:
+          - position: 0
+            training_type: strength
         notes: "Leichtes Studio — Gewichte NICHT steigern!"
       # Mittwoch: Kurze scharfe Intervalle
-      - day: 2
-        type: running
-        run_type: intervals
-        run_details:
-          run_type: intervals
-          target_duration_minutes: 30
-          intervals:
-            - type: warmup
-              duration_minutes: 10
-              target_pace_min: "6:30"
-              target_pace_max: "7:00"
-              repeats: 1
-            - type: work
-              duration_minutes: 3
-              target_pace_min: "5:30"
-              target_pace_max: "5:40"
-              repeats: 4
-            - type: recovery_jog
-              duration_minutes: 2
-              target_pace_min: "7:00"
-              target_pace_max: "7:30"
-              repeats: 4
-            - type: cooldown
-              duration_minutes: 5
-              target_pace_min: "7:00"
-              target_pace_max: "7:30"
-              repeats: 1
+      - day_of_week: 2
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: intervals
+            run_details:
+              run_type: intervals
+              target_duration_minutes: 30
+              intervals:
+                - type: warmup
+                  duration_minutes: 10
+                  target_pace_min: "6:30"
+                  target_pace_max: "7:00"
+                  repeats: 1
+                - type: work
+                  duration_minutes: 3
+                  target_pace_min: "5:30"
+                  target_pace_max: "5:40"
+                  repeats: 4
+                - type: recovery_jog
+                  duration_minutes: 2
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 4
+                - type: cooldown
+                  duration_minutes: 5
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 1
       # Donnerstag: Lockerer kurzer Lauf
-      - day: 3
-        type: running
-        run_type: recovery
-        run_details:
-          run_type: recovery
-          target_duration_minutes: 30
-          target_pace_min: "7:00"
-          target_pace_max: "7:30"
-          target_hr_max: 145
+      - day_of_week: 3
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: recovery
+            run_details:
+              run_type: recovery
+              target_duration_minutes: 30
+              target_pace_min: "7:00"
+              target_pace_max: "7:30"
+              target_hr_max: 145
       # Freitag: Ruhe oder Mobilisierung
-      - day: 4
-        rest: true
+      - day_of_week: 4
+        is_rest_day: true
         notes: "Nur Mobilisierung, kein Krafttraining"
       # Samstag: Letzter langer Lauf (reduziert)
-      - day: 5
-        type: running
-        run_type: long_run
-        run_details:
-          run_type: long_run
-          target_duration_minutes: 75
-          target_pace_min: "6:20"
-          target_pace_max: "6:40"
-          target_hr_max: 155
+      - day_of_week: 5
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: long_run
+            run_details:
+              run_type: long_run
+              target_duration_minutes: 75
+              target_pace_min: "6:20"
+              target_pace_max: "6:40"
+              target_hr_max: 155
       # Sonntag: Ruhetag
-      - day: 6
-        rest: true
+      - day_of_week: 6
+        is_rest_day: true

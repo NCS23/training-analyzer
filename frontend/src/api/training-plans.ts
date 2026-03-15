@@ -244,6 +244,20 @@ export async function importTrainingPlanYaml(
   return response.data;
 }
 
+// --- YAML Template Download ---
+
+export async function downloadTemplateYaml(): Promise<void> {
+  const response = await apiClient.get<Blob>('/api/v1/training-plans/template', {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'template-trainingsplan.yaml';
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
 // --- YAML Validation ---
 
 export interface YamlValidationIssue {

@@ -1,0 +1,155 @@
+# ============================================================
+# Trainingsplan-Vorlage
+# ============================================================
+# Diese Vorlage zeigt alle verfügbaren Felder für den YAML-Import.
+# Passe die Werte an deinen Plan an und importiere die Datei
+# über „Programme → YAML importieren".
+#
+# Pflichtfelder sind mit (PFLICHT) markiert.
+# Alle anderen Felder sind optional.
+# ============================================================
+
+# --- Plan-Metadaten ---
+
+name: "Mein Trainingsplan"              # (PFLICHT) Name des Plans (max. 200 Zeichen)
+description: "Beschreibung des Plans"    # Freitext (max. 2000 Zeichen)
+start_date: "2026-04-01"                # (PFLICHT) Startdatum (YYYY-MM-DD)
+end_date: "2026-06-30"                  # (PFLICHT) Enddatum (YYYY-MM-DD)
+target_event_date: "2026-06-28"         # Wettkampfdatum (optional)
+status: draft                           # draft | active | completed | paused
+
+# --- Ziel (optional) ---
+# Wird automatisch als Wettkampfziel angelegt.
+
+goal:
+  title: "Mein Wettkampfziel"
+  race_date: "2026-06-28"              # Standard: target_event_date oder end_date
+  distance_km: 21.1                     # Distanz in km
+  target_time: "1:59:59"               # Format: H:MM:SS oder MM:SS
+
+# --- Wochenstruktur ---
+
+weekly_structure:
+  rest_days: [6]                        # Ruhetage (0=Mo, 1=Di, ... 6=So)
+
+# --- Phasen ---
+# Jede Phase hat einen Typ und eine Wochen-Vorlage.
+#
+# phase_type: base | build | peak | taper | transition
+#
+# focus.primary / focus.secondary — Trainingsschwerpunkte:
+#   base:       aerobic_base, structural_adaptation, running_economy, injury_prevention
+#   build:      lactate_threshold, tempo_hardness, specific_strength, race_pace_intro
+#   peak:       vo2max, race_pace, race_tactics, mental_toughness
+#   taper:      supercompensation, fatigue_reduction, mental_preparation, race_preparation
+#   transition: regeneration, mobility, overtraining_prevention
+
+phases:
+  - name: "Aufbauphase"
+    phase_type: base                     # (PFLICHT)
+    start_week: 1                        # (PFLICHT) Erste Woche der Phase
+    end_week: 6                          # (PFLICHT) Letzte Woche der Phase
+    focus:
+      primary: [aerobic_base, structural_adaptation]
+      secondary: [running_economy]
+    target_metrics:                      # Zielwerte (optional)
+      weekly_volume_min: 30              # Min. Wochenumfang (km)
+      weekly_volume_max: 45              # Max. Wochenumfang (km)
+      quality_sessions_per_week: 1       # Qualitätseinheiten pro Woche
+      strength_sessions_per_week: 2      # Krafteinheiten pro Woche
+    notes: "Freitext-Notizen zur Phase"
+
+    # --- Wochen-Vorlage ---
+    # MUSS exakt 7 Tage enthalten (Mo=0 bis So=6).
+    # Jeder Tag hat entweder is_rest_day: true oder sessions[].
+    #
+    # training_type: strength | running
+    #
+    # run_type (Lauftypen):
+    #   recovery | easy | long_run | progression |
+    #   tempo | intervals | repetitions | fartlek | race
+    #
+    # Intervall-Segmenttypen (intervals[].type):
+    #   warmup | cooldown | steady | work |
+    #   recovery_jog | rest | strides | drills
+
+    weekly_template:
+      # Montag
+      - day_of_week: 0
+        is_rest_day: true
+
+      # Dienstag
+      - day_of_week: 1
+        sessions:
+          - position: 0
+            training_type: strength
+        notes: "Kraft-Notizen"
+
+      # Mittwoch
+      - day_of_week: 2
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: intervals
+            run_details:
+              run_type: intervals
+              target_duration_minutes: 45
+              intervals:
+                - type: warmup
+                  duration_minutes: 10
+                  target_pace_min: "7:00"    # Pace-Format: M:SS
+                  target_pace_max: "7:30"
+                  repeats: 1
+                - type: work
+                  duration_minutes: 4
+                  target_pace_min: "5:30"
+                  target_pace_max: "5:45"
+                  repeats: 5
+                - type: recovery_jog
+                  duration_minutes: 2
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 5
+                - type: cooldown
+                  duration_minutes: 5
+                  target_pace_min: "7:00"
+                  target_pace_max: "7:30"
+                  repeats: 1
+
+      # Donnerstag
+      - day_of_week: 3
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: easy
+            run_details:
+              run_type: easy
+              target_duration_minutes: 50
+              target_pace_min: "6:30"
+              target_pace_max: "7:00"
+              target_hr_max: 150           # Herzfrequenz-Grenze
+
+      # Freitag
+      - day_of_week: 4
+        sessions:
+          - position: 0
+            training_type: strength
+        notes: "Kraft-Notizen"
+
+      # Samstag
+      - day_of_week: 5
+        sessions:
+          - position: 0
+            training_type: running
+            run_type: long_run
+            run_details:
+              run_type: long_run
+              target_duration_minutes: 90
+              target_pace_min: "6:20"
+              target_pace_max: "6:50"
+              target_hr_min: 145
+              target_hr_max: 160
+
+      # Sonntag
+      - day_of_week: 6
+        is_rest_day: true
