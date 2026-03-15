@@ -636,26 +636,6 @@ async def create_exercise(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Erstellt eine neue benutzerdefinierte Übung."""
-    import logging
-    import traceback
-
-    _logger = logging.getLogger(__name__)
-
-    try:
-        return await _create_exercise_impl(body, db)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        tb = traceback.format_exc()
-        _logger.error("create_exercise failed: %s\n%s", exc, tb)
-        raise HTTPException(status_code=500, detail=f"Fehler: {exc}\n{tb}") from exc
-
-
-async def _create_exercise_impl(
-    body: ExerciseCreate,
-    db: AsyncSession,
-) -> ExerciseResponse:
-    """Implementierung für create_exercise."""
     if body.category not in VALID_CATEGORIES:
         raise HTTPException(
             status_code=400,
