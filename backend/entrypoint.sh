@@ -13,12 +13,18 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
+echo "Current Alembic version:"
+alembic current 2>&1 || echo "Could not determine Alembic version."
+
 echo "Running Alembic migrations..."
 if alembic upgrade head; then
   echo "Migrations completed successfully."
 else
   echo "WARNING: Alembic migrations failed (exit code $?). Starting app anyway."
 fi
+
+echo "Alembic version after migration:"
+alembic current 2>&1 || echo "Could not determine Alembic version."
 
 echo "Starting uvicorn..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

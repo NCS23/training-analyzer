@@ -34,16 +34,16 @@ async def init_db():
 
 
 def _ensure_columns_exist(conn):
-    """Add missing columns to existing tables (lightweight auto-migration)."""
+    """Add missing columns and fix nullability mismatches (lightweight auto-migration)."""
     from app.infrastructure.database.models import Base
 
     inspector = sa_inspect(conn)
     for table_name, table in Base.metadata.tables.items():
         if not inspector.has_table(table_name):
             continue
-        existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+        db_cols = {c["name"]: c for c in inspector.get_columns(table_name)}
         for col in table.columns:
-            if col.name not in existing_cols:
+            if col.name not in db_cols:
                 col_type = col.type.compile(conn.engine.dialect)
 
                 # Include DEFAULT clause from server_default so NOT NULL
@@ -72,3 +72,10 @@ def _ensure_columns_exist(conn):
                 )
                 logger.info(f"Adding missing column: {table_name}.{col.name}")
                 conn.execute(text(sql))
+            else:
+                # Fix nullability mismatch: model says nullable but DB says NOT NULL
+                db_nullable = db_cols[col.name].get("nullable", True)
+                if col.nullable and not db_nullable:
+                    sql = f'ALTER TABLE "{table_name}" ALTER COLUMN "{col.name}" DROP NOT NULL'
+                    logger.info(f"Fixing nullability: {table_name}.{col.name} → nullable")
+                    conn.execute(text(sql))
