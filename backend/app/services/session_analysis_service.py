@@ -91,11 +91,13 @@ async def _load_analysis_context(workout: WorkoutModel, db: AsyncSession) -> Ana
     workout_date = workout.date.date() if isinstance(workout.date, datetime) else workout.date
     four_weeks_ago = datetime.combine(workout_date - timedelta(weeks=4), datetime.min.time())
 
-    # Letzte 20 Sessions (4 Wochen)
+    # Letzte 20 Sessions (4 Wochen VOR der aktuellen Session)
+    workout_dt = datetime.combine(workout_date, datetime.max.time())
     hist_result = await db.execute(
         select(WorkoutModel)
         .where(
             WorkoutModel.date >= four_weeks_ago,
+            WorkoutModel.date <= workout_dt,
             WorkoutModel.id != workout.id,
         )
         .order_by(WorkoutModel.date.desc())
