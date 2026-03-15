@@ -13,6 +13,7 @@ import {
 } from '@nordlig/components';
 import { DatePicker } from '@nordlig/components';
 import { ClipboardList, Save, ArrowLeft, RotateCcw, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 import { createStrengthSession, getLastCompleteStrengthSession } from '@/api/strength';
 import type {
   ExerciseCategory,
@@ -167,7 +168,7 @@ export function StrengthSessionPage() {
 
     try {
       const result = await createStrengthSession({
-        date: trainingDate.toISOString().split('T')[0],
+        date: formatLocalDate(trainingDate),
         duration_minutes: durationMinutes,
         exercises: validExercises.map((ex) => ({
           name: ex.name.trim(),

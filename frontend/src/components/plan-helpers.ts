@@ -79,5 +79,8 @@ export function getCurrentWeekStart(): string {
   const today = new Date();
   const monday = new Date(today);
   monday.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
-  return monday.toISOString().split('T')[0];
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const d = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }

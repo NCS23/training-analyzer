@@ -13,6 +13,7 @@ import {
   updatePhase,
   deletePhase,
 } from '@/api/training-plans';
+import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 import type { PlanStatus } from '@/api/training-plans';
 import { type PhaseForm, phaseFormToParams } from '@/hooks/usePlanForm';
 
@@ -59,7 +60,7 @@ export function usePlanSubmit(opts: UsePlanSubmitOptions) {
     setSaving(true);
     setError(null);
 
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const formatDate = formatLocalDate;
 
     try {
       if (isEdit) {
