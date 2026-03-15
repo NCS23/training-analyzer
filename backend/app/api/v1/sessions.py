@@ -231,6 +231,7 @@ def _build_workout_model(
     summary = parsed["summary"]
     classification = parsed["classification"]
     gps_track = parsed.get("gps_track")
+    hr_timeseries = parsed.get("hr_timeseries")
     laps = parsed["laps"]
 
     return WorkoutModel(
@@ -250,6 +251,7 @@ def _build_workout_model(
         csv_data=csv_data,
         laps_json=json.dumps(laps) if laps else None,
         hr_zones_json=json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None,
+        hr_timeseries_json=json.dumps(hr_timeseries) if hr_timeseries else None,
         gps_track_json=json.dumps(gps_track) if gps_track else None,
         has_gps=bool(gps_track),
         athlete_resting_hr=parsed["resting_hr"],
@@ -555,7 +557,12 @@ async def get_working_zones(
 
     laps_raw = json.loads(str(workout.laps_json))
     gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
-    _, hr_zones = _calculate_working_laps_metrics(laps_raw, resting_hr, max_hr, gps_track)
+    hr_timeseries = (
+        json.loads(str(workout.hr_timeseries_json)) if workout.hr_timeseries_json else None
+    )
+    _, hr_zones = _calculate_working_laps_metrics(
+        laps_raw, resting_hr, max_hr, gps_track, hr_timeseries
+    )
     return {"hr_zones_working": hr_zones}
 
 
@@ -656,9 +663,12 @@ async def update_lap_overrides(
     if resting_hr is None or max_hr is None:
         resting_hr, max_hr = await _get_athlete_hr_settings(db)
     gps_track = json.loads(str(workout.gps_track_json)) if workout.gps_track_json else None
+    hr_timeseries = (
+        json.loads(str(workout.hr_timeseries_json)) if workout.hr_timeseries_json else None
+    )
     laps = [LapResponse(**lap) for lap in laps_raw]
     summary_working, hr_zones_working = _calculate_working_laps_metrics(
-        laps_raw, resting_hr, max_hr, gps_track
+        laps_raw, resting_hr, max_hr, gps_track, hr_timeseries
     )
 
     return LapOverrideResponse(
@@ -881,7 +891,7 @@ async def recalculate_session_zones(
 def _extract_hr_from_stored_data(workout: WorkoutModel) -> list[int]:
     """Extract per-second HR values from stored session data.
 
-    Priority: GPS track (per-second) > CSV re-parse > empty.
+    Priority: GPS track (per-second) > HR timeseries > CSV re-parse > empty.
     """
     # 1. GPS track points (best: per-second HR)
     if workout.gps_track_json:
@@ -891,7 +901,15 @@ def _extract_hr_from_stored_data(workout: WorkoutModel) -> list[int]:
         if hr_values:
             return hr_values
 
-    # 2. CSV data (re-parse for HR timeseries)
+    # 2. Stored HR timeseries (FIT files without GPS)
+    if workout.hr_timeseries_json:
+        ts = json.loads(str(workout.hr_timeseries_json))
+        if ts:
+            hr_values = [int(p["hr_bpm"]) for p in ts if p.get("hr_bpm")]
+            if hr_values:
+                return hr_values
+
+    # 3. CSV data (re-parse for HR timeseries)
     if workout.csv_data:
         try:
             result = csv_parser.parse(
@@ -970,6 +988,7 @@ def _calculate_working_laps_metrics(
     resting_hr: Optional[int] = None,
     max_hr: Optional[int] = None,
     gps_track: Optional[dict] = None,
+    hr_timeseries: Optional[list[dict]] = None,
 ) -> tuple[Optional[SessionSummaryResponse], Optional[dict]]:
     """Berechnet Metriken nur fuer Working-Laps (ohne Warmup/Cooldown/Pause)."""
     working = [lap for lap in laps_raw if _get_effective_type(lap) not in EXCLUDED_TYPES]
@@ -1005,8 +1024,12 @@ def _calculate_working_laps_metrics(
         ),
     )
 
-    # HR Zones: prefer per-second GPS HR data over lap averages
+    # HR Zones: prefer per-second data over lap averages
+    # Priority: GPS-Track > HR-Timeseries > Lap-Durchschnitte
     working_hr_values = _extract_working_hr_from_gps(laps_raw, gps_track)
+
+    if not working_hr_values and hr_timeseries:
+        working_hr_values = _extract_working_hr_from_timeseries(laps_raw, hr_timeseries)
 
     if not working_hr_values:
         # Fallback: expand lap averages (less accurate)
@@ -1065,6 +1088,56 @@ def _extract_working_hr_from_gps(
             continue
 
         # Advance range index if past current range
+        while range_idx < len(working_ranges) and sec >= working_ranges[range_idx][1]:
+            range_idx += 1
+
+        if range_idx >= len(working_ranges):
+            break
+
+        if working_ranges[range_idx][0] <= sec < working_ranges[range_idx][1]:
+            hr_values.append(int(hr))
+
+    return hr_values
+
+
+def _extract_working_hr_from_timeseries(
+    laps_raw: list[dict],
+    hr_timeseries: list[dict],
+) -> list[int]:
+    """Extract per-second HR values from HR timeseries for working laps only.
+
+    Uses the same time-range filtering as GPS track extraction.
+    HR timeseries entries have 'seconds' and 'hr_bpm' fields.
+    """
+    if not hr_timeseries:
+        return []
+
+    # Build time ranges for working laps
+    working_ranges: list[tuple[float, float]] = []
+    elapsed = 0.0
+    for lap in laps_raw:
+        dur = lap.get("duration_seconds", 0)
+        if dur <= 0:
+            continue
+        lap_start = elapsed
+        lap_end = elapsed + dur
+        elapsed = lap_end
+
+        if _get_effective_type(lap) not in EXCLUDED_TYPES:
+            working_ranges.append((lap_start, lap_end))
+
+    if not working_ranges:
+        return []
+
+    # Collect HR values within working time ranges
+    hr_values: list[int] = []
+    range_idx = 0
+    for entry in hr_timeseries:
+        sec = entry.get("seconds", 0)
+        hr = entry.get("hr_bpm")
+        if hr is None:
+            continue
+
         while range_idx < len(working_ranges) and sec >= working_ranges[range_idx][1]:
             range_idx += 1
 
