@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   sync:
@@ -71,13 +72,20 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit and push
+      - name: Create PR
         if: steps.diff.outputs.changed == 'true'
         env:
           NDS_SHA: ${{ github.event.client_payload.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="chore/sync-nds-${NDS_SHA:0:7}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add frontend/packages/ frontend/package.json frontend/package-lock.json
           git commit -m "chore: sync NDS packages (${NDS_SHA:0:7})"
-          git push
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore: sync NDS packages (${NDS_SHA:0:7})" \
+            --body "Automatischer Sync der Nordlig Design System Packages von NCS23/nordlig-design-system@${NDS_SHA:0:7}." \
+            --label "dependencies"
