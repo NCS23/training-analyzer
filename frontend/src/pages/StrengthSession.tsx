@@ -20,6 +20,7 @@ import type {
   ExerciseInput,
   LastCompleteSession,
   SetStatus,
+  SetType,
 } from '@/api/strength';
 import { listSessionTemplates, getSessionTemplate } from '@/api/session-templates';
 import type { SessionTemplateSummary } from '@/api/session-templates';
@@ -50,7 +51,14 @@ function toExerciseInputs(forms: ExerciseForm[]): ExerciseInput[] {
     .map((f) => ({
       name: f.name,
       category: f.category,
-      sets: f.sets.map((s) => ({ reps: s.reps, weight_kg: s.weight_kg, status: s.status })),
+      sets: f.sets.map((s) => ({
+        type: s.type,
+        reps: s.reps,
+        weight_kg: s.weight_kg,
+        duration_sec: s.duration_sec,
+        distance_m: s.distance_m,
+        status: s.status,
+      })),
     }));
 }
 
@@ -99,12 +107,15 @@ export function StrengthSessionPage() {
     setLoadingPlan(true);
     try {
       const plan = await getSessionTemplate(planId);
+      const setType: SetType = 'weight_reps';
       const loadedExercises: ExerciseForm[] = plan.exercises.map((ex) => ({
         id: genId(),
         name: ex.name,
         category: ex.category as ExerciseCategory,
+        setType,
         sets: Array.from({ length: ex.sets }, () => ({
           id: genId(),
+          type: setType,
           reps: ex.reps,
           weight_kg: ex.weight_kg ?? 0,
           status: 'completed' as SetStatus,
@@ -127,17 +138,24 @@ export function StrengthSessionPage() {
     const hasContent = exercises.some((ex) => ex.name.trim());
     if (hasContent && !window.confirm('Aktuelle Eingabe überschreiben?')) return;
 
-    const cloned: ExerciseForm[] = lastSession.exercises.map((ex) => ({
-      id: genId(),
-      name: ex.name,
-      category: ex.category as ExerciseCategory,
-      sets: ex.sets.map((s) => ({
+    const cloned: ExerciseForm[] = lastSession.exercises.map((ex) => {
+      const exSetType: SetType = (ex.sets[0]?.type as SetType) || 'weight_reps';
+      return {
         id: genId(),
-        reps: s.reps,
-        weight_kg: s.weight_kg,
-        status: 'completed' as SetStatus,
-      })),
-    }));
+        name: ex.name,
+        category: ex.category as ExerciseCategory,
+        setType: exSetType,
+        sets: ex.sets.map((s) => ({
+          id: genId(),
+          type: (s.type as SetType) || exSetType,
+          reps: s.reps,
+          weight_kg: s.weight_kg,
+          duration_sec: s.duration_sec,
+          distance_m: s.distance_m,
+          status: 'completed' as SetStatus,
+        })),
+      };
+    });
     if (cloned.length > 0) {
       setExercises(cloned);
       if (lastSession.duration_minutes) {
@@ -156,9 +174,8 @@ export function StrengthSessionPage() {
       return;
     }
     for (const ex of validExercises) {
-      const validSets = ex.sets.filter((s) => s.reps > 0);
-      if (validSets.length === 0) {
-        setError(`"${ex.name}" braucht mindestens einen Satz mit Wiederholungen.`);
+      if (ex.sets.length === 0) {
+        setError(`"${ex.name}" braucht mindestens einen Satz.`);
         return;
       }
     }
@@ -173,13 +190,14 @@ export function StrengthSessionPage() {
         exercises: validExercises.map((ex) => ({
           name: ex.name.trim(),
           category: ex.category,
-          sets: ex.sets
-            .filter((s) => s.reps > 0)
-            .map((s) => ({
-              reps: s.reps,
-              weight_kg: s.weight_kg,
-              status: s.status,
-            })),
+          sets: ex.sets.map((s) => ({
+            type: s.type,
+            reps: s.reps,
+            weight_kg: s.weight_kg,
+            duration_sec: s.duration_sec,
+            distance_m: s.distance_m,
+            status: s.status,
+          })),
         })),
         notes: notes.trim() || undefined,
         rpe,

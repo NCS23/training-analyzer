@@ -19,6 +19,7 @@ export interface Exercise {
   force: string | null;
   mechanic: string | null;
   exercise_db_id: string | null;
+  default_set_type: string | null;
 }
 
 export interface ExerciseListResponse {

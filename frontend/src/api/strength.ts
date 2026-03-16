@@ -5,9 +5,59 @@ import { apiClient } from './client';
 export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio' | 'drills';
 export type SetStatus = 'completed' | 'reduced' | 'skipped';
 
+export type SetType =
+  | 'weight_reps'
+  | 'bodyweight_reps'
+  | 'weighted_bodyweight'
+  | 'assisted_bodyweight'
+  | 'duration'
+  | 'weight_duration'
+  | 'distance_duration'
+  | 'weight_distance';
+
+export const SET_TYPE_LABELS: Record<SetType, string> = {
+  weight_reps: 'Gewicht + Wdh.',
+  bodyweight_reps: 'Nur Wdh.',
+  weighted_bodyweight: 'Zusatzgewicht',
+  assisted_bodyweight: 'Assistiert',
+  duration: 'Dauer',
+  weight_duration: 'Gewicht + Dauer',
+  distance_duration: 'Distanz + Dauer',
+  weight_distance: 'Gewicht + Distanz',
+};
+
+export const SET_TYPE_OPTIONS: { value: SetType; label: string }[] = [
+  { value: 'weight_reps', label: 'Gewicht + Wdh.' },
+  { value: 'bodyweight_reps', label: 'Nur Wdh.' },
+  { value: 'weighted_bodyweight', label: 'Zusatzgewicht + Wdh.' },
+  { value: 'assisted_bodyweight', label: 'Assistiert + Wdh.' },
+  { value: 'duration', label: 'Dauer' },
+  { value: 'weight_duration', label: 'Gewicht + Dauer' },
+  { value: 'distance_duration', label: 'Distanz (+ Dauer)' },
+  { value: 'weight_distance', label: 'Gewicht + Distanz' },
+];
+
+/** Welche Felder pro Set-Typ angezeigt werden. */
+export const SET_TYPE_FIELDS: Record<
+  SetType,
+  { reps: boolean; weight: boolean; duration: boolean; distance: boolean }
+> = {
+  weight_reps: { reps: true, weight: true, duration: false, distance: false },
+  bodyweight_reps: { reps: true, weight: false, duration: false, distance: false },
+  weighted_bodyweight: { reps: true, weight: true, duration: false, distance: false },
+  assisted_bodyweight: { reps: true, weight: true, duration: false, distance: false },
+  duration: { reps: false, weight: false, duration: true, distance: false },
+  weight_duration: { reps: false, weight: true, duration: true, distance: false },
+  distance_duration: { reps: false, weight: false, duration: true, distance: true },
+  weight_distance: { reps: false, weight: true, duration: false, distance: true },
+};
+
 export interface SetInput {
-  reps: number;
-  weight_kg: number;
+  type?: SetType;
+  reps?: number;
+  weight_kg?: number;
+  duration_sec?: number;
+  distance_m?: number;
   status: SetStatus;
 }
 
@@ -34,6 +84,9 @@ export interface StrengthSessionCreateResponse {
     total_exercises: number;
     total_sets: number;
     total_tonnage_kg: number;
+    total_reps: number;
+    total_duration_sec: number;
+    total_distance_m: number;
     completed_sets: number;
   };
   file_data?: {
@@ -62,7 +115,14 @@ export interface LastExerciseResponse {
   exercise: {
     exercise_name: string;
     category: string;
-    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+    sets: Array<{
+      type?: string;
+      reps?: number;
+      weight_kg?: number;
+      duration_sec?: number;
+      distance_m?: number;
+      status: string;
+    }>;
     session_date: string;
   } | null;
 }
@@ -111,12 +171,22 @@ export interface UpdateExercisesResponse {
   exercises: Array<{
     name: string;
     category: string;
-    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+    sets: Array<{
+      type?: string;
+      reps?: number;
+      weight_kg?: number;
+      duration_sec?: number;
+      distance_m?: number;
+      status: string;
+    }>;
   }>;
   metrics: {
     total_exercises: number;
     total_sets: number;
     total_tonnage_kg: number;
+    total_reps: number;
+    total_duration_sec: number;
+    total_distance_m: number;
     completed_sets: number;
   };
 }

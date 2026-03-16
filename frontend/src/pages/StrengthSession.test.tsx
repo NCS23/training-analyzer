@@ -4,10 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { StrengthSessionPage } from './StrengthSession';
 
 // Mock API modules
-vi.mock('@/api/strength', () => ({
-  createStrengthSession: vi.fn(),
-  getLastCompleteStrengthSession: vi.fn().mockResolvedValue({ found: false, session: null }),
-}));
+vi.mock('@/api/strength', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    createStrengthSession: vi.fn(),
+    getLastCompleteStrengthSession: vi.fn().mockResolvedValue({ found: false, session: null }),
+  };
+});
 
 vi.mock('@/api/session-templates', () => ({
   listSessionTemplates: vi.fn().mockResolvedValue({ templates: [] }),
@@ -123,6 +127,9 @@ describe('StrengthSessionPage', () => {
         total_exercises: 1,
         total_sets: 3,
         total_tonnage_kg: 1800,
+        total_reps: 30,
+        total_duration_sec: 0,
+        total_distance_m: 0,
         completed_sets: 3,
       },
     });

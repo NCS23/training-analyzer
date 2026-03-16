@@ -3,18 +3,63 @@ import type { ExerciseInput } from '@/api/strength';
 
 /**
  * Calculate total tonnage for a list of exercises.
- * Excludes sets with status "skipped".
+ * Excludes sets with status "skipped". Only counts sets with both reps and weight.
  */
 export function calculateTonnage(exercises: ExerciseInput[]): number {
   let tonnage = 0;
   for (const ex of exercises) {
     for (const s of ex.sets) {
       if (s.status !== 'skipped') {
-        tonnage += s.reps * s.weight_kg;
+        tonnage += (s.reps ?? 0) * (s.weight_kg ?? 0);
       }
     }
   }
   return Math.round(tonnage * 10) / 10;
+}
+
+/**
+ * Calculate total reps (for bodyweight exercises without weight).
+ */
+export function calculateTotalReps(exercises: ExerciseInput[]): number {
+  let total = 0;
+  for (const ex of exercises) {
+    for (const s of ex.sets) {
+      if (s.status !== 'skipped') {
+        total += s.reps ?? 0;
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Calculate total duration in seconds (for time-based exercises).
+ */
+export function calculateTotalDuration(exercises: ExerciseInput[]): number {
+  let total = 0;
+  for (const ex of exercises) {
+    for (const s of ex.sets) {
+      if (s.status !== 'skipped') {
+        total += s.duration_sec ?? 0;
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Calculate total distance in meters (for distance-based exercises).
+ */
+export function calculateTotalDistance(exercises: ExerciseInput[]): number {
+  let total = 0;
+  for (const ex of exercises) {
+    for (const s of ex.sets) {
+      if (s.status !== 'skipped') {
+        total += s.distance_m ?? 0;
+      }
+    }
+  }
+  return total;
 }
 
 /**
@@ -27,7 +72,7 @@ export function calculatePerExerciseTonnage(exercises: ExerciseInput[]): Map<num
     let tonnage = 0;
     for (const s of exercises[i].sets) {
       if (s.status !== 'skipped') {
-        tonnage += s.reps * s.weight_kg;
+        tonnage += (s.reps ?? 0) * (s.weight_kg ?? 0);
       }
     }
     map.set(i, Math.round(tonnage * 10) / 10);
@@ -51,6 +96,9 @@ export function formatTonnage(kg: number): { value: string; unit: string } {
 export function useTonnageCalc(exercises: ExerciseInput[]) {
   return useMemo(() => {
     const total = calculateTonnage(exercises);
+    const totalReps = calculateTotalReps(exercises);
+    const totalDuration = calculateTotalDuration(exercises);
+    const totalDistance = calculateTotalDistance(exercises);
     const perExercise = calculatePerExerciseTonnage(exercises);
     const formatted = formatTonnage(total);
 
@@ -59,6 +107,15 @@ export function useTonnageCalc(exercises: ExerciseInput[]) {
       totalSets += ex.sets.length;
     }
 
-    return { total, perExercise, formatted, exerciseCount: exercises.length, setCount: totalSets };
+    return {
+      total,
+      totalReps,
+      totalDuration,
+      totalDistance,
+      perExercise,
+      formatted,
+      exerciseCount: exercises.length,
+      setCount: totalSets,
+    };
   }, [exercises]);
 }

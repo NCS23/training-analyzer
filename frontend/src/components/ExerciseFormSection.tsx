@@ -1,20 +1,16 @@
 /**
  * Shared Übungs-Formular-Section für Erstellen und Bearbeiten.
  * Wird identisch in StrengthSession.tsx und StrengthExercisesEditor.tsx verwendet.
- * Enthält: Exercise-Name mit DB-Autocomplete, Category-Select, Set-Rows, CRUD-Buttons.
+ * Enthält: Exercise-Name mit DB-Autocomplete, Category-Select, Set-Type-Select,
+ * dynamische Set-Rows je Typ, CRUD-Buttons.
  */
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Button, Input, Label, NumberInput, Select } from '@nordlig/components';
-import { Plus, Trash2 } from 'lucide-react';
-import {
-  calculateTonnage,
-  calculatePerExerciseTonnage,
-  formatTonnage,
-} from '@/hooks/useTonnageCalc';
-import type { ExerciseInput } from '@/api/strength';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Button, Input, NumberInput, Select } from '@nordlig/components';
+import { Plus, Trash2, Star } from 'lucide-react';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
-import type { ExerciseCategory, SetStatus } from '@/api/strength';
+import type { ExerciseCategory, SetStatus, SetType } from '@/api/strength';
+import { SET_TYPE_OPTIONS, SET_TYPE_FIELDS } from '@/api/strength';
 import { genId, createDefaultSet, createDefaultExercise } from './exercise-form-helpers';
 import type { ExerciseForm, SetForm } from './exercise-form-helpers';
 
@@ -35,6 +31,285 @@ const STATUS_SELECT_OPTIONS = [
   { value: 'skipped', label: 'Übersprungen' },
 ];
 
+// --- Sub-Components ---
+
+function DurationFormInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (sec: number) => void;
+  label: string;
+}) {
+  const mins = Math.floor(value / 60);
+  const secs = value % 60;
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <NumberInput
+        value={mins}
+        onChange={(m) => onChange(m * 60 + secs)}
+        min={0}
+        max={1440}
+        step={1}
+        inputSize="sm"
+        aria-label={`${label} Minuten`}
+        incrementLabel="Minute hinzufügen"
+        decrementLabel="Minute entfernen"
+      />
+      <span className="text-xs text-[var(--color-text-muted)]">:</span>
+      <NumberInput
+        value={secs}
+        onChange={(s) => onChange(mins * 60 + Math.min(s, 59))}
+        min={0}
+        max={59}
+        step={1}
+        inputSize="sm"
+        aria-label={`${label} Sekunden`}
+        incrementLabel="Sekunde hinzufügen"
+        decrementLabel="Sekunde entfernen"
+      />
+    </div>
+  );
+}
+
+function SetHeader({ setType }: { setType: SetType }) {
+  const fields = SET_TYPE_FIELDS[setType];
+  return (
+    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] px-1">
+      <span className="w-6 shrink-0 text-center">#</span>
+      {fields.reps && <span className="flex-1">Wdh.</span>}
+      {fields.weight && <span className="flex-1">kg</span>}
+      {fields.duration && <span className="flex-1">Min:Sek</span>}
+      {fields.distance && <span className="flex-1">Meter</span>}
+      <span className="w-28 shrink-0">Status</span>
+      <span className="w-8 shrink-0" />
+    </div>
+  );
+}
+
+function SetRowForm({
+  set,
+  setIndex,
+  setType,
+  onUpdate,
+  onRemove,
+  canRemove,
+}: {
+  set: SetForm;
+  setIndex: number;
+  setType: SetType;
+  onUpdate: (updates: Partial<SetForm>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const fields = SET_TYPE_FIELDS[setType];
+
+  return (
+    <div className={`flex items-center gap-2 px-1 ${set.status === 'skipped' ? 'opacity-50' : ''}`}>
+      <span className="text-xs text-[var(--color-text-muted)] w-6 shrink-0 text-center tabular-nums">
+        {setIndex + 1}
+      </span>
+
+      {fields.reps && (
+        <div className="flex-1 min-w-0">
+          <NumberInput
+            value={set.reps ?? 0}
+            onChange={(val) => onUpdate({ reps: val })}
+            min={0}
+            max={999}
+            step={1}
+            inputSize="sm"
+            aria-label={`Satz ${setIndex + 1} Wiederholungen`}
+            incrementLabel="Wiederholung hinzufügen"
+            decrementLabel="Wiederholung entfernen"
+          />
+        </div>
+      )}
+
+      {fields.weight && (
+        <div className="flex-1 min-w-0">
+          <NumberInput
+            value={set.weight_kg ?? 0}
+            onChange={(val) => onUpdate({ weight_kg: val })}
+            min={0}
+            max={999}
+            step={2.5}
+            inputSize="sm"
+            aria-label={`Satz ${setIndex + 1} Gewicht kg`}
+            incrementLabel="Gewicht erhöhen"
+            decrementLabel="Gewicht verringern"
+          />
+        </div>
+      )}
+
+      {fields.duration && (
+        <div className="flex-1 min-w-0">
+          <DurationFormInput
+            value={set.duration_sec ?? 0}
+            onChange={(sec) => onUpdate({ duration_sec: sec })}
+            label={`Satz ${setIndex + 1}`}
+          />
+        </div>
+      )}
+
+      {fields.distance && (
+        <div className="flex-1 min-w-0">
+          <NumberInput
+            value={set.distance_m ?? 0}
+            onChange={(val) => onUpdate({ distance_m: val })}
+            min={0}
+            max={99999}
+            step={5}
+            inputSize="sm"
+            aria-label={`Satz ${setIndex + 1} Distanz m`}
+            incrementLabel="Distanz erhöhen"
+            decrementLabel="Distanz verringern"
+          />
+        </div>
+      )}
+
+      <div className="w-28 shrink-0">
+        <Select
+          options={STATUS_SELECT_OPTIONS}
+          value={set.status}
+          onChange={(val) => onUpdate({ status: (val as SetStatus) || 'completed' })}
+          inputSize="sm"
+        />
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onRemove}
+        disabled={!canRemove}
+        aria-label={`Satz ${setIndex + 1} entfernen`}
+        className="shrink-0"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// --- ExerciseFormCard (extracted for ESLint max-lines-per-function) ---
+
+interface ExerciseFormCardProps {
+  exercise: ExerciseForm;
+  suggestions: Exercise[];
+  autocompleteRef?: React.RefObject<HTMLDivElement | null>;
+  onNameChange: (val: string) => void;
+  onNameFocus: () => void;
+  onCategoryChange: (val: string | undefined) => void;
+  onSetTypeChange: (val: string | undefined) => void;
+  onSelectSuggestion: (s: Exercise) => void;
+  onRemove: () => void;
+  onUpdateSet: (setId: string, updates: Partial<SetForm>) => void;
+  onRemoveSet: (setId: string) => void;
+  onAddSet: () => void;
+}
+
+function ExerciseFormCard({
+  exercise,
+  suggestions,
+  autocompleteRef,
+  onNameChange,
+  onNameFocus,
+  onCategoryChange,
+  onSetTypeChange,
+  onSelectSuggestion,
+  onRemove,
+  onUpdateSet,
+  onRemoveSet,
+  onAddSet,
+}: ExerciseFormCardProps) {
+  return (
+    <div className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-4 space-y-3">
+      {/* Exercise name + category + set type + delete */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="relative" ref={autocompleteRef}>
+            <Input
+              value={exercise.name}
+              onChange={(e) => onNameChange(e.target.value)}
+              onFocus={onNameFocus}
+              placeholder="Übungsname"
+              inputSize="sm"
+              autoComplete="off"
+            />
+            {suggestions.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-md)]">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-hover)] flex items-center justify-between gap-2 transition-colors motion-reduce:transition-none"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelectSuggestion(s);
+                    }}
+                  >
+                    <span className="truncate">{s.name}</span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      {s.is_favorite && (
+                        <Star
+                          className="w-3 h-3 text-[var(--color-status-warning)]"
+                          fill="currentColor"
+                        />
+                      )}
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        {CATEGORY_SELECT_OPTIONS.find((o) => o.value === s.category)?.label ??
+                          s.category}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <Select
+            options={CATEGORY_SELECT_OPTIONS}
+            value={exercise.category}
+            onChange={onCategoryChange}
+            inputSize="sm"
+          />
+          <Select
+            options={SET_TYPE_OPTIONS}
+            value={exercise.setType}
+            onChange={onSetTypeChange}
+            inputSize="sm"
+          />
+        </div>
+        <Button variant="ghost" size="sm" onClick={onRemove} aria-label="Übung entfernen">
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Set header */}
+      <SetHeader setType={exercise.setType} />
+
+      {/* Set rows */}
+      {exercise.sets.map((set, setIndex) => (
+        <SetRowForm
+          key={set.id}
+          set={set}
+          setIndex={setIndex}
+          setType={exercise.setType}
+          onUpdate={(updates) => onUpdateSet(set.id, updates)}
+          onRemove={() => onRemoveSet(set.id)}
+          canRemove={exercise.sets.length > 1}
+        />
+      ))}
+
+      {/* Add set */}
+      <Button variant="ghost" size="sm" onClick={onAddSet} className="w-full">
+        <Plus className="w-3.5 h-3.5 mr-1" />
+        Satz hinzufügen
+      </Button>
+    </div>
+  );
+}
+
 // --- Props ---
 
 interface ExerciseFormSectionProps {
@@ -50,9 +325,8 @@ interface ExerciseFormSectionProps {
 export function ExerciseFormSection({
   exercises,
   setExercises,
-  hideTonnageSummary = false,
+  hideTonnageSummary: _hideTonnageSummary = false,
 }: ExerciseFormSectionProps) {
-  // Library exercises for autocomplete
   const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
   const [activeAutocomplete, setActiveAutocomplete] = useState<string | null>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -63,7 +337,6 @@ export function ExerciseFormSection({
       .catch(() => {});
   }, []);
 
-  // Close autocomplete on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
@@ -97,6 +370,21 @@ export function ExerciseFormSection({
     setExercises((prev) => [...prev, createDefaultExercise()]);
   }, [setExercises]);
 
+  // --- Set type change ---
+
+  const handleSetTypeChange = useCallback(
+    (exerciseId: string, newType: SetType) => {
+      setExercises((prev) =>
+        prev.map((ex) => {
+          if (ex.id !== exerciseId) return ex;
+          const newSets = ex.sets.map((s) => ({ ...s, type: newType }));
+          return { ...ex, setType: newType, sets: newSets };
+        }),
+      );
+    },
+    [setExercises],
+  );
+
   // --- Set CRUD ---
 
   const updateSet = useCallback(
@@ -119,13 +407,8 @@ export function ExerciseFormSection({
           if (ex.id !== exerciseId) return ex;
           const lastSet = ex.sets[ex.sets.length - 1];
           const newSet: SetForm = lastSet
-            ? {
-                id: genId('set'),
-                reps: lastSet.reps,
-                weight_kg: lastSet.weight_kg,
-                status: 'completed',
-              }
-            : createDefaultSet();
+            ? { ...lastSet, id: genId('set'), status: 'completed' }
+            : createDefaultSet(ex.setType);
           return { ...ex, sets: [...ex.sets, newSet] };
         }),
       );
@@ -139,7 +422,7 @@ export function ExerciseFormSection({
         prev.map((ex) => {
           if (ex.id !== exerciseId) return ex;
           const filtered = ex.sets.filter((s) => s.id !== setId);
-          return { ...ex, sets: filtered.length === 0 ? [createDefaultSet()] : filtered };
+          return { ...ex, sets: filtered.length === 0 ? [createDefaultSet(ex.setType)] : filtered };
         }),
       );
     },
@@ -150,242 +433,67 @@ export function ExerciseFormSection({
 
   const getFilteredSuggestions = useCallback(
     (query: string) => {
-      if (!query.trim() || query.trim().length < 2) return [];
+      if (!query.trim() || query.trim().length < 1) return [];
       const q = query.toLowerCase();
-      return libraryExercises.filter((ex) => ex.name.toLowerCase().includes(q)).slice(0, 8);
+      return libraryExercises
+        .filter((ex) => ex.name.toLowerCase().includes(q) && ex.name.toLowerCase() !== q)
+        .slice(0, 8);
     },
     [libraryExercises],
   );
 
   const selectSuggestion = useCallback(
     (exerciseId: string, suggestion: Exercise) => {
-      updateExercise(exerciseId, {
+      const updates: Partial<ExerciseForm> = {
         name: suggestion.name,
         category: (suggestion.category as ExerciseCategory) || 'push',
-      });
+      };
+      if (suggestion.default_set_type) {
+        updates.setType = suggestion.default_set_type as SetType;
+      }
+      updateExercise(exerciseId, updates);
+      if (suggestion.default_set_type) {
+        handleSetTypeChange(exerciseId, suggestion.default_set_type as SetType);
+      }
       setActiveAutocomplete(null);
     },
-    [updateExercise],
+    [updateExercise, handleSetTypeChange],
   );
-
-  // --- Tonnage ---
-
-  const exerciseInputs: ExerciseInput[] = useMemo(
-    () =>
-      exercises
-        .filter((f) => f.name.trim())
-        .map((f) => ({
-          name: f.name,
-          category: f.category,
-          sets: f.sets.map((s) => ({ reps: s.reps, weight_kg: s.weight_kg, status: s.status })),
-        })),
-    [exercises],
-  );
-
-  const totalTonnage = useMemo(() => calculateTonnage(exerciseInputs), [exerciseInputs]);
-  const perExerciseTonnage = useMemo(
-    () => calculatePerExerciseTonnage(exerciseInputs),
-    [exerciseInputs],
-  );
-  const formattedTonnage = useMemo(() => formatTonnage(totalTonnage), [totalTonnage]);
-
-  // Map exercise names to per-exercise tonnage index
-  const exerciseTonnageByName = useMemo(() => {
-    const map = new Map<string, number>();
-    const named = exercises.filter((f) => f.name.trim());
-    named.forEach((ex, i) => {
-      map.set(ex.id, perExerciseTonnage.get(i) ?? 0);
-    });
-    return map;
-  }, [exercises, perExerciseTonnage]);
 
   // --- Render ---
 
   return (
     <div className="space-y-6">
-      {/* eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring */}
-      {exercises.map((exercise) => {
-        const suggestions =
-          activeAutocomplete === exercise.id ? getFilteredSuggestions(exercise.name) : [];
-
-        return (
-          <div
-            key={exercise.id}
-            className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-4 space-y-4"
-          >
-            {/* Exercise name + category + delete */}
-            <div className="flex items-end gap-2 flex-wrap sm:flex-nowrap">
-              <div
-                className="flex-1 min-w-0 basis-full sm:basis-auto relative"
-                ref={activeAutocomplete === exercise.id ? autocompleteRef : undefined}
-              >
-                <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-                  Übungsname
-                </Label>
-                <Input
-                  value={exercise.name}
-                  onChange={(e) => {
-                    updateExercise(exercise.id, { name: e.target.value });
-                    setActiveAutocomplete(e.target.value.trim().length >= 2 ? exercise.id : null);
-                  }}
-                  onFocus={() => {
-                    if (exercise.name.trim().length >= 2) setActiveAutocomplete(exercise.id);
-                  }}
-                  placeholder="Übungsname"
-                  inputSize="md"
-                />
-                {suggestions.length > 0 &&
-                  /* prettier-ignore */
-                  <div className="absolute z-20 left-0 right-0 top-full mt-1 rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] bg-[var(--color-input-bg)] shadow-[var(--shadow-md)] max-h-48 overflow-y-auto"> {/* // ds-ok */}
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-base)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-150 motion-reduce:transition-none"
-                        onClick={() => selectSuggestion(exercise.id, s)}
-                      >
-                        <span>{s.name}</span>
-                        <span className="text-xs text-[var(--color-text-muted)] shrink-0 ml-2">
-                          {CATEGORY_SELECT_OPTIONS.find((o) => o.value === s.category)?.label ??
-                            s.category}
-                        </span>
-                      </button>
-                    ))}
-                  </div>}
-              </div>
-              <div className="flex items-end gap-2">
-                <div className="w-32 sm:w-36 shrink-0">
-                  <Label className="mb-1.5 block text-xs font-medium text-[var(--color-text-muted)]">
-                    Kategorie
-                  </Label>
-                  <Select
-                    options={CATEGORY_SELECT_OPTIONS}
-                    value={exercise.category}
-                    onChange={(val) =>
-                      updateExercise(exercise.id, {
-                        category: (val as ExerciseCategory) || 'push',
-                      })
-                    }
-                    inputSize="md"
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeExercise(exercise.id)}
-                  aria-label="Übung entfernen"
-                  className="!p-1 mb-1"
-                >
-                  <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Per-exercise tonnage */}
-            {(() => {
-              const exTonnage = exerciseTonnageByName.get(exercise.id) ?? 0;
-              if (exTonnage <= 0) return null;
-              const fmt = formatTonnage(exTonnage);
-              return (
-                <div className="text-xs text-[var(--color-text-muted)] tabular-nums">
-                  Tonnage: {fmt.value}
-                  <span className="ml-0.5">{fmt.unit}</span>
-                </div>
-              );
-            })()}
-
-            {/* Sets header */}
-            <div className="grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto] gap-2 items-center px-1">
-              <span className="text-xs text-[var(--color-text-muted)] text-center">#</span>
-              <span className="text-xs text-[var(--color-text-muted)]">Wdh.</span>
-              <span className="text-xs text-[var(--color-text-muted)]">kg</span>
-              <span className="hidden sm:block text-xs text-[var(--color-text-muted)]">Status</span>
-              <span className="hidden sm:block w-8" />
-            </div>
-
-            {/* Set rows */}
-            {exercise.sets.map((set, setIndex) => (
-              <div
-                key={set.id}
-                className={`grid grid-cols-[1.5rem_1fr_1fr] sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto] gap-x-2 gap-y-2 items-center px-1 ${
-                  set.status === 'skipped' ? 'opacity-50' : ''
-                }`}
-              >
-                <span className="text-sm text-[var(--color-text-muted)] text-center tabular-nums row-span-2 sm:row-span-1 self-start pt-2 sm:pt-0 sm:self-center">
-                  {setIndex + 1}
-                </span>
-                <NumberInput
-                  value={set.reps}
-                  onChange={(val) => updateSet(exercise.id, set.id, { reps: val })}
-                  min={0}
-                  max={999}
-                  step={1}
-                  inputSize="sm"
-                  decrementLabel="Reps reduzieren"
-                  incrementLabel="Reps erhöhen"
-                />
-                <NumberInput
-                  value={set.weight_kg}
-                  onChange={(val) => updateSet(exercise.id, set.id, { weight_kg: val })}
-                  min={0}
-                  max={999}
-                  step={2.5}
-                  inputSize="sm"
-                  decrementLabel="Gewicht reduzieren"
-                  incrementLabel="Gewicht erhöhen"
-                />
-                <div className="col-start-2 col-span-1 sm:col-start-auto sm:col-span-1">
-                  <Select
-                    options={STATUS_SELECT_OPTIONS}
-                    value={set.status}
-                    onChange={(val) =>
-                      updateSet(exercise.id, set.id, {
-                        status: (val as SetStatus) || 'completed',
-                      })
-                    }
-                    inputSize="sm"
-                  />
-                </div>
-                <div className="col-start-3 sm:col-start-auto flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSet(exercise.id, set.id)}
-                    aria-label={`Satz ${setIndex + 1} entfernen`}
-                    className="!p-1"
-                  >
-                    <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {/* Add set */}
-            <div className="flex justify-center pt-1">
-              <Button variant="ghost" size="sm" onClick={() => addSet(exercise.id)}>
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Satz hinzufügen
-              </Button>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Tonnage summary */}
-      {!hideTonnageSummary && totalTonnage > 0 && (
-        <div
-          className="rounded-[var(--radius-component-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-4 py-2 flex items-center justify-between"
-          aria-live="polite"
-        >
-          <span className="text-sm text-[var(--color-text-muted)]">Gesamt-Tonnage</span>
-          <span className="text-lg font-semibold text-[var(--color-text-base)] tabular-nums">
-            {formattedTonnage.value}
-            <span className="text-sm font-normal text-[var(--color-text-muted)] ml-0.5">
-              {formattedTonnage.unit}
-            </span>
-          </span>
-        </div>
-      )}
+      {exercises.map((exercise) => (
+        <ExerciseFormCard
+          key={exercise.id}
+          exercise={exercise}
+          suggestions={
+            activeAutocomplete === exercise.id ? getFilteredSuggestions(exercise.name) : []
+          }
+          autocompleteRef={activeAutocomplete === exercise.id ? autocompleteRef : undefined}
+          onNameChange={(val) => {
+            updateExercise(exercise.id, { name: val });
+            setActiveAutocomplete(val.trim().length >= 1 ? exercise.id : null);
+          }}
+          onNameFocus={() => {
+            if (exercise.name.trim().length >= 1) setActiveAutocomplete(exercise.id);
+          }}
+          onCategoryChange={(val) =>
+            updateExercise(exercise.id, {
+              category: (val || 'push') as ExerciseCategory,
+            })
+          }
+          onSetTypeChange={(val) =>
+            handleSetTypeChange(exercise.id, (val || 'weight_reps') as SetType)
+          }
+          onSelectSuggestion={(s) => selectSuggestion(exercise.id, s)}
+          onRemove={() => removeExercise(exercise.id)}
+          onUpdateSet={(setId, updates) => updateSet(exercise.id, setId, updates)}
+          onRemoveSet={(setId) => removeSet(exercise.id, setId)}
+          onAddSet={() => addSet(exercise.id)}
+        />
+      ))}
 
       {/* Add exercise button */}
       <div className="flex justify-center">

@@ -6,7 +6,7 @@
 import { useState, useImperativeHandle, forwardRef } from 'react';
 import { useToast } from '@nordlig/components';
 import { updateStrengthExercises } from '@/api/strength';
-import type { ExerciseCategory, SetStatus } from '@/api/strength';
+import type { ExerciseCategory, SetStatus, SetType } from '@/api/strength';
 import { ExerciseFormSection } from '@/components/ExerciseFormSection';
 import { genId } from '@/components/exercise-form-helpers';
 import type { ExerciseForm } from '@/components/exercise-form-helpers';
@@ -16,7 +16,14 @@ import type { ExerciseForm } from '@/components/exercise-form-helpers';
 export interface ExerciseData {
   name: string;
   category: string;
-  sets: Array<{ reps: number; weight_kg: number; status: string }>;
+  sets: Array<{
+    type?: string;
+    reps?: number;
+    weight_kg?: number;
+    duration_sec?: number;
+    distance_m?: number;
+    status: string;
+  }>;
 }
 
 export interface StrengthExercisesEditorRef {
@@ -30,18 +37,36 @@ interface StrengthExercisesEditorProps {
 
 // --- Helpers ---
 
+function detectSetType(sets: ExerciseData['sets']): SetType {
+  if (sets.length === 0) return 'weight_reps';
+  const first = sets[0];
+  if (first.type) return first.type as SetType;
+  // Backward compat: infer from fields
+  if (first.weight_kg != null && first.reps != null) return 'weight_reps';
+  if (first.reps != null) return 'bodyweight_reps';
+  if (first.duration_sec != null) return 'duration';
+  return 'weight_reps';
+}
+
 function toForms(exercises: ExerciseData[]): ExerciseForm[] {
-  return exercises.map((ex) => ({
-    id: genId('edit'),
-    name: ex.name,
-    category: ex.category as ExerciseCategory,
-    sets: ex.sets.map((s) => ({
-      id: genId('set'),
-      reps: s.reps,
-      weight_kg: s.weight_kg,
-      status: (s.status || 'completed') as SetStatus,
-    })),
-  }));
+  return exercises.map((ex) => {
+    const setType = detectSetType(ex.sets);
+    return {
+      id: genId('edit'),
+      name: ex.name,
+      category: ex.category as ExerciseCategory,
+      setType,
+      sets: ex.sets.map((s) => ({
+        id: genId('set'),
+        type: (s.type as SetType) || setType,
+        reps: s.reps,
+        weight_kg: s.weight_kg,
+        duration_sec: s.duration_sec,
+        distance_m: s.distance_m,
+        status: (s.status || 'completed') as SetStatus,
+      })),
+    };
+  });
 }
 
 // --- Component ---
@@ -53,7 +78,6 @@ export const StrengthExercisesEditor = forwardRef<
   const { toast } = useToast();
   const [exercises, setExercises] = useState<ExerciseForm[]>(() => toForms(initialExercises));
 
-  // Expose save() to parent via ref
   useImperativeHandle(ref, () => ({
     save: async () => {
       const valid = exercises.every((ex) => ex.name.trim().length > 0 && ex.sets.length > 0);
@@ -69,8 +93,11 @@ export const StrengthExercisesEditor = forwardRef<
         name: ex.name.trim(),
         category: ex.category,
         sets: ex.sets.map((s) => ({
+          type: s.type,
           reps: s.reps,
           weight_kg: s.weight_kg,
+          duration_sec: s.duration_sec,
+          distance_m: s.distance_m,
           status: s.status,
         })),
       }));

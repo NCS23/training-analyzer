@@ -254,7 +254,14 @@ export interface SessionDetail {
   exercises: Array<{
     name: string;
     category: string;
-    sets: Array<{ reps: number; weight_kg: number; status: string }>;
+    sets: Array<{
+      type?: string;
+      reps?: number;
+      weight_kg?: number;
+      duration_sec?: number;
+      distance_m?: number;
+      status: string;
+    }>;
   }> | null;
   has_gps: boolean;
   planned_entry_id: number | null;
