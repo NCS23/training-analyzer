@@ -290,6 +290,8 @@ export default function UploadPage() {
                     key={idx}
                     index={idx}
                     exercise={ex}
+                    setType={strength.setTypes[idx] || 'weight_reps'}
+                    onSetTypeChange={strength.handleSetTypeChange}
                     onChange={strength.handleExerciseChange}
                     onRemove={strength.handleExerciseRemove}
                     canRemove={strength.exercises.length > 1}

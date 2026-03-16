@@ -14,12 +14,19 @@ from app.infrastructure.database.session import get_db
 from app.models.strength import (
     ExerciseInput,
     LastExerciseSets,
+    SetInput,
     SetResponse,
 )
 from app.services.csv_parser import TrainingCSVParser
 from app.services.fit_parser import TrainingFITParser
 from app.services.hr_zone_calculator import calculate_zone_distribution
-from app.services.tonnage_calculator import calculate_strength_metrics
+from app.services.tonnage_calculator import (
+    DISTANCE_TYPES,
+    DURATION_TYPES,
+    REP_BASED_TYPES,
+    WEIGHTED_TYPES,
+    calculate_strength_metrics,
+)
 
 router = APIRouter(prefix="/sessions/strength", tags=["strength"])
 
@@ -27,6 +34,32 @@ csv_parser = TrainingCSVParser()
 fit_parser = TrainingFITParser()
 
 ExerciseListAdapter = TypeAdapter(list[ExerciseInput])
+
+
+def _serialize_set(s: SetInput) -> dict:
+    """Serialisiert einen SetInput zu einem Dict für JSON-Speicherung."""
+    data: dict = {"type": s.type.value, "status": s.status.value}
+    if s.reps is not None:
+        data["reps"] = s.reps
+    if s.weight_kg is not None:
+        data["weight_kg"] = s.weight_kg
+    if s.duration_sec is not None:
+        data["duration_sec"] = s.duration_sec
+    if s.distance_m is not None:
+        data["distance_m"] = s.distance_m
+    return data
+
+
+def _set_response_from_dict(s: dict) -> SetResponse:
+    """Erstellt ein SetResponse aus einem gespeicherten Set-Dict (mit Backward Compat)."""
+    return SetResponse(
+        type=s.get("type", "weight_reps"),
+        reps=s.get("reps"),
+        weight_kg=s.get("weight_kg"),
+        duration_sec=s.get("duration_sec"),
+        distance_m=s.get("distance_m"),
+        status=s.get("status", "completed"),
+    )
 
 
 async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:
@@ -90,10 +123,7 @@ async def create_strength_session(
         {
             "name": ex.name,
             "category": ex.category.value,
-            "sets": [
-                {"reps": s.reps, "weight_kg": s.weight_kg, "status": s.status.value}
-                for s in ex.sets
-            ],
+            "sets": [_serialize_set(s) for s in ex.sets],
         }
         for ex in exercises
     ]
@@ -206,10 +236,7 @@ async def update_strength_exercises(
         {
             "name": ex.name,
             "category": ex.category.value,
-            "sets": [
-                {"reps": s.reps, "weight_kg": s.weight_kg, "status": s.status.value}
-                for s in ex.sets
-            ],
+            "sets": [_serialize_set(s) for s in ex.sets],
         }
         for ex in exercises
     ]
@@ -302,14 +329,7 @@ async def get_last_exercises(
                     "exercise": LastExerciseSets(
                         exercise_name=ex["name"],
                         category=ex["category"],
-                        sets=[
-                            SetResponse(
-                                reps=s["reps"],
-                                weight_kg=s["weight_kg"],
-                                status=s["status"],
-                            )
-                            for s in ex["sets"]
-                        ],
+                        sets=[_set_response_from_dict(s) for s in ex["sets"]],
                         session_date=session_date,
                     ),
                 }
@@ -367,7 +387,7 @@ async def get_exercise_progression(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Gewichtsverlauf einer Übung über die Zeit."""
+    """Progressionsverlauf einer Übung über die Zeit (typ-differenziert)."""
     from app.services.progression_tracker import get_exercise_history
 
     sessions = await _load_strength_sessions(db)
@@ -376,23 +396,61 @@ async def get_exercise_progression(
     if not history:
         return {
             "exercise_name": exercise_name,
+            "set_type": "weight_reps",
             "data_points": [],
             "current_max_weight": 0,
             "previous_max_weight": None,
             "weight_progression": None,
         }
 
-    current_max = history[-1]["max_weight_kg"]
-    previous_max = history[-2]["max_weight_kg"] if len(history) >= 2 else None
-    progression = round(current_max - previous_max, 1) if previous_max is not None else None
-
-    return {
+    set_type = history[-1].get("set_type", "weight_reps")
+    response: dict = {
         "exercise_name": exercise_name,
+        "set_type": set_type,
         "data_points": history,
-        "current_max_weight": current_max,
-        "previous_max_weight": previous_max,
-        "weight_progression": progression,
     }
+
+    # Type-specific progression summary
+    if set_type in WEIGHTED_TYPES:
+        current_max = history[-1].get("max_weight_kg", 0)
+        previous_max = history[-2].get("max_weight_kg") if len(history) >= 2 else None
+        response["current_max_weight"] = current_max
+        response["previous_max_weight"] = previous_max
+        response["weight_progression"] = (
+            round(current_max - previous_max, 1) if previous_max is not None else None
+        )
+    elif set_type in REP_BASED_TYPES:
+        current_reps = history[-1].get("total_reps", 0)
+        previous_reps = history[-2].get("total_reps") if len(history) >= 2 else None
+        response["current_total_reps"] = current_reps
+        response["previous_total_reps"] = previous_reps
+        response["reps_progression"] = (
+            current_reps - previous_reps if previous_reps is not None else None
+        )
+    elif set_type in DURATION_TYPES:
+        current_dur = history[-1].get("total_duration_sec", 0)
+        previous_dur = history[-2].get("total_duration_sec") if len(history) >= 2 else None
+        response["current_total_duration_sec"] = current_dur
+        response["previous_total_duration_sec"] = previous_dur
+        response["duration_progression"] = (
+            current_dur - previous_dur if previous_dur is not None else None
+        )
+    elif set_type in DISTANCE_TYPES:
+        current_dist = history[-1].get("total_distance_m", 0)
+        previous_dist = history[-2].get("total_distance_m") if len(history) >= 2 else None
+        response["current_total_distance_m"] = current_dist
+        response["previous_total_distance_m"] = previous_dist
+        response["distance_progression"] = (
+            round(current_dist - previous_dist, 1) if previous_dist is not None else None
+        )
+
+    # Backward compat: always include weight fields (default 0/null)
+    if "current_max_weight" not in response:
+        response["current_max_weight"] = 0
+        response["previous_max_weight"] = None
+        response["weight_progression"] = None
+
+    return response
 
 
 @router.get("/prs")

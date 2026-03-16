@@ -11,7 +11,18 @@ import {
   SegmentedControl,
   EmptyState,
 } from '@nordlig/components';
-import { Dumbbell, Trophy, TrendingUp, Weight, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import {
+  Dumbbell,
+  Trophy,
+  TrendingUp,
+  Weight,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Repeat,
+  Timer,
+  MapPin,
+} from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -32,6 +43,7 @@ import {
 } from '@/api/progression';
 import { CATEGORY_LABELS, categoryBadgeVariant } from '@/constants/training';
 import { CategoryTonnageChart } from '@/components/analysis/CategoryTonnageChart';
+import { isWeightedType, isRepBasedType, isDurationType, isDistanceType } from '@/api/strength';
 import type {
   ExerciseListItem,
   ExerciseHistoryResponse,
@@ -54,6 +66,10 @@ const PR_TYPE_LABELS: Record<string, string> = {
   max_weight: 'Max. Gewicht',
   max_volume_set: 'Bester Satz',
   max_tonnage_session: 'Max. Tonnage',
+  max_reps_set: 'Max. Wdh./Satz',
+  max_total_reps: 'Max. Gesamt-Wdh.',
+  max_duration: 'Max. Dauer',
+  max_distance: 'Max. Distanz',
 };
 
 function formatDateShort(dateStr: string): string {
@@ -70,6 +86,145 @@ function formatDateFull(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+function formatDurationShort(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
+}
+
+function formatDistanceShort(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`;
+}
+
+function formatPrValue(pr: PersonalRecord): string {
+  if (pr.unit === 'sec') return formatDurationShort(pr.value);
+  if (pr.unit === 'm') return formatDistanceShort(pr.value);
+  if (pr.value >= 1000) return `${(pr.value / 1000).toFixed(1)} t`;
+  return `${pr.value} ${pr.unit}`;
+}
+
+interface ChartConfig {
+  title: string;
+  icon: React.ReactNode;
+  dataKey: string;
+  secondaryDataKey?: string;
+  yFormatter: (v: number) => string;
+  tooltipFormatter: (value: number, name: string) => [string, string];
+}
+
+function getChartConfig(setType: string): ChartConfig {
+  if (isRepBasedType(setType)) {
+    return {
+      title: 'Wiederholungsverlauf',
+      icon: <Repeat className="w-4 h-4 text-[var(--color-chart-1)]" />,
+      dataKey: 'total_reps',
+      yFormatter: (v: number) => `${v}`,
+      tooltipFormatter: (value: number, name: string) => {
+        if (name === 'total_reps') return [`${value}`, 'Gesamt Wdh.'];
+        return [`${value}`, name];
+      },
+    };
+  }
+  if (isDurationType(setType)) {
+    return {
+      title: 'Dauerverlauf',
+      icon: <Timer className="w-4 h-4 text-[var(--color-chart-1)]" />,
+      dataKey: 'total_duration_sec',
+      yFormatter: (v: number) => formatDurationShort(v),
+      tooltipFormatter: (value: number, name: string) => {
+        if (name === 'total_duration_sec') return [formatDurationShort(value), 'Gesamt Dauer'];
+        return [`${value}`, name];
+      },
+    };
+  }
+  if (isDistanceType(setType)) {
+    return {
+      title: 'Distanzverlauf',
+      icon: <MapPin className="w-4 h-4 text-[var(--color-chart-1)]" />,
+      dataKey: 'total_distance_m',
+      secondaryDataKey: isDurationType(setType) ? 'total_duration_sec' : undefined,
+      yFormatter: (v: number) => formatDistanceShort(v),
+      tooltipFormatter: (value: number, name: string) => {
+        if (name === 'total_distance_m') return [formatDistanceShort(value), 'Gesamt Distanz'];
+        return [`${value}`, name];
+      },
+    };
+  }
+  // Default: weighted
+  return {
+    title: 'Gewichtsverlauf',
+    icon: <TrendingUp className="w-4 h-4 text-[var(--color-chart-1)]" />,
+    dataKey: 'max_weight_kg',
+    secondaryDataKey: 'tonnage_kg',
+    yFormatter: (v: number) => `${v}kg`,
+    tooltipFormatter: (value: number, name: string) => {
+      if (name === 'max_weight_kg') return [`${value} kg`, 'Max. Gewicht'];
+      if (name === 'tonnage_kg') return [`${value} kg`, 'Tonnage'];
+      return [`${value}`, name];
+    },
+  };
+}
+
+function getProgressionDelta(
+  history: ExerciseHistoryResponse | null,
+  setType: string,
+): { value: number; label: string } | null {
+  if (!history) return null;
+  if (isWeightedType(setType) && history.weight_progression != null) {
+    return {
+      value: history.weight_progression,
+      label: `${history.weight_progression > 0 ? '+' : ''}${history.weight_progression} kg`,
+    };
+  }
+  if (isRepBasedType(setType) && history.reps_progression != null) {
+    return {
+      value: history.reps_progression,
+      label: `${history.reps_progression > 0 ? '+' : ''}${history.reps_progression} Wdh.`,
+    };
+  }
+  if (isDurationType(setType) && history.duration_progression != null) {
+    const sec = history.duration_progression;
+    return { value: sec, label: `${sec > 0 ? '+' : ''}${formatDurationShort(Math.abs(sec))}` };
+  }
+  if (isDistanceType(setType) && history.distance_progression != null) {
+    const m = history.distance_progression;
+    return { value: m, label: `${m > 0 ? '+' : ''}${formatDistanceShort(Math.abs(m))}` };
+  }
+  return null;
+}
+
+function ProgressionBadge({
+  history,
+  setType,
+}: {
+  history: ExerciseHistoryResponse | null;
+  setType: string;
+}) {
+  const delta = getProgressionDelta(history, setType);
+  if (!delta) return null;
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      {delta.value > 0 ? (
+        <Badge variant="success" size="xs">
+          <ArrowUp className="w-3 h-3 mr-0.5" />
+          {delta.label}
+        </Badge>
+      ) : delta.value < 0 ? (
+        <Badge variant="warning" size="xs">
+          <ArrowDown className="w-3 h-3 mr-0.5" />
+          {delta.label}
+        </Badge>
+      ) : (
+        <Badge variant="neutral" size="xs">
+          <Minus className="w-3 h-3 mr-0.5" />
+          Gleich
+        </Badge>
+      )}
+      <span className="text-xs text-[var(--color-text-muted)]">vs. vorherige Session</span>
+    </div>
+  );
 }
 
 /**
@@ -149,8 +304,17 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
       .catch(() => {});
   }, [effectiveTimeRange]);
 
+  // Determine set type of selected exercise
+  const selectedExerciseType = useMemo(() => {
+    if (!selectedExercise) return 'weight_reps';
+    const ex = exercises.find((e) => e.name === selectedExercise);
+    return ex?.set_type ?? history?.set_type ?? 'weight_reps';
+  }, [selectedExercise, exercises, history]);
+
+  const chartConfig = useMemo(() => getChartConfig(selectedExerciseType), [selectedExerciseType]);
+
   // Chart data for exercise progression
-  const weightChartData = useMemo(() => {
+  const progressionChartData = useMemo(() => {
     if (!history) return [];
     return history.data_points.map((p) => ({
       ...p,
@@ -229,14 +393,14 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
         </div>
       )}
 
-      {/* Exercise Selector + Weight Progression */}
+      {/* Exercise Selector + Progression Chart */}
       <Card elevation="raised" padding="spacious">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[var(--color-chart-1)]" />
+              {chartConfig.icon}
               <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-                Gewichtsverlauf
+                {chartConfig.title}
               </h2>
             </div>
             <Select
@@ -256,35 +420,13 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
             <div className="flex items-center justify-center py-12">
               <Spinner size="md" />
             </div>
-          ) : weightChartData.length > 0 ? (
+          ) : progressionChartData.length > 0 ? (
             <>
-              {/* Progression indicator */}
-              {history?.weight_progression != null && (
-                <div className="flex items-center gap-2 mb-4">
-                  {history.weight_progression > 0 ? (
-                    <Badge variant="success" size="xs">
-                      <ArrowUp className="w-3 h-3 mr-0.5" />+{history.weight_progression} kg
-                    </Badge>
-                  ) : history.weight_progression < 0 ? (
-                    <Badge variant="warning" size="xs">
-                      <ArrowDown className="w-3 h-3 mr-0.5" />
-                      {history.weight_progression} kg
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral" size="xs">
-                      <Minus className="w-3 h-3 mr-0.5" />
-                      Gleich
-                    </Badge>
-                  )}
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    vs. vorherige Session
-                  </span>
-                </div>
-              )}
+              <ProgressionBadge history={history} setType={selectedExerciseType} />
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={weightChartData}
+                    data={progressionChartData}
                     margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
@@ -295,7 +437,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                     <YAxis
                       domain={['auto', 'auto']}
                       tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
-                      tickFormatter={(v: number) => `${v}kg`}
+                      tickFormatter={chartConfig.yFormatter}
                     />
                     <Tooltip
                       contentStyle={{
@@ -304,32 +446,30 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'max_weight_kg') return [`${value} kg`, 'Max. Gewicht'];
-                        if (name === 'tonnage_kg') return [`${value} kg`, 'Tonnage'];
-                        return [value, name];
-                      }}
+                      formatter={chartConfig.tooltipFormatter}
                       labelFormatter={(label: string) => label}
                     />
                     <Line
                       type="monotone"
-                      dataKey="max_weight_kg"
+                      dataKey={chartConfig.dataKey}
                       stroke="var(--color-chart-1)"
                       strokeWidth={2}
                       dot={{ r: 4, fill: 'var(--color-chart-1)' }}
                       connectNulls
-                      name="max_weight_kg"
+                      name={chartConfig.dataKey}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="tonnage_kg"
-                      stroke="var(--color-chart-2)"
-                      strokeWidth={1.5}
-                      strokeDasharray="5 3"
-                      dot={{ r: 3, fill: 'var(--color-chart-2)' }}
-                      connectNulls
-                      name="tonnage_kg"
-                    />
+                    {chartConfig.secondaryDataKey && (
+                      <Line
+                        type="monotone"
+                        dataKey={chartConfig.secondaryDataKey}
+                        stroke="var(--color-chart-2)"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 3"
+                        dot={{ r: 3, fill: 'var(--color-chart-2)' }}
+                        connectNulls
+                        name={chartConfig.secondaryDataKey}
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -469,9 +609,7 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                           {PR_TYPE_LABELS[pr.record_type] ?? pr.record_type}
                         </p>
                         <p className="text-base font-semibold text-[var(--color-text-base)] tabular-nums">
-                          {pr.value >= 1000
-                            ? `${(pr.value / 1000).toFixed(1)} t`
-                            : `${pr.value} ${pr.unit}`}
+                          {formatPrValue(pr)}
                         </p>
                         {pr.detail && (
                           <p className="text-xs text-[var(--color-text-muted)]">{pr.detail}</p>
@@ -523,7 +661,9 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                   </div>
                   <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                     <span>{ex.session_count}x</span>
-                    {ex.last_max_weight_kg > 0 && <span>{ex.last_max_weight_kg} kg</span>}
+                    {ex.last_max_weight_kg > 0 && isWeightedType(ex.set_type) && (
+                      <span>{ex.last_max_weight_kg} kg</span>
+                    )}
                   </div>
                 </div>
               </button>

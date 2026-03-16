@@ -3,7 +3,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
-import type { ExerciseInput } from '@/api/strength';
+import type { ExerciseInput, SetType } from '@/api/strength';
 import { createStrengthSession, getLastCompleteStrengthSession } from '@/api/strength';
 import type { LastCompleteSession } from '@/api/strength';
 import type { Exercise } from '@/api/exercises';
@@ -16,7 +16,7 @@ import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 const defaultExercise: ExerciseInput = {
   name: '',
   category: 'push',
-  sets: [{ reps: 8, weight_kg: 0, status: 'completed' }],
+  sets: [{ type: 'weight_reps', reps: 8, weight_kg: 0, status: 'completed' }],
 };
 
 interface UseStrengthUploadOptions {
@@ -45,6 +45,7 @@ export function useStrengthUpload({
 }: UseStrengthUploadOptions) {
   const [duration, setDuration] = useState(60);
   const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
+  const [setTypes, setSetTypes] = useState<SetType[]>(['weight_reps']);
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
   const [availableTemplates, setAvailableTemplates] = useState<SessionTemplateSummary[]>([]);
   const [lastSession, setLastSession] = useState<LastCompleteSession | null>(null);
@@ -76,28 +77,41 @@ export function useStrengthUpload({
     });
   }, []);
 
+  const handleSetTypeChange = useCallback((idx: number, newSetType: SetType) => {
+    setSetTypes((prev) => {
+      const next = [...prev];
+      next[idx] = newSetType;
+      return next;
+    });
+  }, []);
+
   const handleExerciseRemove = useCallback((idx: number) => {
     setExercises((prev) => prev.filter((_, i) => i !== idx));
+    setSetTypes((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   const handleAddExercise = useCallback(() => {
     setExercises((prev) => [
       ...prev,
-      { ...defaultExercise, sets: [{ reps: 8, weight_kg: 0, status: 'completed' }] },
+      {
+        ...defaultExercise,
+        sets: [{ type: 'weight_reps', reps: 8, weight_kg: 0, status: 'completed' }],
+      },
     ]);
+    setSetTypes((prev) => [...prev, 'weight_reps']);
   }, []);
 
   const handleCloneLastSession = useCallback(() => {
     if (!lastSession) return;
     const hasContent = exercises.some((ex) => ex.name.trim());
     if (hasContent && !window.confirm('Aktuelle Eingabe überschreiben?')) return;
-    setExercises(
-      lastSession.exercises.map((ex) => ({
-        name: ex.name,
-        category: ex.category,
-        sets: ex.sets.map((s) => ({ ...s, status: 'completed' as const })),
-      })),
-    );
+    const clonedExercises = lastSession.exercises.map((ex) => ({
+      name: ex.name,
+      category: ex.category,
+      sets: ex.sets.map((s) => ({ ...s, status: 'completed' as const })),
+    }));
+    setExercises(clonedExercises);
+    setSetTypes(clonedExercises.map((ex) => (ex.sets[0]?.type as SetType) || 'weight_reps'));
     if (lastSession.duration_minutes) setDuration(lastSession.duration_minutes);
   }, [lastSession, exercises]);
 
@@ -110,12 +124,16 @@ export function useStrengthUpload({
           name: ex.name,
           category: ex.category,
           sets: Array.from({ length: ex.sets }, () => ({
+            type: 'weight_reps' as SetType,
             reps: ex.reps,
             weight_kg: ex.weight_kg ?? 0,
             status: 'completed' as const,
           })),
         }));
-        if (loaded.length > 0) setExercises(loaded);
+        if (loaded.length > 0) {
+          setExercises(loaded);
+          setSetTypes(loaded.map(() => 'weight_reps'));
+        }
       } catch {
         setError('Plan konnte nicht geladen werden.');
       } finally {
@@ -176,6 +194,7 @@ export function useStrengthUpload({
     duration,
     setDuration,
     exercises,
+    setTypes,
     exerciseLibrary,
     availableTemplates,
     lastSession,
@@ -185,6 +204,7 @@ export function useStrengthUpload({
     formatted,
     canSubmitStrength,
     handleExerciseChange,
+    handleSetTypeChange,
     handleExerciseRemove,
     handleAddExercise,
     handleCloneLastSession,

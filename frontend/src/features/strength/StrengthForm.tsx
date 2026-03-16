@@ -17,7 +17,7 @@ import {
   Spinner,
 } from '@nordlig/components';
 import { Plus } from 'lucide-react';
-import type { ExerciseInput } from '@/api/strength';
+import type { ExerciseInput, SetType } from '@/api/strength';
 import { createStrengthSession } from '@/api/strength';
 import type { Exercise } from '@/api/exercises';
 import { listExercises } from '@/api/exercises';
@@ -27,7 +27,7 @@ import { formatLocalDate } from '@/utils/weeklyPlanUtils';
 const defaultExercise: ExerciseInput = {
   name: '',
   category: 'push',
-  sets: [{ reps: 8, weight_kg: 0, status: 'completed' }],
+  sets: [{ type: 'weight_reps', reps: 8, weight_kg: 0, status: 'completed' }],
 };
 
 // eslint-disable-next-line max-lines-per-function -- TODO: E16 Refactoring
@@ -39,6 +39,7 @@ export function StrengthForm() {
   const [rpe, setRpe] = useState(5);
   const [notes, setNotes] = useState('');
   const [exercises, setExercises] = useState<ExerciseInput[]>([{ ...defaultExercise }]);
+  const [setTypes, setSetTypes] = useState<SetType[]>(['weight_reps']);
 
   const [trainingFile, setTrainingFile] = useState<File | null>(null);
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>([]);
@@ -62,15 +63,28 @@ export function StrengthForm() {
     });
   }, []);
 
+  const handleSetTypeChange = useCallback((idx: number, newSetType: SetType) => {
+    setSetTypes((prev) => {
+      const next = [...prev];
+      next[idx] = newSetType;
+      return next;
+    });
+  }, []);
+
   const handleExerciseRemove = useCallback((idx: number) => {
     setExercises((prev) => prev.filter((_, i) => i !== idx));
+    setSetTypes((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   const handleAddExercise = useCallback(() => {
     setExercises((prev) => [
       ...prev,
-      { ...defaultExercise, sets: [{ reps: 8, weight_kg: 0, status: 'completed' }] },
+      {
+        ...defaultExercise,
+        sets: [{ type: 'weight_reps', reps: 8, weight_kg: 0, status: 'completed' }],
+      },
     ]);
+    setSetTypes((prev) => [...prev, 'weight_reps']);
   }, []);
 
   const canSubmit = exercises.length > 0 && exercises.every((ex) => ex.name.trim().length > 0);
@@ -181,6 +195,8 @@ export function StrengthForm() {
               key={idx}
               index={idx}
               exercise={ex}
+              setType={setTypes[idx] || 'weight_reps'}
+              onSetTypeChange={handleSetTypeChange}
               onChange={handleExerciseChange}
               onRemove={handleExerciseRemove}
               canRemove={exercises.length > 1}

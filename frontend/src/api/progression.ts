@@ -5,26 +5,53 @@ import { apiClient } from './client';
 export interface ExerciseHistoryPoint {
   date: string;
   session_id: number;
-  max_weight_kg: number;
-  total_reps: number;
+  set_type: string;
   total_sets: number;
   completed_sets: number;
-  tonnage_kg: number;
-  best_set_weight_kg: number;
-  best_set_reps: number;
+  // Weighted types
+  max_weight_kg?: number;
+  total_reps?: number;
+  tonnage_kg?: number;
+  best_set_weight_kg?: number;
+  best_set_reps?: number;
+  // Duration types
+  total_duration_sec?: number;
+  // Distance types
+  total_distance_m?: number;
 }
 
 export interface ExerciseHistoryResponse {
   exercise_name: string;
+  set_type: string;
   data_points: ExerciseHistoryPoint[];
+  // Weighted progression
   current_max_weight: number;
   previous_max_weight: number | null;
   weight_progression: number | null;
+  // Rep progression
+  current_total_reps?: number;
+  previous_total_reps?: number | null;
+  reps_progression?: number | null;
+  // Duration progression
+  current_total_duration_sec?: number;
+  previous_total_duration_sec?: number | null;
+  duration_progression?: number | null;
+  // Distance progression
+  current_total_distance_m?: number;
+  previous_total_distance_m?: number | null;
+  distance_progression?: number | null;
 }
 
 export interface PersonalRecord {
   exercise_name: string;
-  record_type: 'max_weight' | 'max_volume_set' | 'max_tonnage_session';
+  record_type:
+    | 'max_weight'
+    | 'max_volume_set'
+    | 'max_tonnage_session'
+    | 'max_reps_set'
+    | 'max_total_reps'
+    | 'max_duration'
+    | 'max_distance';
   value: number;
   unit: string;
   date: string;
@@ -76,6 +103,7 @@ export interface CategoryTonnageTrendResponse {
 export interface ExerciseListItem {
   name: string;
   category: string;
+  set_type: string;
   session_count: number;
   last_date: string;
   last_max_weight_kg: number;

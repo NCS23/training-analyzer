@@ -1,7 +1,8 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { Input, Select, Button, Alert, AlertDescription } from '@nordlig/components';
 import { Plus, Trash2, Copy, Star } from 'lucide-react';
-import type { ExerciseInput, ExerciseCategory, SetInput } from '@/api/strength';
+import type { ExerciseInput, ExerciseCategory, SetInput, SetType } from '@/api/strength';
+import { SET_TYPE_OPTIONS, SET_TYPE_FIELDS } from '@/api/strength';
 import { getLastExerciseSets } from '@/api/strength';
 import type { Exercise } from '@/api/exercises';
 import { SetRow } from './SetRow';
@@ -15,11 +16,37 @@ const categoryOptions = [
   { value: 'drills', label: 'Lauf-ABC' },
 ];
 
-const defaultSet: SetInput = { reps: 8, weight_kg: 0, status: 'completed' };
+function createDefaultSet(setType: SetType): SetInput {
+  const fields = SET_TYPE_FIELDS[setType];
+  const set: SetInput = { type: setType, status: 'completed' };
+  if (fields.reps) set.reps = 8;
+  if (fields.weight) set.weight_kg = 0;
+  if (fields.duration) set.duration_sec = 0;
+  if (fields.distance) set.distance_m = 0;
+  return set;
+}
+
+/** Dynamische Spaltenüberschriften je Set-Typ. */
+function SetHeader({ setType }: { setType: SetType }) {
+  const fields = SET_TYPE_FIELDS[setType];
+  return (
+    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+      <span className="w-6 shrink-0 text-center">#</span>
+      {fields.reps && <span className="flex-1">Wdh.</span>}
+      {fields.weight && <span className="flex-1">kg</span>}
+      {fields.duration && <span className="flex-1">Min:Sek</span>}
+      {fields.distance && <span className="flex-1">Meter</span>}
+      <span className="w-28 shrink-0">Status</span>
+      <span className="w-8 shrink-0" />
+    </div>
+  );
+}
 
 interface ExerciseCardProps {
   index: number;
   exercise: ExerciseInput;
+  setType: SetType;
+  onSetTypeChange: (index: number, setType: SetType) => void;
   onChange: (index: number, exercise: ExerciseInput) => void;
   onRemove: (index: number) => void;
   canRemove: boolean;
@@ -30,6 +57,8 @@ interface ExerciseCardProps {
 export function ExerciseCard({
   index,
   exercise,
+  setType,
+  onSetTypeChange,
   onChange,
   onRemove,
   canRemove,
@@ -71,9 +100,13 @@ export function ExerciseCard({
         name: suggestion.name,
         category: suggestion.category as ExerciseCategory,
       });
+      // Set-Typ aus Library übernehmen wenn vorhanden
+      if (suggestion.default_set_type) {
+        onSetTypeChange(index, suggestion.default_set_type as SetType);
+      }
       setShowSuggestions(false);
     },
-    [exercise, index, onChange],
+    [exercise, index, onChange, onSetTypeChange],
   );
 
   const handleSetChange = useCallback(
@@ -95,9 +128,11 @@ export function ExerciseCard({
 
   const handleAddSet = useCallback(() => {
     const lastSet = exercise.sets[exercise.sets.length - 1];
-    const newSet: SetInput = lastSet ? { ...lastSet, status: 'completed' } : { ...defaultSet };
+    const newSet: SetInput = lastSet
+      ? { ...lastSet, status: 'completed' }
+      : createDefaultSet(setType);
     onChange(index, { ...exercise, sets: [...exercise.sets, newSet] });
-  }, [exercise, index, onChange]);
+  }, [exercise, index, onChange, setType]);
 
   const handleNameBlur = useCallback(async () => {
     if (!exercise.name.trim()) return;
@@ -106,8 +141,11 @@ export function ExerciseCard({
       if (result.found && result.exercise) {
         setLastSetsHint(
           result.exercise.sets.map((s) => ({
+            type: (s.type as SetType) || 'weight_reps',
             reps: s.reps,
             weight_kg: s.weight_kg,
+            duration_sec: s.duration_sec,
+            distance_m: s.distance_m,
             status: (s.status as SetInput['status']) || 'completed',
           })),
         );
@@ -127,9 +165,9 @@ export function ExerciseCard({
 
   return (
     <div className="rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] p-4 space-y-3">
-      {/* Exercise header: name, category, remove */}
+      {/* Exercise header: name, category, set type, remove */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="relative" ref={inputRef}>
             <Input
               value={exercise.name}
@@ -185,6 +223,13 @@ export function ExerciseCard({
             inputSize="sm"
             aria-label={`Übung ${index + 1} Kategorie`}
           />
+          <Select
+            options={SET_TYPE_OPTIONS}
+            value={setType}
+            onChange={(val) => onSetTypeChange(index, (val || 'weight_reps') as SetType)}
+            inputSize="sm"
+            aria-label={`Übung ${index + 1} Typ`}
+          />
         </div>
         <Button
           variant="ghost"
@@ -198,13 +243,7 @@ export function ExerciseCard({
       </div>
 
       {/* Set header */}
-      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-        <span className="w-6 shrink-0 text-center">#</span>
-        <span className="flex-1">Wdh.</span>
-        <span className="flex-1">kg</span>
-        <span className="w-28 shrink-0">Status</span>
-        <span className="w-8 shrink-0" />
-      </div>
+      <SetHeader setType={setType} />
 
       {/* Set rows */}
       {exercise.sets.map((set, setIndex) => (
@@ -212,6 +251,7 @@ export function ExerciseCard({
           key={setIndex}
           index={setIndex}
           set={set}
+          setType={setType}
           onChange={handleSetChange}
           onRemove={handleSetRemove}
           canRemove={exercise.sets.length > 1}

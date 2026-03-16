@@ -53,6 +53,7 @@ class ExerciseResponse(BaseModel):
     force: Optional[str] = None
     mechanic: Optional[str] = None
     exercise_db_id: Optional[str] = None
+    default_set_type: Optional[str] = None
 
     @classmethod
     def from_db(cls, model: ExerciseModel) -> ExerciseResponse:
@@ -73,6 +74,7 @@ class ExerciseResponse(BaseModel):
             force=model.force,
             mechanic=model.mechanic,
             exercise_db_id=model.exercise_db_id,
+            default_set_type=model.default_set_type,
         )
 
 
