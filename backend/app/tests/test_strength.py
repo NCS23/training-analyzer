@@ -1,12 +1,117 @@
-"""Tests fuer Krafttraining (Issue #15, #151)."""
+"""Tests fuer Krafttraining (Issue #15, #151, #285)."""
 
 import json
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 
+from app.models.strength import SetInput, SetType
 from app.services.progression_tracker import calculate_weekly_category_tonnage
 from app.services.tonnage_calculator import calculate_category_tonnage, calculate_strength_metrics
+
+# --- Unit Tests: SetType Validation (#285 S01) ---
+
+
+class TestSetTypeValidation:
+    """Validierung aller 8 Set-Typen und Backward Compatibility."""
+
+    def test_weight_reps_valid(self) -> None:
+        s = SetInput(type=SetType.WEIGHT_REPS, reps=8, weight_kg=100)
+        assert s.type == SetType.WEIGHT_REPS
+        assert s.reps == 8
+        assert s.weight_kg == 100
+
+    def test_weight_reps_missing_weight(self) -> None:
+        with pytest.raises(ValidationError, match="weight_kg"):
+            SetInput(type=SetType.WEIGHT_REPS, reps=8)
+
+    def test_weight_reps_missing_reps(self) -> None:
+        with pytest.raises(ValidationError, match="reps"):
+            SetInput(type=SetType.WEIGHT_REPS, weight_kg=100)
+
+    def test_bodyweight_reps_valid(self) -> None:
+        s = SetInput(type=SetType.BODYWEIGHT_REPS, reps=15)
+        assert s.type == SetType.BODYWEIGHT_REPS
+        assert s.reps == 15
+        assert s.weight_kg is None
+
+    def test_bodyweight_reps_missing_reps(self) -> None:
+        with pytest.raises(ValidationError, match="reps"):
+            SetInput(type=SetType.BODYWEIGHT_REPS)
+
+    def test_weighted_bodyweight_valid(self) -> None:
+        s = SetInput(type=SetType.WEIGHTED_BODYWEIGHT, reps=8, weight_kg=10)
+        assert s.type == SetType.WEIGHTED_BODYWEIGHT
+        assert s.reps == 8
+        assert s.weight_kg == 10  # Zusatzgewicht
+
+    def test_assisted_bodyweight_valid(self) -> None:
+        s = SetInput(type=SetType.ASSISTED_BODYWEIGHT, reps=8, weight_kg=20)
+        assert s.type == SetType.ASSISTED_BODYWEIGHT
+        assert s.weight_kg == 20  # Hilfsgewicht
+
+    def test_duration_valid(self) -> None:
+        s = SetInput(type=SetType.DURATION, duration_sec=60)
+        assert s.type == SetType.DURATION
+        assert s.duration_sec == 60
+        assert s.reps is None
+
+    def test_duration_missing_duration(self) -> None:
+        with pytest.raises(ValidationError, match="duration_sec"):
+            SetInput(type=SetType.DURATION)
+
+    def test_weight_duration_valid(self) -> None:
+        s = SetInput(type=SetType.WEIGHT_DURATION, weight_kg=20, duration_sec=45)
+        assert s.type == SetType.WEIGHT_DURATION
+
+    def test_weight_duration_missing_weight(self) -> None:
+        with pytest.raises(ValidationError, match="weight_kg"):
+            SetInput(type=SetType.WEIGHT_DURATION, duration_sec=45)
+
+    def test_distance_duration_valid(self) -> None:
+        s = SetInput(type=SetType.DISTANCE_DURATION, distance_m=30, duration_sec=15)
+        assert s.type == SetType.DISTANCE_DURATION
+        assert s.distance_m == 30
+        assert s.duration_sec == 15
+
+    def test_distance_duration_without_time(self) -> None:
+        """duration_sec ist optional bei distance_duration."""
+        s = SetInput(type=SetType.DISTANCE_DURATION, distance_m=30)
+        assert s.distance_m == 30
+        assert s.duration_sec is None
+
+    def test_distance_duration_missing_distance(self) -> None:
+        with pytest.raises(ValidationError, match="distance_m"):
+            SetInput(type=SetType.DISTANCE_DURATION, duration_sec=15)
+
+    def test_weight_distance_valid(self) -> None:
+        s = SetInput(type=SetType.WEIGHT_DISTANCE, weight_kg=24, distance_m=50)
+        assert s.type == SetType.WEIGHT_DISTANCE
+        assert s.weight_kg == 24
+        assert s.distance_m == 50
+
+    def test_weight_distance_missing_distance(self) -> None:
+        with pytest.raises(ValidationError, match="distance_m"):
+            SetInput(type=SetType.WEIGHT_DISTANCE, weight_kg=24)
+
+    def test_backward_compat_no_type(self) -> None:
+        """Alte Sets ohne type-Feld werden als weight_reps behandelt."""
+        s = SetInput.model_validate({"reps": 8, "weight_kg": 100, "status": "completed"})
+        assert s.type == SetType.WEIGHT_REPS
+        assert s.reps == 8
+        assert s.weight_kg == 100
+
+    def test_backward_compat_zero_weight(self) -> None:
+        """Alte Bodyweight-Sets (weight_kg=0) bleiben als weight_reps."""
+        s = SetInput.model_validate({"reps": 12, "weight_kg": 0, "status": "completed"})
+        assert s.type == SetType.WEIGHT_REPS
+        assert s.weight_kg == 0
+
+    def test_all_set_types_in_enum(self) -> None:
+        """Alle 8 Typen existieren."""
+        assert len(SetType) == 8
+
 
 # --- Unit Tests: Tonnage Calculator ---
 
@@ -476,6 +581,87 @@ async def test_category_tonnage_trend_endpoint(client: AsyncClient) -> None:
     cats = {c["category"] for c in body["aggregated"]}
     assert "legs" in cats
     assert "push" in cats
+
+
+@pytest.mark.anyio
+async def test_create_mixed_set_types(client: AsyncClient) -> None:
+    """Session mit verschiedenen Set-Typen (weighted + bodyweight + duration)."""
+    exercises = [
+        {
+            "name": "Kniebeugen",
+            "category": "legs",
+            "sets": [
+                {"type": "weight_reps", "reps": 8, "weight_kg": 100, "status": "completed"},
+            ],
+        },
+        {
+            "name": "Liegestuetze",
+            "category": "push",
+            "sets": [
+                {"type": "bodyweight_reps", "reps": 20, "status": "completed"},
+            ],
+        },
+        {
+            "name": "Plank",
+            "category": "core",
+            "sets": [
+                {"type": "duration", "duration_sec": 60, "status": "completed"},
+            ],
+        },
+        {
+            "name": "A-Skip",
+            "category": "drills",
+            "sets": [
+                {
+                    "type": "distance_duration",
+                    "distance_m": 30,
+                    "duration_sec": 12,
+                    "status": "completed",
+                },
+            ],
+        },
+    ]
+    response = await client.post(
+        "/api/v1/sessions/strength",
+        data={
+            "exercises_json": json.dumps(exercises),
+            "training_date": "2026-03-16",
+            "duration_minutes": "45",
+            "rpe": "6",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["success"] is True
+    assert body["metrics"]["total_exercises"] == 4
+    assert body["metrics"]["total_sets"] == 4
+    # Tonnage nur von weighted set: 8 * 100 = 800
+    assert body["metrics"]["total_tonnage_kg"] == 800.0
+
+
+@pytest.mark.anyio
+async def test_create_session_backward_compat(client: AsyncClient) -> None:
+    """Alte Clients ohne type-Feld funktionieren weiterhin."""
+    exercises = [
+        {
+            "name": "Bankdruecken",
+            "category": "push",
+            "sets": [
+                {"reps": 10, "weight_kg": 60, "status": "completed"},
+            ],
+        },
+    ]
+    response = await client.post(
+        "/api/v1/sessions/strength",
+        data={
+            "exercises_json": json.dumps(exercises),
+            "training_date": "2026-03-16",
+            "duration_minutes": "30",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["metrics"]["total_tonnage_kg"] == 600.0
 
 
 @pytest.mark.anyio

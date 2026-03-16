@@ -14,6 +14,7 @@ from app.infrastructure.database.session import get_db
 from app.models.strength import (
     ExerciseInput,
     LastExerciseSets,
+    SetInput,
     SetResponse,
 )
 from app.services.csv_parser import TrainingCSVParser
@@ -27,6 +28,32 @@ csv_parser = TrainingCSVParser()
 fit_parser = TrainingFITParser()
 
 ExerciseListAdapter = TypeAdapter(list[ExerciseInput])
+
+
+def _serialize_set(s: SetInput) -> dict:
+    """Serialisiert einen SetInput zu einem Dict für JSON-Speicherung."""
+    data: dict = {"type": s.type.value, "status": s.status.value}
+    if s.reps is not None:
+        data["reps"] = s.reps
+    if s.weight_kg is not None:
+        data["weight_kg"] = s.weight_kg
+    if s.duration_sec is not None:
+        data["duration_sec"] = s.duration_sec
+    if s.distance_m is not None:
+        data["distance_m"] = s.distance_m
+    return data
+
+
+def _set_response_from_dict(s: dict) -> SetResponse:
+    """Erstellt ein SetResponse aus einem gespeicherten Set-Dict (mit Backward Compat)."""
+    return SetResponse(
+        type=s.get("type", "weight_reps"),
+        reps=s.get("reps"),
+        weight_kg=s.get("weight_kg"),
+        duration_sec=s.get("duration_sec"),
+        distance_m=s.get("distance_m"),
+        status=s.get("status", "completed"),
+    )
 
 
 async def _get_athlete_hr_settings(db: AsyncSession) -> tuple[Optional[int], Optional[int]]:
@@ -90,10 +117,7 @@ async def create_strength_session(
         {
             "name": ex.name,
             "category": ex.category.value,
-            "sets": [
-                {"reps": s.reps, "weight_kg": s.weight_kg, "status": s.status.value}
-                for s in ex.sets
-            ],
+            "sets": [_serialize_set(s) for s in ex.sets],
         }
         for ex in exercises
     ]
@@ -206,10 +230,7 @@ async def update_strength_exercises(
         {
             "name": ex.name,
             "category": ex.category.value,
-            "sets": [
-                {"reps": s.reps, "weight_kg": s.weight_kg, "status": s.status.value}
-                for s in ex.sets
-            ],
+            "sets": [_serialize_set(s) for s in ex.sets],
         }
         for ex in exercises
     ]
@@ -302,14 +323,7 @@ async def get_last_exercises(
                     "exercise": LastExerciseSets(
                         exercise_name=ex["name"],
                         category=ex["category"],
-                        sets=[
-                            SetResponse(
-                                reps=s["reps"],
-                                weight_kg=s["weight_kg"],
-                                status=s["status"],
-                            )
-                            for s in ex["sets"]
-                        ],
+                        sets=[_set_response_from_dict(s) for s in ex["sets"]],
                         session_date=session_date,
                     ),
                 }
