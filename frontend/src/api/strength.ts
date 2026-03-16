@@ -52,6 +52,31 @@ export const SET_TYPE_FIELDS: Record<
   weight_distance: { reps: false, weight: true, duration: false, distance: true },
 };
 
+/** Typ-Gruppen für Metriken und Charts. */
+export const WEIGHTED_TYPES: SetType[] = [
+  'weight_reps',
+  'weighted_bodyweight',
+  'assisted_bodyweight',
+  'weight_duration',
+  'weight_distance',
+];
+export const REP_BASED_TYPES: SetType[] = ['bodyweight_reps'];
+export const DURATION_TYPES: SetType[] = ['duration', 'weight_duration', 'distance_duration'];
+export const DISTANCE_TYPES: SetType[] = ['distance_duration', 'weight_distance'];
+
+export function isWeightedType(t: string): boolean {
+  return WEIGHTED_TYPES.includes(t as SetType);
+}
+export function isRepBasedType(t: string): boolean {
+  return REP_BASED_TYPES.includes(t as SetType);
+}
+export function isDurationType(t: string): boolean {
+  return DURATION_TYPES.includes(t as SetType);
+}
+export function isDistanceType(t: string): boolean {
+  return DISTANCE_TYPES.includes(t as SetType);
+}
+
 export interface SetInput {
   type?: SetType;
   reps?: number;
