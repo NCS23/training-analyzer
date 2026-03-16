@@ -8,7 +8,11 @@ from pydantic import ValidationError
 
 from app.models.strength import SetInput, SetType
 from app.services.progression_tracker import calculate_weekly_category_tonnage
-from app.services.tonnage_calculator import calculate_category_tonnage, calculate_strength_metrics
+from app.services.tonnage_calculator import (
+    calculate_category_tonnage,
+    calculate_srpe,
+    calculate_strength_metrics,
+)
 
 # --- Unit Tests: SetType Validation (#285 S01) ---
 
@@ -184,6 +188,141 @@ class TestTonnageCalculator:
         result = calculate_strength_metrics(exercises)
         assert result["total_tonnage_kg"] == 0.0
         assert result["completed_sets"] == 1
+
+
+# --- Unit Tests: Typ-differenzierte Metriken (#285 S03) ---
+
+
+class TestTypDifferenzierteMetriken:
+    """Tests für typ-differenzierte Volumen-Berechnung."""
+
+    def test_bodyweight_reps_counted(self) -> None:
+        exercises = [
+            {
+                "name": "Liegestuetze",
+                "category": "push",
+                "sets": [
+                    {"type": "bodyweight_reps", "reps": 20, "status": "completed"},
+                    {"type": "bodyweight_reps", "reps": 15, "status": "completed"},
+                ],
+            }
+        ]
+        result = calculate_strength_metrics(exercises)
+        assert result["total_reps"] == 35
+        assert result["total_tonnage_kg"] == 0.0
+
+    def test_duration_sets_counted(self) -> None:
+        exercises = [
+            {
+                "name": "Plank",
+                "category": "core",
+                "sets": [
+                    {"type": "duration", "duration_sec": 60, "status": "completed"},
+                    {"type": "duration", "duration_sec": 45, "status": "completed"},
+                ],
+            }
+        ]
+        result = calculate_strength_metrics(exercises)
+        assert result["total_duration_sec"] == 105
+        assert result["total_tonnage_kg"] == 0.0
+        assert result["total_reps"] == 0
+
+    def test_distance_sets_counted(self) -> None:
+        exercises = [
+            {
+                "name": "A-Skip",
+                "category": "drills",
+                "sets": [
+                    {"type": "distance_duration", "distance_m": 30, "status": "completed"},
+                    {"type": "distance_duration", "distance_m": 30, "status": "completed"},
+                ],
+            }
+        ]
+        result = calculate_strength_metrics(exercises)
+        assert result["total_distance_m"] == 60.0
+        assert result["total_tonnage_kg"] == 0.0
+
+    def test_mixed_session(self) -> None:
+        """Gemischte Session: alle Metrik-Typen gleichzeitig."""
+        exercises = [
+            {
+                "name": "Kniebeugen",
+                "category": "legs",
+                "sets": [
+                    {"type": "weight_reps", "reps": 5, "weight_kg": 100, "status": "completed"},
+                ],
+            },
+            {
+                "name": "Klimmzuege",
+                "category": "pull",
+                "sets": [
+                    {"type": "bodyweight_reps", "reps": 10, "status": "completed"},
+                ],
+            },
+            {
+                "name": "Plank",
+                "category": "core",
+                "sets": [
+                    {"type": "duration", "duration_sec": 60, "status": "completed"},
+                ],
+            },
+            {
+                "name": "Farmers Walk",
+                "category": "core",
+                "sets": [
+                    {
+                        "type": "weight_distance",
+                        "weight_kg": 24,
+                        "distance_m": 50,
+                        "status": "completed",
+                    },
+                ],
+            },
+        ]
+        result = calculate_strength_metrics(exercises)
+        assert result["total_tonnage_kg"] == 500.0
+        assert result["total_reps"] == 10
+        assert result["total_duration_sec"] == 60
+        assert result["total_distance_m"] == 50.0
+        assert result["total_exercises"] == 4
+        assert result["completed_sets"] == 4
+
+    def test_skipped_duration_not_counted(self) -> None:
+        exercises = [
+            {
+                "name": "Plank",
+                "category": "core",
+                "sets": [
+                    {"type": "duration", "duration_sec": 60, "status": "completed"},
+                    {"type": "duration", "duration_sec": 60, "status": "skipped"},
+                ],
+            }
+        ]
+        result = calculate_strength_metrics(exercises)
+        assert result["total_duration_sec"] == 60
+        assert result["completed_sets"] == 1
+
+
+class TestSrpe:
+    """Tests für sRPE-Berechnung."""
+
+    def test_basic_srpe(self) -> None:
+        assert calculate_srpe(7, 60) == 420
+
+    def test_srpe_no_rpe(self) -> None:
+        assert calculate_srpe(None, 60) is None
+
+    def test_srpe_no_duration(self) -> None:
+        assert calculate_srpe(7, None) is None
+
+    def test_srpe_both_none(self) -> None:
+        assert calculate_srpe(None, None) is None
+
+    def test_srpe_high_intensity(self) -> None:
+        assert calculate_srpe(10, 90) == 900
+
+    def test_srpe_easy_session(self) -> None:
+        assert calculate_srpe(3, 30) == 90
 
 
 # --- Unit Tests: Category Tonnage (#149) ---
