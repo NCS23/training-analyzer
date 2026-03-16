@@ -38,6 +38,10 @@ jobs:
 
       - name: Pack and copy tarballs
         run: |
+          # Read versions from package.json
+          COMP_VER=$(node -p "require('./nds/packages/components/package.json').version")
+          STYLES_VER=$(node -p "require('./nds/packages/styles/package.json').version")
+
           cd nds/packages/components && pnpm pack && cd ../../..
           cd nds/packages/styles && pnpm pack && cd ../../..
 
@@ -45,18 +49,14 @@ jobs:
           rm -f frontend/packages/nordlig-components-*.tgz
           rm -f frontend/packages/nordlig-styles-*.tgz
 
-          # Copy new tarballs (dynamically find filenames)
-          COMP_TGZ=$(ls nds/packages/components/nordlig-components-*.tgz)
-          STYLES_TGZ=$(ls nds/packages/styles/nordlig-styles-*.tgz)
-          cp "$COMP_TGZ" frontend/packages/
-          cp "$STYLES_TGZ" frontend/packages/
+          # Copy exact version tarballs
+          cp "nds/packages/components/nordlig-components-${COMP_VER}.tgz" frontend/packages/
+          cp "nds/packages/styles/nordlig-styles-${STYLES_VER}.tgz" frontend/packages/
 
           # Update package.json references
-          COMP_FILE=$(basename "$COMP_TGZ")
-          STYLES_FILE=$(basename "$STYLES_TGZ")
           cd frontend
-          sed -i "s|file:packages/nordlig-components-[^\"]*|file:packages/$COMP_FILE|" package.json
-          sed -i "s|file:packages/nordlig-styles-[^\"]*|file:packages/$STYLES_FILE|" package.json
+          sed -i "s|file:packages/nordlig-components-[^\"]*|file:packages/nordlig-components-${COMP_VER}.tgz|" package.json
+          sed -i "s|file:packages/nordlig-styles-[^\"]*|file:packages/nordlig-styles-${STYLES_VER}.tgz|" package.json
 
           # Regenerate package-lock.json to avoid EINTEGRITY
           rm -f package-lock.json
