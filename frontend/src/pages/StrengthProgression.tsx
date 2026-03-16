@@ -111,7 +111,7 @@ interface ChartConfig {
   dataKey: string;
   secondaryDataKey?: string;
   yFormatter: (v: number) => string;
-  tooltipFormatter: (value: number, name: string) => [string, string];
+  tooltipFormatter: (value: number | string, name: string) => [string, string];
 }
 
 function getChartConfig(setType: string): ChartConfig {
@@ -121,7 +121,7 @@ function getChartConfig(setType: string): ChartConfig {
       icon: <Repeat className="w-4 h-4 text-[var(--color-chart-1)]" />,
       dataKey: 'total_reps',
       yFormatter: (v: number) => `${v}`,
-      tooltipFormatter: (value: number, name: string) => {
+      tooltipFormatter: (value, name) => {
         if (name === 'total_reps') return [`${value}`, 'Gesamt Wdh.'];
         return [`${value}`, name];
       },
@@ -133,8 +133,9 @@ function getChartConfig(setType: string): ChartConfig {
       icon: <Timer className="w-4 h-4 text-[var(--color-chart-1)]" />,
       dataKey: 'total_duration_sec',
       yFormatter: (v: number) => formatDurationShort(v),
-      tooltipFormatter: (value: number, name: string) => {
-        if (name === 'total_duration_sec') return [formatDurationShort(value), 'Gesamt Dauer'];
+      tooltipFormatter: (value, name) => {
+        if (name === 'total_duration_sec')
+          return [formatDurationShort(Number(value)), 'Gesamt Dauer'];
         return [`${value}`, name];
       },
     };
@@ -146,8 +147,9 @@ function getChartConfig(setType: string): ChartConfig {
       dataKey: 'total_distance_m',
       secondaryDataKey: isDurationType(setType) ? 'total_duration_sec' : undefined,
       yFormatter: (v: number) => formatDistanceShort(v),
-      tooltipFormatter: (value: number, name: string) => {
-        if (name === 'total_distance_m') return [formatDistanceShort(value), 'Gesamt Distanz'];
+      tooltipFormatter: (value, name) => {
+        if (name === 'total_distance_m')
+          return [formatDistanceShort(Number(value)), 'Gesamt Distanz'];
         return [`${value}`, name];
       },
     };
@@ -159,7 +161,7 @@ function getChartConfig(setType: string): ChartConfig {
     dataKey: 'max_weight_kg',
     secondaryDataKey: 'tonnage_kg',
     yFormatter: (v: number) => `${v}kg`,
-    tooltipFormatter: (value: number, name: string) => {
+    tooltipFormatter: (value, name) => {
       if (name === 'max_weight_kg') return [`${value} kg`, 'Max. Gewicht'];
       if (name === 'tonnage_kg') return [`${value} kg`, 'Tonnage'];
       return [`${value}`, name];
@@ -446,8 +448,10 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}
-                      formatter={chartConfig.tooltipFormatter}
-                      labelFormatter={(label: string) => label}
+                      formatter={(value, name) =>
+                        chartConfig.tooltipFormatter(Number(value), String(name))
+                      }
+                      labelFormatter={(label) => String(label)}
                     />
                     <Line
                       type="monotone"
@@ -533,11 +537,14 @@ export function StrengthProgressionContent({ timeRange }: { timeRange?: TimeRang
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
-                    formatter={(value: number) => [
-                      value >= 1000 ? `${(value / 1000).toFixed(1)} t` : `${Math.round(value)} kg`,
-                      'Tonnage',
-                    ]}
-                    labelFormatter={(label: string) => `KW ${label}`}
+                    formatter={(value) => {
+                      const v = Number(value);
+                      return [
+                        v >= 1000 ? `${(v / 1000).toFixed(1)} t` : `${Math.round(v)} kg`,
+                        'Tonnage',
+                      ];
+                    }}
+                    labelFormatter={(label) => `KW ${String(label)}`}
                   />
                   <Bar
                     dataKey="total_tonnage_kg"

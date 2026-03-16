@@ -176,8 +176,8 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                         borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number) => [formatPace(value), 'Ø Pace']}
-                      labelFormatter={(label: string) => `KW ${label}`}
+                      formatter={(value) => [formatPace(Number(value)), 'Ø Pace']}
+                      labelFormatter={(label) => `KW ${String(label)}`}
                     />
                     <Line
                       type="monotone"
@@ -223,8 +223,8 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                         borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number) => [`${value} bpm`, 'Ø HF']}
-                      labelFormatter={(label: string) => `KW ${label}`}
+                      formatter={(value) => [`${Number(value)} bpm`, 'Ø HF']}
+                      labelFormatter={(label) => `KW ${String(label)}`}
                     />
                     <Line
                       type="monotone"
@@ -267,12 +267,14 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
                         borderRadius: 'var(--radius-component-sm)',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'total_distance_km') return [`${value} km`, 'Distanz'];
-                        if (name === 'total_duration_sec') return [formatDuration(value), 'Dauer'];
-                        return [value, name];
+                      formatter={(value, name) => {
+                        const v = Number(value);
+                        const n = String(name);
+                        if (n === 'total_distance_km') return [`${v} km`, 'Distanz'];
+                        if (n === 'total_duration_sec') return [formatDuration(v), 'Dauer'];
+                        return [v, n];
                       }}
-                      labelFormatter={(label: string) => `KW ${label}`}
+                      labelFormatter={(label) => `KW ${String(label)}`}
                     />
                     <Bar
                       dataKey="total_distance_km"

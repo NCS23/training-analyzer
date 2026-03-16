@@ -101,7 +101,7 @@ function AggregatedView({ data }: { data: CategoryTonnageTrendResponse }) {
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
-            formatter={(value: number) => [formatTonnage(value), 'Tonnage']}
+            formatter={(value) => [formatTonnage(Number(value)), 'Tonnage']}
           />
           <Bar dataKey="tonnage" radius={[0, 4, 4, 0]} isAnimationActive={false}>
             {chartData.map((entry, i) => (
@@ -155,7 +155,7 @@ function TrendView({ data }: { data: CategoryTonnageTrendResponse }) {
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
-            formatter={(value: number, name: string) => [formatTonnage(value), categoryLabel(name)]}
+            formatter={(value, name) => [formatTonnage(Number(value)), categoryLabel(String(name))]}
           />
           <Legend formatter={(value: string) => categoryLabel(value)} />
           {categories.map((cat) => (
