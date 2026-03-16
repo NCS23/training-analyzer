@@ -117,6 +117,7 @@ class ExerciseModel(Base):
     force: Mapped[str | None] = mapped_column(String(20), default=None)
     mechanic: Mapped[str | None] = mapped_column(String(20), default=None)
     exercise_db_id: Mapped[str | None] = mapped_column(String(100), default=None)
+    default_set_type: Mapped[str | None] = mapped_column(String(30), default=None)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
