@@ -7,7 +7,11 @@ from httpx import AsyncClient
 from pydantic import ValidationError
 
 from app.models.strength import SetInput, SetType
-from app.services.progression_tracker import calculate_weekly_category_tonnage
+from app.services.progression_tracker import (
+    calculate_weekly_category_tonnage,
+    detect_personal_records,
+    get_exercise_history,
+)
 from app.services.tonnage_calculator import (
     calculate_category_tonnage,
     calculate_srpe,
@@ -326,6 +330,143 @@ class TestSrpe:
 
 
 # --- Unit Tests: Category Tonnage (#149) ---
+
+
+# --- Unit Tests: Typ-differenzierte PRs (#285 S04) ---
+
+
+class TestTypDifferenziertePRs:
+    """Tests für typ-differenzierte Progression und PRs."""
+
+    def test_weighted_prs(self) -> None:
+        sessions = [
+            {
+                "id": 1,
+                "date": "2026-03-10",
+                "exercises": [
+                    {
+                        "name": "Kniebeugen",
+                        "category": "legs",
+                        "sets": [
+                            {
+                                "type": "weight_reps",
+                                "reps": 5,
+                                "weight_kg": 100,
+                                "status": "completed",
+                            },
+                        ],
+                    }
+                ],
+            },
+        ]
+        prs = detect_personal_records(sessions)
+        types = {pr["record_type"] for pr in prs if pr["exercise_name"] == "Kniebeugen"}
+        assert "max_weight" in types
+        assert "max_volume_set" in types
+        assert "max_tonnage_session" in types
+
+    def test_bodyweight_prs(self) -> None:
+        sessions = [
+            {
+                "id": 1,
+                "date": "2026-03-10",
+                "exercises": [
+                    {
+                        "name": "Liegestuetze",
+                        "category": "push",
+                        "sets": [
+                            {"type": "bodyweight_reps", "reps": 30, "status": "completed"},
+                            {"type": "bodyweight_reps", "reps": 25, "status": "completed"},
+                        ],
+                    }
+                ],
+            },
+        ]
+        prs = detect_personal_records(sessions)
+        types = {pr["record_type"] for pr in prs}
+        assert "max_reps_set" in types
+        assert "max_total_reps" in types
+        # Kein max_weight für Bodyweight
+        assert "max_weight" not in types
+
+    def test_duration_prs(self) -> None:
+        sessions = [
+            {
+                "id": 1,
+                "date": "2026-03-10",
+                "exercises": [
+                    {
+                        "name": "Plank",
+                        "category": "core",
+                        "sets": [
+                            {"type": "duration", "duration_sec": 90, "status": "completed"},
+                        ],
+                    }
+                ],
+            },
+        ]
+        prs = detect_personal_records(sessions)
+        assert len(prs) == 1
+        assert prs[0]["record_type"] == "max_duration"
+        assert prs[0]["value"] == 90
+        assert prs[0]["unit"] == "sec"
+
+    def test_distance_prs(self) -> None:
+        sessions = [
+            {
+                "id": 1,
+                "date": "2026-03-10",
+                "exercises": [
+                    {
+                        "name": "A-Skip",
+                        "category": "drills",
+                        "sets": [
+                            {"type": "distance_duration", "distance_m": 50, "status": "completed"},
+                        ],
+                    }
+                ],
+            },
+        ]
+        prs = detect_personal_records(sessions)
+        assert len(prs) == 1
+        assert prs[0]["record_type"] == "max_distance"
+        assert prs[0]["value"] == 50
+        assert prs[0]["unit"] == "m"
+
+    def test_exercise_history_with_type(self) -> None:
+        sessions = [
+            {
+                "id": 1,
+                "date": "2026-03-10",
+                "exercises": [
+                    {
+                        "name": "Plank",
+                        "category": "core",
+                        "sets": [
+                            {"type": "duration", "duration_sec": 60, "status": "completed"},
+                        ],
+                    }
+                ],
+            },
+            {
+                "id": 2,
+                "date": "2026-03-12",
+                "exercises": [
+                    {
+                        "name": "Plank",
+                        "category": "core",
+                        "sets": [
+                            {"type": "duration", "duration_sec": 75, "status": "completed"},
+                        ],
+                    }
+                ],
+            },
+        ]
+        history = get_exercise_history("Plank", sessions)
+        assert len(history) == 2
+        assert history[0]["set_type"] == "duration"
+        assert history[0]["total_duration_sec"] == 60
+        assert history[1]["total_duration_sec"] == 75
 
 
 class TestCategoryTonnage:
