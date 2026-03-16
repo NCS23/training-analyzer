@@ -247,8 +247,8 @@ export function TrainingBalanceContent({ days }: { days?: number }) {
                           border: '1px solid var(--color-border-default)',
                           background: 'var(--color-bg-base)',
                         }}
-                        formatter={(value: number) => {
-                          return [`${value.toFixed(1)} km`, 'Distanz'];
+                        formatter={(value) => {
+                          return [`${Number(value).toFixed(1)} km`, 'Distanz'];
                         }}
                       />
                       <Bar dataKey="km" radius={[4, 4, 0, 0]}>
