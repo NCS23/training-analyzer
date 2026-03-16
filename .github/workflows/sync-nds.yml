@@ -87,5 +87,4 @@ jobs:
           git push -u origin "$BRANCH"
           gh pr create \
             --title "chore: sync NDS packages (${NDS_SHA:0:7})" \
-            --body "Automatischer Sync der Nordlig Design System Packages von NCS23/nordlig-design-system@${NDS_SHA:0:7}." \
-            --label "dependencies"
+            --body "Automatischer Sync der Nordlig Design System Packages von NCS23/nordlig-design-system@${NDS_SHA:0:7}."
