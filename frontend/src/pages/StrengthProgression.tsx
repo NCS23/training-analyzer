@@ -173,10 +173,16 @@ function getProgressionDelta(
 ): { value: number; label: string } | null {
   if (!history) return null;
   if (isWeightedType(setType) && history.weight_progression != null) {
-    return { value: history.weight_progression, label: `${history.weight_progression > 0 ? '+' : ''}${history.weight_progression} kg` };
+    return {
+      value: history.weight_progression,
+      label: `${history.weight_progression > 0 ? '+' : ''}${history.weight_progression} kg`,
+    };
   }
   if (isRepBasedType(setType) && history.reps_progression != null) {
-    return { value: history.reps_progression, label: `${history.reps_progression > 0 ? '+' : ''}${history.reps_progression} Wdh.` };
+    return {
+      value: history.reps_progression,
+      label: `${history.reps_progression > 0 ? '+' : ''}${history.reps_progression} Wdh.`,
+    };
   }
   if (isDurationType(setType) && history.duration_progression != null) {
     const sec = history.duration_progression;
