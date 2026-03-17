@@ -40,7 +40,7 @@ const TYPE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>>
 function PriorityBadge({ priority }: { priority: string }) {
   const config = recommendationPriorityConfig[priority] ?? recommendationPriorityConfig.medium;
   return (
-    <Badge variant={config.variant} size="sm">
+    <Badge variant={config.variant} size="xs">
       {config.label}
     </Badge>
   );
@@ -49,14 +49,14 @@ function PriorityBadge({ priority }: { priority: string }) {
 function StatusBadge({ status }: { status: RecommendationStatusValue }) {
   if (status === 'applied') {
     return (
-      <Badge variant="primary-bold" size="sm">
+      <Badge variant="primary-bold" size="xs">
         Übernommen
       </Badge>
     );
   }
   if (status === 'dismissed') {
     return (
-      <Badge variant="neutral" size="sm">
+      <Badge variant="neutral" size="xs">
         Abgelehnt
       </Badge>
     );
@@ -228,7 +228,7 @@ function RecommendationsContent({
               KI-Empfehlungen
             </span>
             {pendingCount > 0 && (
-              <Badge variant="accent-bold" size="sm">
+              <Badge variant="accent-bold" size="xs">
                 {pendingCount} neu
               </Badge>
             )}
