@@ -80,8 +80,8 @@ function RecommendationCard({
     <div
       className={`rounded-[var(--radius-md)] border p-3 sm:p-4 space-y-2 transition-opacity ${
         isPending
-          ? 'border-[var(--color-border-default)] bg-[var(--color-bg-base)]'
-          : 'border-[var(--color-border-muted)] bg-[var(--color-bg-muted)] opacity-70'
+          ? 'border-[var(--color-border-default)] bg-[var(--color-bg-surface)]'
+          : 'border-[var(--color-border-muted)] bg-[var(--color-bg-surface)] opacity-60'
       }`}
     >
       {/* Header: Icon + Titel + Badges */}
