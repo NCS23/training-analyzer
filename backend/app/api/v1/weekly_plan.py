@@ -26,6 +26,8 @@ from app.models.training_plan import (
 )
 from app.models.weekly_plan import (
     ActualSession,
+    ApplyRecommendationsRequest,
+    ApplyRecommendationsResponse,
     CategoryTonnage,
     ComplianceDayEntry,
     ComplianceResponse,
@@ -960,3 +962,24 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
         apply_to_all_weeks=data.apply_to_all_weeks,
         synced_days=synced_days,
     )
+
+
+@router.post("/apply-recommendations", response_model=ApplyRecommendationsResponse)
+async def apply_recommendations(
+    data: ApplyRecommendationsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ApplyRecommendationsResponse:
+    """Konvertiert KI-Review-Empfehlungen in Plan-Sessions für die Folgewoche."""
+    from app.services.recommendation_to_plan_service import (
+        apply_recommendations as do_apply,
+    )
+
+    week_start = _monday_of_week(data.week_start)
+
+    result = await do_apply(
+        review_week_start=week_start,
+        recommendations=data.recommendations,
+        db=db,
+    )
+
+    return ApplyRecommendationsResponse(**result)

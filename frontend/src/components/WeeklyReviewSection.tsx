@@ -1,5 +1,13 @@
 import { useEffect, useCallback, useState } from 'react';
-import { Card, CardBody, Button, Badge, Spinner } from '@nordlig/components';
+import {
+  Card,
+  CardBody,
+  Button,
+  Badge,
+  Spinner,
+  Alert,
+  AlertDescription,
+} from '@nordlig/components';
 import {
   Sparkles,
   RefreshCw,
@@ -11,8 +19,10 @@ import {
   Activity,
   Gauge,
   Calendar,
+  CalendarPlus,
 } from 'lucide-react';
 import type { WeeklyReview, OverallRating, FatigueLevel } from '@/api/training';
+import { applyRecommendations } from '@/api/weekly-plan';
 import { useWeeklyReview } from '@/hooks/useWeeklyReview';
 
 // --- Config ---
@@ -118,20 +128,75 @@ function ListItems({
   );
 }
 
+function ApplySection({
+  applying,
+  applyError,
+  appliedCount,
+  onApply,
+}: {
+  applying: boolean;
+  applyError: string | null;
+  appliedCount: number | null;
+  onApply: () => void;
+}) {
+  return (
+    <div className="pt-2 border-t border-[var(--color-border-muted)] space-y-2">
+      {applyError && (
+        <Alert variant="error">
+          <AlertDescription>{applyError}</AlertDescription>
+        </Alert>
+      )}
+      {appliedCount !== null && appliedCount > 0 && (
+        <Alert variant="success">
+          <AlertDescription>
+            {appliedCount} {appliedCount === 1 ? 'Empfehlung' : 'Empfehlungen'} in den Plan der
+            nächsten Woche übernommen.
+          </AlertDescription>
+        </Alert>
+      )}
+      {appliedCount === null && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onApply}
+          disabled={applying}
+          className="w-full"
+        >
+          {applying ? (
+            <Spinner size="sm" className="mr-1.5" />
+          ) : (
+            <CalendarPlus className="w-4 h-4 mr-1.5" />
+          )}
+          {applying ? 'Wird übernommen…' : 'In Wochenplan übernehmen'}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function ReviewBody({
   review,
   loading,
   error,
+  applying,
+  applyError,
+  appliedCount,
   onRefresh,
+  onApply,
 }: {
   review: WeeklyReview;
   loading: boolean;
   error: string | null;
+  applying: boolean;
+  applyError: string | null;
+  appliedCount: number | null;
   onRefresh: () => void;
+  onApply: () => void;
 }) {
   const rating = ratingConfig[review.overall_rating] ?? ratingConfig.moderate;
   const fatigue = fatigueConfig[review.fatigue_assessment] ?? fatigueConfig.moderate;
   const RatingIcon = rating.icon;
+  const hasRecommendations = review.next_week_recommendations.length > 0;
 
   return (
     <>
@@ -183,6 +248,16 @@ function ReviewBody({
           items={review.next_week_recommendations}
           icon={Lightbulb}
         />
+
+        {/* In Plan übernehmen */}
+        {hasRecommendations && (
+          <ApplySection
+            applying={applying}
+            applyError={applyError}
+            appliedCount={appliedCount}
+            onApply={onApply}
+          />
+        )}
       </div>
     </>
   );
@@ -190,13 +265,26 @@ function ReviewBody({
 
 // --- Hauptkomponente ---
 
-export function WeeklyReviewSection({ weekStart }: { weekStart: string }) {
+interface WeeklyReviewSectionProps {
+  weekStart: string;
+  onRecommendationsApplied?: () => void;
+}
+
+export function WeeklyReviewSection({
+  weekStart,
+  onRecommendationsApplied,
+}: WeeklyReviewSectionProps) {
   const { review, loading, error, generate, fetch: fetchReview } = useWeeklyReview();
   const [initialized, setInitialized] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [appliedCount, setAppliedCount] = useState<number | null>(null);
 
   const handleFetch = useCallback(
     async (ws: string) => {
       setInitialized(true);
+      setAppliedCount(null);
+      setApplyError(null);
       await fetchReview(ws);
     },
     [fetchReview],
@@ -207,12 +295,35 @@ export function WeeklyReviewSection({ weekStart }: { weekStart: string }) {
   }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerate = useCallback(() => {
+    setAppliedCount(null);
+    setApplyError(null);
     generate(weekStart, false);
   }, [generate, weekStart]);
 
   const handleRefresh = useCallback(() => {
+    setAppliedCount(null);
+    setApplyError(null);
     generate(weekStart, true);
   }, [generate, weekStart]);
+
+  const handleApply = useCallback(async () => {
+    if (!review?.next_week_recommendations.length) return;
+
+    setApplying(true);
+    setApplyError(null);
+    try {
+      const result = await applyRecommendations({
+        week_start: weekStart,
+        recommendations: review.next_week_recommendations,
+      });
+      setAppliedCount(result.applied_count);
+      onRecommendationsApplied?.();
+    } catch {
+      setApplyError('Empfehlungen konnten nicht übernommen werden.');
+    } finally {
+      setApplying(false);
+    }
+  }, [review, weekStart, onRecommendationsApplied]);
 
   return (
     <Card elevation="raised">
@@ -229,7 +340,16 @@ export function WeeklyReviewSection({ weekStart }: { weekStart: string }) {
         )}
 
         {review && (
-          <ReviewBody review={review} loading={loading} error={error} onRefresh={handleRefresh} />
+          <ReviewBody
+            review={review}
+            loading={loading}
+            error={error}
+            applying={applying}
+            applyError={applyError}
+            appliedCount={appliedCount}
+            onRefresh={handleRefresh}
+            onApply={handleApply}
+          />
         )}
       </CardBody>
     </Card>
