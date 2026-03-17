@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
+    PlannedSessionModel,
     RaceGoalModel,
     SessionTemplateModel,
     WeeklyPlanDayModel,
@@ -62,6 +63,9 @@ async def apply_recommendations(
     # Parsen und mergen
     new_sessions = _parse_sessions(raw)
     merged = _merge_into_plan(existing, new_sessions)
+
+    # Neue Sessions in DB persistieren
+    await _persist_new_sessions(target_week, existing, new_sessions, db)
 
     # Log
     await log_ai_call(
@@ -367,6 +371,49 @@ def _merge_into_plan(
             entries.append(WeeklyPlanEntry(day_of_week=dow))
 
     return entries
+
+
+async def _persist_new_sessions(
+    target_week: date,
+    existing: list[dict],
+    new_sessions: list[dict],
+    db: AsyncSession,
+) -> None:
+    """Persistiert neue KI-Sessions als WeeklyPlanDay + PlannedSession in der DB."""
+    occupied = {e["day_of_week"] for e in existing}
+
+    # Welche Tage wurden tatsächlich belegt? (gleiche Logik wie _merge_into_plan)
+    placed: dict[int, dict] = {}
+    for s in new_sessions:
+        day = s["day_of_week"]
+        if day in occupied or day in placed:
+            day = _find_free_day(occupied | set(placed.keys()), day)
+            if day is None:
+                continue
+        placed[day] = s
+
+    for day, session_data in placed.items():
+        db_day = WeeklyPlanDayModel(
+            week_start=target_week,
+            day_of_week=day,
+            is_rest_day=False,
+        )
+        db.add(db_day)
+        await db.flush()
+
+        run_details_str: str | None = None
+        if session_data.get("run_details"):
+            run_details_str = json.dumps(session_data["run_details"])
+
+        db_session = PlannedSessionModel(
+            day_id=db_day.id,
+            position=0,
+            training_type=session_data["training_type"],
+            template_id=session_data.get("template_id"),
+            run_details_json=run_details_str,
+            notes=session_data.get("notes"),
+        )
+        db.add(db_session)
 
 
 def _find_free_day(occupied: set[int], preferred: int) -> int | None:
