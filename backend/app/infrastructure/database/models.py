@@ -263,3 +263,25 @@ class PlanChangeLogModel(Base):
     reason: Mapped[str | None] = mapped_column(Text, default=None)
     created_by: Mapped[str | None] = mapped_column(String(50), default=None)  # future: user auth
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AIRecommendationModel(Base):
+    __tablename__ = "ai_recommendations"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True
+    )
+    type: Mapped[str] = mapped_column(String(30))  # RecommendationType
+    title: Mapped[str] = mapped_column(String(200))
+    target_session_id: Mapped[int | None] = mapped_column(
+        Integer, default=None
+    )  # FK planned_sessions
+    current_value: Mapped[str | None] = mapped_column(String(100), default=None)
+    suggested_value: Mapped[str | None] = mapped_column(String(100), default=None)
+    reasoning: Mapped[str] = mapped_column(Text)
+    priority: Mapped[str] = mapped_column(String(10))  # high/medium/low
+    status: Mapped[str] = mapped_column(String(20), server_default="pending")
+    provider: Mapped[str] = mapped_column(String(100))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

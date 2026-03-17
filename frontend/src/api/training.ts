@@ -445,6 +445,72 @@ export async function analyzeSession(
   return response.data;
 }
 
+// --- KI-Empfehlungen (E06-S02, #33) ---
+
+export type RecommendationType =
+  | 'adjust_pace'
+  | 'adjust_volume'
+  | 'add_rest'
+  | 'skip_session'
+  | 'increase_volume'
+  | 'reduce_intensity'
+  | 'change_session_type'
+  | 'extend_warmup_cooldown'
+  | 'general';
+
+export type RecommendationPriority = 'high' | 'medium' | 'low';
+export type RecommendationStatusValue = 'pending' | 'applied' | 'dismissed';
+
+export interface AIRecommendation {
+  id: number;
+  session_id: number;
+  type: RecommendationType;
+  title: string;
+  target_session_id: number | null;
+  current_value: string | null;
+  suggested_value: string | null;
+  reasoning: string;
+  priority: RecommendationPriority;
+  status: RecommendationStatusValue;
+  created_at: string;
+}
+
+export interface RecommendationsList {
+  recommendations: AIRecommendation[];
+  session_id: number;
+  provider: string;
+  cached: boolean;
+}
+
+export async function generateRecommendations(
+  sessionId: number,
+  forceRefresh = false,
+): Promise<RecommendationsList> {
+  const response = await apiClient.post<RecommendationsList>(
+    `/api/v1/sessions/${sessionId}/recommendations`,
+    { force_refresh: forceRefresh },
+  );
+  return response.data;
+}
+
+export async function getRecommendations(sessionId: number): Promise<RecommendationsList> {
+  const response = await apiClient.get<RecommendationsList>(
+    `/api/v1/sessions/${sessionId}/recommendations`,
+  );
+  return response.data;
+}
+
+export async function updateRecommendationStatus(
+  recommendationId: number,
+  status: RecommendationStatusValue,
+): Promise<AIRecommendation> {
+  const response = await apiClient.patch<AIRecommendation>(
+    `/api/v1/sessions/recommendations/${recommendationId}/status`,
+    { status },
+  );
+  return response.data;
+}
+
 // --- Soll/Ist-Vergleich (#138) ---
 
 export interface SegmentDelta {
