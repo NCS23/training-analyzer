@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Dumbbell,
   TrendingUp,
-  Sparkles,
   User,
   ChevronDown,
   Calendar,
@@ -28,7 +27,6 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
   { to: '/analyse', label: 'Analyse', icon: TrendingUp },
-  { to: '/weekly-review', label: 'KI-Review', icon: Sparkles },
   {
     to: '/plan',
     label: 'Plan',
