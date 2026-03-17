@@ -285,3 +285,21 @@ class AIRecommendationModel(Base):
     provider: Mapped[str] = mapped_column(String(100))
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class WeeklyReviewModel(Base):
+    __tablename__ = "weekly_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    week_start: Mapped[date] = mapped_column(Date, unique=True, index=True)
+    summary: Mapped[str] = mapped_column(Text)
+    volume_comparison_json: Mapped[str] = mapped_column(Text)  # JSON
+    highlights_json: Mapped[str] = mapped_column(Text)  # JSON array
+    improvements_json: Mapped[str] = mapped_column(Text)  # JSON array
+    next_week_recommendations_json: Mapped[str] = mapped_column(Text)  # JSON array
+    overall_rating: Mapped[str] = mapped_column(String(20))
+    fatigue_assessment: Mapped[str] = mapped_column(String(20))
+    session_count: Mapped[int] = mapped_column(Integer)
+    provider: Mapped[str] = mapped_column(String(100))
+
+    review_created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -588,3 +588,49 @@ export async function healthCheck(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/health');
   return response.data;
 }
+
+// --- Wöchentliches KI-Review (E06-S06, #323) ---
+
+export type OverallRating = 'excellent' | 'good' | 'moderate' | 'poor';
+export type FatigueLevel = 'low' | 'moderate' | 'high' | 'critical';
+
+export interface VolumeComparison {
+  planned_km: number | null;
+  actual_km: number;
+  planned_sessions: number | null;
+  actual_sessions: number;
+  planned_hours: number | null;
+  actual_hours: number;
+}
+
+export interface WeeklyReview {
+  id: number;
+  week_start: string;
+  summary: string;
+  volume_comparison: VolumeComparison;
+  highlights: string[];
+  improvements: string[];
+  next_week_recommendations: string[];
+  overall_rating: OverallRating;
+  fatigue_assessment: FatigueLevel;
+  session_count: number;
+  provider: string;
+  cached: boolean;
+  created_at: string;
+}
+
+export async function generateWeeklyReview(
+  weekStart: string,
+  forceRefresh = false,
+): Promise<WeeklyReview> {
+  const response = await apiClient.post<WeeklyReview>('/api/v1/weekly-review/generate', {
+    week_start: weekStart,
+    force_refresh: forceRefresh,
+  });
+  return response.data;
+}
+
+export async function getWeeklyReview(weekStart: string): Promise<WeeklyReview> {
+  const response = await apiClient.get<WeeklyReview>(`/api/v1/weekly-review/${weekStart}`);
+  return response.data;
+}
