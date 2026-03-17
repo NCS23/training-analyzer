@@ -17,6 +17,11 @@ from app.infrastructure.database.models import (
 )
 from app.infrastructure.database.session import get_db
 from app.models.ai_analysis import AnalyzeRequest, SessionAnalysisResponse
+from app.models.ai_recommendation import (
+    RecommendationResponse,
+    RecommendationsListResponse,
+    RecommendationStatusUpdate,
+)
 from app.models.segment import ComparisonResponse, laps_to_segments
 from app.models.session import (
     DateUpdateRequest,
@@ -834,6 +839,59 @@ async def analyze_session(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI-Analyse fehlgeschlagen: {e}") from e
+
+
+# --- KI-Empfehlungen (E06-S02) ---
+
+
+@router.post("/{session_id}/recommendations", response_model=RecommendationsListResponse)
+async def generate_recommendations(
+    session_id: int,
+    body: Optional[AnalyzeRequest] = None,
+    db: AsyncSession = Depends(get_db),
+) -> RecommendationsListResponse:
+    """Generiert KI-gestuetzte Trainingsempfehlungen basierend auf Session-Analyse."""
+    from app.services.recommendation_service import (
+        generate_recommendations as run_recommendations,
+    )
+
+    force = body.force_refresh if body else False
+    try:
+        return await run_recommendations(session_id, db, force_refresh=force)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail=f"Empfehlungsgenerierung fehlgeschlagen: {e}"
+        ) from e
+
+
+@router.get("/{session_id}/recommendations", response_model=RecommendationsListResponse)
+async def get_session_recommendations(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> RecommendationsListResponse:
+    """Laedt gespeicherte Empfehlungen fuer eine Session."""
+    from app.services.recommendation_service import get_recommendations
+
+    return await get_recommendations(session_id, db)
+
+
+@router.patch("/recommendations/{recommendation_id}/status", response_model=RecommendationResponse)
+async def update_recommendation_status(
+    recommendation_id: int,
+    body: RecommendationStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> RecommendationResponse:
+    """Aktualisiert den Status einer Empfehlung (applied/dismissed)."""
+    from app.services.recommendation_service import (
+        update_recommendation_status as update_status,
+    )
+
+    try:
+        return await update_status(recommendation_id, body.status, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/{session_id}/recalculate-zones")
