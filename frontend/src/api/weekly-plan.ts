@@ -148,6 +148,19 @@ export interface SyncToPlanResponse {
   synced_days: number;
 }
 
+// --- Apply Recommendations Types ---
+
+export interface ApplyRecommendationsRequest {
+  week_start: string;
+  recommendations: string[];
+}
+
+export interface ApplyRecommendationsResponse {
+  target_week_start: string;
+  entries: WeeklyPlanEntry[];
+  applied_count: number;
+}
+
 // --- Planned Session Option (for upload linking) ---
 
 export interface PlannedSessionOption {
@@ -206,6 +219,16 @@ export async function getCompliance(weekStart?: string): Promise<ComplianceRespo
     : '/api/v1/weekly-plan/compliance';
 
   const response = await apiClient.get<ComplianceResponse>(url);
+  return response.data;
+}
+
+export async function applyRecommendations(
+  data: ApplyRecommendationsRequest,
+): Promise<ApplyRecommendationsResponse> {
+  const response = await apiClient.post<ApplyRecommendationsResponse>(
+    '/api/v1/weekly-plan/apply-recommendations',
+    data,
+  );
   return response.data;
 }
 

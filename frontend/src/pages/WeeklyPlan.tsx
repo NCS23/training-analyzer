@@ -324,7 +324,10 @@ export function WeeklyPlanPage() {
       </Card>
 
       {/* KI-Review */}
-      <WeeklyReviewSection weekStart={plan.weekStart} />
+      <WeeklyReviewSection
+        weekStart={plan.weekStart}
+        onRecommendationsApplied={() => plan.loadWeek(plan.weekStart)}
+      />
 
       {/* Delete Dialog */}
       <AlertDialog open={plan.showDeleteDialog} onOpenChange={plan.setShowDeleteDialog}>

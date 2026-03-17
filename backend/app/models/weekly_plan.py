@@ -262,6 +262,23 @@ class ComplianceResponse(BaseModel):
     strength_summary: Optional[WeeklyStrengthSummary] = None  # #149
 
 
+class ApplyRecommendationsRequest(BaseModel):
+    """Request: apply KI-Review recommendations to next week's plan."""
+
+    week_start: date = Field(..., description="Montag der Review-Woche")
+    recommendations: list[str] = Field(
+        ..., min_length=1, max_length=20, description="Empfehlungen aus dem Wochen-Review"
+    )
+
+
+class ApplyRecommendationsResponse(BaseModel):
+    """Response: result of applying recommendations to the plan."""
+
+    target_week_start: str
+    entries: list[WeeklyPlanEntry]
+    applied_count: int
+
+
 class SyncToPlanRequest(BaseModel):
     """Request: sync weekly plan entries back to training plan phase template."""
 
