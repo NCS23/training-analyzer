@@ -6,3 +6,4 @@ export { SessionExercisesSection } from './SessionExercisesSection';
 export { SessionEditFields } from './SessionEditFields';
 export { SessionComparisonSection } from './SessionComparisonSection';
 export { SessionAIAnalysis } from './SessionAIAnalysis';
+export { SessionRecommendations } from './SessionRecommendations';

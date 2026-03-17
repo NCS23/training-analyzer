@@ -105,6 +105,29 @@ export const trainingTypeHints: Record<string, string> = {
   race: 'Wettkampf oder Testwettkampf.',
 };
 
+// --- Empfehlungs-Konstanten (E06-S03, #34) ---
+
+export const recommendationTypeLabels: Record<string, string> = {
+  adjust_pace: 'Tempo anpassen',
+  adjust_volume: 'Umfang anpassen',
+  add_rest: 'Ruhetag einfügen',
+  skip_session: 'Einheit überspringen',
+  increase_volume: 'Umfang steigern',
+  reduce_intensity: 'Intensität reduzieren',
+  change_session_type: 'Einheitstyp ändern',
+  extend_warmup_cooldown: 'Warm-up/Cool-down verlängern',
+  general: 'Allgemein',
+};
+
+export const recommendationPriorityConfig: Record<
+  string,
+  { label: string; variant: BadgeVariant; sortOrder: number }
+> = {
+  high: { label: 'Hoch', variant: 'accent-bold', sortOrder: 0 },
+  medium: { label: 'Mittel', variant: 'primary', sortOrder: 1 },
+  low: { label: 'Niedrig', variant: 'neutral', sortOrder: 2 },
+};
+
 /** Short explanations for segment/lap types — shown in tooltips. */
 export const lapTypeHints: Record<string, string> = {
   warmup: 'Aufwärmphase zu Beginn des Laufs.',
