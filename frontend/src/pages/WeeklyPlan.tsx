@@ -39,6 +39,7 @@ import { RUN_TYPE_LABELS } from '@/constants/plan';
 import { DayCard } from '@/components/day-card';
 import { SyncToPlanBar } from '@/components/SyncToPlanBar';
 import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
+import { WeeklyReviewSection } from '@/components/WeeklyReviewSection';
 import { useWeeklyPlan } from '@/hooks/useWeeklyPlan';
 import { useWeeklyPlanDragDrop } from '@/hooks/useWeeklyPlanDragDrop';
 import { formatDateRange, categoryLabel } from '@/utils/weeklyPlanUtils';
@@ -321,6 +322,9 @@ export function WeeklyPlanPage() {
           </div>
         </CardBody>
       </Card>
+
+      {/* KI-Review */}
+      <WeeklyReviewSection weekStart={plan.weekStart} />
 
       {/* Delete Dialog */}
       <AlertDialog open={plan.showDeleteDialog} onOpenChange={plan.setShowDeleteDialog}>

@@ -106,9 +106,6 @@ const AthleteProfilePage = lazy(() =>
   import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
 );
 const KiLogPage = lazy(() => import('./pages/KiLog').then((m) => ({ default: m.KiLogPage })));
-const WeeklyReviewPage = lazy(() =>
-  import('./pages/WeeklyReview').then((m) => ({ default: m.WeeklyReviewPage })),
-);
 const NotFoundPage = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -160,7 +157,7 @@ function App() {
 
                   {/* Profil (formerly Einstellungen > Athletenprofil) */}
                   <Route path="/profile" element={<AthleteProfilePage />} />
-                  <Route path="/weekly-review" element={<WeeklyReviewPage />} />
+                  <Route path="/weekly-review" element={<Navigate to="/plan" replace />} />
                   <Route path="/ki-log" element={<KiLogPage />} />
 
                   {/* Redirects for old /settings paths */}
