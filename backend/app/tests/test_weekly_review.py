@@ -14,12 +14,14 @@ from app.models.weekly_review import (
 from app.services.weekly_review_service import (
     WeeklyContext,
     _build_review_prompt,
+    _build_system_prompt,
     _calculate_volume,
     _ensure_str_list,
     _fallback_review,
     _normalize_review,
     _parse_review_json,
     _validate_week_start,
+    _weeks_until_race,
 )
 
 # ---------------------------------------------------------------------------
@@ -33,6 +35,8 @@ TUESDAY = date(2026, 3, 17)  # Dienstag
 def _make_context(
     sessions: list[dict] | None = None,
     volume: dict | None = None,
+    race_goal: dict | None = None,
+    current_phase: dict | None = None,
 ) -> WeeklyContext:
     return WeeklyContext(
         week_start=MONDAY,
@@ -45,8 +49,8 @@ def _make_context(
             "run_count": 3,
             "strength_count": 1,
         },
-        race_goal=None,
-        current_phase=None,
+        race_goal=race_goal,
+        current_phase=current_phase,
         session_analyses=[],
     )
 
@@ -286,3 +290,53 @@ class TestModels:
     def test_fatigue_level_enum(self) -> None:
         assert FatigueLevel.LOW.value == "low"
         assert FatigueLevel.CRITICAL.value == "critical"
+
+
+# ---------------------------------------------------------------------------
+# Wettkampf-Kontext
+# ---------------------------------------------------------------------------
+
+
+class TestWeeksUntilRace:
+    def test_weeks_calculation(self) -> None:
+        assert _weeks_until_race(date(2026, 3, 16), "2026-03-30") == 2
+
+    def test_same_day(self) -> None:
+        assert _weeks_until_race(date(2026, 3, 16), "2026-03-16") == 0
+
+    def test_past_race(self) -> None:
+        assert _weeks_until_race(date(2026, 3, 16), "2026-03-10") == 0
+
+    def test_invalid_date(self) -> None:
+        assert _weeks_until_race(date(2026, 3, 16), "invalid") is None
+
+    def test_none_date(self) -> None:
+        assert _weeks_until_race(date(2026, 3, 16), None) is None  # type: ignore[arg-type]
+
+
+class TestSystemPromptRaceContext:
+    def test_tapering_warning(self) -> None:
+        ctx = _make_context(
+            race_goal={
+                "title": "HM",
+                "date": "2026-03-30",
+                "distance_km": 21.1,
+                "target_pace": "5:41",
+            }
+        )
+        prompt = _build_system_prompt(ctx)
+        assert "Tapering" in prompt
+        assert "Wochen bis Wettkampf: 2" in prompt
+
+    def test_no_tapering_far_out(self) -> None:
+        ctx = _make_context(
+            race_goal={
+                "title": "HM",
+                "date": "2026-06-01",
+                "distance_km": 21.1,
+                "target_pace": "5:41",
+            }
+        )
+        prompt = _build_system_prompt(ctx)
+        assert "Tapering" not in prompt
+        assert "Wochen bis Wettkampf:" in prompt

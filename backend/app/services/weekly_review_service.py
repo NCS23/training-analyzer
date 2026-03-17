@@ -119,6 +119,18 @@ async def get_weekly_review(
 # ---------------------------------------------------------------------------
 
 
+def _weeks_until_race(week_start: date, race_date_str: str) -> int | None:
+    """Berechnet die Wochen zwischen Wochenstart und Wettkampfdatum."""
+    try:
+        race_date = date.fromisoformat(race_date_str)
+    except (ValueError, TypeError):
+        return None
+    delta_days = (race_date - week_start).days
+    if delta_days < 0:
+        return 0
+    return delta_days // 7
+
+
 def _validate_week_start(week_start: date) -> None:
     """Stellt sicher, dass week_start ein Montag ist."""
     if week_start.weekday() != 0:
@@ -377,6 +389,19 @@ def _build_system_prompt(ctx: WeeklyContext) -> str:
             parts.append(f"Zielpace: {g['target_pace']} min/km")
         if g.get("date"):
             parts.append(f"Wettkampf am: {g['date']}")
+            weeks_until = _weeks_until_race(ctx.week_start, g["date"])
+            if weeks_until is not None:
+                parts.append(f"Wochen bis Wettkampf: {weeks_until}")
+                if weeks_until <= 3:
+                    parts.append(
+                        "WICHTIG: Tapering-Phase! Umfang reduzieren, keine neuen Reize, "
+                        "Erholung priorisieren. Keine langen Läufe (>10 km) mehr empfehlen."
+                    )
+                elif weeks_until <= 6:
+                    parts.append(
+                        "Wettkampf-spezifische Phase: Intensität beibehalten, "
+                        "aber Umfang langsam reduzieren. Long Runs verkürzen."
+                    )
 
     if ctx.current_phase:
         p = ctx.current_phase
@@ -477,7 +502,10 @@ Regeln:
 - fatigue_assessment: "low", "moderate", "high", oder "critical"
 - volume_comparison.actual_km/actual_sessions/actual_hours: Echte Werte aus den Daten
 - Auf Deutsch antworten
-- Keine generischen Ratschlaege"""
+- Keine generischen Ratschlaege
+- Empfehlungen MUESSEN zur aktuellen Trainingsphase und Wettkampfnaehe passen
+- Bei Tapering (<=3 Wochen vor Wettkampf): KEINE langen Laeufe, Umfang reduzieren, Erholung betonen
+- Bei wettkampfspezifischer Phase (<=6 Wochen): Intensitaet halten, Umfang moderat reduzieren"""
 
 
 # ---------------------------------------------------------------------------
