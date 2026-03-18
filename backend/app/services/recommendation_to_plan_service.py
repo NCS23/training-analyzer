@@ -1,8 +1,8 @@
-"""Service: Konvertiert KI-Review-Empfehlungen in strukturierte Plan-Sessions.
+"""Service: Passt den bestehenden Wochenplan anhand von KI-Review-Empfehlungen an.
 
-Nimmt Freitext-Empfehlungen aus dem Wochen-Review und konvertiert sie via
-KI-Call in strukturierte WeeklyPlanEntry-Objekte, die in den Wochenplan
-der Folgewoche eingefügt werden können.
+Nimmt Freitext-Empfehlungen aus dem Wochen-Review und lässt die KI den
+bestehenden Plan der Folgewoche entsprechend anpassen — Sessions werden
+modifiziert, hinzugefügt oder entfernt.
 """
 
 import contextlib
@@ -37,14 +37,14 @@ async def apply_recommendations(
     recommendations: list[str],
     db: AsyncSession,
 ) -> dict:
-    """Konvertiert Empfehlungen in Plan-Sessions für die Folgewoche.
+    """Passt den Plan der Folgewoche anhand von Empfehlungen an.
 
     Returns dict with: target_week_start, entries (list[WeeklyPlanEntry]), applied_count.
     """
     target_week = review_week_start + timedelta(days=7)
 
-    # Bestehenden Plan laden
-    existing = await _load_existing_entries(target_week, db)
+    # Bestehenden Plan mit vollen Details laden
+    existing_plan = await _load_full_plan(target_week, db)
 
     # Kontext laden
     templates = await _load_strength_templates(db)
@@ -52,7 +52,7 @@ async def apply_recommendations(
 
     # Prompt bauen und KI aufrufen
     system_prompt = _build_system_prompt(race_goal, target_week)
-    user_prompt = _build_user_prompt(recommendations, existing, templates)
+    user_prompt = _build_user_prompt(recommendations, existing_plan, templates)
     api_key = await resolve_claude_api_key(db)
 
     t0 = time.monotonic()
@@ -60,12 +60,13 @@ async def apply_recommendations(
     duration_ms = int((time.monotonic() - t0) * 1000)
     provider = ai_service.get_active_provider() or "unknown"
 
-    # Parsen und mergen
-    new_sessions = _parse_sessions(raw)
-    merged = _merge_into_plan(existing, new_sessions)
+    # KI-Antwort parsen → vollständiger 7-Tage-Plan
+    ai_days = _parse_plan(raw)
+    entries = _build_entries(ai_days)
 
-    # Neue Sessions in DB persistieren
-    await _persist_new_sessions(target_week, existing, new_sessions, db)
+    # Bestehende Einträge löschen und neue persistieren
+    if ai_days:
+        await _replace_plan(target_week, existing_plan, ai_days, db)
 
     # Log
     await log_ai_call(
@@ -76,7 +77,7 @@ async def apply_recommendations(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             raw_response=raw,
-            parsed_ok=len(new_sessions) > 0,
+            parsed_ok=len(ai_days) > 0,
             duration_ms=duration_ms,
         ),
     )
@@ -84,34 +85,61 @@ async def apply_recommendations(
 
     return {
         "target_week_start": str(target_week),
-        "entries": [e.model_dump() for e in merged],
-        "applied_count": len(new_sessions),
+        "entries": [e.model_dump() for e in entries],
+        "applied_count": len([d for d in ai_days if not d.get("is_rest_day", False)]),
     }
 
 
 # ---------------------------------------------------------------------------
-# Kontext laden
+# Plan laden (mit vollen Session-Details)
 # ---------------------------------------------------------------------------
 
 
-async def _load_existing_entries(week_start: date, db: AsyncSession) -> list[dict]:
-    """Lädt bestehende Plan-Tage als kompakte Dicts."""
-    result = await db.execute(
+async def _load_full_plan(week_start: date, db: AsyncSession) -> list[dict]:
+    """Lädt den bestehenden Plan mit vollen Session-Details für den KI-Prompt."""
+    day_result = await db.execute(
         select(WeeklyPlanDayModel)
         .where(WeeklyPlanDayModel.week_start == week_start)
         .order_by(WeeklyPlanDayModel.day_of_week)
     )
-    days = result.scalars().all()
-    entries = []
+    days = day_result.scalars().all()
+    if not days:
+        return []
+
+    day_ids = [d.id for d in days]
+    session_result = await db.execute(
+        select(PlannedSessionModel)
+        .where(PlannedSessionModel.day_id.in_(day_ids))
+        .order_by(PlannedSessionModel.day_id, PlannedSessionModel.position)
+    )
+    sessions_by_day: dict[int, list[PlannedSessionModel]] = {}
+    for s in session_result.scalars().all():
+        sessions_by_day.setdefault(s.day_id, []).append(s)
+
+    plan: list[dict] = []
     for d in days:
-        entries.append(
-            {
-                "day_of_week": int(d.day_of_week),
-                "is_rest_day": bool(d.is_rest_day),
-                "has_sessions": True,  # Vereinfachung — Tag existiert = hat Inhalt
+        day_sessions = sessions_by_day.get(d.id, [])
+        entry: dict = {
+            "day_of_week": int(d.day_of_week),
+            "is_rest_day": bool(d.is_rest_day),
+            "notes": d.notes,
+            "plan_id": d.plan_id,
+            "sessions": [],
+        }
+        for s in day_sessions:
+            sess: dict = {
+                "training_type": s.training_type,
+                "notes": s.notes,
             }
-        )
-    return entries
+            if s.run_details_json:
+                with contextlib.suppress(json.JSONDecodeError):
+                    sess["run_details"] = json.loads(s.run_details_json)
+            if s.template_id:
+                sess["template_id"] = s.template_id
+            entry["sessions"].append(sess)
+        plan.append(entry)
+
+    return plan
 
 
 async def _load_strength_templates(db: AsyncSession) -> list[dict]:
@@ -141,11 +169,11 @@ async def _load_race_goal(db: AsyncSession) -> dict | None:
 
 
 def _build_system_prompt(race_goal: dict | None, target_week: date) -> str:
-    """System-Prompt für Empfehlungs-Konvertierung."""
+    """System-Prompt für Plan-Anpassung."""
     parts = [
-        "Du bist ein Trainingsplaner.",
-        "Deine Aufgabe: Konvertiere natürlichsprachige Trainingsempfehlungen in "
-        "strukturierte Plan-Sessions (JSON).",
+        "Du bist ein erfahrener Trainingsplaner.",
+        "Deine Aufgabe: Passe einen bestehenden Wochenplan anhand von Empfehlungen an.",
+        "Du gibst den KOMPLETTEN angepassten 7-Tage-Plan als JSON zurück.",
         "",
         "Gültige Lauf-Typen (run_type):",
         ", ".join(VALID_RUN_TYPES),
@@ -166,31 +194,26 @@ def _build_system_prompt(race_goal: dict | None, target_week: date) -> str:
 
 def _build_user_prompt(
     recommendations: list[str],
-    existing: list[dict],
+    existing_plan: list[dict],
     templates: list[dict],
 ) -> str:
-    """User-Prompt mit Empfehlungen und Kontext."""
+    """User-Prompt mit bestehendem Plan und Empfehlungen."""
     parts: list[str] = []
 
-    parts.append("## Empfehlungen zum Konvertieren")
+    # Bestehender Plan
+    parts.append("## Aktueller Plan der Zielwoche")
+    if existing_plan:
+        for e in existing_plan:
+            day_name = DAY_NAMES[e["day_of_week"]]
+            parts.append(_format_plan_day(day_name, e))
+    else:
+        parts.append("Kein bestehender Plan vorhanden.")
+
+    # Empfehlungen
+    parts.append("")
+    parts.append("## Empfehlungen zur Anpassung")
     for i, rec in enumerate(recommendations, 1):
         parts.append(f"{i}. {rec}")
-
-    # Belegte Tage
-    if existing:
-        parts.append("")
-        parts.append("## Bereits belegte Tage (NICHT belegen)")
-        for e in existing:
-            day_name = DAY_NAMES[e["day_of_week"]]
-            status = "Ruhetag" if e["is_rest_day"] else "hat Sessions"
-            parts.append(f"- {day_name} ({status})")
-
-    # Freie Tage
-    occupied = {e["day_of_week"] for e in existing}
-    free_days = [DAY_NAMES[d] for d in range(7) if d not in occupied]
-    if free_days:
-        parts.append("")
-        parts.append(f"## Freie Tage: {', '.join(free_days)}")
 
     # Kraft-Templates
     if templates:
@@ -205,14 +228,51 @@ def _build_user_prompt(
     return "\n".join(parts)
 
 
+def _format_plan_day(day_name: str, entry: dict) -> str:
+    """Formatiert einen Plan-Tag für den Prompt."""
+    if entry["is_rest_day"]:
+        return f"- {day_name}: Ruhetag"
+
+    sessions = entry.get("sessions", [])
+    if not sessions:
+        return f"- {day_name}: (leer)"
+
+    session_parts: list[str] = []
+    for s in sessions:
+        tt = s.get("training_type", "?")
+        rd = s.get("run_details", {})
+        rt = rd.get("run_type", "") if rd else ""
+        dur = rd.get("target_duration_minutes", "") if rd else ""
+        notes = s.get("notes", "") or ""
+        desc = f"{tt}"
+        if rt:
+            desc += f" ({rt})"
+        if dur:
+            desc += f" {dur}min"
+        if notes:
+            desc += f" — {notes[:80]}"
+        session_parts.append(desc)
+
+    day_notes = entry.get("notes", "") or ""
+    line = f"- {day_name}: {'; '.join(session_parts)}"
+    if day_notes:
+        line += f" | Notiz: {day_notes[:80]}"
+    return line
+
+
 def _build_instructions() -> str:
-    """JSON-Anweisungen."""
+    """JSON-Anweisungen für die Plan-Anpassung."""
     return """## Anweisungen
-Konvertiere die Empfehlungen in Plan-Sessions. Antworte NUR mit einem JSON-Array (ohne Markdown-Codeblock):
+Passe den bestehenden Plan gemäß den Empfehlungen an. Antworte NUR mit einem JSON-Array \
+(ohne Markdown-Codeblock) für alle 7 Tage (0=Montag bis 6=Sonntag):
 
 [
   {
     "day_of_week": 0,
+    "is_rest_day": true
+  },
+  {
+    "day_of_week": 1,
     "training_type": "running",
     "run_details": {
       "run_type": "easy",
@@ -225,14 +285,16 @@ Konvertiere die Empfehlungen in Plan-Sessions. Antworte NUR mit einem JSON-Array
 ]
 
 Regeln:
-- day_of_week: 0=Montag bis 6=Sonntag — NUR freie Tage verwenden
-- training_type: "running" oder "strength"
+- Gib ALLE 7 Tage zurück (day_of_week 0-6), auch Ruhetage
+- Ruhetage: nur day_of_week + is_rest_day: true
+- Trainingstage: training_type + run_details/template_id + notes
+- Passe bestehende Sessions an (Umfang, Pace, Dauer, Typ), entferne oder füge hinzu
+- Behalte die Grundstruktur bei, wenn die Empfehlungen keine Änderung erfordern
 - Bei Lauf: run_details mit run_type (aus der gültigen Liste), Dauer, Pace
 - Bei Kraft: template_id setzen falls passend, sonst weglassen
-- notes: Kurze Erklärung der Empfehlung
+- notes: Kurze Erklärung was geändert wurde und warum
 - Pace im Format "M:SS" (z.B. "5:30")
 - target_pace_min = schnellere Pace, target_pace_max = langsamere Pace
-- Ignoriere Empfehlungen die keine konkreten Sessions sind (z.B. "mehr schlafen")
 - Maximal eine Session pro Tag"""
 
 
@@ -241,8 +303,8 @@ Regeln:
 # ---------------------------------------------------------------------------
 
 
-def _parse_sessions(raw: str) -> list[dict]:
-    """Parst KI-Antwort als JSON-Array von Sessions."""
+def _parse_plan(raw: str) -> list[dict]:
+    """Parst KI-Antwort als JSON-Array des kompletten 7-Tage-Plans."""
     text = raw.strip()
 
     # Markdown-Codeblock entfernen
@@ -263,14 +325,48 @@ def _parse_sessions(raw: str) -> list[dict]:
     for item in data:
         if not isinstance(item, dict):
             continue
-        session = _normalize_session(item)
-        if session:
-            valid.append(session)
+        day = _normalize_day(item)
+        if day:
+            valid.append(day)
 
     return valid
 
 
-def _parse_run_details_from_ai(rd_raw: object) -> dict:
+def _normalize_day(item: dict) -> dict | None:
+    """Normalisiert und validiert einen einzelnen Tag aus der KI-Antwort."""
+    day = item.get("day_of_week")
+    if not isinstance(day, int) or day < 0 or day > 6:
+        return None
+
+    # Ruhetag
+    if item.get("is_rest_day"):
+        return {"day_of_week": day, "is_rest_day": True}
+
+    training_type = str(item.get("training_type", "")).lower()
+    if training_type not in ("running", "strength"):
+        # Wenn kein gültiger training_type → als Ruhetag behandeln
+        return {"day_of_week": day, "is_rest_day": True}
+
+    result: dict = {
+        "day_of_week": day,
+        "is_rest_day": False,
+        "training_type": training_type,
+    }
+
+    if item.get("notes"):
+        result["notes"] = str(item["notes"])[:500]
+
+    if training_type == "running":
+        result["run_details"] = _parse_run_details(item.get("run_details", {}))
+
+    if training_type == "strength" and item.get("template_id"):
+        with contextlib.suppress(ValueError, TypeError):
+            result["template_id"] = int(item["template_id"])
+
+    return result
+
+
+def _parse_run_details(rd_raw: object) -> dict:
     """Parst run_details aus der KI-Antwort."""
     if not isinstance(rd_raw, dict):
         return {"run_type": "easy"}
@@ -292,137 +388,104 @@ def _parse_run_details_from_ai(rd_raw: object) -> dict:
     return details
 
 
-def _normalize_session(item: dict) -> dict | None:
-    """Normalisiert und validiert eine einzelne Session."""
-    day = item.get("day_of_week")
-    if not isinstance(day, int) or day < 0 or day > 6:
-        return None
-
-    training_type = str(item.get("training_type", "")).lower()
-    if training_type not in ("running", "strength"):
-        return None
-
-    result: dict = {
-        "day_of_week": day,
-        "training_type": training_type,
-    }
-
-    if item.get("notes"):
-        result["notes"] = str(item["notes"])[:500]
-
-    if training_type == "running":
-        result["run_details"] = _parse_run_details_from_ai(item.get("run_details", {}))
-
-    if training_type == "strength" and item.get("template_id"):
-        with contextlib.suppress(ValueError, TypeError):
-            result["template_id"] = int(item["template_id"])
-
-    return result
-
-
 # ---------------------------------------------------------------------------
-# Merge
+# Entries bauen + DB-Persistierung
 # ---------------------------------------------------------------------------
 
 
-def _merge_into_plan(
-    existing: list[dict],
-    new_sessions: list[dict],
-) -> list[WeeklyPlanEntry]:
-    """Merged neue Sessions in den bestehenden 7-Tage-Plan."""
-    occupied = {e["day_of_week"] for e in existing}
+def _build_entries(ai_days: list[dict]) -> list[WeeklyPlanEntry]:
+    """Baut WeeklyPlanEntry-Objekte aus den KI-Tagen."""
+    day_map = {d["day_of_week"]: d for d in ai_days}
 
-    # Bestehende Tage als Entries (mit is_rest_day)
-    existing_map: dict[int, dict] = {e["day_of_week"]: e for e in existing}
-
-    # Neue Sessions einfügen (nur auf freie Tage)
-    new_by_day: dict[int, dict] = {}
-    for s in new_sessions:
-        day = s["day_of_week"]
-        if day in occupied:
-            # Freien Tag suchen
-            day = _find_free_day(occupied | set(new_by_day.keys()), day)
-            if day is None:
-                continue
-        new_by_day[day] = s
-
-    # 7-Tage-Plan bauen
     entries: list[WeeklyPlanEntry] = []
     for dow in range(7):
-        if dow in existing_map:
-            # Bestehender Tag — unverändert lassen (leerer Platzhalter)
-            e = existing_map[dow]
-            entries.append(
-                WeeklyPlanEntry(
-                    day_of_week=dow,
-                    is_rest_day=e.get("is_rest_day", False),
-                )
-            )
-        elif dow in new_by_day:
-            s = new_by_day[dow]
-            sessions = [_dict_to_planned_session(s, position=0)]
-            entries.append(
-                WeeklyPlanEntry(
-                    day_of_week=dow,
-                    sessions=sessions,
-                )
-            )
+        if dow in day_map:
+            d = day_map[dow]
+            if d.get("is_rest_day"):
+                entries.append(WeeklyPlanEntry(day_of_week=dow, is_rest_day=True))
+            else:
+                session = _dict_to_planned_session(d, position=0)
+                entries.append(WeeklyPlanEntry(day_of_week=dow, sessions=[session]))
         else:
             entries.append(WeeklyPlanEntry(day_of_week=dow))
 
     return entries
 
 
-async def _persist_new_sessions(
+async def _replace_plan(
     target_week: date,
-    existing: list[dict],
-    new_sessions: list[dict],
+    existing_plan: list[dict],
+    ai_days: list[dict],
     db: AsyncSession,
 ) -> None:
-    """Persistiert neue KI-Sessions als WeeklyPlanDay + PlannedSession in der DB."""
-    occupied = {e["day_of_week"] for e in existing}
+    """Löscht bestehende Einträge und erstellt den angepassten Plan."""
+    # Bestehende Tage + Sessions löschen
+    day_result = await db.execute(
+        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == target_week)
+    )
+    old_days = day_result.scalars().all()
 
-    # Welche Tage wurden tatsächlich belegt? (gleiche Logik wie _merge_into_plan)
-    placed: dict[int, dict] = {}
-    for s in new_sessions:
-        day = s["day_of_week"]
-        if day in occupied or day in placed:
-            day = _find_free_day(occupied | set(placed.keys()), day)
-            if day is None:
-                continue
-        placed[day] = s
-
-    for day, session_data in placed.items():
-        db_day = WeeklyPlanDayModel(
-            week_start=target_week,
-            day_of_week=day,
-            is_rest_day=False,
+    if old_days:
+        old_day_ids = [d.id for d in old_days]
+        session_result = await db.execute(
+            select(PlannedSessionModel).where(PlannedSessionModel.day_id.in_(old_day_ids))
         )
-        db.add(db_day)
-        await db.flush()
+        for s in session_result.scalars().all():
+            await db.delete(s)
 
-        run_details_str: str | None = None
-        if session_data.get("run_details"):
-            run_details_str = json.dumps(session_data["run_details"])
+    # plan_id aus bestehendem Plan übernehmen (falls vorhanden)
+    plan_id = None
+    for e in existing_plan:
+        if e.get("plan_id"):
+            plan_id = e["plan_id"]
+            break
 
-        db_session = PlannedSessionModel(
-            day_id=db_day.id,
-            position=0,
-            training_type=session_data["training_type"],
-            template_id=session_data.get("template_id"),
-            run_details_json=run_details_str,
-            notes=session_data.get("notes"),
-        )
-        db.add(db_session)
+    # Alte Days löschen (nach Sessions!)
+    for d in old_days:
+        await db.delete(d)
+    await db.flush()
+
+    # Neue Tage + Sessions erstellen
+    for ai_day in ai_days:
+        await _create_plan_day(target_week, ai_day, plan_id, db)
 
 
-def _find_free_day(occupied: set[int], preferred: int) -> int | None:
-    """Sucht den nächsten freien Tag ab preferred."""
-    for offset in range(1, 7):
-        candidate = (preferred + offset) % 7
-        if candidate not in occupied:
-            return candidate
-    return None
+async def _create_plan_day(
+    target_week: date,
+    ai_day: dict,
+    plan_id: int | None,
+    db: AsyncSession,
+) -> None:
+    """Erstellt einen einzelnen Plan-Tag mit Session in der DB."""
+    is_rest = ai_day.get("is_rest_day", False)
+
+    db_day = WeeklyPlanDayModel(
+        week_start=target_week,
+        day_of_week=ai_day["day_of_week"],
+        is_rest_day=is_rest,
+        notes=ai_day.get("notes"),
+        plan_id=plan_id,
+        edited=True,  # KI-Anpassung = editiert
+    )
+    db.add(db_day)
+    await db.flush()
+
+    if is_rest or "training_type" not in ai_day:
+        return
+
+    run_details_str: str | None = None
+    if ai_day.get("run_details"):
+        run_details_str = json.dumps(ai_day["run_details"])
+
+    db_session = PlannedSessionModel(
+        day_id=db_day.id,
+        position=0,
+        training_type=ai_day["training_type"],
+        template_id=ai_day.get("template_id"),
+        run_details_json=run_details_str,
+        notes=ai_day.get("notes"),
+    )
+    db.add(db_session)
 
 
 def _dict_to_planned_session(s: dict, position: int) -> PlannedSession:
