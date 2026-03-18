@@ -110,10 +110,9 @@ export async function duplicateSessionTemplate(templateId: number): Promise<Sess
 }
 
 export async function downloadTemplateFit(templateId: number, templateName: string): Promise<void> {
-  const response = await apiClient.get<Blob>(
-    `/api/v1/session-templates/${templateId}/export/fit`,
-    { responseType: 'blob' },
-  );
+  const response = await apiClient.get<Blob>(`/api/v1/session-templates/${templateId}/export/fit`, {
+    responseType: 'blob',
+  });
   const url = window.URL.createObjectURL(response.data);
   const a = document.createElement('a');
   a.href = url;
