@@ -312,8 +312,8 @@ export function SessionDetailPage() {
       {/* Metrics */}
       <SessionMetricsGrid session={session} sessionGap={sessionGap} effectiveRpe={effectiveRpe} />
 
-      {/* Insights */}
-      {insights.length > 0 && (
+      {/* Insights — nur als Fallback wenn keine KI-Analyse vorhanden */}
+      {insights.length > 0 && !session.ai_analysis && (
         <section aria-label="Insights">
           <Card elevation="raised">
             <CardHeader>
