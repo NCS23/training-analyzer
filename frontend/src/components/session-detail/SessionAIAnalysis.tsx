@@ -32,7 +32,7 @@ function IntensityBadge({ rating, text }: { rating: string; text: string }) {
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-[var(--color-text-default)]">Intensität</span>
-        <Badge variant={config.variant as 'success' | 'info' | 'warning' | 'error'}>
+        <Badge variant={config.variant as 'success' | 'info' | 'warning' | 'error'} size="xs">
           {config.label}
         </Badge>
       </div>
