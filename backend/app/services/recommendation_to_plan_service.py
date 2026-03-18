@@ -79,7 +79,9 @@ async def apply_recommendations(
     # Sync zurück zum Trainingsplan + Changelog
     if ai_days and plan_id:
         await _sync_back_to_plan(target_week, plan_id, ai_days, db)
-        _log_recommendation_change(plan_id, target_week, recommendations, db)
+        _log_recommendation_change(
+            plan_id, target_week, recommendations, existing_plan, ai_days, db
+        )
 
     # AI-Log
     await log_ai_call(
@@ -688,15 +690,25 @@ def _log_recommendation_change(
     plan_id: int,
     target_week: date,
     recommendations: list[str],
+    old_plan: list[dict],
+    new_days: list[dict],
     db: AsyncSession,
 ) -> None:
-    """Erstellt einen Changelog-Eintrag im Trainingsplan."""
-    summary = f"Wochenplan {target_week} per KI-Empfehlungen angepasst"
+    """Erstellt einen detaillierten Changelog-Eintrag im Trainingsplan."""
+    changed_days = _diff_plans(old_plan, new_days)
+    change_count = len(changed_days)
+
+    summary = (
+        f"Wochenplan {target_week}: {change_count} "
+        f"{'Tag' if change_count == 1 else 'Tage'} per KI-Empfehlung angepasst"
+    )
+    reason = "; ".join(recommendations[:10])
+
     details = {
         "category": "content",
         "source": "ai_recommendation",
         "week_start": str(target_week),
-        "recommendations": recommendations[:10],
+        "changed_days": changed_days,
     }
 
     entry = PlanChangeLogModel(
@@ -705,6 +717,110 @@ def _log_recommendation_change(
         category="content",
         summary=summary,
         details_json=json.dumps(details),
+        reason=reason,
         created_at=datetime.utcnow(),
     )
     db.add(entry)
+
+
+def _diff_plans(old_plan: list[dict], new_days: list[dict]) -> list[dict]:
+    """Vergleicht alten und neuen Plan und gibt geänderte Tage zurück."""
+    old_map = {e["day_of_week"]: e for e in old_plan}
+    new_map = {d["day_of_week"]: d for d in new_days}
+
+    changed: list[dict] = []
+    for dow in range(7):
+        old = old_map.get(dow)
+        new = new_map.get(dow)
+        if not new:
+            continue
+
+        day_changes = _diff_day(old, new)
+        if day_changes:
+            changed.append(
+                {
+                    "day_of_week": dow,
+                    "day_name": DAY_NAMES[dow],
+                    "field_changes": day_changes,
+                }
+            )
+
+    return changed
+
+
+_FIELD_LABELS: dict[str, str] = {
+    "is_rest_day": "Ruhetag",
+    "training_type": "Trainingstyp",
+    "run_type": "Lauftyp",
+    "target_duration_minutes": "Dauer (Ziel)",
+    "target_pace_min": "Ziel-Pace (schnell)",
+    "target_pace_max": "Ziel-Pace (langsam)",
+    "notes": "Notizen",
+    "intervals": "Intervalle",
+}
+
+
+def _diff_day(old: dict | None, new: dict) -> list[dict]:
+    """Vergleicht einen einzelnen Tag (alt vs. neu) und gibt Feld-Änderungen zurück."""
+    changes: list[dict] = []
+
+    def _add(field: str, from_val: object, to_val: object) -> None:
+        if from_val != to_val:
+            changes.append(
+                {
+                    "field": field,
+                    "from": from_val,
+                    "to": to_val,
+                    "label": _FIELD_LABELS.get(field, field),
+                }
+            )
+
+    # Ruhetag-Status
+    old_rest = old.get("is_rest_day", True) if old else True
+    new_rest = new.get("is_rest_day", False)
+    _add("is_rest_day", old_rest, new_rest)
+
+    # Session-Details vergleichen
+    old_session = _extract_session(old) if old else {}
+    new_session = _extract_session(new) if not new_rest else {}
+
+    _add("training_type", old_session.get("training_type"), new_session.get("training_type"))
+
+    old_rd = old_session.get("run_details") or {}
+    new_rd = new_session.get("run_details") or {}
+
+    for field in ("run_type", "target_duration_minutes", "target_pace_min", "target_pace_max"):
+        _add(field, old_rd.get(field), new_rd.get(field))
+
+    # Intervalle: Kurzform vergleichen
+    old_iv = _summarize_intervals(old_rd.get("intervals", []))
+    new_iv = _summarize_intervals(new_rd.get("intervals", []))
+    _add("intervals", old_iv, new_iv)
+
+    return changes
+
+
+def _extract_session(day: dict) -> dict:
+    """Extrahiert die erste Session eines Tages als flaches Dict."""
+    sessions = day.get("sessions", [])
+    if not sessions:
+        return {}
+    return sessions[0] if isinstance(sessions[0], dict) else {}
+
+
+def _summarize_intervals(intervals: list) -> str | None:
+    """Erstellt eine Kurzform der Intervalle für den Diff."""
+    if not intervals:
+        return None
+    parts: list[str] = []
+    for iv in intervals:
+        seg = iv.get("type", "?")
+        dur = iv.get("duration_minutes", "")
+        rep = iv.get("repeats", 1)
+        desc = seg
+        if dur:
+            desc += f" {dur}min"
+        if rep and rep > 1:
+            desc += f" x{rep}"
+        parts.append(desc)
+    return " → ".join(parts)
