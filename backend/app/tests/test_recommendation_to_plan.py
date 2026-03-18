@@ -6,10 +6,13 @@ from datetime import date
 from app.services.recommendation_to_plan_service import (
     _build_entries,
     _build_instructions,
+    _build_phase_template,
     _build_system_prompt,
     _build_user_prompt,
+    _format_intervals,
     _format_plan_day,
     _normalize_day,
+    _parse_interval,
     _parse_plan,
     _parse_run_details,
 )
@@ -44,6 +47,33 @@ class TestParseRunDetails:
     def test_duration_out_of_range_ignored(self) -> None:
         rd = _parse_run_details({"run_type": "easy", "target_duration_minutes": 500})
         assert "target_duration_minutes" not in rd
+
+    def test_intervals_parsed(self) -> None:
+        rd = _parse_run_details(
+            {
+                "run_type": "intervals",
+                "target_duration_minutes": 30,
+                "intervals": [
+                    {"type": "warmup", "duration_minutes": 7, "repeats": 1},
+                    {
+                        "type": "work",
+                        "duration_minutes": 2,
+                        "repeats": 3,
+                        "target_pace_min": "5:55",
+                    },
+                    {"type": "cooldown", "duration_minutes": 5, "repeats": 1},
+                ],
+            }
+        )
+        assert rd["run_type"] == "intervals"
+        assert len(rd["intervals"]) == 3
+        assert rd["intervals"][0]["type"] == "warmup"
+        assert rd["intervals"][1]["repeats"] == 3
+        assert rd["intervals"][1]["target_pace_min"] == "5:55"
+
+    def test_invalid_intervals_ignored(self) -> None:
+        rd = _parse_run_details({"run_type": "easy", "intervals": "not a list"})
+        assert "intervals" not in rd
 
 
 # ---------------------------------------------------------------------------
@@ -217,9 +247,10 @@ class TestBuildEntries:
 
 class TestFormatPlanDay:
     def test_rest_day(self) -> None:
-        result = _format_plan_day("Montag", {"is_rest_day": True, "sessions": []})
-        assert "Ruhetag" in result
-        assert "Montag" in result
+        lines = _format_plan_day("Montag", {"is_rest_day": True, "sessions": []})
+        text = "\n".join(lines)
+        assert "Ruhetag" in text
+        assert "Montag" in text
 
     def test_running_day(self) -> None:
         entry = {
@@ -232,15 +263,47 @@ class TestFormatPlanDay:
                 }
             ],
         }
-        result = _format_plan_day("Dienstag", entry)
-        assert "Dienstag" in result
-        assert "running" in result
-        assert "easy" in result
-        assert "45min" in result
+        lines = _format_plan_day("Dienstag", entry)
+        text = "\n".join(lines)
+        assert "Dienstag" in text
+        assert "running" in text
+        assert "easy" in text
+        assert "45min" in text
 
     def test_empty_sessions(self) -> None:
-        result = _format_plan_day("Mittwoch", {"is_rest_day": False, "sessions": []})
-        assert "(leer)" in result
+        lines = _format_plan_day("Mittwoch", {"is_rest_day": False, "sessions": []})
+        text = "\n".join(lines)
+        assert "(leer)" in text
+
+    def test_intervals_shown(self) -> None:
+        entry = {
+            "is_rest_day": False,
+            "notes": None,
+            "sessions": [
+                {
+                    "training_type": "running",
+                    "run_details": {
+                        "run_type": "intervals",
+                        "intervals": [
+                            {"type": "warmup", "duration_minutes": 7, "repeats": 1},
+                            {
+                                "type": "work",
+                                "duration_minutes": 2,
+                                "repeats": 3,
+                                "target_pace_min": "5:55",
+                                "target_pace_max": "6:05",
+                            },
+                        ],
+                    },
+                }
+            ],
+        }
+        lines = _format_plan_day("Dienstag", entry)
+        text = "\n".join(lines)
+        assert "warmup" in text
+        assert "work" in text
+        assert "x3" in text
+        assert "5:55" in text
 
 
 # ---------------------------------------------------------------------------
@@ -304,3 +367,90 @@ class TestPromptBuilders:
         assert "ALLE 7 Tage" in instructions
         assert "day_of_week" in instructions
         assert "Passe bestehende Sessions an" in instructions
+
+    def test_instructions_mention_intervals(self) -> None:
+        instructions = _build_instructions()
+        assert "intervals" in instructions
+        assert "warmup" in instructions
+        assert "IMMER angeben" in instructions
+
+    def test_system_prompt_includes_segment_types(self) -> None:
+        prompt = _build_system_prompt(None, date(2026, 3, 23))
+        assert "warmup" in prompt
+        assert "recovery_jog" in prompt
+        assert "Segment-Typen" in prompt
+
+
+# ---------------------------------------------------------------------------
+# _parse_interval
+# ---------------------------------------------------------------------------
+
+
+class TestParseInterval:
+    def test_valid_interval(self) -> None:
+        iv = _parse_interval(
+            {"type": "work", "duration_minutes": 3, "repeats": 4, "target_pace_min": "5:30"}
+        )
+        assert iv["type"] == "work"
+        assert iv["duration_minutes"] == 3.0
+        assert iv["repeats"] == 4
+        assert iv["target_pace_min"] == "5:30"
+
+    def test_invalid_type_defaults_to_steady(self) -> None:
+        iv = _parse_interval({"type": "sprint", "duration_minutes": 5})
+        assert iv["type"] == "steady"
+
+    def test_default_repeats(self) -> None:
+        iv = _parse_interval({"type": "warmup"})
+        assert iv["repeats"] == 1
+
+
+# ---------------------------------------------------------------------------
+# _format_intervals
+# ---------------------------------------------------------------------------
+
+
+class TestFormatIntervals:
+    def test_format_basic_intervals(self) -> None:
+        intervals = [
+            {"type": "warmup", "duration_minutes": 7, "repeats": 1},
+            {
+                "type": "work",
+                "duration_minutes": 2,
+                "repeats": 3,
+                "target_pace_min": "5:55",
+                "target_pace_max": "6:05",
+            },
+        ]
+        lines = _format_intervals(intervals)
+        assert len(lines) == 2
+        assert "warmup" in lines[0]
+        assert "7min" in lines[0]
+        assert "work" in lines[1]
+        assert "x3" in lines[1]
+        assert "@5:55-6:05" in lines[1]
+
+
+# ---------------------------------------------------------------------------
+# _build_phase_template
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPhaseTemplate:
+    def test_builds_7_day_template(self) -> None:
+        ai_days: list[dict] = [
+            {"day_of_week": 0, "is_rest_day": True},
+            {
+                "day_of_week": 1,
+                "training_type": "running",
+                "run_details": {"run_type": "easy"},
+                "notes": "Locker",
+            },
+        ]
+        template = _build_phase_template(ai_days)
+        assert len(template["days"]) == 7
+        assert template["days"][0]["is_rest_day"] is True
+        assert len(template["days"][1]["sessions"]) == 1
+        assert template["days"][1]["sessions"][0]["training_type"] == "running"
+        # Nicht gelieferte Tage → Ruhetag
+        assert template["days"][2]["is_rest_day"] is True
