@@ -2,14 +2,15 @@
 
 Nimmt Freitext-Empfehlungen aus dem Wochen-Review und lässt die KI den
 bestehenden Plan der Folgewoche entsprechend anpassen — Sessions werden
-modifiziert, hinzugefügt oder entfernt.
+modifiziert, hinzugefügt oder entfernt. Änderungen werden bidirektional
+in den Trainingsplan zurück-synchronisiert.
 """
 
 import contextlib
 import json
 import logging
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,18 +18,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
+    PlanChangeLogModel,
     PlannedSessionModel,
     RaceGoalModel,
     SessionTemplateModel,
+    TrainingPhaseModel,
+    TrainingPlanModel,
     WeeklyPlanDayModel,
 )
-from app.models.taxonomy import SESSION_TYPES
+from app.models.taxonomy import SEGMENT_TYPES, SESSION_TYPES
 from app.models.weekly_plan import PlannedSession, RunDetails, WeeklyPlanEntry
 from app.services.ai_log_service import AICallData, log_ai_call
 
 logger = logging.getLogger(__name__)
 
 VALID_RUN_TYPES = sorted(SESSION_TYPES)
+VALID_SEGMENT_TYPES = sorted(SEGMENT_TYPES)
 DAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 
@@ -45,6 +50,9 @@ async def apply_recommendations(
 
     # Bestehenden Plan mit vollen Details laden
     existing_plan = await _load_full_plan(target_week, db)
+
+    # plan_id für Sync extrahieren
+    plan_id = _extract_plan_id(existing_plan)
 
     # Kontext laden
     templates = await _load_strength_templates(db)
@@ -68,7 +76,12 @@ async def apply_recommendations(
     if ai_days:
         await _replace_plan(target_week, existing_plan, ai_days, db)
 
-    # Log
+    # Sync zurück zum Trainingsplan + Changelog
+    if ai_days and plan_id:
+        await _sync_back_to_plan(target_week, plan_id, ai_days, db)
+        _log_recommendation_change(plan_id, target_week, recommendations, db)
+
+    # AI-Log
     await log_ai_call(
         db,
         AICallData(
@@ -88,6 +101,14 @@ async def apply_recommendations(
         "entries": [e.model_dump() for e in entries],
         "applied_count": len([d for d in ai_days if not d.get("is_rest_day", False)]),
     }
+
+
+def _extract_plan_id(existing_plan: list[dict]) -> int | None:
+    """Extrahiert die plan_id aus dem bestehenden Plan."""
+    for e in existing_plan:
+        if e.get("plan_id"):
+            return int(e["plan_id"])
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -127,10 +148,7 @@ async def _load_full_plan(week_start: date, db: AsyncSession) -> list[dict]:
             "sessions": [],
         }
         for s in day_sessions:
-            sess: dict = {
-                "training_type": s.training_type,
-                "notes": s.notes,
-            }
+            sess: dict = {"training_type": s.training_type, "notes": s.notes}
             if s.run_details_json:
                 with contextlib.suppress(json.JSONDecodeError):
                     sess["run_details"] = json.loads(s.run_details_json)
@@ -178,6 +196,9 @@ def _build_system_prompt(race_goal: dict | None, target_week: date) -> str:
         "Gültige Lauf-Typen (run_type):",
         ", ".join(VALID_RUN_TYPES),
         "",
+        "Gültige Intervall-Segment-Typen:",
+        ", ".join(VALID_SEGMENT_TYPES),
+        "",
         "Trainingstypen (training_type): 'running' oder 'strength'",
         "",
         f"Zielwoche: {target_week.strftime('%d.%m.%Y')} – "
@@ -200,12 +221,12 @@ def _build_user_prompt(
     """User-Prompt mit bestehendem Plan und Empfehlungen."""
     parts: list[str] = []
 
-    # Bestehender Plan
+    # Bestehender Plan mit vollen Details
     parts.append("## Aktueller Plan der Zielwoche")
     if existing_plan:
         for e in existing_plan:
             day_name = DAY_NAMES[e["day_of_week"]]
-            parts.append(_format_plan_day(day_name, e))
+            parts.extend(_format_plan_day(day_name, e))
     else:
         parts.append("Kein bestehender Plan vorhanden.")
 
@@ -228,36 +249,62 @@ def _build_user_prompt(
     return "\n".join(parts)
 
 
-def _format_plan_day(day_name: str, entry: dict) -> str:
-    """Formatiert einen Plan-Tag für den Prompt."""
+def _format_plan_day(day_name: str, entry: dict) -> list[str]:
+    """Formatiert einen Plan-Tag mit vollen Session-Details für den Prompt."""
     if entry["is_rest_day"]:
-        return f"- {day_name}: Ruhetag"
+        return [f"- {day_name}: Ruhetag"]
 
     sessions = entry.get("sessions", [])
     if not sessions:
-        return f"- {day_name}: (leer)"
+        return [f"- {day_name}: (leer)"]
 
-    session_parts: list[str] = []
+    lines: list[str] = []
     for s in sessions:
         tt = s.get("training_type", "?")
-        rd = s.get("run_details", {})
-        rt = rd.get("run_type", "") if rd else ""
-        dur = rd.get("target_duration_minutes", "") if rd else ""
-        notes = s.get("notes", "") or ""
+        rd = s.get("run_details") or {}
+        rt = rd.get("run_type", "")
+        dur = rd.get("target_duration_minutes", "")
         desc = f"{tt}"
         if rt:
             desc += f" ({rt})"
         if dur:
             desc += f" {dur}min"
-        if notes:
-            desc += f" — {notes[:80]}"
-        session_parts.append(desc)
 
-    day_notes = entry.get("notes", "") or ""
-    line = f"- {day_name}: {'; '.join(session_parts)}"
-    if day_notes:
-        line += f" | Notiz: {day_notes[:80]}"
-    return line
+        day_notes = entry.get("notes", "") or ""
+        line = f"- {day_name}: {desc}"
+        if day_notes:
+            line += f" — {day_notes[:80]}"
+        lines.append(line)
+
+        # Intervall-Details anzeigen
+        intervals = rd.get("intervals", [])
+        if intervals:
+            lines.extend(_format_intervals(intervals))
+
+    return lines
+
+
+def _format_intervals(intervals: list[dict]) -> list[str]:
+    """Formatiert Intervalle als eingerückte Zeilen für den Prompt."""
+    lines: list[str] = []
+    for iv in intervals:
+        seg_type = iv.get("type", "?")
+        dur = iv.get("duration_minutes", "")
+        repeats = iv.get("repeats", 1)
+        pace_min = iv.get("target_pace_min", "")
+        pace_max = iv.get("target_pace_max", "")
+
+        desc = f"    {seg_type}"
+        if dur:
+            desc += f" {dur}min"
+        if repeats and repeats > 1:
+            desc += f" x{repeats}"
+        if pace_min and pace_max:
+            desc += f" @{pace_min}-{pace_max}"
+        elif pace_min:
+            desc += f" @{pace_min}"
+        lines.append(desc)
+    return lines
 
 
 def _build_instructions() -> str:
@@ -275,12 +322,30 @@ Passe den bestehenden Plan gemäß den Empfehlungen an. Antworte NUR mit einem J
     "day_of_week": 1,
     "training_type": "running",
     "run_details": {
-      "run_type": "easy",
-      "target_duration_minutes": 45,
-      "target_pace_min": "6:30",
-      "target_pace_max": "7:00"
+      "run_type": "intervals",
+      "target_duration_minutes": 30,
+      "intervals": [
+        {"type": "warmup", "duration_minutes": 7, "target_pace_min": "7:00", "target_pace_max": "7:20", "repeats": 1},
+        {"type": "work", "duration_minutes": 2, "target_pace_min": "5:55", "target_pace_max": "6:05", "repeats": 3},
+        {"type": "recovery_jog", "duration_minutes": 2, "target_pace_min": "7:00", "target_pace_max": "7:30", "repeats": 3},
+        {"type": "cooldown", "duration_minutes": 5, "target_pace_min": "7:00", "target_pace_max": "7:20", "repeats": 1}
+      ]
     },
-    "notes": "Lockerer Lauf zur Erholung"
+    "notes": "Kurze Aktivierung mit Wettkampftempo-Abschnitten"
+  },
+  {
+    "day_of_week": 2,
+    "training_type": "running",
+    "run_details": {
+      "run_type": "easy",
+      "target_duration_minutes": 35,
+      "target_pace_min": "6:45",
+      "target_pace_max": "7:15",
+      "intervals": [
+        {"type": "steady", "duration_minutes": 35, "target_pace_min": "6:45", "target_pace_max": "7:15", "repeats": 1}
+      ]
+    },
+    "notes": "Lockerer Lauf"
   }
 ]
 
@@ -290,7 +355,9 @@ Regeln:
 - Trainingstage: training_type + run_details/template_id + notes
 - Passe bestehende Sessions an (Umfang, Pace, Dauer, Typ), entferne oder füge hinzu
 - Behalte die Grundstruktur bei, wenn die Empfehlungen keine Änderung erfordern
-- Bei Lauf: run_details mit run_type (aus der gültigen Liste), Dauer, Pace
+- Bei Lauf: run_details mit run_type, Dauer, Pace UND intervals-Array
+- intervals: IMMER angeben bei Lauf-Sessions — auch bei einfachen Läufen (ein "steady"-Segment)
+- Intervall-Typen: warmup, cooldown, steady, work, recovery_jog, rest, strides, drills
 - Bei Kraft: template_id setzen falls passend, sonst weglassen
 - notes: Kurze Erklärung was geändert wurde und warum
 - Pace im Format "M:SS" (z.B. "5:30")
@@ -344,7 +411,6 @@ def _normalize_day(item: dict) -> dict | None:
 
     training_type = str(item.get("training_type", "")).lower()
     if training_type not in ("running", "strength"):
-        # Wenn kein gültiger training_type → als Ruhetag behandeln
         return {"day_of_week": day, "is_rest_day": True}
 
     result: dict = {
@@ -367,7 +433,7 @@ def _normalize_day(item: dict) -> dict | None:
 
 
 def _parse_run_details(rd_raw: object) -> dict:
-    """Parst run_details aus der KI-Antwort."""
+    """Parst run_details inkl. intervals aus der KI-Antwort."""
     if not isinstance(rd_raw, dict):
         return {"run_type": "easy"}
 
@@ -385,7 +451,36 @@ def _parse_run_details(rd_raw: object) -> dict:
     if rd_raw.get("target_pace_max"):
         details["target_pace_max"] = str(rd_raw["target_pace_max"])
 
+    # Intervalle parsen
+    raw_intervals = rd_raw.get("intervals")
+    if isinstance(raw_intervals, list):
+        intervals = [_parse_interval(iv) for iv in raw_intervals if isinstance(iv, dict)]
+        if intervals:
+            details["intervals"] = intervals
+
     return details
+
+
+def _parse_interval(iv: dict) -> dict:
+    """Parst ein einzelnes Intervall-Segment."""
+    seg_type = str(iv.get("type", "steady")).lower()
+    if seg_type not in SEGMENT_TYPES:
+        seg_type = "steady"
+
+    interval: dict = {
+        "type": seg_type,
+        "repeats": max(1, int(iv.get("repeats", 1) or 1)),
+    }
+
+    if iv.get("duration_minutes"):
+        with contextlib.suppress(ValueError, TypeError):
+            interval["duration_minutes"] = float(iv["duration_minutes"])
+    if iv.get("target_pace_min"):
+        interval["target_pace_min"] = str(iv["target_pace_min"])
+    if iv.get("target_pace_max"):
+        interval["target_pace_max"] = str(iv["target_pace_max"])
+
+    return interval
 
 
 # ---------------------------------------------------------------------------
@@ -433,14 +528,8 @@ async def _replace_plan(
         for s in session_result.scalars().all():
             await db.delete(s)
 
-    # plan_id aus bestehendem Plan übernehmen (falls vorhanden)
-    plan_id = None
-    for e in existing_plan:
-        if e.get("plan_id"):
-            plan_id = e["plan_id"]
-            break
+    plan_id = _extract_plan_id(existing_plan)
 
-    # Alte Days löschen (nach Sessions!)
     for d in old_days:
         await db.delete(d)
     await db.flush()
@@ -465,7 +554,7 @@ async def _create_plan_day(
         is_rest_day=is_rest,
         notes=ai_day.get("notes"),
         plan_id=plan_id,
-        edited=True,  # KI-Anpassung = editiert
+        edited=True,
     )
     db.add(db_day)
     await db.flush()
@@ -501,3 +590,121 @@ def _dict_to_planned_session(s: dict, position: int) -> PlannedSession:
         notes=s.get("notes"),
         run_details=rd,
     )
+
+
+# ---------------------------------------------------------------------------
+# Trainingsplan-Sync + Changelog
+# ---------------------------------------------------------------------------
+
+
+async def _sync_back_to_plan(
+    target_week: date,
+    plan_id: int,
+    ai_days: list[dict],
+    db: AsyncSession,
+) -> None:
+    """Synchronisiert die Änderungen zurück in den Trainingsplan (Phase-Template)."""
+    plan = await db.get(TrainingPlanModel, plan_id)
+    if not plan:
+        return
+
+    # Wochennummer berechnen (1-indexed)
+    plan_start = plan.start_date
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())
+    week_number = ((target_week - plan_start_monday).days // 7) + 1
+
+    # Phase finden
+    result = await db.execute(
+        select(TrainingPhaseModel).where(
+            TrainingPhaseModel.training_plan_id == plan_id,
+            TrainingPhaseModel.start_week <= week_number,
+            TrainingPhaseModel.end_week >= week_number,
+        )
+    )
+    phase = result.scalar_one_or_none()
+    if not phase:
+        return
+
+    # Week-Key berechnen (1-indexed innerhalb der Phase)
+    week_in_phase = week_number - phase.start_week
+    week_key = str(week_in_phase + 1)
+
+    # Template aus KI-Tagen bauen
+    template = _build_phase_template(ai_days)
+
+    # Per-Week Override aktualisieren
+    existing: dict = {}
+    if phase.weekly_templates_json:
+        with contextlib.suppress(json.JSONDecodeError):
+            existing = json.loads(phase.weekly_templates_json)
+
+    weeks = existing.get("weeks", {})
+    weeks[week_key] = template
+    phase.weekly_templates_json = json.dumps({"weeks": weeks})
+
+
+def _build_phase_template(ai_days: list[dict]) -> dict:
+    """Baut ein PhaseWeeklyTemplate-Dict aus den KI-Tagen."""
+    day_map = {d["day_of_week"]: d for d in ai_days}
+
+    days: list[dict] = []
+    for dow in range(7):
+        d = day_map.get(dow)
+        if not d or d.get("is_rest_day"):
+            days.append(
+                {
+                    "day_of_week": dow,
+                    "sessions": [],
+                    "is_rest_day": True,
+                    "notes": None,
+                }
+            )
+            continue
+
+        rd = d.get("run_details")
+        session: dict = {
+            "position": 0,
+            "training_type": d["training_type"],
+            "run_type": rd.get("run_type") if rd else None,
+            "template_id": d.get("template_id"),
+            "template_name": None,
+            "run_details": rd,
+            "exercises": None,
+            "notes": d.get("notes"),
+        }
+        days.append(
+            {
+                "day_of_week": dow,
+                "sessions": [session],
+                "is_rest_day": False,
+                "notes": d.get("notes"),
+            }
+        )
+
+    return {"days": days}
+
+
+def _log_recommendation_change(
+    plan_id: int,
+    target_week: date,
+    recommendations: list[str],
+    db: AsyncSession,
+) -> None:
+    """Erstellt einen Changelog-Eintrag im Trainingsplan."""
+    summary = f"Wochenplan {target_week} per KI-Empfehlungen angepasst"
+    details = {
+        "category": "content",
+        "source": "ai_recommendation",
+        "week_start": str(target_week),
+        "recommendations": recommendations[:10],
+    }
+
+    entry = PlanChangeLogModel(
+        plan_id=plan_id,
+        change_type="back_sync",
+        category="content",
+        summary=summary,
+        details_json=json.dumps(details),
+        created_at=datetime.utcnow(),
+    )
+    db.add(entry)
