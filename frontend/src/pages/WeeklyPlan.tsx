@@ -250,7 +250,7 @@ export function WeeklyPlanPage() {
           <div className="mt-10">
             {/* Undo Banner */}
             {plan.undoStatus?.available && (
-              <Alert variant="info">
+              <Alert variant="info" className="mb-4">
                 <AlertDescription>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-sm text-[var(--color-text-base)]">
