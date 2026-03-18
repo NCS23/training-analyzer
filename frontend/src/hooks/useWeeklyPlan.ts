@@ -9,8 +9,10 @@ import {
   syncToPlan,
   getCompliance,
   clearWeeklyPlan,
+  getUndoStatus,
+  undoWeeklyPlan,
 } from '@/api/weekly-plan';
-import type { WeeklyPlanEntry, ComplianceResponse } from '@/api/weekly-plan';
+import type { WeeklyPlanEntry, ComplianceResponse, UndoStatusResponse } from '@/api/weekly-plan';
 import { getMondayOfWeek, addWeeks } from '@/utils/weeklyPlanUtils';
 
 // eslint-disable-next-line max-lines-per-function -- consolidated weekly plan hook
@@ -28,6 +30,9 @@ export function useWeeklyPlan() {
   const [deleting, setDeleting] = useState(false);
   const [showSyncBar, setShowSyncBar] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [undoStatus, setUndoStatus] = useState<UndoStatusResponse | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [showUndoDialog, setShowUndoDialog] = useState(false);
 
   // --- Load ---
 
@@ -37,12 +42,14 @@ export function useWeeklyPlan() {
       setError(null);
       setShowSyncBar(false);
       try {
-        const [planResult, complianceResult] = await Promise.all([
+        const [planResult, complianceResult, undoResult] = await Promise.all([
           getWeeklyPlan(ws),
           getCompliance(ws).catch(() => null),
+          getUndoStatus(ws).catch(() => null),
         ]);
         setEntries(planResult.entries);
         setCompliance(complianceResult);
+        setUndoStatus(undoResult);
         setDirty(false);
       } catch {
         toast({ title: 'Laden fehlgeschlagen', variant: 'error' });
@@ -213,6 +220,22 @@ export function useWeeklyPlan() {
     }
   }, [weekStart, toast, loadWeek]);
 
+  // --- Undo ---
+
+  const handleUndo = useCallback(async () => {
+    setUndoing(true);
+    try {
+      await undoWeeklyPlan(weekStart);
+      toast({ title: 'Rückgängig gemacht', variant: 'success' });
+      setShowUndoDialog(false);
+      await loadWeek(weekStart);
+    } catch {
+      toast({ title: 'Rückgängig machen fehlgeschlagen', variant: 'error' });
+    } finally {
+      setUndoing(false);
+    }
+  }, [weekStart, toast, loadWeek]);
+
   // --- Stats ---
 
   const stats = useMemo(() => {
@@ -274,5 +297,10 @@ export function useWeeklyPlan() {
     linkedPlanId,
     editedPlanCount,
     loadWeek,
+    undoStatus,
+    undoing,
+    showUndoDialog,
+    setShowUndoDialog,
+    handleUndo,
   };
 }
