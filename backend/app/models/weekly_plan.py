@@ -295,3 +295,22 @@ class SyncToPlanResponse(BaseModel):
     week_key: str
     apply_to_all_weeks: bool
     synced_days: int
+
+
+class UndoStatusResponse(BaseModel):
+    """Whether undo is available for a given week."""
+
+    available: bool
+    changelog_id: Optional[int] = None
+    summary: Optional[str] = None
+    created_at: Optional[str] = None
+    expires_at: Optional[str] = None
+
+
+class UndoResponse(BaseModel):
+    """Result of an undo operation."""
+
+    success: bool
+    week_start: str
+    changelog_id: int
+    restored_days: int

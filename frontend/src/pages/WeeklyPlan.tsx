@@ -32,6 +32,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Undo2,
   Upload,
 } from 'lucide-react';
 import { formatTonnage } from '@/hooks/useTonnageCalc';
@@ -247,6 +248,27 @@ export function WeeklyPlanPage() {
             })()}
           {/* Day grid */}
           <div className="mt-10">
+            {/* Undo Banner */}
+            {plan.undoStatus?.available && (
+              <Alert variant="info" className="mb-4">
+                <AlertDescription>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-sm text-[var(--color-text-base)]">
+                      {plan.undoStatus.summary}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => plan.setShowUndoDialog(true)}
+                    >
+                      <Undo2 className="w-4 h-4 mr-1" />
+                      Rückgängig
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {plan.loading ? (
               <div className="flex justify-center py-8">
                 <Spinner size="lg" />
@@ -342,6 +364,24 @@ export function WeeklyPlanPage() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={plan.handleDeleteWeek} disabled={plan.deleting}>
               {plan.deleting ? <Spinner size="sm" /> : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Undo Dialog */}
+      <AlertDialog open={plan.showUndoDialog} onOpenChange={plan.setShowUndoDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Änderung rückgängig machen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Der Wochenplan und der Trainingsplan werden auf den vorherigen Stand zurückgesetzt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={plan.handleUndo} disabled={plan.undoing}>
+              {plan.undoing ? <Spinner size="sm" /> : 'Rückgängig machen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

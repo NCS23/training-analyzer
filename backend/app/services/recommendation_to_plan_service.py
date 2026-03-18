@@ -78,9 +78,17 @@ async def apply_recommendations(
 
     # Sync zurück zum Trainingsplan + Changelog
     if ai_days and plan_id:
+        # Capture phase template BEFORE sync (for undo snapshot)
+        phase_snapshot = await _load_phase_snapshot(plan_id, target_week, db)
         await _sync_back_to_plan(target_week, plan_id, ai_days, db)
         _log_recommendation_change(
-            plan_id, target_week, recommendations, existing_plan, ai_days, db
+            plan_id,
+            target_week,
+            recommendations,
+            existing_plan,
+            ai_days,
+            db,
+            phase_snapshot=phase_snapshot,
         )
 
     # AI-Log
@@ -595,6 +603,42 @@ def _dict_to_planned_session(s: dict, position: int) -> PlannedSession:
 
 
 # ---------------------------------------------------------------------------
+# Phase-Snapshot für Undo
+# ---------------------------------------------------------------------------
+
+
+async def _load_phase_snapshot(
+    plan_id: int,
+    target_week: date,
+    db: AsyncSession,
+) -> dict | None:
+    """Load current phase template state for undo snapshot."""
+    plan = await db.get(TrainingPlanModel, plan_id)
+    if not plan:
+        return None
+
+    plan_start = plan.start_date
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())
+    week_number = ((target_week - plan_start_monday).days // 7) + 1
+
+    result = await db.execute(
+        select(TrainingPhaseModel).where(
+            TrainingPhaseModel.training_plan_id == plan_id,
+            TrainingPhaseModel.start_week <= week_number,
+            TrainingPhaseModel.end_week >= week_number,
+        )
+    )
+    phase = result.scalar_one_or_none()
+    if not phase:
+        return None
+
+    return {
+        "phase_id": phase.id,
+        "phase_weekly_templates_json": phase.weekly_templates_json,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Trainingsplan-Sync + Changelog
 # ---------------------------------------------------------------------------
 
@@ -693,6 +737,8 @@ def _log_recommendation_change(
     old_plan: list[dict],
     new_days: list[dict],
     db: AsyncSession,
+    *,
+    phase_snapshot: dict | None = None,
 ) -> None:
     """Erstellt einen detaillierten Changelog-Eintrag im Trainingsplan."""
     changed_days = _diff_plans(old_plan, new_days)
@@ -704,11 +750,23 @@ def _log_recommendation_change(
     )
     reason = "; ".join(recommendations[:10])
 
-    details = {
+    # Build undo snapshot from old_plan (dict-based format from _load_full_plan)
+    snapshot_before: dict = {
+        "week_start": str(target_week),
+        "days": old_plan,
+        "phase_id": phase_snapshot.get("phase_id") if phase_snapshot else None,
+        "phase_weekly_templates_json": (
+            phase_snapshot.get("phase_weekly_templates_json") if phase_snapshot else None
+        ),
+    }
+
+    details: dict = {
         "category": "content",
         "source": "ai_recommendation",
         "week_start": str(target_week),
         "changed_days": changed_days,
+        "snapshot_before": snapshot_before,
+        "undoable": True,
     }
 
     entry = PlanChangeLogModel(

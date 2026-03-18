@@ -7,6 +7,7 @@ COPY package*.json ./
 COPY packages/ ./packages/
 RUN npm ci
 
+ARG CACHEBUST=1
 COPY . .
 RUN npm run build
 
@@ -22,3 +23,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget -q --spider http://localhost/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
+
