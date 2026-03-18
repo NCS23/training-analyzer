@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.training_plans import log_plan_change
 from app.infrastructure.database.models import (
+    PlanChangeLogModel,
     PlannedSessionModel,
     SessionTemplateModel,
     TrainingPhaseModel,
@@ -36,6 +37,8 @@ from app.models.weekly_plan import (
     RunDetails,
     SyncToPlanRequest,
     SyncToPlanResponse,
+    UndoResponse,
+    UndoStatusResponse,
     WeeklyPlanEntry,
     WeeklyPlanResponse,
     WeeklyPlanSaveRequest,
@@ -156,6 +159,84 @@ async def _load_days_with_sessions(
         result[dow] = (day, sessions_by_day_id.get(day_id, []))
 
     return result
+
+
+def _build_week_snapshot(
+    week_start: date,
+    old_data: dict[int, tuple[WeeklyPlanDayModel, list[PlannedSessionModel]]],
+    phase_id: int | None = None,
+    phase_templates_json: str | None = None,
+) -> dict:
+    """Build a complete snapshot of the week's state for undo."""
+    days: list[dict] = []
+    for dow in range(7):
+        if dow not in old_data:
+            continue
+        day, sessions = old_data[dow]
+        days.append(
+            {
+                "day_of_week": dow,
+                "is_rest_day": bool(day.is_rest_day),
+                "notes": day.notes,
+                "plan_id": day.plan_id,
+                "edited": bool(day.edited),
+                "sessions": [
+                    {
+                        "position": int(s.position),
+                        "training_type": str(s.training_type),
+                        "template_id": s.template_id,
+                        "run_details_json": s.run_details_json,
+                        "exercises_json": s.exercises_json,
+                        "notes": s.notes,
+                        "status": str(s.status) if s.status else "active",
+                    }
+                    for s in sorted(sessions, key=lambda x: int(x.position))
+                ],
+            }
+        )
+    return {
+        "week_start": str(week_start),
+        "days": days,
+        "phase_id": phase_id,
+        "phase_weekly_templates_json": phase_templates_json,
+    }
+
+
+async def _load_linked_phase_template(
+    db: AsyncSession,
+    old_data: dict[int, tuple[WeeklyPlanDayModel, list[PlannedSessionModel]]],
+    week_start: date,
+) -> tuple[int | None, str | None]:
+    """Load the phase template JSON linked to this week (for undo snapshot)."""
+    plan_id: int | None = None
+    for day, _sessions in old_data.values():
+        if day.plan_id:
+            plan_id = int(day.plan_id)
+            break
+
+    if not plan_id:
+        return None, None
+
+    plan = await db.get(TrainingPlanModel, plan_id)
+    if not plan:
+        return None, None
+
+    plan_start = plan.start_date
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())
+    week_number = ((week_start - plan_start_monday).days // 7) + 1
+
+    result = await db.execute(
+        select(TrainingPhaseModel).where(
+            TrainingPhaseModel.training_plan_id == plan_id,
+            TrainingPhaseModel.start_week <= week_number,
+            TrainingPhaseModel.end_week >= week_number,
+        )
+    )
+    phase = result.scalar_one_or_none()
+    if not phase:
+        return None, None
+
+    return phase.id, phase.weekly_templates_json
 
 
 def _build_entry_from_db(
@@ -370,6 +451,23 @@ async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
     # Fetch existing days + sessions BEFORE deletion (for plan_id + edited preservation)
     old_data = await _load_days_with_sessions(db, week_start)
 
+    # Capture snapshot for undo (before any deletion)
+    undo_phase_id, undo_phase_json = await _load_linked_phase_template(
+        db,
+        old_data,
+        week_start,
+    )
+    undo_snapshot = (
+        _build_week_snapshot(
+            week_start,
+            old_data,
+            undo_phase_id,
+            undo_phase_json,
+        )
+        if old_data
+        else None
+    )
+
     # Delete existing sessions then days
     for _day, sessions in old_data.values():
         for s in sessions:
@@ -447,17 +545,21 @@ async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
                 )
     for pid, changed_days in changed_plan_days.items():
         count = len(changed_days)
+        details: dict = {
+            "category": "content",
+            "source": "user",
+            "week_start": str(week_start),
+            "changed_days": changed_days,
+        }
+        if undo_snapshot:
+            details["snapshot_before"] = undo_snapshot
+            details["undoable"] = True
         await log_plan_change(
             db,
             pid,
             "manual_edit",
             f"Wochenplan {week_start}: {count} Eintraege bearbeitet",
-            details={
-                "category": "content",
-                "source": "user",
-                "week_start": str(week_start),
-                "changed_days": changed_days,
-            },
+            details=details,
         )
 
     await db.commit()
@@ -961,6 +1063,189 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
         week_key=week_key,
         apply_to_all_weeks=data.apply_to_all_weeks,
         synced_days=synced_days,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Undo
+# ---------------------------------------------------------------------------
+
+UNDO_WINDOW_HOURS = 24
+
+
+async def _find_undoable_entry(
+    db: AsyncSession,
+    week_start: date,
+) -> PlanChangeLogModel | None:
+    """Find the most recent undoable changelog entry for a week.
+
+    Returns None if an undo was already performed for this week (within the window).
+    Only one undo per week is allowed.
+    """
+    cutoff = datetime.utcnow() - timedelta(hours=UNDO_WINDOW_HOURS)
+    week_str = str(week_start)
+
+    result = await db.execute(
+        select(PlanChangeLogModel)
+        .where(PlanChangeLogModel.created_at >= cutoff)
+        .order_by(PlanChangeLogModel.created_at.desc())
+    )
+    entries = result.scalars().all()
+
+    # If an undo was already performed for this week, block further undos
+    for entry in entries:
+        if entry.change_type != "undo" or not entry.details_json:
+            continue
+        try:
+            details = json.loads(entry.details_json)
+        except json.JSONDecodeError:
+            continue
+        if details.get("week_start") == week_str:
+            return None
+
+    # Find the most recent undoable entry for this week
+    for entry in entries:
+        if entry.change_type == "undo" or not entry.details_json:
+            continue
+        try:
+            details = json.loads(entry.details_json)
+        except json.JSONDecodeError:
+            continue
+        if details.get("undoable") is True and details.get("week_start") == week_str:
+            return entry
+
+    return None
+
+
+@router.get("/undo-status", response_model=UndoStatusResponse)
+async def get_undo_status(
+    week_start: date = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> UndoStatusResponse:
+    """Check if undo is available for a given week."""
+    week_start = _monday_of_week(week_start)
+    entry = await _find_undoable_entry(db, week_start)
+
+    if not entry:
+        return UndoStatusResponse(available=False)
+
+    expires_at = entry.created_at + timedelta(hours=UNDO_WINDOW_HOURS)
+    return UndoStatusResponse(
+        available=True,
+        changelog_id=entry.id,
+        summary=entry.summary,
+        created_at=entry.created_at.isoformat(),
+        expires_at=expires_at.isoformat(),
+    )
+
+
+@router.post("/undo", response_model=UndoResponse)
+async def undo_weekly_plan(
+    week_start: date = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> UndoResponse:
+    """Undo the most recent change to a weekly plan (within 24h window)."""
+    week_start = _monday_of_week(week_start)
+    entry = await _find_undoable_entry(db, week_start)
+
+    if not entry or not entry.details_json:
+        raise HTTPException(status_code=404, detail="Kein rückgängig machbarer Eintrag gefunden.")
+
+    details = json.loads(entry.details_json)
+    snapshot = details.get("snapshot_before")
+    if not snapshot or not isinstance(snapshot.get("days"), list):
+        raise HTTPException(status_code=409, detail="Snapshot-Daten fehlen oder sind ungültig.")
+
+    # Capture current state before restoring (for audit trail)
+    current_data = await _load_days_with_sessions(db, week_start)
+    current_phase_id, current_phase_json = await _load_linked_phase_template(
+        db,
+        current_data,
+        week_start,
+    )
+    current_snapshot = _build_week_snapshot(
+        week_start,
+        current_data,
+        current_phase_id,
+        current_phase_json,
+    )
+
+    # Delete current days + sessions
+    for _day, sessions in current_data.values():
+        for s in sessions:
+            await db.delete(s)
+    for day, _sessions in current_data.values():
+        await db.delete(day)
+    await db.flush()
+
+    # Restore days + sessions from snapshot
+    restored_count = 0
+    for snap_day in snapshot["days"]:
+        plan_id = snap_day.get("plan_id")
+        db_day = WeeklyPlanDayModel(
+            week_start=week_start,
+            day_of_week=snap_day["day_of_week"],
+            is_rest_day=snap_day.get("is_rest_day", False),
+            notes=snap_day.get("notes"),
+            plan_id=plan_id,
+            edited=snap_day.get("edited", False),
+        )
+        db.add(db_day)
+        await db.flush()
+
+        for snap_session in snap_day.get("sessions", []):
+            db_session = PlannedSessionModel(
+                day_id=db_day.id,
+                position=snap_session.get("position", 0),
+                training_type=snap_session["training_type"],
+                template_id=snap_session.get("template_id"),
+                run_details_json=snap_session.get("run_details_json"),
+                exercises_json=snap_session.get("exercises_json"),
+                notes=snap_session.get("notes"),
+                status=snap_session.get("status", "active"),
+            )
+            db.add(db_session)
+
+        restored_count += 1
+
+    # Restore phase template if snapshot contains it
+    phase_id = snapshot.get("phase_id")
+    phase_json = snapshot.get("phase_weekly_templates_json")
+    if phase_id and phase_json is not None:
+        phase = await db.get(TrainingPhaseModel, phase_id)
+        if phase:
+            phase.weekly_templates_json = phase_json
+
+    # Log undo as non-undoable changelog entry
+    plan_id_for_log = snapshot["days"][0].get("plan_id") if snapshot["days"] else None
+    if plan_id_for_log:
+        await log_plan_change(
+            db,
+            plan_id_for_log,
+            "undo",
+            f"Rückgängig: Wochenplan {week_start} wiederhergestellt",
+            details={
+                "category": "content",
+                "source": "undo",
+                "week_start": str(week_start),
+                "undoable": False,
+                "undone_changelog_id": entry.id,
+                "snapshot_before": current_snapshot,
+            },
+            category="content",
+        )
+
+    # Mark original entry as undone (prevent double-undo)
+    details["undoable"] = False
+    entry.details_json = json.dumps(details)
+
+    await db.commit()
+
+    return UndoResponse(
+        success=True,
+        week_start=str(week_start),
+        changelog_id=entry.id,
+        restored_days=restored_count,
     )
 
 

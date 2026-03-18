@@ -161,6 +161,23 @@ export interface ApplyRecommendationsResponse {
   applied_count: number;
 }
 
+// --- Undo Types ---
+
+export interface UndoStatusResponse {
+  available: boolean;
+  changelog_id: number | null;
+  summary: string | null;
+  created_at: string | null;
+  expires_at: string | null;
+}
+
+export interface UndoResponse {
+  success: boolean;
+  week_start: string;
+  changelog_id: number;
+  restored_days: number;
+}
+
 // --- Planned Session Option (for upload linking) ---
 
 export interface PlannedSessionOption {
@@ -228,6 +245,20 @@ export async function applyRecommendations(
   const response = await apiClient.post<ApplyRecommendationsResponse>(
     '/api/v1/weekly-plan/apply-recommendations',
     data,
+  );
+  return response.data;
+}
+
+export async function getUndoStatus(weekStart: string): Promise<UndoStatusResponse> {
+  const response = await apiClient.get<UndoStatusResponse>(
+    `/api/v1/weekly-plan/undo-status?week_start=${weekStart}`,
+  );
+  return response.data;
+}
+
+export async function undoWeeklyPlan(weekStart: string): Promise<UndoResponse> {
+  const response = await apiClient.post<UndoResponse>(
+    `/api/v1/weekly-plan/undo?week_start=${weekStart}`,
   );
   return response.data;
 }

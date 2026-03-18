@@ -9,6 +9,7 @@ import {
   CalendarPlus,
   ArrowUpToLine,
   PenLine,
+  Undo2,
   Upload,
   Dumbbell,
   ChevronDown,
@@ -41,6 +42,7 @@ const CHANGE_TYPE_ICONS: Record<string, React.ReactNode> = {
   manual_edit: <PenLine className="w-3.5 h-3.5" />,
   yaml_import: <Upload className="w-3.5 h-3.5" />,
   session_configured: <Dumbbell className="w-3.5 h-3.5" />,
+  undo: <Undo2 className="w-3.5 h-3.5" />,
 };
 
 type CategoryFilter = ChangelogCategory | 'all';
