@@ -45,6 +45,7 @@ dependencies = [
     "pandas>=2.2.0",
     "numpy>=1.26.0",
     "fitparse>=1.2.0",  # Garmin FIT file parsing
+    "fit-tool>=0.9.15",  # Garmin FIT file generation
     
     # Security
     "python-jose[cryptography]>=3.3.0",
@@ -204,6 +205,11 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["fitparse", "fitparse.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["fit_tool", "fit_tool.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

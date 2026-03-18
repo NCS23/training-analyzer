@@ -17,8 +17,17 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  useToast,
 } from '@nordlig/components';
-import { Dumbbell, Footprints, Save, ChevronRight, Pencil, EllipsisVertical } from 'lucide-react';
+import {
+  Dumbbell,
+  Footprints,
+  Save,
+  ChevronRight,
+  Pencil,
+  EllipsisVertical,
+  Download,
+} from 'lucide-react';
 import { trainingTypeOptions } from '@/constants/training';
 import { RunDetailsEditor } from '@/components/RunDetailsEditor';
 import { StrengthExercisesEditSection } from '@/components/session-template/StrengthExercisesEditSection';
@@ -27,6 +36,7 @@ import { RunningReadView } from '@/components/session-template/RunningReadView';
 import { useExerciseListEditor } from '@/hooks/useExerciseListEditor';
 import { useExerciseSuggestions } from '@/hooks/useExerciseSuggestions';
 import { useSessionTemplateForm } from '@/hooks/useSessionTemplateForm';
+import { downloadTemplateFit } from '@/api/session-templates';
 
 // --- Constants ---
 
@@ -50,6 +60,7 @@ export function SessionTemplateEditorPage() {
   const { exercises, setExercises, updateExercise, removeExercise, addExercise, moveExercise } =
     useExerciseListEditor();
 
+  const { toast } = useToast();
   const form = useSessionTemplateForm({ templateId, exercises, setExercises });
 
   const suggestions = useExerciseSuggestions(
@@ -118,6 +129,21 @@ export function SessionTemplateEditorPage() {
                 >
                   Bearbeiten
                 </DropdownMenuItem>
+                {form.sessionType === 'running' && (
+                  <DropdownMenuItem
+                    icon={<Download />}
+                    onSelect={async () => {
+                      try {
+                        await downloadTemplateFit(Number(templateId), form.templateName);
+                        toast({ title: 'FIT-Datei exportiert', variant: 'success' });
+                      } catch {
+                        toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
+                      }
+                    }}
+                  >
+                    Als FIT exportieren
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
