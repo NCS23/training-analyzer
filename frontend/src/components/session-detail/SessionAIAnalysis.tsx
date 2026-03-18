@@ -4,7 +4,6 @@ import {
   CardHeader,
   CardBody,
   Button,
-  Badge,
   Spinner,
   Alert,
   AlertDescription,
@@ -19,23 +18,10 @@ interface SessionAIAnalysisProps {
   onAnalysisLoaded: (analysis: SessionAnalysis) => void;
 }
 
-const INTENSITY_CONFIG: Record<string, { label: string; variant: string }> = {
-  leicht: { label: 'Leicht', variant: 'success' },
-  moderat: { label: 'Moderat', variant: 'info' },
-  intensiv: { label: 'Intensiv', variant: 'warning' },
-  zu_intensiv: { label: 'Zu intensiv', variant: 'error' },
-};
-
-function IntensityBadge({ rating, text }: { rating: string; text: string }) {
-  const config = INTENSITY_CONFIG[rating] ?? INTENSITY_CONFIG.moderat;
+function IntensitySection({ text }: { text: string }) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-[var(--color-text-default)]">Intensität</span>
-        <Badge variant={config.variant as 'success' | 'info' | 'warning' | 'error'} size="xs">
-          {config.label}
-        </Badge>
-      </div>
+      <span className="text-sm font-medium text-[var(--color-text-default)]">Intensität</span>
       <p className="text-sm text-[var(--color-text-muted)]">{text}</p>
     </div>
   );
@@ -89,7 +75,7 @@ function AnalysisContent({
       <CardBody>
         <div className="space-y-4">
           <p className="text-sm text-[var(--color-text-default)]">{analysis.summary}</p>
-          <IntensityBadge rating={analysis.intensity_rating} text={analysis.intensity_text} />
+          <IntensitySection text={analysis.intensity_text} />
           <div className="space-y-1">
             <span className="text-sm font-medium text-[var(--color-text-default)]">
               HF-Zonen-Bewertung
