@@ -109,6 +109,23 @@ export async function duplicateSessionTemplate(templateId: number): Promise<Sess
   return response.data;
 }
 
+export async function downloadTemplateFit(templateId: number, templateName: string): Promise<void> {
+  const response = await apiClient.get<Blob>(`/api/v1/session-templates/${templateId}/export/fit`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = templateName
+    .replace(/[^a-z0-9]+/gi, '-')
+    .toLowerCase()
+    .slice(0, 50);
+  const today = new Date().toISOString().split('T')[0];
+  a.download = `workout-${safeName}-${today}.fit`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
 export async function createTemplateFromSession(sessionId: number): Promise<SessionTemplate> {
   const response = await apiClient.post<SessionTemplate>(
     `/api/v1/session-templates/from-session/${sessionId}`,

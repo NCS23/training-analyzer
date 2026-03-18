@@ -1,9 +1,12 @@
 """API routes for Session Templates (renamed from Training Plans)."""
 
 import json
+import re
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -225,6 +228,50 @@ async def duplicate_template(
     await db.commit()
     await db.refresh(new_tmpl)
     return _model_to_response(new_tmpl)
+
+
+@router.get("/{template_id}/export/fit")
+async def export_template_fit(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Export eines Lauf-Templates als FIT-Workout-Datei fuer HealthFit/Garmin."""
+    result = await db.execute(
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+    )
+    tmpl = result.scalar_one_or_none()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template nicht gefunden")
+
+    if str(tmpl.session_type) != "running":
+        raise HTTPException(
+            status_code=422,
+            detail="FIT-Export ist nur fuer Lauf-Templates verfuegbar.",
+        )
+
+    run_details = _parse_run_details(str(tmpl.run_details_json) if tmpl.run_details_json else None)
+    if not run_details or not run_details.segments:
+        raise HTTPException(
+            status_code=422,
+            detail="Template hat keine Segmente fuer den Export.",
+        )
+
+    from app.services.fit_export import export_template_to_fit
+
+    fit_bytes = export_template_to_fit(
+        template_name=str(tmpl.name),
+        segments=run_details.segments,
+    )
+
+    safe_name = re.sub(r"[^a-z0-9]+", "-", str(tmpl.name).lower()).strip("-")[:50]
+    today = date.today().isoformat()
+    filename = f"workout-{safe_name}-{today}.fit"
+
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 def _classify_run_type(
