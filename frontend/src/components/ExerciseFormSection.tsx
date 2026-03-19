@@ -77,7 +77,7 @@ function DurationFormInput({
 function SetHeader({ setType }: { setType: SetType }) {
   const fields = SET_TYPE_FIELDS[setType];
   return (
-    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] px-1">
+    <div className="hidden sm:flex items-center gap-2 text-xs text-[var(--color-text-muted)] px-1">
       <span className="w-6 shrink-0 text-center">#</span>
       {fields.reps && <span className="flex-1">Wdh.</span>}
       {fields.weight && <span className="flex-1">kg</span>}
@@ -89,88 +89,22 @@ function SetHeader({ setType }: { setType: SetType }) {
   );
 }
 
-function SetRowForm({
+function SetStatusControls({
   set,
   setIndex,
-  setType,
   onUpdate,
   onRemove,
   canRemove,
 }: {
   set: SetForm;
   setIndex: number;
-  setType: SetType;
   onUpdate: (updates: Partial<SetForm>) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
-  const fields = SET_TYPE_FIELDS[setType];
-
   return (
-    <div className={`flex items-center gap-2 px-1 ${set.status === 'skipped' ? 'opacity-50' : ''}`}>
-      <span className="text-xs text-[var(--color-text-muted)] w-6 shrink-0 text-center tabular-nums">
-        {setIndex + 1}
-      </span>
-
-      {fields.reps && (
-        <div className="flex-1 min-w-0">
-          <NumberInput
-            value={set.reps ?? 0}
-            onChange={(val) => onUpdate({ reps: val })}
-            min={0}
-            max={999}
-            step={1}
-            inputSize="sm"
-            aria-label={`Satz ${setIndex + 1} Wiederholungen`}
-            incrementLabel="Wiederholung hinzufügen"
-            decrementLabel="Wiederholung entfernen"
-          />
-        </div>
-      )}
-
-      {fields.weight && (
-        <div className="flex-1 min-w-0">
-          <NumberInput
-            value={set.weight_kg ?? 0}
-            onChange={(val) => onUpdate({ weight_kg: val })}
-            min={0}
-            max={999}
-            step={2.5}
-            inputSize="sm"
-            aria-label={`Satz ${setIndex + 1} Gewicht kg`}
-            incrementLabel="Gewicht erhöhen"
-            decrementLabel="Gewicht verringern"
-          />
-        </div>
-      )}
-
-      {fields.duration && (
-        <div className="flex-1 min-w-0">
-          <DurationFormInput
-            value={set.duration_sec ?? 0}
-            onChange={(sec) => onUpdate({ duration_sec: sec })}
-            label={`Satz ${setIndex + 1}`}
-          />
-        </div>
-      )}
-
-      {fields.distance && (
-        <div className="flex-1 min-w-0">
-          <NumberInput
-            value={set.distance_m ?? 0}
-            onChange={(val) => onUpdate({ distance_m: val })}
-            min={0}
-            max={99999}
-            step={5}
-            inputSize="sm"
-            aria-label={`Satz ${setIndex + 1} Distanz m`}
-            incrementLabel="Distanz erhöhen"
-            decrementLabel="Distanz verringern"
-          />
-        </div>
-      )}
-
-      <div className="w-28 shrink-0">
+    <div className="flex items-center gap-2">
+      <div className="flex-1 sm:w-28 sm:flex-none sm:shrink-0">
         <Select
           options={STATUS_SELECT_OPTIONS}
           value={set.status}
@@ -188,6 +122,110 @@ function SetRowForm({
       >
         <Trash2 className="w-3.5 h-3.5" />
       </Button>
+    </div>
+  );
+}
+
+interface SetRowFormProps {
+  set: SetForm;
+  setIndex: number;
+  setType: SetType;
+  onUpdate: (updates: Partial<SetForm>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}
+
+function SetRowForm({ set, setIndex, setType, onUpdate, onRemove, canRemove }: SetRowFormProps) {
+  const fields = SET_TYPE_FIELDS[setType];
+
+  return (
+    <div className={`space-y-2 sm:space-y-0 px-1 ${set.status === 'skipped' ? 'opacity-50' : ''}`}>
+      {/* Zeile 1: Index + Werte-Inputs */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-[var(--color-text-muted)] w-6 shrink-0 text-center tabular-nums">
+          {setIndex + 1}
+        </span>
+
+        {fields.reps && (
+          <div className="flex-1 min-w-0">
+            <NumberInput
+              value={set.reps ?? 0}
+              onChange={(val) => onUpdate({ reps: val })}
+              min={0}
+              max={999}
+              step={1}
+              inputSize="sm"
+              aria-label={`Satz ${setIndex + 1} Wiederholungen`}
+              incrementLabel="Wiederholung hinzufügen"
+              decrementLabel="Wiederholung entfernen"
+            />
+          </div>
+        )}
+
+        {fields.weight && (
+          <div className="flex-1 min-w-0">
+            <NumberInput
+              value={set.weight_kg ?? 0}
+              onChange={(val) => onUpdate({ weight_kg: val })}
+              min={0}
+              max={999}
+              step={2.5}
+              inputSize="sm"
+              aria-label={`Satz ${setIndex + 1} Gewicht kg`}
+              incrementLabel="Gewicht erhöhen"
+              decrementLabel="Gewicht verringern"
+            />
+          </div>
+        )}
+
+        {fields.duration && (
+          <div className="flex-1 min-w-0">
+            <DurationFormInput
+              value={set.duration_sec ?? 0}
+              onChange={(sec) => onUpdate({ duration_sec: sec })}
+              label={`Satz ${setIndex + 1}`}
+            />
+          </div>
+        )}
+
+        {fields.distance && (
+          <div className="flex-1 min-w-0">
+            <NumberInput
+              value={set.distance_m ?? 0}
+              onChange={(val) => onUpdate({ distance_m: val })}
+              min={0}
+              max={99999}
+              step={5}
+              inputSize="sm"
+              aria-label={`Satz ${setIndex + 1} Distanz m`}
+              incrementLabel="Distanz erhöhen"
+              decrementLabel="Distanz verringern"
+            />
+          </div>
+        )}
+
+        {/* Status + Delete: inline ab sm */}
+        <div className="hidden sm:block">
+          <SetStatusControls
+            set={set}
+            setIndex={setIndex}
+            onUpdate={onUpdate}
+            onRemove={onRemove}
+            canRemove={canRemove}
+          />
+        </div>
+      </div>
+
+      {/* Zeile 2 (nur Mobile): Status + Delete */}
+      <div className="pl-8 sm:hidden">
+        <SetStatusControls
+          set={set}
+          setIndex={setIndex}
+          onUpdate={onUpdate}
+          onRemove={onRemove}
+          canRemove={canRemove}
+        />
+      </div>
     </div>
   );
 }
