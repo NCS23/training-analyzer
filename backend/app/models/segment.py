@@ -63,10 +63,13 @@ class Segment(BaseModel):
     user_override: Optional[str] = None
 
     def expand(self) -> list[Segment]:
-        """Expandiert repeats zu einzelnen Segmenten (fuer Soll/Ist-Matching).
+        """Expandiert repeats zu einzelnen Segmenten (DEPRECATED).
 
-        Ein Segment mit repeats=4 wird zu 4 Work-Segmenten + 3 Recovery-Jog-Segmenten.
-        Segmente mit repeats=1 werden unveraendert zurueckgegeben.
+        HINWEIS: Fuer Soll/Ist-Matching `expand_segments()` verwenden!
+        Diese Methode expandiert nur ein einzelnes Segment und erzeugt dabei
+        auto-generierte Recovery-Segmente OHNE Targets. Die listenbasierte
+        `expand_segments()` erkennt Work+Recovery-Paare und uebertraegt die
+        Recovery-Targets korrekt.
         """
         if self.repeats <= 1:
             return [self.model_copy(update={"repeats": 1})]
@@ -90,6 +93,61 @@ class Segment(BaseModel):
                     )
                 )
         return result
+
+
+# Recovery-Types die nach einem Work-Segment als Paar erkannt werden
+_RECOVERY_TYPES = frozenset({"recovery_jog", "rest"})
+
+
+def expand_segments(segments: list[Segment]) -> list[Segment]:
+    """Expandiert eine Liste von Segmenten mit korrekter Paar-Erkennung.
+
+    Wenn ein Segment mit repeats > 1 gefolgt wird von einem Recovery-Segment,
+    werden sie als Paar [Work + Recovery] x N expandiert (letzter Recovery entfaellt).
+    Das Recovery-Segment behaelt dabei alle Targets (Pace, HR, Dauer).
+
+    Beispiel:
+        Input:  [warmup, work(repeats=3), recovery_jog(2min, pace 7:00), cooldown]
+        Output: [warmup, work, recovery_jog, work, recovery_jog, work, cooldown]
+                        (alle recovery_jog haben 2min + pace 7:00)
+    """
+    result: list[Segment] = []
+    pos = 0
+    i = 0
+
+    while i < len(segments):
+        seg = segments[i]
+
+        if seg.repeats > 1:
+            # Pruefen ob naechstes Segment ein Recovery ist
+            next_seg = segments[i + 1] if i + 1 < len(segments) else None
+            has_recovery_pair = next_seg is not None and next_seg.segment_type in _RECOVERY_TYPES
+
+            for rep in range(seg.repeats):
+                # Work-Segment (mit allen Targets)
+                result.append(seg.model_copy(update={"position": pos, "repeats": 1}))
+                pos += 1
+
+                # Recovery zwischen Wiederholungen (nicht nach der letzten)
+                if rep < seg.repeats - 1:
+                    if has_recovery_pair and next_seg is not None:
+                        # Recovery-Segment MIT Targets verwenden
+                        result.append(next_seg.model_copy(update={"position": pos, "repeats": 1}))
+                    else:
+                        # Auto-generierter Recovery-Fallback (OHNE Targets)
+                        result.append(Segment(position=pos, segment_type="recovery_jog"))
+                    pos += 1
+
+            # Recovery-Segment ueberspringen wenn als Paar konsumiert
+            if has_recovery_pair:
+                i += 1
+        else:
+            result.append(seg.model_copy(update={"position": pos}))
+            pos += 1
+
+        i += 1
+
+    return result
 
 
 # --- Konvertierungsfunktionen ---
