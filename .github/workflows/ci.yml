@@ -252,13 +252,18 @@ jobs:
         env:
           PROD_URL: http://training.89.167.78.223.sslip.io
         run: |
-          CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" "$PROD_URL/" --max-time 10)
-          if echo "$CONTENT_TYPE" | grep -q "text/html"; then
-            echo "Frontend liefert HTML aus"
-          else
-            echo "::error::Frontend liefert kein HTML: $CONTENT_TYPE"
-            exit 1
-          fi
+          for i in $(seq 1 5); do
+            echo "Frontend-Check Versuch $i/5..."
+            CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" "$PROD_URL/" --connect-timeout 5 --max-time 10 2>/dev/null || echo "")
+            if echo "$CONTENT_TYPE" | grep -q "text/html"; then
+              echo "Frontend liefert HTML aus (Versuch $i)"
+              exit 0
+            fi
+            echo "Kein HTML — Content-Type: '$CONTENT_TYPE'"
+            sleep 10
+          done
+          echo "::error::Frontend liefert kein HTML nach 5 Versuchen"
+          exit 1
 
       - name: Frontend SPA Warmup
         env:
