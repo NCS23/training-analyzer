@@ -3,12 +3,15 @@ import {
   CloudRain,
   CloudSnow,
   Droplets,
+  Haze,
   MapPin,
   Sun,
   Thermometer,
   Wind,
   Zap,
 } from 'lucide-react';
+
+const AirQualityIcon = Haze;
 import { Card, CardHeader, CardBody, Badge } from '@nordlig/components';
 import type { WeatherData, AirQualityData } from '@/api/training';
 
@@ -112,18 +115,32 @@ export function SessionEnvironmentSection({
 
           {/* Luftqualität + UV */}
           {airQuality && (
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--color-text-muted)]">Luftqualität</span>
-                <Badge variant={aqiBadgeVariant(airQuality.european_aqi)}>
-                  AQI {airQuality.european_aqi} — {airQuality.aqi_label}
-                </Badge>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--color-text-muted)]">Luftqualität</span>
+                  <Badge variant={aqiBadgeVariant(airQuality.european_aqi)}>
+                    AQI {airQuality.european_aqi} — {airQuality.aqi_label}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--color-text-muted)]">UV-Index</span>
+                  <Badge variant={uvBadgeVariant(airQuality.uv_index)}>
+                    UV {airQuality.uv_index.toFixed(1)} — {airQuality.uv_label}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--color-text-muted)]">UV-Index</span>
-                <Badge variant={uvBadgeVariant(airQuality.uv_index)}>
-                  UV {airQuality.uv_index.toFixed(1)} — {airQuality.uv_label}
-                </Badge>
+              <div className="grid grid-cols-2 gap-3">
+                <MetricItem
+                  icon={<AirQualityIcon className="w-4 h-4" />}
+                  label="PM2.5"
+                  value={`${airQuality.pm2_5.toFixed(1)} µg/m³`}
+                />
+                <MetricItem
+                  icon={<AirQualityIcon className="w-4 h-4" />}
+                  label="PM10"
+                  value={`${airQuality.pm10.toFixed(1)} µg/m³`}
+                />
               </div>
             </div>
           )}
