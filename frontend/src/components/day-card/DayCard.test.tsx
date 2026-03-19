@@ -38,6 +38,7 @@ const baseEntry: WeeklyPlanEntry = {
   notes: null,
   plan_id: null,
   edited: false,
+  weather: null,
 };
 
 const noop = () => {};
