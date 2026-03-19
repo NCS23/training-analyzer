@@ -4,6 +4,7 @@ import pytest
 
 from app.models.segment import (
     Segment,
+    expand_segments,
     intervals_to_segments,
     lap_to_segment,
     laps_to_segments,
@@ -127,6 +128,154 @@ class TestExpand:
         expanded = seg.expand()
         positions = [s.position for s in expanded]
         assert positions == [5, 6, 7, 8, 9]
+
+
+class TestExpandSegments:
+    """Test expand_segments() — paar-basierte Expansion (Issue #345)."""
+
+    def test_no_repeats_passthrough(self) -> None:
+        """Segmente ohne repeats werden unveraendert durchgereicht."""
+        segments = [
+            Segment(position=0, segment_type="warmup", target_duration_minutes=10),
+            Segment(position=1, segment_type="steady", target_duration_minutes=30),
+            Segment(position=2, segment_type="cooldown", target_duration_minutes=5),
+        ]
+        result = expand_segments(segments)
+        assert len(result) == 3
+        assert [s.segment_type for s in result] == ["warmup", "steady", "cooldown"]
+
+    def test_work_with_recovery_pair(self) -> None:
+        """Work(repeats=3) + Recovery → [W, R, W, R, W] (Recovery hat Targets)."""
+        segments = [
+            Segment(
+                position=0,
+                segment_type="work",
+                target_duration_minutes=3,
+                target_pace_min="6:05",
+                target_pace_max="6:15",
+                repeats=3,
+            ),
+            Segment(
+                position=1,
+                segment_type="recovery_jog",
+                target_duration_minutes=2,
+                target_pace_min="7:00",
+                target_pace_max="7:30",
+            ),
+        ]
+        result = expand_segments(segments)
+
+        assert len(result) == 5
+        types = [s.segment_type for s in result]
+        assert types == ["work", "recovery_jog", "work", "recovery_jog", "work"]
+
+        # Alle Work-Segmente haben Targets
+        for s in result:
+            if s.segment_type == "work":
+                assert s.target_pace_min == "6:05"
+                assert s.target_duration_minutes == 3
+
+        # Alle Recovery-Segmente haben Targets vom Original
+        for s in result:
+            if s.segment_type == "recovery_jog":
+                assert s.target_pace_min == "7:00"
+                assert s.target_pace_max == "7:30"
+                assert s.target_duration_minutes == 2
+
+    def test_full_interval_workout(self) -> None:
+        """Session 20 Szenario: Warmup + 3x3min + Recovery + Cooldown → 7 Segmente."""
+        segments = [
+            Segment(position=0, segment_type="warmup", target_duration_minutes=10),
+            Segment(position=1, segment_type="work", target_duration_minutes=3, repeats=3),
+            Segment(
+                position=2,
+                segment_type="recovery_jog",
+                target_duration_minutes=2,
+                target_pace_min="7:00",
+                target_pace_max="7:30",
+            ),
+            Segment(position=3, segment_type="cooldown", target_duration_minutes=7),
+        ]
+        result = expand_segments(segments)
+
+        assert len(result) == 7
+        types = [s.segment_type for s in result]
+        assert types == [
+            "warmup",
+            "work",
+            "recovery_jog",
+            "work",
+            "recovery_jog",
+            "work",
+            "cooldown",
+        ]
+        # Kein doppelter Cooldown!
+        assert sum(1 for s in result if s.segment_type == "cooldown") == 1
+        # Recovery hat Targets
+        for s in result:
+            if s.segment_type == "recovery_jog":
+                assert s.target_pace_min == "7:00"
+
+    def test_work_without_following_recovery(self) -> None:
+        """Work(repeats=3) ohne Recovery → auto-generierte Recovery."""
+        segments = [
+            Segment(position=0, segment_type="work", target_distance_km=1, repeats=3),
+            Segment(position=1, segment_type="cooldown", target_duration_minutes=5),
+        ]
+        result = expand_segments(segments)
+
+        assert len(result) == 6  # W, R, W, R, W, Cooldown
+        types = [s.segment_type for s in result]
+        assert types == ["work", "recovery_jog", "work", "recovery_jog", "work", "cooldown"]
+        # Auto-Recovery hat KEINE Targets
+        for s in result:
+            if s.segment_type == "recovery_jog":
+                assert s.target_duration_minutes is None
+                assert s.target_pace_min is None
+
+    def test_rest_recognized_as_recovery_pair(self) -> None:
+        """'rest' wird als Recovery-Paar erkannt."""
+        segments = [
+            Segment(position=0, segment_type="work", target_distance_km=0.4, repeats=4),
+            Segment(position=1, segment_type="rest", target_duration_minutes=1),
+        ]
+        result = expand_segments(segments)
+        assert len(result) == 7  # W, rest, W, rest, W, rest, W
+        rest_segs = [s for s in result if s.segment_type == "rest"]
+        assert len(rest_segs) == 3
+        for s in rest_segs:
+            assert s.target_duration_minutes == 1
+
+    def test_positions_sequential(self) -> None:
+        """Positionen sind nach Expansion sequentiell."""
+        segments = [
+            Segment(position=0, segment_type="warmup", target_duration_minutes=5),
+            Segment(position=1, segment_type="work", repeats=3),
+            Segment(position=2, segment_type="recovery_jog", target_duration_minutes=2),
+            Segment(position=3, segment_type="cooldown", target_duration_minutes=5),
+        ]
+        result = expand_segments(segments)
+        positions = [s.position for s in result]
+        assert positions == list(range(len(result)))
+
+    def test_recovery_with_own_repeats_consumed_as_pair(self) -> None:
+        """Recovery mit repeats>1 wird als Paar konsumiert (nicht eigens expandiert)."""
+        segments = [
+            Segment(position=0, segment_type="work", repeats=3),
+            Segment(
+                position=1,
+                segment_type="recovery_jog",
+                target_duration_minutes=2,
+                target_pace_min="7:00",
+                target_pace_max="7:30",
+                repeats=2,
+            ),
+        ]
+        result = expand_segments(segments)
+        # Work bestimmt die Anzahl: W, R, W, R, W = 5
+        assert len(result) == 5
+        types = [s.segment_type for s in result]
+        assert types == ["work", "recovery_jog", "work", "recovery_jog", "work"]
 
 
 class TestRunIntervalToSegment:

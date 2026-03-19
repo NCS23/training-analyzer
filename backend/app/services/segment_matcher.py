@@ -12,6 +12,7 @@ from app.models.segment import (
     MatchedSegment,
     Segment,
     SegmentDelta,
+    expand_segments,
 )
 
 
@@ -105,9 +106,7 @@ def match_segments(
 
     Geplante Segmente werden zuerst expandiert (repeats aufloesen).
     """
-    expanded = []
-    for seg in planned:
-        expanded.extend(seg.expand())
+    expanded = expand_segments(planned)
 
     result: list[MatchedSegment] = []
     for i, (p, a) in enumerate(zip_longest(expanded, actual)):
@@ -151,7 +150,7 @@ def build_comparison(
     planned_run_type: str | None = None,
 ) -> ComparisonResponse:
     """Erstellt eine vollstaendige ComparisonResponse."""
-    expanded_count = sum(len(seg.expand()) for seg in planned_segments)
+    expanded_count = len(expand_segments(planned_segments))
     matched = match_segments(planned_segments, actual_segments)
 
     return ComparisonResponse(
