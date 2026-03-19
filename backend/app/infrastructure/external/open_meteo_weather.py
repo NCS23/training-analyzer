@@ -22,19 +22,24 @@ class OpenMeteoWeatherClient:
         )
 
     async def get_historical(self, lat: float, lon: float, dt: datetime) -> WeatherData | None:
-        """Historisches Wetter fuer vergangene Sessions."""
+        """Historisches Wetter — Archive-API mit Forecast-Fallback (letzte ~5 Tage)."""
         date_str = dt.strftime("%Y-%m-%d")
-        data = await self.client.get(
-            "/archive",
-            params={
-                "latitude": lat,
-                "longitude": lon,
-                "hourly": self.HOURLY_PARAMS,
-                "start_date": date_str,
-                "end_date": date_str,
-                "timezone": "auto",
-            },
-        )
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": self.HOURLY_PARAMS,
+            "start_date": date_str,
+            "end_date": date_str,
+            "timezone": "auto",
+        }
+        # Archive-API zuerst (hat Daten ab ~5 Tage Verzögerung)
+        data = await self.client.get("/archive", params=params)
+        result = self._extract_closest_hour(data, dt)
+        if result:
+            return result
+
+        # Fallback: Forecast-API deckt letzte ~2 Wochen + 7 Tage Zukunft ab
+        data = await self.client.get("/forecast", params=params)
         return self._extract_closest_hour(data, dt)
 
     async def get_forecast(self, lat: float, lon: float, dt: datetime) -> WeatherData | None:
