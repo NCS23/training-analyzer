@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1408,3 +1409,71 @@ async def _reparse_workout(
             "lap_overrides_restored": len(lap_overrides),
         },
     }
+
+
+# --- Session FIT Export (#352) ---
+
+
+@router.get("/{session_id}/export/fit")
+async def export_session_fit(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Export einer Lauf-Session als FIT-Workout-Datei.
+
+    Konvertiert die Ist-Laps zu Workout-Steps (Ist-Daten als Soll),
+    damit das Training auf der Uhr wiederholt werden kann.
+    """
+    import re
+
+    from app.models.segment import laps_to_template_segments
+    from app.services.fit_export import export_template_to_fit
+
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if str(workout.workout_type) != "running":
+        raise HTTPException(
+            status_code=422,
+            detail="FIT-Export ist nur fuer Lauf-Sessions verfuegbar.",
+        )
+
+    if not workout.laps_json:
+        raise HTTPException(
+            status_code=422,
+            detail="Session hat keine Laps fuer den Export.",
+        )
+
+    # Laps → Template-Segmente (Ist-Daten als Soll)
+    laps_data = json.loads(str(workout.laps_json))
+    lap_responses = [LapResponse(**lap) for lap in laps_data]
+    segments = laps_to_template_segments(lap_responses)
+
+    if not segments:
+        raise HTTPException(
+            status_code=422,
+            detail="Session hat keine exportierbaren Segmente.",
+        )
+
+    # Workout-Name aus Training-Type + Datum
+    effective_type = workout.training_type_override or workout.training_type_auto or "lauf"
+    session_date = workout.date.strftime("%d.%m") if workout.date else ""
+    workout_name = f"{effective_type.capitalize()} {session_date}".strip()
+
+    fit_bytes = export_template_to_fit(
+        template_name=workout_name[:50],
+        segments=segments,
+    )
+
+    safe_name = re.sub(r"[^a-z0-9]+", "-", workout_name.lower()).strip("-")[:50]
+    today = date.today().isoformat()
+    filename = f"workout-{safe_name}-{today}.fit"
+
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

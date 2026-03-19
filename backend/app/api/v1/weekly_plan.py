@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1268,3 +1269,62 @@ async def apply_recommendations(
     )
 
     return ApplyRecommendationsResponse(**result)
+
+
+# --- FIT Export (#352) ---
+
+
+@router.get("/entry/{entry_id}/export/fit")
+async def export_planned_session_fit(
+    entry_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Export eines geplanten Lauftrainings als FIT-Workout-Datei.
+
+    Konvertiert die Segmente eines Wochenplan-Eintrags direkt in eine
+    FIT-Datei fuer HealthFit / Apple Watch / Garmin.
+    """
+    import re
+
+    from app.services.fit_export import export_template_to_fit
+
+    result = await db.execute(select(PlannedSessionModel).where(PlannedSessionModel.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Geplanter Eintrag nicht gefunden.")
+
+    if str(entry.training_type) != "running":
+        raise HTTPException(
+            status_code=422,
+            detail="FIT-Export ist nur fuer Lauftrainings verfuegbar.",
+        )
+
+    run_details = None
+    if entry.run_details_json:
+        run_details = RunDetails.model_validate_json(str(entry.run_details_json))
+
+    if not run_details or not run_details.segments:
+        raise HTTPException(
+            status_code=422,
+            detail="Geplanter Eintrag hat keine Segmente fuer den Export.",
+        )
+
+    # Workout-Name: Notizen oder Run-Type
+    workout_name = str(entry.notes or "").split("\n")[0][:50] if entry.notes else None
+    if not workout_name:
+        workout_name = run_details.run_type or "Lauftraining"
+
+    fit_bytes = export_template_to_fit(
+        template_name=workout_name,
+        segments=run_details.segments,
+    )
+
+    safe_name = re.sub(r"[^a-z0-9]+", "-", workout_name.lower()).strip("-")[:50]
+    today = date.today().isoformat()
+    filename = f"workout-{safe_name}-{today}.fit"
+
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

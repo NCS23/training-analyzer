@@ -38,6 +38,7 @@ import {
   EllipsisVertical,
   BookmarkPlus,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -47,7 +48,7 @@ import {
   trainingTypeHints,
 } from '@/constants/training';
 import { createTemplateFromSession } from '@/api/session-templates';
-import { reparseSession } from '@/api/training';
+import { reparseSession, exportSessionFit } from '@/api/training';
 import type { StrengthExercisesEditorRef } from '@/components/StrengthExercisesEditor';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
@@ -261,6 +262,24 @@ export function SessionDetailPage() {
               >
                 Als Template speichern
               </DropdownMenuItem>
+              {session?.workout_type === 'running' && (
+                <DropdownMenuItem
+                  icon={<Download />}
+                  onSelect={async () => {
+                    try {
+                      await exportSessionFit(Number(id));
+                    } catch {
+                      toast({
+                        title: 'Fehler',
+                        description: 'FIT-Export fehlgeschlagen.',
+                        variant: 'error',
+                      });
+                    }
+                  }}
+                >
+                  Als FIT exportieren
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 icon={<RefreshCw />}
                 onSelect={async () => {

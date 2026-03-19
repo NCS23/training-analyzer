@@ -27,12 +27,14 @@ import {
   BookmarkPlus,
   CircleCheck,
   CircleSlash,
+  Download,
   EllipsisVertical,
   LayoutTemplate,
   Pencil,
   Trash2,
 } from 'lucide-react';
 import type { PlannedSession, RunDetails } from '@/api/weekly-plan';
+import { exportPlannedSessionFit } from '@/api/weekly-plan';
 import { createEmptySegment } from '@/api/segment';
 import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
 import { RUN_TYPE_LABELS, RUN_TYPE_OPTIONS, SESSION_TYPE_OPTIONS } from '@/constants/plan';
@@ -266,6 +268,23 @@ export function SessionDetailDialog({
                       Als Vorlage speichern
                     </DropdownMenuItem>
                   )}
+                  {session.training_type === 'running' &&
+                    session.id != null &&
+                    session.run_details?.segments &&
+                    session.run_details.segments.length > 0 && (
+                      <DropdownMenuItem
+                        icon={<Download />}
+                        onSelect={async () => {
+                          try {
+                            await exportPlannedSessionFit(session.id!);
+                          } catch {
+                            // Fehler still ignorieren — kein Toast verfuegbar
+                          }
+                        }}
+                      >
+                        Als FIT exportieren
+                      </DropdownMenuItem>
+                    )}
                   {canRemove && (
                     <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
                       Entfernen

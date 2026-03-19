@@ -269,3 +269,23 @@ export async function getPlannedSessionsForDate(date: string): Promise<PlannedSe
   );
   return response.data;
 }
+
+// --- FIT Export (#352) ---
+
+export async function exportPlannedSessionFit(entryId: number): Promise<void> {
+  const response = await apiClient.get(`/api/v1/weekly-plan/entry/${entryId}/export/fit`, {
+    responseType: 'blob',
+  });
+  const contentDisposition = String(response.headers['content-disposition'] || '');
+  const match = contentDisposition.match(/filename="?([^"]+)"?/);
+  const filename = match?.[1] || 'workout.fit';
+
+  const url = URL.createObjectURL(response.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

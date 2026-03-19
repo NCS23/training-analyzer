@@ -656,3 +656,27 @@ export async function reparseSession(sessionId: number): Promise<ReparseResponse
   const response = await apiClient.post<ReparseResponse>(`/api/v1/sessions/${sessionId}/reparse`);
   return response.data;
 }
+
+// --- FIT Export (#352) ---
+
+export async function exportSessionFit(sessionId: number): Promise<void> {
+  const response = await apiClient.get(`/api/v1/sessions/${sessionId}/export/fit`, {
+    responseType: 'blob',
+  });
+  _downloadBlob(response.data as Blob, response.headers);
+}
+
+function _downloadBlob(blob: Blob, headers: Record<string, unknown>): void {
+  const contentDisposition = String(headers['content-disposition'] || '');
+  const match = contentDisposition.match(/filename="?([^"]+)"?/);
+  const filename = match?.[1] || 'workout.fit';
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
