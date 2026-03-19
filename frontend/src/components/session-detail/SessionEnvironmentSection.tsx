@@ -51,23 +51,35 @@ function MetricItem({
   );
 }
 
+const SURFACE_COLORS = [
+  'var(--color-secondary-1-400)',
+  'var(--color-primary-1-400)',
+  'var(--color-primary-2-400)',
+  'var(--color-secondary-2-400)',
+  'var(--color-secondary-1-600)',
+];
+
 function SurfaceBar({ surface }: { surface: Record<string, number> }) {
+  const entries = Object.entries(surface);
   return (
     <div>
       <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Untergrund</div>
-      <div className="flex gap-1 h-2 rounded-[var(--radius-sm)] overflow-hidden">
-        {Object.entries(surface).map(([label, pct]) => (
+      <div className="flex gap-0.5 h-2.5 rounded-[var(--radius-sm)] overflow-hidden">
+        {entries.map(([label, pct], i) => (
           <div
             key={label}
-            style={{ width: `${pct}%` }}
-            className="bg-[var(--color-bg-primary-subtle)]"
+            style={{ width: `${pct}%`, backgroundColor: SURFACE_COLORS[i % SURFACE_COLORS.length] }}
             title={`${label} ${pct}%`}
           />
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-        {Object.entries(surface).map(([label, pct]) => (
-          <span key={label} className="text-[10px] text-[var(--color-text-muted)]">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+        {entries.map(([label, pct], i) => (
+          <span key={label} className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: SURFACE_COLORS[i % SURFACE_COLORS.length] }}
+            />
             {label} {pct.toFixed(0)}%
           </span>
         ))}
