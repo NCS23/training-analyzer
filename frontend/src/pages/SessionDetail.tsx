@@ -37,6 +37,7 @@ import {
   Pencil,
   EllipsisVertical,
   BookmarkPlus,
+  RefreshCw,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -46,6 +47,7 @@ import {
   trainingTypeHints,
 } from '@/constants/training';
 import { createTemplateFromSession } from '@/api/session-templates';
+import { reparseSession } from '@/api/training';
 import type { StrengthExercisesEditorRef } from '@/components/StrengthExercisesEditor';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
@@ -258,6 +260,34 @@ export function SessionDetailPage() {
                 }}
               >
                 Als Template speichern
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                icon={<RefreshCw />}
+                onSelect={async () => {
+                  try {
+                    const result = await reparseSession(Number(id));
+                    toast({
+                      title: 'Neu analysiert',
+                      description: `${result.changes.laps_count} Laps, HR ø${result.changes.hr_avg ?? '-'} bpm`,
+                      variant: 'success',
+                    });
+                    // Seite neu laden um aktualisierten Daten anzuzeigen
+                    window.location.reload();
+                  } catch (err) {
+                    const msg =
+                      err instanceof Error ? err.message : 'Reparse fehlgeschlagen';
+                    const isNoFile = typeof msg === 'string' && msg.includes('409');
+                    toast({
+                      title: 'Fehler',
+                      description: isNoFile
+                        ? 'Keine Originaldatei gespeichert. Bitte neu hochladen.'
+                        : msg,
+                      variant: 'error',
+                    });
+                  }
+                }}
+              >
+                Neu analysieren
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

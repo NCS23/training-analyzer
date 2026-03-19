@@ -315,6 +315,8 @@ async def _upload_session(
     form: SessionUploadForm,
     db: AsyncSession,
     csv_data: str | None = None,
+    file_name: str | None = None,
+    file_format: str | None = None,
 ) -> SessionUploadResponse:
     """Gemeinsame Upload-Logik für CSV und FIT."""
     parsed = await _parse_and_classify(
@@ -325,6 +327,12 @@ async def _upload_session(
 
     _apply_lap_overrides(parsed["laps"], form.lap_overrides_json)
     workout = _build_workout_model(form, parsed, csv_data)
+
+    # Originaldatei mitspeichern fuer Reparse (#349)
+    workout.original_file_content = content
+    workout.original_file_name = file_name
+    workout.original_file_format = file_format
+
     return await _save_and_respond(db, workout, parsed, form)
 
 
@@ -388,7 +396,15 @@ async def upload_csv(
 ) -> SessionUploadResponse:
     """Upload Apple Watch CSV und speichere als Session."""
     content = await _validate_upload_file(csv_file, ".csv", "CSV")
-    return await _upload_session(content, csv_parser, form, db, csv_data=content.decode("utf-8"))
+    return await _upload_session(
+        content,
+        csv_parser,
+        form,
+        db,
+        csv_data=content.decode("utf-8"),
+        file_name=csv_file.filename,
+        file_format="csv",
+    )
 
 
 @router.post("/upload/fit", response_model=SessionUploadResponse, status_code=201)
@@ -399,7 +415,14 @@ async def upload_fit(
 ) -> SessionUploadResponse:
     """Upload FIT file und speichere als Session."""
     content = await _validate_upload_file(fit_file, ".fit", "FIT")
-    return await _upload_session(content, fit_parser, form, db)
+    return await _upload_session(
+        content,
+        fit_parser,
+        form,
+        db,
+        file_name=fit_file.filename,
+        file_format="fit",
+    )
 
 
 @router.get("", response_model=SessionListResponse)
@@ -1206,3 +1229,182 @@ def _extract_working_hr_from_timeseries(
             hr_values.append(int(hr))
 
     return hr_values
+
+
+# --- Reparse (#349) ---
+
+
+@router.post("/{session_id}/reparse")
+async def reparse_session(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Parst eine Session neu aus der gespeicherten Originaldatei.
+
+    Aktualisiert Laps, HR-Daten, HR-Zonen, GPS. Behaelt User-Overrides
+    (Segment-Types, Training-Type-Override, Notes, RPE, geplanter Eintrag).
+    """
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    if not workout.original_file_content or not workout.original_file_format:
+        raise HTTPException(
+            status_code=409,
+            detail="Keine Originaldatei gespeichert. Session muss manuell neu hochgeladen werden.",
+        )
+
+    return await _reparse_workout(workout, db)
+
+
+@router.post("/reparse-all")
+async def reparse_all_sessions(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Parst alle Sessions mit gespeicherter Originaldatei neu.
+
+    Nuetzlich nach Parser-Fixes um alle bestehenden Sessions zu aktualisieren.
+    """
+    query = select(WorkoutModel).where(
+        WorkoutModel.original_file_content.isnot(None),
+        WorkoutModel.original_file_format.isnot(None),
+    )
+    result = await db.execute(query)
+    workouts = result.scalars().all()
+
+    results: list[dict] = []
+    for workout in workouts:
+        try:
+            reparse_result = await _reparse_workout(workout, db, commit=False)
+            results.append(
+                {
+                    "session_id": workout.id,
+                    "success": True,
+                    "changes": reparse_result.get("changes"),
+                }
+            )
+        except HTTPException as e:
+            results.append({"session_id": workout.id, "success": False, "error": e.detail})
+        except Exception as e:
+            results.append({"session_id": workout.id, "success": False, "error": str(e)})
+
+    await db.commit()
+
+    succeeded = sum(1 for r in results if r["success"])
+    failed = sum(1 for r in results if not r["success"])
+
+    return {
+        "total": len(results),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    }
+
+
+def _apply_parsed_data_to_workout(
+    workout: WorkoutModel,
+    parsed: dict,
+    new_laps: list[dict] | None,
+    file_format: str,
+    file_content: bytes,
+) -> None:
+    """Aktualisiert Workout-Felder aus Parse-Ergebnis (ohne User-Einstellungen)."""
+    summary = parsed["summary"]
+    workout.duration_sec = summary.get("total_duration_seconds")
+    workout.distance_km = summary.get("total_distance_km")
+    workout.pace = summary.get("avg_pace_formatted")
+    workout.hr_avg = summary.get("avg_hr_bpm")
+    workout.hr_max = summary.get("max_hr_bpm")
+    workout.hr_min = summary.get("min_hr_bpm")
+    workout.cadence_avg = summary.get("avg_cadence_spm")
+    workout.laps_json = json.dumps(new_laps) if new_laps else None
+    workout.hr_zones_json = json.dumps(parsed["hr_zones"]) if parsed["hr_zones"] else None
+
+    hr_timeseries = parsed.get("hr_timeseries")
+    if hr_timeseries:
+        workout.hr_timeseries_json = json.dumps(hr_timeseries)
+
+    gps_track = parsed.get("gps_track")
+    if gps_track:
+        workout.gps_track_json = json.dumps(gps_track)
+        workout.has_gps = True
+
+    if file_format == "csv":
+        workout.csv_data = file_content.decode("utf-8")
+
+    classification = parsed["classification"]
+    if classification:
+        workout.training_type_auto = classification.training_type
+        workout.training_type_confidence = classification.confidence
+
+    workout.athlete_resting_hr = parsed["resting_hr"]
+    workout.athlete_max_hr = parsed["max_hr"]
+
+
+async def _reparse_workout(
+    workout: WorkoutModel,
+    db: AsyncSession,
+    commit: bool = True,
+) -> dict:
+    """Interne Reparse-Logik fuer ein einzelnes Workout."""
+    if not workout.original_file_content or not workout.original_file_format:
+        raise HTTPException(status_code=409, detail="Keine Originaldatei gespeichert.")
+
+    file_content: bytes = workout.original_file_content
+    file_format = workout.original_file_format.lower()
+    if file_format == "fit":
+        parser: TrainingCSVParser | TrainingFITParser = fit_parser
+    elif file_format == "csv":
+        parser = csv_parser
+    else:
+        raise HTTPException(status_code=400, detail=f"Unbekanntes Dateiformat: {file_format}")
+
+    # User-Overrides vor Reparse sichern
+    old_laps = json.loads(workout.laps_json) if workout.laps_json else []
+    lap_overrides: dict[str, str] = {}
+    for lap in old_laps:
+        if lap.get("user_override"):
+            lap_overrides[str(lap["lap_number"])] = lap["user_override"]
+
+    # Neu parsen
+    training_type = TrainingType(workout.workout_type)
+    subtype_str = workout.subtype
+    training_subtype = TrainingSubType(subtype_str) if subtype_str else None
+
+    parsed = await _parse_and_classify(
+        file_content,
+        training_type,
+        training_subtype,
+        db,
+        parser=parser,
+    )
+    if not parsed["success"]:
+        raise HTTPException(status_code=500, detail=f"Reparse fehlgeschlagen: {parsed['errors']}")
+
+    # User-Overrides wieder anwenden
+    new_laps = parsed["laps"]
+    if new_laps and lap_overrides:
+        _apply_lap_overrides(new_laps, json.dumps(lap_overrides))
+
+    # Workout-Felder aktualisieren
+    _apply_parsed_data_to_workout(workout, parsed, new_laps, file_format, file_content)
+
+    if commit:
+        await db.commit()
+
+    return {
+        "success": True,
+        "session_id": workout.id,
+        "message": f"Session {workout.id} erfolgreich neu geparst.",
+        "changes": {
+            "hr_avg": workout.hr_avg,
+            "hr_max": workout.hr_max,
+            "hr_min": workout.hr_min,
+            "laps_count": len(new_laps) if new_laps else 0,
+            "has_hr_zones": bool(parsed["hr_zones"]),
+            "has_gps": workout.has_gps,
+            "lap_overrides_restored": len(lap_overrides),
+        },
+    }

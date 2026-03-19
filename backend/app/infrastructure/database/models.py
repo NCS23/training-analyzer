@@ -7,6 +7,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -52,6 +53,11 @@ class WorkoutModel(Base):
     # GPS
     gps_track_json: Mapped[str | None] = mapped_column(Text, default=None)
     has_gps: Mapped[bool] = mapped_column(default=False, server_default="false")
+
+    # Original-Datei fuer Reparse (#349)
+    original_file_content: Mapped[bytes | None] = mapped_column(LargeBinary, default=None)
+    original_file_name: Mapped[str | None] = mapped_column(String(255), default=None)
+    original_file_format: Mapped[str | None] = mapped_column(String(10), default=None)
 
     # Athlete settings snapshot (at time of upload)
     athlete_resting_hr: Mapped[int | None] = mapped_column(default=None)

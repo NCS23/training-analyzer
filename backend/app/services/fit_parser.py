@@ -50,7 +50,7 @@ class TrainingFITParser(TrainingParser):
             # Build laps (only for running)
             laps = None
             if detected_type == TrainingType.RUNNING and laps_data:
-                laps = self._build_laps(laps_data)
+                laps = self._build_laps(laps_data, records_data)
                 laps = classify_laps(laps, training_subtype)
 
             # Build HR timeseries (for strength or as raw data)
@@ -175,8 +175,12 @@ class TrainingFITParser(TrainingParser):
 
         return summary
 
-    def _build_laps(self, laps_data: list[dict]) -> list[dict]:
-        """Build lap list matching CSV parser format."""
+    def _build_laps(self, laps_data: list[dict], records: list[dict]) -> list[dict]:
+        """Build lap list matching CSV parser format.
+
+        Wenn Lap-Messages keine HR-Daten enthalten (z.B. Apple Watch Exports),
+        werden per-Lap HR-Werte aus den Record-Messages berechnet.
+        """
         laps = []
         for i, lap in enumerate(laps_data, start=1):
             duration = lap.get("total_timer_time", 0)
@@ -185,6 +189,16 @@ class TrainingFITParser(TrainingParser):
             max_hr = lap.get("max_heart_rate")
             min_hr = lap.get("min_heart_rate")
             cadence = lap.get("avg_running_cadence") or lap.get("avg_cadence")
+
+            # Backfill HR aus Records wenn Lap-Level HR fehlt
+            if avg_hr is None:
+                lap_start = lap.get("start_time")
+                lap_end = lap.get("timestamp")
+                if lap_start and lap_end:
+                    computed = self._compute_hr_from_records(records, lap_start, lap_end)
+                    avg_hr = computed.get("avg")
+                    max_hr = max_hr or computed.get("max")
+                    min_hr = min_hr or computed.get("min")
 
             duration_sec = int(duration) if duration else 0
             distance_km = round(distance / 1000.0, 2) if distance else None
@@ -215,6 +229,35 @@ class TrainingFITParser(TrainingParser):
                 }
             )
         return laps
+
+    @staticmethod
+    def _compute_hr_from_records(
+        records: list[dict],
+        lap_start: object,
+        lap_end: object,
+    ) -> dict:
+        """Berechnet avg/max/min HR aus Records fuer einen Lap-Zeitraum.
+
+        Wird als Fallback verwendet wenn Lap-Messages keine HR enthalten
+        (typisch fuer Apple Watch / HealthFit Exports).
+        """
+        hr_values: list[int] = []
+        for record in records:
+            ts = record.get("timestamp")
+            hr = record.get("heart_rate")
+            if ts is None or hr is None:
+                continue
+            if lap_start <= ts <= lap_end:
+                hr_values.append(int(hr))
+
+        if not hr_values:
+            return {}
+
+        return {
+            "avg": round(sum(hr_values) / len(hr_values)),
+            "max": max(hr_values),
+            "min": min(hr_values),
+        }
 
     def _build_hr_timeseries(self, records: list[dict]) -> list[dict]:
         """Build HR timeseries from record messages."""

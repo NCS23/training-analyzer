@@ -634,3 +634,27 @@ export async function getWeeklyReview(weekStart: string): Promise<WeeklyReview> 
   const response = await apiClient.get<WeeklyReview>(`/api/v1/weekly-review/${weekStart}`);
   return response.data;
 }
+
+// --- Reparse (#349) ---
+
+export interface ReparseResponse {
+  success: boolean;
+  session_id: number;
+  message: string;
+  changes: {
+    hr_avg: number | null;
+    hr_max: number | null;
+    hr_min: number | null;
+    laps_count: number;
+    has_hr_zones: boolean;
+    has_gps: boolean;
+    lap_overrides_restored: number;
+  };
+}
+
+export async function reparseSession(sessionId: number): Promise<ReparseResponse> {
+  const response = await apiClient.post<ReparseResponse>(
+    `/api/v1/sessions/${sessionId}/reparse`,
+  );
+  return response.data;
+}
