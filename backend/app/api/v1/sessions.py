@@ -1,6 +1,7 @@
 """Session API Endpoints — CRUD + CSV Upload mit DB-Persistenz."""
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -19,6 +20,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.infrastructure.database.models import (
     AthleteModel,
     PlannedSessionModel,
@@ -57,6 +59,8 @@ from app.services.hr_zone_calculator import calculate_zone_distribution
 from app.services.km_split_calculator import calculate_km_splits, calculate_session_gap
 from app.services.segment_matcher import build_comparison
 from app.services.training_type_classifier import classify_training_type
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -295,13 +299,16 @@ async def _save_and_respond(
         await _auto_match_planned_entry(db, workout)
 
     # Enrichment im Background starten (Wetter, Location, AQ, Elevation)
-    if background_tasks and workout.has_gps:
+    if background_tasks and workout.has_gps and settings.enrichment_enabled:
         from app.infrastructure.database.session import async_session_maker
         from app.services.session_enrichment import enrichment_service
 
         async def _enrich_in_background(wid: int) -> None:
-            async with async_session_maker() as bg_db:
-                await enrichment_service.enrich_session(wid, bg_db)
+            try:
+                async with async_session_maker() as bg_db:
+                    await enrichment_service.enrich_session(wid, bg_db)
+            except Exception:
+                logger.warning("Background-Enrichment fehlgeschlagen fuer Session %d", wid)
 
         background_tasks.add_task(_enrich_in_background, workout.id)
 
