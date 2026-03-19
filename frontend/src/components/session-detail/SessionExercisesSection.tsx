@@ -106,17 +106,17 @@ export function SessionExercisesSection({
                     </Badge>
                   </div>
                   <div className="overflow-x-auto -mx-[var(--spacing-card-padding-normal)]">
-                    <Table>
+                    <Table className="table-fixed">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-10 sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
+                          <TableHead className="w-[8%] sticky left-0 z-10 bg-[var(--color-table-header-bg)]">
                             #
                           </TableHead>
-                          {cols.hasReps && <TableHead>Wdh.</TableHead>}
-                          {cols.hasWeight && <TableHead>Gewicht</TableHead>}
-                          {cols.hasDuration && <TableHead>Dauer</TableHead>}
-                          {cols.hasDistance && <TableHead>Distanz</TableHead>}
-                          <TableHead>Status</TableHead>
+                          {cols.hasReps && <TableHead className="w-[22%]">Wdh.</TableHead>}
+                          {cols.hasWeight && <TableHead className="w-[30%]">Gewicht</TableHead>}
+                          {cols.hasDuration && <TableHead className="w-[30%]">Dauer</TableHead>}
+                          {cols.hasDistance && <TableHead className="w-[30%]">Distanz</TableHead>}
+                          <TableHead className="w-[22%]">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
