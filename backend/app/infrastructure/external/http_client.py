@@ -81,5 +81,52 @@ class ExternalAPIClient:
 
         return None
 
+    async def post_form(self, path: str, data: dict | None = None) -> dict | None:
+        """POST-Request mit Form-Data (fuer Overpass API). 1x Retry."""
+        for attempt in range(2):
+            try:
+                response = await self._client.post(path, data=data)
+
+                if response.status_code == 200:
+                    return response.json()
+
+                if response.status_code >= 500 and attempt == 0:
+                    logger.warning(
+                        "External API POST %s%s returned %s, retrying...",
+                        self.base_url,
+                        path,
+                        response.status_code,
+                    )
+                    await asyncio.sleep(2.0)
+                    continue
+
+                logger.warning(
+                    "External API POST %s%s returned %s",
+                    self.base_url,
+                    path,
+                    response.status_code,
+                )
+                return None
+
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                if attempt == 0:
+                    logger.warning(
+                        "External API POST %s%s error: %s, retrying...",
+                        self.base_url,
+                        path,
+                        e,
+                    )
+                    await asyncio.sleep(2.0)
+                    continue
+                logger.warning(
+                    "External API POST %s%s failed: %s",
+                    self.base_url,
+                    path,
+                    e,
+                )
+                return None
+
+        return None
+
     async def close(self) -> None:
         await self._client.aclose()

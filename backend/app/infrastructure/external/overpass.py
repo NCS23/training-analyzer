@@ -39,18 +39,17 @@ class OverpassClient:
 
     def __init__(self) -> None:
         self.client = ExternalAPIClient(
-            base_url="https://overpass-api.de/api",
+            base_url="https://overpass.kumi.systems/api",
             timeout=30.0,
-            rate_limit_delay=1.0,
         )
 
     async def get_surface_along_route(
-        self, points: list[dict], sample_count: int = 20
+        self, points: list[dict], sample_count: int = 10
     ) -> dict[str, float] | None:
         """Ermittelt Untergrund-Verteilung entlang einer GPS-Route.
 
-        Sampelt sample_count Punkte, fragt fuer jeden den naechsten Weg ab,
-        und aggregiert die surface-Tags.
+        Nutzt eine einzige Overpass-Query mit Bounding-Box statt
+        einzelner Requests pro Sample-Punkt.
 
         Returns dict wie {"Asphalt": 70.0, "Schotter": 20.0, "Gras": 10.0}
         (Prozent) oder None bei Fehler.
@@ -62,18 +61,11 @@ class OverpassClient:
         step = max(1, len(points) // sample_count)
         sampled = [points[i] for i in range(0, len(points), step)][:sample_count]
 
-        # Overpass-Query: Finde den naechsten Weg (highway) fuer jeden Punkt
-        # und extrahiere das surface-Tag
-        surfaces: list[str] = []
-        for pt in sampled:
-            surface = await self._query_surface_at(pt["lat"], pt["lng"])
-            if surface:
-                surfaces.append(surface)
-
+        # Eine einzige Overpass-Query: Alle Wege in der Bounding-Box der Route
+        surfaces = await self._batch_query_surfaces(sampled)
         if not surfaces:
             return None
 
-        # Verteilung berechnen
         counter = Counter(surfaces)
         total = sum(counter.values())
         return {
@@ -81,24 +73,34 @@ class OverpassClient:
             for surface, count in counter.most_common()
         }
 
-    async def _query_surface_at(self, lat: float, lon: float) -> str | None:
-        """Fragt den Untergrund am naechsten Weg bei lat/lon ab."""
-        # Overpass QL: Finde Wege (highway=*) im 20m Umkreis, sortiert nach Naehe
-        query = f'[out:json][timeout:5];way["highway"](around:20,{lat},{lon});out tags 1;'
-        data = await self.client.get(
+    async def _batch_query_surfaces(self, sampled_points: list[dict]) -> list[str]:
+        """Eine einzige Overpass-Query fuer alle Sample-Punkte."""
+        # Bau eine Union-Query: fuer jeden Punkt die naechsten Wege suchen
+        around_parts = "\n".join(
+            f'way["highway"](around:30,{pt["lat"]},{pt["lng"]});' for pt in sampled_points
+        )
+        query = f"[out:json][timeout:15];({around_parts});out tags;"
+
+        data = await self.client.post_form(
             "/interpreter",
-            params={"data": query},
+            data={"data": query},
         )
         if not data or "elements" not in data:
-            return None
+            return []
 
-        elements = data["elements"]
-        if not elements:
-            return None
+        # Sammle alle surface-Tags (Duplikate = haeufiger auf der Route)
+        surfaces: list[str] = []
+        seen_ids: set[int] = set()
+        for element in data["elements"]:
+            eid = element.get("id", 0)
+            if eid in seen_ids:
+                continue
+            seen_ids.add(eid)
+            surface = element.get("tags", {}).get("surface")
+            if surface:
+                surfaces.append(surface)
 
-        # Ersten Treffer nehmen (naechster Weg)
-        tags = elements[0].get("tags", {})
-        return tags.get("surface")
+        return surfaces
 
 
 overpass_client = OverpassClient()
