@@ -13,6 +13,7 @@ from app.infrastructure.external.nominatim import NominatimClient
 from app.infrastructure.external.open_meteo_air_quality import OpenMeteoAirQualityClient
 from app.infrastructure.external.open_meteo_elevation import OpenMeteoElevationClient
 from app.infrastructure.external.open_meteo_weather import OpenMeteoWeatherClient
+from app.infrastructure.external.overpass import OverpassClient
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class SessionEnrichmentService:
         self.geocoder = NominatimClient()
         self.air_quality = OpenMeteoAirQualityClient()
         self.elevation = OpenMeteoElevationClient()
+        self.overpass = OverpassClient()
 
     async def enrich_session(self, workout_id: int, db: AsyncSession) -> None:
         """Einzelne Session mit allen verfuegbaren Daten anreichern."""
@@ -51,6 +53,7 @@ class SessionEnrichmentService:
             await self._enrich_location(workout, lat, lon)
             await self._enrich_air_quality(workout, lat, lon, session_dt)
             await self._enrich_elevation(workout, gps_track)
+            await self._enrich_surface(workout, gps_track)
 
             workout.enrichment_status = "enriched"
             await db.commit()
@@ -85,6 +88,16 @@ class SessionEnrichmentService:
         aq = await self.air_quality.get_air_quality(lat, lon, dt)
         if aq:
             workout.air_quality_json = aq.model_dump_json()
+
+    async def _enrich_surface(self, workout: WorkoutModel, gps_track: dict) -> None:
+        if workout.surface_json:
+            return
+        points = gps_track.get("points", [])
+        if len(points) < 2:
+            return
+        surface = await self.overpass.get_surface_along_route(points)
+        if surface:
+            workout.surface_json = json.dumps(surface)
 
     async def _enrich_elevation(self, workout: WorkoutModel, gps_track: dict) -> None:
         if workout.elevation_corrected:

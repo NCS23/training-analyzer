@@ -1,9 +1,11 @@
 """Trend Analysis API — Aggregated training data over time."""
 
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -189,6 +191,202 @@ def _compute_insights(weekly_data: list[WeeklyDataPoint]) -> list[TrendInsight]:
                 TrendInsight(
                     type="neutral",
                     message=f"Wochenvolumen um {((second_half / first_half) - 1) * 100:.0f}% gesteigert. Achte auf die 10%-Regel.",
+                )
+            )
+
+    return insights
+
+
+# --- Weather Correlation (#369) ---
+
+
+class WeatherCorrelationPoint(BaseModel):
+    """Ein Datenpunkt: Session mit Pace + Wetterdaten."""
+
+    date: str
+    pace_sec_per_km: float
+    temperature_c: float
+    wind_speed_kmh: float
+    precipitation_mm: float
+    weather_label: str
+    aqi: int | None = None
+
+
+class WeatherCorrelationResponse(BaseModel):
+    """Wetter-Korrelations-Analyse fuer Laufsessions."""
+
+    data_points: list[WeatherCorrelationPoint]
+    insights: list[TrendInsight]
+    avg_pace_by_condition: dict[str, float]  # weather_label → avg pace sec
+
+
+@router.get("/weather-correlation", response_model=WeatherCorrelationResponse)
+async def get_weather_correlation(
+    days: int = Query(default=90, ge=14, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> WeatherCorrelationResponse:
+    """Korrelation zwischen Wetter und Laufleistung."""
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    query = (
+        select(WorkoutModel)
+        .where(
+            WorkoutModel.date >= cutoff,
+            WorkoutModel.workout_type == "running",
+            WorkoutModel.weather_json.isnot(None),
+            WorkoutModel.pace.isnot(None),
+            WorkoutModel.distance_km.isnot(None),
+        )
+        .order_by(WorkoutModel.date.asc())
+    )
+    result = await db.execute(query)
+    sessions = list(result.scalars().all())
+
+    data_points: list[WeatherCorrelationPoint] = []
+    pace_by_condition: dict[str, list[float]] = {}
+
+    for s in sessions:
+        if not s.pace or not s.weather_json:
+            continue
+        pace_sec = _parse_pace_to_seconds(str(s.pace))
+        if pace_sec <= 0:
+            continue
+
+        try:
+            wx = json.loads(str(s.weather_json))
+        except json.JSONDecodeError:
+            continue
+
+        label = wx.get("weather_label", "?")
+        temp = float(wx.get("temperature_c", 0))
+        wind = float(wx.get("wind_speed_kmh", 0))
+        precip = float(wx.get("precipitation_mm", 0))
+
+        aq_val = None
+        if s.air_quality_json:
+            try:
+                aq = json.loads(str(s.air_quality_json))
+                aq_val = aq.get("european_aqi")
+            except json.JSONDecodeError:
+                pass
+
+        w_date = s.date.date() if isinstance(s.date, datetime) else s.date
+        data_points.append(
+            WeatherCorrelationPoint(
+                date=w_date.isoformat(),
+                pace_sec_per_km=pace_sec,
+                temperature_c=temp,
+                wind_speed_kmh=wind,
+                precipitation_mm=precip,
+                weather_label=label,
+                aqi=aq_val,
+            )
+        )
+
+        if label not in pace_by_condition:
+            pace_by_condition[label] = []
+        pace_by_condition[label].append(pace_sec)
+
+    # Durchschnittspaces pro Wetterbedingung
+    avg_pace_by_condition = {
+        label: round(sum(paces) / len(paces), 1)
+        for label, paces in pace_by_condition.items()
+        if paces
+    }
+
+    insights = _compute_weather_insights(data_points, avg_pace_by_condition)
+
+    return WeatherCorrelationResponse(
+        data_points=data_points,
+        insights=insights,
+        avg_pace_by_condition=avg_pace_by_condition,
+    )
+
+
+def _compute_weather_insights(
+    points: list[WeatherCorrelationPoint],
+    avg_by_condition: dict[str, float],  # noqa: ARG001
+) -> list[TrendInsight]:
+    """Generiert Wetter-Korrelations-Insights."""
+    insights: list[TrendInsight] = []
+
+    if len(points) < 3:
+        insights.append(
+            TrendInsight(
+                type="neutral",
+                message="Noch zu wenige Sessions mit Wetterdaten fuer eine Korrelationsanalyse.",
+            )
+        )
+        return insights
+
+    # Temperatur-Korrelation
+    hot_runs = [p for p in points if p.temperature_c >= 25]
+    cool_runs = [p for p in points if 5 <= p.temperature_c <= 15]
+    if hot_runs and cool_runs:
+        hot_avg = sum(p.pace_sec_per_km for p in hot_runs) / len(hot_runs)
+        cool_avg = sum(p.pace_sec_per_km for p in cool_runs) / len(cool_runs)
+        diff = hot_avg - cool_avg
+        if diff > 5:
+            insights.append(
+                TrendInsight(
+                    type="neutral",
+                    message=(
+                        f"Bei Hitze (>25°C) laeuft du im Schnitt "
+                        f"{diff:.0f} sec/km langsamer als bei 5-15°C."
+                    ),
+                )
+            )
+
+    # Wind-Korrelation
+    windy = [p for p in points if p.wind_speed_kmh >= 20]
+    calm = [p for p in points if p.wind_speed_kmh < 10]
+    if windy and calm:
+        windy_avg = sum(p.pace_sec_per_km for p in windy) / len(windy)
+        calm_avg = sum(p.pace_sec_per_km for p in calm) / len(calm)
+        wind_diff = windy_avg - calm_avg
+        if wind_diff > 5:
+            insights.append(
+                TrendInsight(
+                    type="neutral",
+                    message=(
+                        f"Bei starkem Wind (>20 km/h) bist du {wind_diff:.0f} sec/km langsamer."
+                    ),
+                )
+            )
+
+    # Regen-Korrelation
+    rain_runs = [p for p in points if p.precipitation_mm > 0]
+    dry_runs = [p for p in points if p.precipitation_mm == 0]
+    if rain_runs and dry_runs:
+        rain_avg = sum(p.pace_sec_per_km for p in rain_runs) / len(rain_runs)
+        dry_avg = sum(p.pace_sec_per_km for p in dry_runs) / len(dry_runs)
+        rain_diff = rain_avg - dry_avg
+        if abs(rain_diff) > 3:
+            direction = "langsamer" if rain_diff > 0 else "schneller"
+            insights.append(
+                TrendInsight(
+                    type="neutral",
+                    message=(
+                        f"Bei Regen laeuft du {abs(rain_diff):.0f} sec/km {direction} "
+                        f"als bei trockenem Wetter."
+                    ),
+                )
+            )
+
+    # AQI-Korrelation
+    bad_air = [p for p in points if p.aqi is not None and p.aqi > 50]
+    good_air = [p for p in points if p.aqi is not None and p.aqi <= 30]
+    if bad_air and good_air:
+        bad_avg = sum(p.pace_sec_per_km for p in bad_air) / len(bad_air)
+        good_avg = sum(p.pace_sec_per_km for p in good_air) / len(good_air)
+        aqi_diff = bad_avg - good_avg
+        if aqi_diff > 5:
+            insights.append(
+                TrendInsight(
+                    type="warning",
+                    message=(
+                        f"Bei schlechter Luftqualitaet (AQI >50) laeuft du "
+                        f"{aqi_diff:.0f} sec/km langsamer."
+                    ),
                 )
             )
 

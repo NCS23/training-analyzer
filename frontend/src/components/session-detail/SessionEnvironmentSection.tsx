@@ -19,6 +19,7 @@ interface SessionEnvironmentSectionProps {
   weather: WeatherData | null;
   airQuality: AirQualityData | null;
   locationName: string | null;
+  surface: Record<string, number> | null;
 }
 
 function weatherIcon(code: number) {
@@ -50,12 +51,38 @@ function MetricItem({
   );
 }
 
+function SurfaceBar({ surface }: { surface: Record<string, number> }) {
+  return (
+    <div>
+      <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Untergrund</div>
+      <div className="flex gap-1 h-2 rounded-[var(--radius-sm)] overflow-hidden">
+        {Object.entries(surface).map(([label, pct]) => (
+          <div
+            key={label}
+            style={{ width: `${pct}%` }}
+            className="bg-[var(--color-bg-primary-subtle)]"
+            title={`${label} ${pct}%`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+        {Object.entries(surface).map(([label, pct]) => (
+          <span key={label} className="text-[10px] text-[var(--color-text-muted)]">
+            {label} {pct.toFixed(0)}%
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SessionEnvironmentSection({
   weather,
   airQuality,
   locationName,
+  surface,
 }: SessionEnvironmentSectionProps) {
-  if (!weather && !airQuality && !locationName) return null;
+  if (!weather && !airQuality && !locationName && !surface) return null;
 
   return (
     <Card elevation="raised">
@@ -125,6 +152,9 @@ export function SessionEnvironmentSection({
               </>
             )}
           </div>
+
+          {/* Untergrund */}
+          {surface && Object.keys(surface).length > 0 && <SurfaceBar surface={surface} />}
         </div>
       </CardBody>
     </Card>

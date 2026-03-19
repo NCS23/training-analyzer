@@ -275,6 +275,7 @@ export interface SessionDetail {
   weather: WeatherData | null;
   location_name: string | null;
   air_quality: AirQualityData | null;
+  surface: Record<string, number> | null; // {"Asphalt": 70.0, "Schotter": 30.0}
   elevation_corrected: boolean;
   created_at: string;
   updated_at: string;

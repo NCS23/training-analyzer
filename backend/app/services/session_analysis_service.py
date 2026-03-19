@@ -270,6 +270,8 @@ def _build_system_prompt(ctx: AnalysisContext) -> str:
             "- Gib konkrete, umsetzbare Empfehlungen",
             "- Achte auf Uebertraining-Signale",
             "- Priorisiere Gesundheit vor Performance",
+            "- Beruecksichtige Umgebungsbedingungen (Wetter, Temperatur, Wind, Luftqualitaet)",
+            "  bei der Leistungsbewertung — z.B. langsamere Pace bei Hitze/Gegenwind ist normal",
             "",
             "Antworte praegnant, freundlich und kompetent.",
         ]
@@ -341,6 +343,42 @@ def _build_session_section(w: WorkoutModel) -> str:
                 lines.append(f"- Hoehenmeter: ↑{a}m ↓{d}m")
         except json.JSONDecodeError:
             pass
+
+    # Enrichment: Wetter, Luftqualität, Location
+    if w.weather_json:
+        try:
+            wx = json.loads(str(w.weather_json))
+            lines.append(
+                f"- Wetter: {wx.get('weather_label', '?')}, "
+                f"{wx.get('temperature_c', '?')}°C, "
+                f"Wind {wx.get('wind_speed_kmh', '?')} km/h, "
+                f"Niederschlag {wx.get('precipitation_mm', 0)} mm, "
+                f"Luftfeuchtigkeit {wx.get('humidity_pct', '?')}%"
+            )
+        except json.JSONDecodeError:
+            pass
+
+    if w.air_quality_json:
+        try:
+            aq = json.loads(str(w.air_quality_json))
+            lines.append(
+                f"- Luftqualitaet: AQI {aq.get('european_aqi', '?')} ({aq.get('aqi_label', '?')}), "
+                f"PM2.5 {aq.get('pm2_5', '?')} µg/m³, "
+                f"UV-Index {aq.get('uv_index', '?')} ({aq.get('uv_label', '?')})"
+            )
+        except json.JSONDecodeError:
+            pass
+
+    if w.surface_json:
+        try:
+            surface = json.loads(str(w.surface_json))
+            parts = [f"{label} {pct:.0f}%" for label, pct in surface.items()]
+            lines.append(f"- Untergrund: {', '.join(parts)}")
+        except json.JSONDecodeError:
+            pass
+
+    if w.location_name:
+        lines.append(f"- Ort: {w.location_name}")
 
     # Notizen
     if w.notes:

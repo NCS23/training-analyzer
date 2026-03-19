@@ -25,6 +25,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { getTrends } from '@/api/trends';
+import { WeatherCorrelationCard } from '@/components/analysis/WeatherCorrelationCard';
 import type { TrendResponse, WeeklyDataPoint } from '@/api/trends';
 
 const StrengthProgressionContent = lazy(() =>
@@ -307,6 +308,9 @@ function RunningTrendsContent({ timeRange }: { timeRange: TimeRange }) {
               </div>
             </CardBody>
           </Card>
+
+          {/* Wetter-Korrelation */}
+          <WeatherCorrelationCard />
         </>
       )}
     </>

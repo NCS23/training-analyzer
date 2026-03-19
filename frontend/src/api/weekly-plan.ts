@@ -49,6 +49,17 @@ export interface PlannedSession {
   status?: 'active' | 'skipped'; // default: 'active'
 }
 
+export interface DayWeatherForecast {
+  temperature_min: number;
+  temperature_max: number;
+  weather_label: string;
+  weather_code: number;
+  precipitation_mm: number;
+  wind_speed_max_kmh: number;
+  aqi: number | null;
+  aqi_label: string | null;
+}
+
 export interface WeeklyPlanEntry {
   day_of_week: number; // 0=Mon, 6=Sun
   sessions: PlannedSession[];
@@ -56,6 +67,7 @@ export interface WeeklyPlanEntry {
   notes: string | null;
   plan_id: number | null;
   edited: boolean;
+  weather: DayWeatherForecast | null;
 }
 
 export interface WeeklyPlanResponse {

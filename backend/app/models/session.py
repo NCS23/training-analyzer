@@ -108,6 +108,7 @@ class SessionResponse(BaseModel):
     weather: Optional[WeatherData] = None
     location_name: Optional[str] = None
     air_quality: Optional[AirQualityData] = None
+    surface: Optional[dict[str, float]] = None  # {"Asphalt": 70.0, "Schotter": 30.0}
     elevation_corrected: bool = False
     created_at: datetime
     updated_at: datetime
@@ -172,6 +173,11 @@ class SessionResponse(BaseModel):
             with contextlib.suppress(json.JSONDecodeError, Exception):
                 air_quality = AirQualityData(**json.loads(str(model.air_quality_json)))
 
+        surface = None
+        if model.surface_json:
+            with contextlib.suppress(json.JSONDecodeError, Exception):
+                surface = json.loads(str(model.surface_json))
+
         return cls(
             id=model.id,
             date=session_date,
@@ -199,6 +205,7 @@ class SessionResponse(BaseModel):
             weather=weather,
             location_name=model.location_name if model.location_name else None,
             air_quality=air_quality,
+            surface=surface,
             elevation_corrected=bool(model.elevation_corrected),
             created_at=model.created_at,
             updated_at=model.updated_at,

@@ -448,6 +448,7 @@ def _build_system_prompt(ctx: RecommendationContext) -> str:
         "- Achte auf Uebertraining-Signale",
         "- Empfehlungen muessen spezifisch und actionable sein",
         "- Beruecksichtige die Trainingsphase und das Wettkampfziel",
+        "- Beruecksichtige Umgebungsbedingungen (Wetter, Luftqualitaet) bei Empfehlungen",
         "- Vermeide generische Ratschlaege",
     ]
 
