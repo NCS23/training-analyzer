@@ -33,6 +33,11 @@ vi.mock('@/api/trends', () => ({
     ],
     insights: [{ type: 'positive', message: 'Pace verbessert!' }],
   }),
+  getWeatherCorrelation: vi.fn().mockResolvedValue({
+    data_points: [],
+    insights: [],
+    avg_pace_by_condition: {},
+  }),
 }));
 
 // Mock API — Training Balance

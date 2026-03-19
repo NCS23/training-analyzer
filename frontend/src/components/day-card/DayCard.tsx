@@ -166,9 +166,7 @@ export function DayCard({
         </div>
 
         {/* Wetter-Forecast */}
-        {entry.weather && (
-          <DayWeatherBar weather={entry.weather} />
-        )}
+        {entry.weather && <DayWeatherBar weather={entry.weather} />}
 
         {/* Session rows — each one clickable */}
         <div className="px-[var(--spacing-sm)] pb-[var(--spacing-xs)] flex flex-col gap-0.5">
