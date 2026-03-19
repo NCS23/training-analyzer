@@ -274,8 +274,7 @@ export function SessionDetailPage() {
                     // Seite neu laden um aktualisierten Daten anzuzeigen
                     window.location.reload();
                   } catch (err) {
-                    const msg =
-                      err instanceof Error ? err.message : 'Reparse fehlgeschlagen';
+                    const msg = err instanceof Error ? err.message : 'Reparse fehlgeschlagen';
                     const isNoFile = typeof msg === 'string' && msg.includes('409');
                     toast({
                       title: 'Fehler',

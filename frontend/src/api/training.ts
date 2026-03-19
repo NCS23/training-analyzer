@@ -653,8 +653,6 @@ export interface ReparseResponse {
 }
 
 export async function reparseSession(sessionId: number): Promise<ReparseResponse> {
-  const response = await apiClient.post<ReparseResponse>(
-    `/api/v1/sessions/${sessionId}/reparse`,
-  );
+  const response = await apiClient.post<ReparseResponse>(`/api/v1/sessions/${sessionId}/reparse`);
   return response.data;
 }
