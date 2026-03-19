@@ -65,6 +65,7 @@ import {
   SessionComparisonSection,
   SessionAIAnalysis,
 } from '@/components/session-detail';
+import { SessionEnvironmentSection } from '@/components/session-detail/SessionEnvironmentSection';
 
 const workoutTypeHeadings: Record<string, string> = {
   running: 'Lauftraining',
@@ -402,6 +403,7 @@ export function SessionDetailPage() {
       {gpsTrack && gpsTrack.points.length > 0 && (
         <SessionRouteSection
           gpsTrack={gpsTrack}
+          elevationCorrected={session.elevation_corrected}
           map={map}
           onKmMarkerClick={(km) => {
             map.setSplitsTab('km');
@@ -411,6 +413,15 @@ export function SessionDetailPage() {
             map.setSplitsTab('laps');
             map.setHighlightedLap(lap);
           }}
+        />
+      )}
+
+      {/* Umgebungsbedingungen (Wetter, Luftqualität, Location) */}
+      {(session.weather || session.air_quality || session.location_name) && (
+        <SessionEnvironmentSection
+          weather={session.weather}
+          airQuality={session.air_quality}
+          locationName={session.location_name}
         />
       )}
 

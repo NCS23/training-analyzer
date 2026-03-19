@@ -14,6 +14,7 @@ import type { MapState } from '@/hooks/useMapState';
 
 interface SessionRouteSectionProps {
   gpsTrack: GPSTrack;
+  elevationCorrected?: boolean;
   map: Pick<
     MapState,
     | 'tileStyle'
@@ -39,8 +40,22 @@ interface SessionRouteSectionProps {
   onLapMarkerClick: (lap: number) => void;
 }
 
+function RouteTitle({ corrected }: { corrected?: boolean }) {
+  return (
+    <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+      Route
+      {corrected && (
+        <span className="ml-2 text-[10px] font-normal text-[var(--color-text-info)]">
+          (Höhendaten ergänzt)
+        </span>
+      )}
+    </h2>
+  );
+}
+
 export function SessionRouteSection({
   gpsTrack,
+  elevationCorrected,
   map,
   onKmMarkerClick,
   onLapMarkerClick,
@@ -49,7 +64,7 @@ export function SessionRouteSection({
     <section aria-label="GPS Route">
       <Card elevation="raised">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Route</h2>
+          <RouteTitle corrected={elevationCorrected} />
           <div className="flex flex-wrap items-center gap-2">
             <Select
               options={Object.entries(MAP_TILE_LABELS).map(([value, label]) => ({

@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key-change-in-production"
     algorithm: str = "HS256"
 
+    # External APIs (Enrichment)
+    enrichment_enabled: bool = True
+    open_meteo_timeout: float = 10.0
+    nominatim_user_agent: str = "training-analyzer/1.0"
+    nominatim_rate_limit_ms: int = 1100
+
     # CORS
     allowed_origins: list[str] = ["http://localhost:3000"]
 

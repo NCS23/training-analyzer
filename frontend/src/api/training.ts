@@ -68,6 +68,9 @@ export interface SessionSummary {
   hr_avg: number | null;
   exercises_count: number | null;
   total_tonnage_kg: number | null;
+  // Enrichment
+  location_name: string | null;
+  weather_label: string | null;
 }
 
 interface SessionListApiResponse {
@@ -268,8 +271,31 @@ export interface SessionDetail {
   athlete_resting_hr: number | null;
   athlete_max_hr: number | null;
   ai_analysis: SessionAnalysis | null;
+  // Enrichment (externe APIs)
+  weather: WeatherData | null;
+  location_name: string | null;
+  air_quality: AirQualityData | null;
+  elevation_corrected: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface WeatherData {
+  temperature_c: number;
+  humidity_pct: number;
+  wind_speed_kmh: number;
+  precipitation_mm: number;
+  weather_code: number;
+  weather_label: string;
+}
+
+export interface AirQualityData {
+  european_aqi: number;
+  pm2_5: number;
+  pm10: number;
+  uv_index: number;
+  aqi_label: string;
+  uv_label: string;
 }
 
 export interface SessionAnalysis {
