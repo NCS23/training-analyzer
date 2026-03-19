@@ -75,7 +75,10 @@ function SurfaceBar({ surface }: { surface: Record<string, number> }) {
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
         {entries.map(([label, pct], i) => (
-          <span key={label} className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
+          <span
+            key={label}
+            className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]"
+          >
             <span
               className="inline-block w-2 h-2 rounded-full"
               style={{ backgroundColor: SURFACE_COLORS[i % SURFACE_COLORS.length] }}
