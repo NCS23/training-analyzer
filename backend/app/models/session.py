@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.enrichment import AirQualityData, WeatherData
 from app.models.segment import Segment, laps_to_segments
 
 if TYPE_CHECKING:
@@ -103,6 +104,11 @@ class SessionResponse(BaseModel):
     athlete_resting_hr: Optional[int] = None
     athlete_max_hr: Optional[int] = None
     ai_analysis: Optional[dict] = None
+    # Enrichment (externe APIs)
+    weather: Optional[WeatherData] = None
+    location_name: Optional[str] = None
+    air_quality: Optional[AirQualityData] = None
+    elevation_corrected: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -155,6 +161,17 @@ class SessionResponse(BaseModel):
             with contextlib.suppress(json.JSONDecodeError):
                 ai_analysis = json.loads(str(model.ai_analysis))
 
+        # Enrichment-Daten
+        weather = None
+        if model.weather_json:
+            with contextlib.suppress(json.JSONDecodeError, Exception):
+                weather = WeatherData(**json.loads(str(model.weather_json)))
+
+        air_quality = None
+        if model.air_quality_json:
+            with contextlib.suppress(json.JSONDecodeError, Exception):
+                air_quality = AirQualityData(**json.loads(str(model.air_quality_json)))
+
         return cls(
             id=model.id,
             date=session_date,
@@ -179,6 +196,10 @@ class SessionResponse(BaseModel):
             athlete_resting_hr=model.athlete_resting_hr if model.athlete_resting_hr else None,
             athlete_max_hr=model.athlete_max_hr if model.athlete_max_hr else None,
             ai_analysis=ai_analysis,
+            weather=weather,
+            location_name=model.location_name if model.location_name else None,
+            air_quality=air_quality,
+            elevation_corrected=bool(model.elevation_corrected),
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -198,6 +219,9 @@ class SessionListItem(BaseModel):
     hr_avg: Optional[int] = None
     exercises_count: Optional[int] = None
     total_tonnage_kg: Optional[float] = None
+    # Enrichment (kompakt fuer Liste)
+    location_name: Optional[str] = None
+    weather_label: Optional[str] = None
 
     @classmethod
     def from_db(cls, model: WorkoutModel) -> SessionListItem:
@@ -229,6 +253,13 @@ class SessionListItem(BaseModel):
             exercises_count = m["total_exercises"]
             total_tonnage_kg = m["total_tonnage_kg"]
 
+        # Wetter-Label fuer Liste
+        weather_label = None
+        if model.weather_json:
+            with contextlib.suppress(json.JSONDecodeError, Exception):
+                w = json.loads(str(model.weather_json))
+                weather_label = w.get("weather_label")
+
         return cls(
             id=model.id,
             date=session_date,
@@ -241,6 +272,8 @@ class SessionListItem(BaseModel):
             hr_avg=model.hr_avg if model.hr_avg else None,
             exercises_count=exercises_count,
             total_tonnage_kg=total_tonnage_kg,
+            location_name=model.location_name if model.location_name else None,
+            weather_label=weather_label,
         )
 
 

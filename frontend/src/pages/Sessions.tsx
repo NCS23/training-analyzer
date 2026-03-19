@@ -342,6 +342,12 @@ export function SessionsPage() {
                         }
                       })()}
                     </p>
+                    {/* Location + Wetter */}
+                    {(session.location_name || session.weather_label) && (
+                      <p className="text-[11px] text-[var(--color-text-muted)] mb-[4px] truncate">
+                        {[session.location_name, session.weather_label].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                     {/* Colored border tags */}
                     <div className="flex items-center gap-1.5 flex-wrap mb-[6px]">
                       <span

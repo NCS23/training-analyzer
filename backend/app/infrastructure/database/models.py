@@ -74,6 +74,15 @@ class WorkoutModel(Base):
     # Soll/Ist-Link (S10)
     planned_entry_id: Mapped[int | None] = mapped_column(default=None)  # FK to planned_sessions
 
+    # Enrichment (externe APIs: Wetter, Location, Luftqualität)
+    weather_json: Mapped[str | None] = mapped_column(Text, default=None)
+    location_name: Mapped[str | None] = mapped_column(String(200), default=None)
+    air_quality_json: Mapped[str | None] = mapped_column(Text, default=None)
+    elevation_corrected: Mapped[bool] = mapped_column(default=False, server_default="false")
+    enrichment_status: Mapped[str | None] = mapped_column(
+        String(20), default="pending", server_default="pending"
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

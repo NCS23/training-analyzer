@@ -97,6 +97,10 @@ const mockSession: SessionDetail = {
   athlete_max_hr: 185,
   exercises: null,
   ai_analysis: null,
+  weather: null,
+  location_name: null,
+  air_quality: null,
+  elevation_corrected: false,
   created_at: '2025-02-25T08:00:00',
   updated_at: '2025-02-25T08:15:00',
 };

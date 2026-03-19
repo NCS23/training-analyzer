@@ -1,15 +1,26 @@
 """Session API Endpoints — CRUD + CSV Upload mit DB-Persistenz."""
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.infrastructure.database.models import (
     AthleteModel,
     PlannedSessionModel,
@@ -48,6 +59,8 @@ from app.services.hr_zone_calculator import calculate_zone_distribution
 from app.services.km_split_calculator import calculate_km_splits, calculate_session_gap
 from app.services.segment_matcher import build_comparison
 from app.services.training_type_classifier import classify_training_type
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -272,6 +285,7 @@ async def _save_and_respond(
     workout: WorkoutModel,
     parsed: dict,
     form: SessionUploadForm,
+    background_tasks: BackgroundTasks | None = None,
 ) -> SessionUploadResponse:
     """Speichert Workout in DB und erstellt Response."""
     if form.planned_entry_id is not None:
@@ -283,6 +297,20 @@ async def _save_and_respond(
 
     if form.planned_entry_id is None:
         await _auto_match_planned_entry(db, workout)
+
+    # Enrichment im Background starten (Wetter, Location, AQ, Elevation)
+    if background_tasks and workout.has_gps and settings.enrichment_enabled:
+        from app.infrastructure.database.session import async_session_maker
+        from app.services.session_enrichment import enrichment_service
+
+        async def _enrich_in_background(wid: int) -> None:
+            try:
+                async with async_session_maker() as bg_db:
+                    await enrichment_service.enrich_session(wid, bg_db)
+            except Exception:
+                logger.warning("Background-Enrichment fehlgeschlagen fuer Session %d", wid)
+
+        background_tasks.add_task(_enrich_in_background, workout.id)
 
     classification = parsed["classification"]
     gps_track = parsed.get("gps_track")
@@ -318,6 +346,7 @@ async def _upload_session(
     csv_data: str | None = None,
     file_name: str | None = None,
     file_format: str | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> SessionUploadResponse:
     """Gemeinsame Upload-Logik für CSV und FIT."""
     parsed = await _parse_and_classify(
@@ -334,7 +363,7 @@ async def _upload_session(
     workout.original_file_name = file_name
     workout.original_file_format = file_format
 
-    return await _save_and_respond(db, workout, parsed, form)
+    return await _save_and_respond(db, workout, parsed, form, background_tasks)
 
 
 async def _parse_session(
@@ -393,6 +422,7 @@ async def parse_fit(
 async def upload_csv(
     csv_file: UploadFile = File(..., description="Apple Watch CSV Export"),
     form: SessionUploadForm = Depends(),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload Apple Watch CSV und speichere als Session."""
@@ -405,6 +435,7 @@ async def upload_csv(
         csv_data=content.decode("utf-8"),
         file_name=csv_file.filename,
         file_format="csv",
+        background_tasks=background_tasks,
     )
 
 
@@ -412,6 +443,7 @@ async def upload_csv(
 async def upload_fit(
     fit_file: UploadFile = File(..., description="Garmin/Wahoo FIT File"),
     form: SessionUploadForm = Depends(),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
 ) -> SessionUploadResponse:
     """Upload FIT file und speichere als Session."""
@@ -423,6 +455,7 @@ async def upload_fit(
         db,
         file_name=fit_file.filename,
         file_format="fit",
+        background_tasks=background_tasks,
     )
 
 
@@ -1477,3 +1510,55 @@ async def export_session_fit(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# --- Session Enrichment (externe APIs: Wetter, Location, AQ, Elevation) ---
+
+
+@router.post("/{session_id}/enrich")
+async def enrich_session(
+    session_id: int,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Enrichment fuer eine einzelne Session triggern."""
+    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    result = await db.execute(query)
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    from app.infrastructure.database.session import async_session_maker
+    from app.services.session_enrichment import enrichment_service
+
+    async def _enrich(wid: int) -> None:
+        async with async_session_maker() as bg_db:
+            await enrichment_service.enrich_session(wid, bg_db)
+
+    background_tasks.add_task(_enrich, session_id)
+    return {"status": "queued", "session_id": session_id}
+
+
+@router.post("/enrich-batch")
+async def enrich_batch(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Batch-Enrichment fuer alle pending Sessions triggern."""
+    count_result = await db.execute(
+        select(func.count(WorkoutModel.id)).where(
+            WorkoutModel.enrichment_status == "pending",
+            WorkoutModel.has_gps.is_(True),
+        )
+    )
+    pending_count = count_result.scalar() or 0
+
+    from app.infrastructure.database.session import async_session_maker
+    from app.services.session_enrichment import enrichment_service
+
+    async def _batch_enrich() -> None:
+        async with async_session_maker() as bg_db:
+            await enrichment_service.enrich_batch(bg_db)
+
+    background_tasks.add_task(_batch_enrich)
+    return {"status": "queued", "pending": pending_count}
