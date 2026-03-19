@@ -163,7 +163,7 @@ function SegmentEditorRow({
       {/* Row 3: Pace range */}
       <div>
         <Label className="text-[10px] mb-0.5">Pace (M:SS / km)</Label>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">
               Von (schnell)
@@ -196,7 +196,7 @@ function SegmentEditorRow({
       {/* Row 4: HR range */}
       <div>
         <Label className="text-[10px] mb-0.5">Herzfrequenz (bpm)</Label>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <Label className="text-[10px] text-[var(--color-text-muted)] mb-0.5">Min</Label>
             <Input
