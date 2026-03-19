@@ -416,12 +416,13 @@ export function SessionDetailPage() {
         />
       )}
 
-      {/* Umgebungsbedingungen (Wetter, Luftqualität, Location) */}
-      {(session.weather || session.air_quality || session.location_name) && (
+      {/* Umgebungsbedingungen (Wetter, Luftqualität, Location, Untergrund) */}
+      {(session.weather || session.air_quality || session.location_name || session.surface) && (
         <SessionEnvironmentSection
           weather={session.weather}
           airQuality={session.air_quality}
           locationName={session.location_name}
+          surface={session.surface}
         />
       )}
 

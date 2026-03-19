@@ -309,6 +309,17 @@ async def get_weekly_plan(
         else:
             entries.append(WeeklyPlanEntry(day_of_week=dow))
 
+    # Wetter-Forecast für die Woche anhängen (Background, non-blocking)
+    try:
+        from app.services.weather_forecast_service import weather_forecast_service
+
+        forecasts = await weather_forecast_service.get_week_forecast(week_start, db)
+        for entry in entries:
+            if entry.day_of_week in forecasts:
+                entry.weather = forecasts[entry.day_of_week]
+    except Exception:
+        pass  # Graceful degradation — Wochenplan funktioniert ohne Wetter
+
     return WeeklyPlanResponse(week_start=week_start, entries=entries)
 
 

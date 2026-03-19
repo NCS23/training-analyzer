@@ -227,6 +227,26 @@ def _session_to_dict(s: WorkoutModel) -> dict:
         d["rpe"] = s.rpe
     if s.notes:
         d["notes"] = s.notes[:200]
+
+    # Enrichment-Daten
+    if s.weather_json:
+        try:
+            wx = json.loads(str(s.weather_json))
+            d["weather"] = (
+                f"{wx.get('weather_label', '?')}, {wx.get('temperature_c', '?')}°C, "
+                f"Wind {wx.get('wind_speed_kmh', '?')} km/h"
+            )
+        except json.JSONDecodeError:
+            pass
+    if s.air_quality_json:
+        try:
+            aq = json.loads(str(s.air_quality_json))
+            d["aqi"] = f"AQI {aq.get('european_aqi', '?')} ({aq.get('aqi_label', '?')})"
+        except json.JSONDecodeError:
+            pass
+    if s.location_name:
+        d["location"] = s.location_name
+
     return d
 
 
@@ -378,6 +398,8 @@ def _build_system_prompt(ctx: WeeklyContext) -> str:
         "- Bewerte Balance zwischen Belastung und Erholung",
         "- Erkenne Muster (z.B. zu viel Intensitaet, fehlende Variation)",
         "- Empfehlungen muessen spezifisch und fuer die naechste Woche umsetzbar sein",
+        "- Beruecksichtige Umgebungsbedingungen (Wetter, Temperatur, Luftqualitaet) im Review",
+        "- Erklaere Leistungsschwankungen durch Wetter (Hitze, Wind, Regen, schlechte Luft)",
         "- Auf Deutsch antworten",
     ]
 
@@ -414,6 +436,32 @@ def _build_system_prompt(ctx: WeeklyContext) -> str:
     return "\n".join(parts)
 
 
+def _format_session_line(s: dict) -> list[str]:
+    """Formatiert eine Session als Prompt-Zeilen."""
+    label = s.get("subtype") or s["type"]
+    details = []
+    for key, fmt in [
+        ("distance_km", "{} km"),
+        ("duration_min", "{} min"),
+        ("pace", "Pace {}"),
+        ("hr_avg", "HF Ø{}"),
+        ("rpe", "RPE {}"),
+    ]:
+        if s.get(key):
+            details.append(fmt.format(s[key]))
+    detail_str = ", ".join(details) if details else ""
+    lines = [f"- {s['date']}: {label} ({detail_str})"]
+    for key, prefix in [
+        ("weather", "Wetter"),
+        ("aqi", "Luft"),
+        ("location", "Ort"),
+        ("notes", "Notizen"),
+    ]:
+        if s.get(key):
+            lines.append(f"  {prefix}: {s[key]}")
+    return lines
+
+
 def _build_review_prompt(ctx: WeeklyContext) -> str:
     """User-Prompt für Wochen-Review."""
     parts: list[str] = []
@@ -430,22 +478,7 @@ def _build_review_prompt(ctx: WeeklyContext) -> str:
         parts.append("Keine Sessions in dieser Woche.")
     else:
         for s in ctx.sessions:
-            label = s.get("subtype") or s["type"]
-            details = []
-            if s.get("distance_km"):
-                details.append(f"{s['distance_km']} km")
-            if s.get("duration_min"):
-                details.append(f"{s['duration_min']} min")
-            if s.get("pace"):
-                details.append(f"Pace {s['pace']}")
-            if s.get("hr_avg"):
-                details.append(f"HF Ø{s['hr_avg']}")
-            if s.get("rpe"):
-                details.append(f"RPE {s['rpe']}")
-            detail_str = ", ".join(details) if details else ""
-            parts.append(f"- {s['date']}: {label} ({detail_str})")
-            if s.get("notes"):
-                parts.append(f"  Notizen: {s['notes']}")
+            parts.extend(_format_session_line(s))
 
     # Wochenvolumen
     parts.append("")

@@ -159,6 +159,20 @@ class PlannedSession(BaseModel):
     status: str = Field(default="active", pattern="^(active|skipped)$")
 
 
+class DayWeatherForecast(BaseModel):
+    """Wetter-Forecast fuer einen Tag im Wochenplan (Open-Meteo)."""
+
+    temperature_min: float
+    temperature_max: float
+    weather_label: str
+    weather_code: int
+    precipitation_mm: float
+    wind_speed_max_kmh: float
+    # Warnungen
+    aqi: Optional[int] = None
+    aqi_label: Optional[str] = None
+
+
 class WeeklyPlanEntry(BaseModel):
     """A single day entry in the weekly plan (E17: with sessions[])."""
 
@@ -168,6 +182,7 @@ class WeeklyPlanEntry(BaseModel):
     sessions: list[PlannedSession] = Field(default_factory=list)
     plan_id: Optional[int] = None  # returned in response only
     edited: bool = False  # returned in response only
+    weather: Optional[DayWeatherForecast] = None  # Forecast (response only)
 
 
 class WeeklyPlanResponse(BaseModel):

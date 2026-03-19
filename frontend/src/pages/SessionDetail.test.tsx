@@ -100,6 +100,7 @@ const mockSession: SessionDetail = {
   weather: null,
   location_name: null,
   air_quality: null,
+  surface: null,
   elevation_corrected: false,
   created_at: '2025-02-25T08:00:00',
   updated_at: '2025-02-25T08:15:00',

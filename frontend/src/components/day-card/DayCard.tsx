@@ -18,6 +18,7 @@ import { getEntryTypeKey, getDateStr, isDayInPast } from './day-card-helpers';
 import { DraggableSessionRow } from './DraggableSessionRow';
 import { DraggableRestDay } from './DraggableRestDay';
 import { SessionDetailDialog } from './SessionDetailDialog';
+import { DayWeatherBar } from './DayWeatherBar';
 import { RestDayDialog } from './RestDayDialog';
 
 interface DayCardProps {
@@ -163,6 +164,11 @@ export function DayCard({
             </div>
           </div>
         </div>
+
+        {/* Wetter-Forecast */}
+        {entry.weather && (
+          <DayWeatherBar weather={entry.weather} />
+        )}
 
         {/* Session rows — each one clickable */}
         <div className="px-[var(--spacing-sm)] pb-[var(--spacing-xs)] flex flex-col gap-0.5">
