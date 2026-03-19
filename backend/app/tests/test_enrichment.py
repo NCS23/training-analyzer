@@ -84,8 +84,8 @@ class TestOpenMeteoWeather:
 
         assert result is not None
         assert result.temperature_c == 10.0  # 5.0 + 10 * 0.5
-        assert result.weather_code == 0
-        assert result.weather_label == "Klar"
+        assert result.weather_code == 2  # Index 10 → code 2
+        assert result.weather_label == "Teilweise bewölkt"
 
     @pytest.mark.asyncio
     async def test_get_historical_returns_none_on_error(self) -> None:
@@ -195,12 +195,13 @@ class TestOpenMeteoElevation:
     @pytest.mark.asyncio
     async def test_fill_missing_elevation(self) -> None:
         client = OpenMeteoElevationClient()
-        gps_track = {
-            "points": [
-                {"lat": 53.55, "lng": 9.99, "seconds": 0},
-                {"lat": 53.56, "lng": 9.98, "seconds": 60},
-                {"lat": 53.57, "lng": 9.97, "seconds": 120},
-            ],
+        points: list[dict[str, float]] = [
+            {"lat": 53.55, "lng": 9.99, "seconds": 0},
+            {"lat": 53.56, "lng": 9.98, "seconds": 60},
+            {"lat": 53.57, "lng": 9.97, "seconds": 120},
+        ]
+        gps_track: dict[str, object] = {
+            "points": points,
             "total_ascent_m": 0,
             "total_descent_m": 0,
         }
@@ -209,9 +210,9 @@ class TestOpenMeteoElevation:
             result = await client.fill_missing_elevation(gps_track)
 
         assert result is True
-        assert gps_track["points"][0]["alt"] == 50.0
-        assert gps_track["points"][1]["alt"] == 55.0
-        assert gps_track["points"][2]["alt"] == 52.0
+        assert points[0]["alt"] == 50.0
+        assert points[1]["alt"] == 55.0
+        assert points[2]["alt"] == 52.0
         assert gps_track["total_ascent_m"] == 5.0
         assert gps_track["total_descent_m"] == 3.0
 
