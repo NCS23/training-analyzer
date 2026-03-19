@@ -5,14 +5,14 @@ import {
   Droplets,
   Haze,
   MapPin,
+  ShieldCheck,
   Sun,
+  SunDim,
   Thermometer,
   Wind,
   Zap,
 } from 'lucide-react';
-
-const AirQualityIcon = Haze;
-import { Card, CardHeader, CardBody, Badge } from '@nordlig/components';
+import { Card, CardHeader, CardBody } from '@nordlig/components';
 import type { WeatherData, AirQualityData } from '@/api/training';
 
 interface SessionEnvironmentSectionProps {
@@ -28,19 +28,6 @@ function weatherIcon(code: number) {
   if (code >= 51 && code <= 67) return <CloudRain className="w-4 h-4" />;
   if (code >= 80 && code <= 82) return <CloudRain className="w-4 h-4" />;
   return <Cloud className="w-4 h-4" />;
-}
-
-function aqiBadgeVariant(aqi: number): 'success' | 'warning' | 'error' | 'neutral' {
-  if (aqi <= 40) return 'success';
-  if (aqi <= 60) return 'warning';
-  return 'error';
-}
-
-function uvBadgeVariant(uv: number): 'success' | 'warning' | 'error' | 'neutral' {
-  if (uv <= 2) return 'success';
-  if (uv <= 5) return 'neutral';
-  if (uv <= 7) return 'warning';
-  return 'error';
 }
 
 function MetricItem({
@@ -87,63 +74,57 @@ export function SessionEnvironmentSection({
             </div>
           )}
 
-          {/* Wetter */}
-          {weather && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <MetricItem
-                icon={weatherIcon(weather.weather_code)}
-                label="Wetter"
-                value={weather.weather_label}
-              />
-              <MetricItem
-                icon={<Thermometer className="w-4 h-4" />}
-                label="Temperatur"
-                value={`${weather.temperature_c.toFixed(1)} °C`}
-              />
-              <MetricItem
-                icon={<Wind className="w-4 h-4" />}
-                label="Wind"
-                value={`${weather.wind_speed_kmh.toFixed(0)} km/h`}
-              />
-              <MetricItem
-                icon={<Droplets className="w-4 h-4" />}
-                label="Luftfeuchtigkeit"
-                value={`${weather.humidity_pct.toFixed(0)} %`}
-              />
-            </div>
-          )}
-
-          {/* Luftqualität + UV */}
-          {airQuality && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--color-text-muted)]">Luftqualität</span>
-                  <Badge variant={aqiBadgeVariant(airQuality.european_aqi)}>
-                    AQI {airQuality.european_aqi} — {airQuality.aqi_label}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--color-text-muted)]">UV-Index</span>
-                  <Badge variant={uvBadgeVariant(airQuality.uv_index)}>
-                    UV {airQuality.uv_index.toFixed(1)} — {airQuality.uv_label}
-                  </Badge>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+          {/* Alle Metriken in einheitlichem Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {weather && (
+              <>
                 <MetricItem
-                  icon={<AirQualityIcon className="w-4 h-4" />}
+                  icon={weatherIcon(weather.weather_code)}
+                  label="Wetter"
+                  value={weather.weather_label}
+                />
+                <MetricItem
+                  icon={<Thermometer className="w-4 h-4" />}
+                  label="Temperatur"
+                  value={`${weather.temperature_c.toFixed(1)} °C`}
+                />
+                <MetricItem
+                  icon={<Wind className="w-4 h-4" />}
+                  label="Wind"
+                  value={`${weather.wind_speed_kmh.toFixed(0)} km/h`}
+                />
+                <MetricItem
+                  icon={<Droplets className="w-4 h-4" />}
+                  label="Luftfeuchtigkeit"
+                  value={`${weather.humidity_pct.toFixed(0)} %`}
+                />
+              </>
+            )}
+            {airQuality && (
+              <>
+                <MetricItem
+                  icon={<ShieldCheck className="w-4 h-4" />}
+                  label="Luftqualität"
+                  value={`AQI ${airQuality.european_aqi} — ${airQuality.aqi_label}`}
+                />
+                <MetricItem
+                  icon={<SunDim className="w-4 h-4" />}
+                  label="UV-Index"
+                  value={`${airQuality.uv_index.toFixed(1)} — ${airQuality.uv_label}`}
+                />
+                <MetricItem
+                  icon={<Haze className="w-4 h-4" />}
                   label="PM2.5"
                   value={`${airQuality.pm2_5.toFixed(1)} µg/m³`}
                 />
                 <MetricItem
-                  icon={<AirQualityIcon className="w-4 h-4" />}
+                  icon={<Haze className="w-4 h-4" />}
                   label="PM10"
                   value={`${airQuality.pm10.toFixed(1)} µg/m³`}
                 />
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </CardBody>
     </Card>
