@@ -21,6 +21,28 @@ if TYPE_CHECKING:
     from app.infrastructure.database.models import WorkoutModel
 
 
+def _resolve_session_time(model: WorkoutModel) -> datetime | None:
+    """Ermittelt die echte Startzeit einer Session.
+
+    Versucht zuerst model.date (wenn Uhrzeit != 00:00),
+    dann Fallback auf den ersten Timestamp in hr_timeseries_json.
+    """
+    # 1. model.date hat echte Uhrzeit?
+    if isinstance(model.date, datetime) and (model.date.hour != 0 or model.date.minute != 0):
+        return model.date
+
+    # 2. Fallback: erster Timestamp aus hr_timeseries_json
+    if model.hr_timeseries_json:
+        with contextlib.suppress(json.JSONDecodeError, ValueError, IndexError, KeyError):
+            ts_list = json.loads(str(model.hr_timeseries_json))
+            if ts_list:
+                first_ts = ts_list[0].get("timestamp")
+                if first_ts:
+                    return datetime.fromisoformat(first_ts)
+
+    return None
+
+
 # --- Response Schemas ---
 
 
@@ -187,12 +209,13 @@ class SessionResponse(BaseModel):
             with contextlib.suppress(json.JSONDecodeError, Exception):
                 surface = json.loads(str(model.surface_json))
 
-        # Tageszeit-Tag berechnen (nur wenn echte Uhrzeit vorhanden)
+        # Tageszeit-Tag: Uhrzeit aus model.date oder Fallback hr_timeseries
         sunrise = weather.sunrise if weather else None
         sunset = weather.sunset if weather else None
+        session_dt = _resolve_session_time(model)
         daytime_tag: str | None = None
-        if isinstance(model.date, datetime) and (model.date.hour != 0 or model.date.minute != 0):
-            daytime_tag = compute_daytime_tag(model.date, sunrise, sunset)
+        if session_dt:
+            daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
 
         return cls(
             id=model.id,
@@ -293,10 +316,11 @@ class SessionListItem(BaseModel):
                 sunrise = w.get("sunrise")
                 sunset = w.get("sunset")
 
-        # Tageszeit-Tag berechnen (nur wenn echte Uhrzeit vorhanden)
+        # Tageszeit-Tag: Uhrzeit aus model.date oder Fallback hr_timeseries
+        session_dt = _resolve_session_time(model)
         daytime_tag: str | None = None
-        if isinstance(model.date, datetime) and (model.date.hour != 0 or model.date.minute != 0):
-            daytime_tag = compute_daytime_tag(model.date, sunrise, sunset)
+        if session_dt:
+            daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
 
         return cls(
             id=model.id,
