@@ -27,6 +27,17 @@ from app.services.chat_context_service import build_chat_system_prompt
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY_MESSAGES = 30
+MAX_TITLE_LENGTH = 50
+
+
+def _generate_title(message: str) -> str:
+    """Erzeugt einen kurzen Konversationstitel aus der ersten Nachricht."""
+    title = message.replace("\n", " ").strip()
+    if len(title) <= MAX_TITLE_LENGTH:
+        return title
+    # An Wortgrenze kuerzen
+    truncated = title[:MAX_TITLE_LENGTH].rsplit(" ", 1)[0]
+    return f"{truncated}..." if truncated else f"{title[:MAX_TITLE_LENGTH]}..."
 
 
 async def send_message(
@@ -39,8 +50,7 @@ async def send_message(
     if conversation_id:
         conversation = await _load_conversation(conversation_id, db)
     else:
-        title = message[:100].strip()
-        conversation = ChatConversationModel(title=title)
+        conversation = ChatConversationModel(title=_generate_title(message))
         db.add(conversation)
         await db.flush()
 
