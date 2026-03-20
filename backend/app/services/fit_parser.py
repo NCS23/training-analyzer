@@ -154,12 +154,18 @@ class TrainingFITParser(TrainingParser):
             pace_sec = int((avg_pace - pace_min) * 60)
             avg_pace_formatted = f"{pace_min}:{pace_sec:02d}"
 
+        # Start-Zeit aus FIT-Session (datetime mit Uhrzeit)
+        start_time = session_data.get("start_time")
+
         summary: dict = {
             "total_duration_seconds": duration_sec,
             "total_duration_formatted": self._format_duration(duration_sec),
             "avg_hr_bpm": int(avg_hr) if avg_hr else None,
             "max_hr_bpm": int(max_hr) if max_hr else None,
             "min_hr_bpm": int(min_hr) if min_hr else None,
+            "start_time": start_time.isoformat()
+            if start_time and hasattr(start_time, "isoformat")
+            else None,
         }
 
         if training_type == TrainingType.RUNNING:

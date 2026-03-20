@@ -187,15 +187,12 @@ class SessionResponse(BaseModel):
             with contextlib.suppress(json.JSONDecodeError, Exception):
                 surface = json.loads(str(model.surface_json))
 
-        # Tageszeit-Tag berechnen
-        session_dt = (
-            model.date
-            if isinstance(model.date, datetime)
-            else datetime.combine(model.date, datetime.min.time().replace(hour=9))
-        )
+        # Tageszeit-Tag berechnen (nur wenn echte Uhrzeit vorhanden)
         sunrise = weather.sunrise if weather else None
         sunset = weather.sunset if weather else None
-        daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
+        daytime_tag: str | None = None
+        if isinstance(model.date, datetime) and (model.date.hour != 0 or model.date.minute != 0):
+            daytime_tag = compute_daytime_tag(model.date, sunrise, sunset)
 
         return cls(
             id=model.id,
@@ -227,7 +224,7 @@ class SessionResponse(BaseModel):
             surface=surface,
             elevation_corrected=bool(model.elevation_corrected),
             daytime_tag=daytime_tag,
-            daytime_label=DAYTIME_LABELS.get(daytime_tag),
+            daytime_label=DAYTIME_LABELS.get(daytime_tag) if daytime_tag else None,
             sunrise=sunrise,
             sunset=sunset,
             created_at=model.created_at,
@@ -296,13 +293,10 @@ class SessionListItem(BaseModel):
                 sunrise = w.get("sunrise")
                 sunset = w.get("sunset")
 
-        # Tageszeit-Tag berechnen
-        session_dt = (
-            model.date
-            if isinstance(model.date, datetime)
-            else datetime.combine(model.date, datetime.min.time().replace(hour=9))
-        )
-        daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
+        # Tageszeit-Tag berechnen (nur wenn echte Uhrzeit vorhanden)
+        daytime_tag: str | None = None
+        if isinstance(model.date, datetime) and (model.date.hour != 0 or model.date.minute != 0):
+            daytime_tag = compute_daytime_tag(model.date, sunrise, sunset)
 
         return cls(
             id=model.id,
@@ -319,7 +313,7 @@ class SessionListItem(BaseModel):
             location_name=model.location_name if model.location_name else None,
             weather_label=weather_label,
             daytime_tag=daytime_tag,
-            daytime_label=DAYTIME_LABELS.get(daytime_tag),
+            daytime_label=DAYTIME_LABELS.get(daytime_tag) if daytime_tag else None,
         )
 
 
