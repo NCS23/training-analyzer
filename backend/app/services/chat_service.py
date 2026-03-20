@@ -73,7 +73,7 @@ async def send_message(
     history = await _load_message_history(conversation.id, db)
 
     # 4. System-Prompt mit Trainingskontext
-    system_prompt = await build_chat_system_prompt(db)
+    system_prompt = await build_chat_system_prompt()
 
     # 5. Messages-Array fuer Claude API
     api_messages = [{"role": m.role, "content": m.content} for m in history]
@@ -155,7 +155,7 @@ async def prepare_stream_with_tools(
     await db.flush()
 
     history = await _load_message_history(conversation.id, db)
-    system_prompt = await build_chat_system_prompt(db)
+    system_prompt = await build_chat_system_prompt()
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     api_key = await resolve_claude_api_key(db)
