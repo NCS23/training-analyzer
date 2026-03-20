@@ -16,6 +16,8 @@ import type { AILogEntry, AILogDetail } from '@/api/training';
 const USE_CASE_LABELS: Record<string, string> = {
   session_analysis: 'Session-Analyse',
   exercise_enrichment: 'Übungs-Anreicherung',
+  chat: 'Chat',
+  apply_recommendations: 'Plan-Empfehlung',
 };
 
 function getUseCaseLabel(useCase: string): string {

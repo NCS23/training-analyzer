@@ -44,4 +44,5 @@ async def log_ai_call(db: AsyncSession, data: AICallData) -> None:
             context_label=data.context_label,
         )
     )
+    await db.commit()
     logger.info("KI-Log geschrieben: use_case=%s, parsed_ok=%s", data.use_case, data.parsed_ok)
