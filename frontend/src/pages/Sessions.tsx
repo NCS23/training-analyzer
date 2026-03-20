@@ -342,10 +342,12 @@ export function SessionsPage() {
                         }
                       })()}
                     </p>
-                    {/* Location + Wetter */}
-                    {(session.location_name || session.weather_label) && (
+                    {/* Location + Wetter + Tageszeit */}
+                    {(session.location_name || session.weather_label || session.daytime_label) && (
                       <p className="text-[11px] text-[var(--color-text-muted)] mb-[4px] truncate">
-                        {[session.location_name, session.weather_label].filter(Boolean).join(' · ')}
+                        {[session.location_name, session.weather_label, session.daytime_label]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </p>
                     )}
                     {/* Colored border tags */}

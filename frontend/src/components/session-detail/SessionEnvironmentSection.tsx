@@ -5,14 +5,17 @@ import {
   Droplets,
   Haze,
   MapPin,
+  Moon,
   ShieldCheck,
   Sun,
   SunDim,
+  Sunrise,
+  Sunset,
   Thermometer,
   Wind,
   Zap,
 } from 'lucide-react';
-import { Card, CardHeader, CardBody } from '@nordlig/components';
+import { Card, CardHeader, CardBody, Badge } from '@nordlig/components';
 import type { WeatherData, AirQualityData } from '@/api/training';
 
 interface SessionEnvironmentSectionProps {
@@ -20,6 +23,10 @@ interface SessionEnvironmentSectionProps {
   airQuality: AirQualityData | null;
   locationName: string | null;
   surface: Record<string, number> | null;
+  daytimeTag: string | null;
+  daytimeLabel: string | null;
+  sunrise: string | null;
+  sunset: string | null;
 }
 
 function weatherIcon(code: number) {
@@ -49,6 +56,28 @@ function MetricItem({
       </div>
     </div>
   );
+}
+
+function daytimeIcon(tag: string) {
+  switch (tag) {
+    case 'dawn':
+      return <Sunrise className="w-4 h-4" />;
+    case 'dusk':
+      return <Sunset className="w-4 h-4" />;
+    case 'night':
+      return <Moon className="w-4 h-4" />;
+    default:
+      return <Sun className="w-4 h-4" />;
+  }
+}
+
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
 }
 
 const SURFACE_COLORS = [
@@ -91,84 +120,128 @@ function SurfaceBar({ surface }: { surface: Record<string, number> }) {
   );
 }
 
+function EnvironmentMetricsGrid({
+  weather,
+  airQuality,
+  sunrise,
+  sunset,
+}: {
+  weather: WeatherData | null;
+  airQuality: AirQualityData | null;
+  sunrise: string | null;
+  sunset: string | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {weather && (
+        <>
+          <MetricItem
+            icon={weatherIcon(weather.weather_code)}
+            label="Wetter"
+            value={weather.weather_label}
+          />
+          <MetricItem
+            icon={<Thermometer className="w-4 h-4" />}
+            label="Temperatur"
+            value={`${weather.temperature_c.toFixed(1)} °C`}
+          />
+          <MetricItem
+            icon={<Wind className="w-4 h-4" />}
+            label="Wind"
+            value={`${weather.wind_speed_kmh.toFixed(0)} km/h`}
+          />
+          <MetricItem
+            icon={<Droplets className="w-4 h-4" />}
+            label="Luftfeuchtigkeit"
+            value={`${weather.humidity_pct.toFixed(0)} %`}
+          />
+        </>
+      )}
+      {airQuality && (
+        <>
+          <MetricItem
+            icon={<ShieldCheck className="w-4 h-4" />}
+            label="Luftqualität"
+            value={`AQI ${airQuality.european_aqi} — ${airQuality.aqi_label}`}
+          />
+          <MetricItem
+            icon={<SunDim className="w-4 h-4" />}
+            label="UV-Index"
+            value={`${airQuality.uv_index.toFixed(1)} — ${airQuality.uv_label}`}
+          />
+          <MetricItem
+            icon={<Haze className="w-4 h-4" />}
+            label="PM2.5"
+            value={`${airQuality.pm2_5.toFixed(1)} µg/m³`}
+          />
+          <MetricItem
+            icon={<Haze className="w-4 h-4" />}
+            label="PM10"
+            value={`${airQuality.pm10.toFixed(1)} µg/m³`}
+          />
+        </>
+      )}
+      {sunrise && (
+        <MetricItem
+          icon={<Sunrise className="w-4 h-4" />}
+          label="Sonnenaufgang"
+          value={formatTime(sunrise)}
+        />
+      )}
+      {sunset && (
+        <MetricItem
+          icon={<Sunset className="w-4 h-4" />}
+          label="Sonnenuntergang"
+          value={formatTime(sunset)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function SessionEnvironmentSection({
   weather,
   airQuality,
   locationName,
   surface,
+  daytimeTag,
+  daytimeLabel,
+  sunrise,
+  sunset,
 }: SessionEnvironmentSectionProps) {
-  if (!weather && !airQuality && !locationName && !surface) return null;
+  if (!weather && !airQuality && !locationName && !surface && !daytimeTag) return null;
 
   return (
     <Card elevation="raised">
       <CardHeader>
-        <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-          Umgebungsbedingungen
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+            Umgebungsbedingungen
+          </h2>
+          {daytimeTag && daytimeLabel && (
+            <Badge variant="neutral" size="sm">
+              <span className="flex items-center gap-1">
+                {daytimeIcon(daytimeTag)}
+                {daytimeLabel}
+              </span>
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardBody>
         <div className="space-y-4">
-          {/* Location */}
           {locationName && (
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
               <MapPin className="w-4 h-4 shrink-0" />
               <span>{locationName}</span>
             </div>
           )}
-
-          {/* Alle Metriken in einheitlichem Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {weather && (
-              <>
-                <MetricItem
-                  icon={weatherIcon(weather.weather_code)}
-                  label="Wetter"
-                  value={weather.weather_label}
-                />
-                <MetricItem
-                  icon={<Thermometer className="w-4 h-4" />}
-                  label="Temperatur"
-                  value={`${weather.temperature_c.toFixed(1)} °C`}
-                />
-                <MetricItem
-                  icon={<Wind className="w-4 h-4" />}
-                  label="Wind"
-                  value={`${weather.wind_speed_kmh.toFixed(0)} km/h`}
-                />
-                <MetricItem
-                  icon={<Droplets className="w-4 h-4" />}
-                  label="Luftfeuchtigkeit"
-                  value={`${weather.humidity_pct.toFixed(0)} %`}
-                />
-              </>
-            )}
-            {airQuality && (
-              <>
-                <MetricItem
-                  icon={<ShieldCheck className="w-4 h-4" />}
-                  label="Luftqualität"
-                  value={`AQI ${airQuality.european_aqi} — ${airQuality.aqi_label}`}
-                />
-                <MetricItem
-                  icon={<SunDim className="w-4 h-4" />}
-                  label="UV-Index"
-                  value={`${airQuality.uv_index.toFixed(1)} — ${airQuality.uv_label}`}
-                />
-                <MetricItem
-                  icon={<Haze className="w-4 h-4" />}
-                  label="PM2.5"
-                  value={`${airQuality.pm2_5.toFixed(1)} µg/m³`}
-                />
-                <MetricItem
-                  icon={<Haze className="w-4 h-4" />}
-                  label="PM10"
-                  value={`${airQuality.pm10.toFixed(1)} µg/m³`}
-                />
-              </>
-            )}
-          </div>
-
-          {/* Untergrund */}
+          <EnvironmentMetricsGrid
+            weather={weather}
+            airQuality={airQuality}
+            sunrise={sunrise}
+            sunset={sunset}
+          />
           {surface && Object.keys(surface).length > 0 && <SurfaceBar surface={surface} />}
         </div>
       </CardBody>

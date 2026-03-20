@@ -1,5 +1,7 @@
 """Pydantic Schemas fuer Session-Enrichment (externe APIs)."""
 
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -12,6 +14,8 @@ class WeatherData(BaseModel):
     precipitation_mm: float
     weather_code: int  # WMO-Code
     weather_label: str  # Deutsch: "Klar", "Bewölkt", etc.
+    sunrise: str | None = None  # ISO-Zeit, z.B. "2026-03-20T06:15"
+    sunset: str | None = None  # ISO-Zeit, z.B. "2026-03-20T18:30"
 
 
 class AirQualityData(BaseModel):
@@ -93,3 +97,47 @@ def uv_to_label(uv: float) -> str:
     if uv <= 10:
         return "Sehr hoch"
     return "Extrem"
+
+
+# --- Tageszeit-Tagging ---
+
+DAYTIME_LABELS: dict[str, str] = {
+    "dawn": "Morgenlauf",
+    "day": "Tageslauf",
+    "dusk": "Abendlauf",
+    "night": "Nachtlauf",
+}
+
+
+def _classify_hour(session_hour: float, sr_hour: float, ss_hour: float) -> str:
+    """Klassifiziert Tageszeit anhand Session-Stunde und Sunrise/Sunset."""
+    if session_hour < sr_hour - 0.5 or session_hour >= ss_hour + 0.5:
+        return "night"
+    if session_hour < sr_hour + 1:
+        return "dawn"
+    if session_hour < ss_hour - 1:
+        return "day"
+    return "dusk"
+
+
+def compute_daytime_tag(
+    session_dt: datetime,
+    sunrise: str | None = None,
+    sunset: str | None = None,
+) -> str:
+    """Tageszeit-Tag basierend auf Sunrise/Sunset oder Heuristik.
+
+    Returns: "dawn", "day", "dusk", "night"
+    """
+    session_hour = session_dt.hour + session_dt.minute / 60
+
+    if sunrise and sunset:
+        try:
+            sr = datetime.fromisoformat(sunrise)
+            ss = datetime.fromisoformat(sunset)
+            return _classify_hour(session_hour, sr.hour + sr.minute / 60, ss.hour + ss.minute / 60)
+        except (ValueError, AttributeError):
+            pass
+
+    # Heuristik-Fallback: Sunrise ~6:00, Sunset ~20:00
+    return _classify_hour(session_hour, 6.0, 20.0)
