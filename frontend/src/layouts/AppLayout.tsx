@@ -13,6 +13,7 @@ import {
   BookOpen,
   ClipboardList,
   Library,
+  Bot,
 } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Dumbbell },
   { to: '/analyse', label: 'Analyse', icon: TrendingUp },
+  { to: '/chat', label: 'KI-Chat', icon: Bot },
   {
     to: '/plan',
     label: 'Plan',

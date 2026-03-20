@@ -10,6 +10,15 @@ class AIProvider(ABC):
     async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
         pass
 
+    @abstractmethod
+    async def chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        api_key: str | None = None,
+    ) -> str:
+        pass
+
     @property
     @abstractmethod
     def name(self) -> str:

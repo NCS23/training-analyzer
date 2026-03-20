@@ -130,6 +130,37 @@ class AIService:
 
         raise Exception("All AI providers failed")
 
+    async def chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        api_key: str | None = None,
+    ) -> tuple[str, str]:
+        """Multi-Turn Chat mit Konversationshistorie.
+
+        Returns:
+            Tuple von (response_text, provider_name).
+        """
+        if self.primary_provider and self.primary_provider.is_available(api_key):
+            try:
+                result = await self.primary_provider.chat_multi_turn(
+                    messages, system_prompt, api_key
+                )
+                return result, self.primary_provider.name
+            except Exception as e:
+                print(f"Primary provider failed: {e}")
+
+        for provider in self.fallback_providers:
+            if provider.is_available():
+                try:
+                    result = await provider.chat_multi_turn(messages, system_prompt)
+                    return result, provider.name
+                except Exception as e:
+                    print(f"Fallback provider {provider.name} failed: {e}")
+                    continue
+
+        raise Exception("All AI providers failed")
+
     def get_active_provider(self) -> Optional[str]:
         """Get name of currently active provider"""
         if self.primary_provider and self.primary_provider.is_available():

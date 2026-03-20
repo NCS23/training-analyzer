@@ -59,6 +59,32 @@ class ClaudeProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
 
+    async def chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        api_key: str | None = None,
+    ) -> str:
+        """Multi-Turn Chat mit Konversationshistorie."""
+        client = self._get_client(api_key)
+        # Cast fuer Anthropic SDK Typen
+        api_messages: list[anthropic.types.MessageParam] = [
+            {"role": m["role"], "content": m["content"]}
+            for m in messages  # type: ignore[misc]
+        ]
+
+        try:
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=2000,
+                temperature=0.3,
+                system=system_prompt,
+                messages=api_messages,
+            )
+            return response.content[0].text  # type: ignore[union-attr]
+        except Exception as e:
+            raise Exception(f"Claude API error: {str(e)}") from e
+
     def is_available(self, api_key: str | None = None) -> bool:
         """Check if Claude API is available"""
         key = api_key or self.default_api_key
