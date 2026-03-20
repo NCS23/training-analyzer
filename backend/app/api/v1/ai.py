@@ -1,7 +1,7 @@
 """
 AI API Endpoints
 
-Manage AI providers and chat functionality.
+Manage AI providers, chat functionality, and KI-Chat-Assistent.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api_key_resolver import resolve_claude_api_key
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 from app.infrastructure.database.session import get_db
+from app.models.chat import (
+    ChatMessageRequest,
+    ChatMessageResponse,
+    ConversationDetail,
+    ConversationListResponse,
+)
+from app.services import chat_service
 
 router = APIRouter()
 
@@ -96,3 +103,55 @@ async def test_provider(provider_name: str):
 
     except Exception as e:
         return {"success": False, "provider": provider_name, "available": False, "error": str(e)}
+
+
+# --- KI Chat-Assistent (Konversationen) ---
+
+
+@router.post("/ai/conversations/messages", response_model=ChatMessageResponse)
+async def send_chat_message(
+    request: ChatMessageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Sendet eine Nachricht an den KI-Trainingsassistenten."""
+    try:
+        return await chat_service.send_message(
+            message=request.message,
+            conversation_id=request.conversation_id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat-Fehler: {str(e)}") from e
+
+
+@router.get("/ai/conversations", response_model=ConversationListResponse)
+async def list_conversations(db: AsyncSession = Depends(get_db)):
+    """Listet alle Konversationen (neueste zuerst)."""
+    return await chat_service.list_conversations(db)
+
+
+@router.get("/ai/conversations/{conversation_id}", response_model=ConversationDetail)
+async def get_conversation(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Laedt eine Konversation mit allen Nachrichten."""
+    try:
+        return await chat_service.get_conversation(conversation_id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.delete("/ai/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Loescht eine Konversation."""
+    try:
+        await chat_service.delete_conversation(conversation_id, db)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e

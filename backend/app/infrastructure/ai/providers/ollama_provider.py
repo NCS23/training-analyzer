@@ -67,6 +67,33 @@ class OllamaProvider(AIProvider):
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}") from e
 
+    async def chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        _api_key: str | None = None,
+    ) -> str:
+        """Multi-Turn Chat via Ollama /api/chat Endpoint."""
+        ollama_messages = [{"role": "system", "content": system_prompt}]
+        ollama_messages.extend(messages)
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": ollama_messages,
+                        "stream": False,
+                        "options": {"temperature": 0.5, "num_predict": 1000},
+                    },
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result["message"]["content"]
+        except Exception as e:
+            raise Exception(f"Ollama API error: {str(e)}") from e
+
     def is_available(self, _api_key: str | None = None) -> bool:
         """Check if Ollama server is available"""
         try:
