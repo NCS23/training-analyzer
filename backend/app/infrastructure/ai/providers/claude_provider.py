@@ -18,6 +18,7 @@ class ClaudeProvider(AIProvider):
     def __init__(self) -> None:
         self.default_api_key = settings.claude_api_key
         self.client = anthropic.Anthropic(api_key=self.default_api_key)
+        self.async_client = anthropic.AsyncAnthropic(api_key=self.default_api_key)
         self.model = settings.claude_model
 
     def _get_client(self, api_key: str | None = None) -> anthropic.Anthropic:
@@ -25,6 +26,12 @@ class ClaudeProvider(AIProvider):
         if api_key and api_key != self.default_api_key:
             return anthropic.Anthropic(api_key=api_key)
         return self.client
+
+    def _get_async_client(self, api_key: str | None = None) -> anthropic.AsyncAnthropic:
+        """Async Client zurückgeben, optional mit anderem API Key."""
+        if api_key and api_key != self.default_api_key:
+            return anthropic.AsyncAnthropic(api_key=api_key)
+        return self.async_client
 
     async def analyze_workout(self, workout_data: dict, api_key: str | None = None) -> str:
         """Analyze workout using Claude"""
@@ -94,20 +101,20 @@ class ClaudeProvider(AIProvider):
         api_key: str | None = None,
     ) -> AsyncIterator[str]:
         """Streamt die KI-Antwort Token fuer Token."""
-        client = self._get_client(api_key)
+        client = self._get_async_client(api_key)
         api_messages: list[anthropic.types.MessageParam] = [
             {"role": m["role"], "content": m["content"]}
             for m in messages  # type: ignore[misc]
         ]
 
-        with client.messages.stream(
+        async with client.messages.stream(
             model=self.model,
             max_tokens=2000,
             temperature=0.3,
             system=system_prompt,
             messages=api_messages,
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 yield text
 
     def is_available(self, api_key: str | None = None) -> bool:
