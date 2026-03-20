@@ -28,6 +28,13 @@ from app.services.session_analysis_service import (
 
 logger = logging.getLogger(__name__)
 
+WEEKDAYS_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+
+def _german_weekday(d: date) -> str:
+    """Gibt den deutschen Wochentag zurueck (ohne locale-Abhaengigkeit)."""
+    return WEEKDAYS_DE[d.weekday()]
+
 
 async def build_chat_system_prompt(db: AsyncSession) -> str:
     """Baut einen vollstaendigen System-Prompt mit Trainingskontext."""
@@ -179,13 +186,24 @@ def _assemble_prompt(
     today: date,
 ) -> str:
     """Baut den finalen System-Prompt zusammen."""
+    weekday_de = _german_weekday(today)
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
     parts = [
         "Du bist ein erfahrener Lauf- und Krafttrainer und Trainingsplan-Berater.",
         "Der Athlet nutzt eine Trainings-App und chattet mit dir ueber sein Training.",
-        "Antworte immer auf Deutsch, praegnant, freundlich und kompetent.",
-        "Begruende deine Antworten mit konkreten Daten aus dem Trainingskontext.",
-        "Wenn du Planaenderungen vorschlaegst, sei spezifisch (welcher Tag, welche Session, warum).",
-        f"\nHeute ist {today.strftime('%A, %d.%m.%Y')}.",
+        "",
+        "## Verhaltensregeln",
+        "- Antworte immer auf Deutsch, praegnant, freundlich und kompetent.",
+        "- Begruende deine Antworten mit konkreten Daten aus dem Trainingskontext.",
+        "- Wenn du Planaenderungen vorschlaegst, sei spezifisch (welcher Tag, welche Session, warum).",
+        "- Wiederhole NICHT Informationen aus vorherigen Nachrichten in dieser Konversation.",
+        "  Beantworte NUR die aktuelle Frage. Der User kann den Chatverlauf selbst lesen.",
+        "- Wochen beginnen IMMER am Montag und enden am Sonntag (ISO 8601 / deutscher Standard).",
+        "  Ordne Tage der richtigen Kalenderwoche zu.",
+        f"\nHeute ist {weekday_de}, {today.strftime('%d.%m.%Y')}.",
+        f"Aktuelle Woche: {week_start.strftime('%d.%m.')} (Mo) – {week_end.strftime('%d.%m.')} (So).",
     ]
 
     if athlete:
@@ -223,7 +241,9 @@ def _assemble_prompt(
             for s in plan_context["upcoming_sessions"][:7]:
                 detail = s.get("run_type") or s["type"]
                 dur = f" ({s['duration_min']} min)" if s.get("duration_min") else ""
-                lines.append(f"  - {s['date']}: {detail}{dur}")
+                s_date = date.fromisoformat(s["date"])
+                wd = _german_weekday(s_date)
+                lines.append(f"  - {wd} {s['date']}: {detail}{dur}")
             parts.append("Kommende Sessions:\n" + "\n".join(lines))
 
     parts.append(
@@ -241,8 +261,10 @@ def _assemble_prompt(
             tt = f" [{s['training_type']}]" if s.get("training_type") else ""
             sid = s.get("id")
             link = f"[Details](/sessions/{sid})" if sid else ""
+            s_date = date.fromisoformat(s["date"])
+            wd = _german_weekday(s_date)[:2]  # Mo, Di, Mi...
             lines.append(
-                f"  - {s['date']}: {s['type']}{tt}"
+                f"  - {wd} {s['date']}: {s['type']}{tt}"
                 f" — {s.get('duration_min', '?')} min"
                 f", {s.get('distance_km', '?')} km"
                 f"{pace}{hr}"
