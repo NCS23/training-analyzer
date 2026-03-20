@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef } from 'react';
 import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User } from 'lucide-react';
+import { Bot, Search, User } from 'lucide-react';
 
 function TypingDots() {
   return (
@@ -17,6 +17,20 @@ function TypingDots() {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+function ToolIndicator({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+      <Search
+        className="w-3 h-3 motion-reduce:animate-none"
+        style={{
+          animation: 'typing-dot 1.4s ease-in-out infinite',
+        }}
+      />
+      <span>{label}...</span>
     </div>
   );
 }
@@ -40,11 +54,17 @@ interface ChatMessageBubbleProps {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: string;
+  toolStatus?: string | null;
 }
 
-export function ChatMessageBubble({ role, content, timestamp }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({
+  role,
+  content,
+  timestamp,
+  toolStatus,
+}: ChatMessageBubbleProps) {
   const isUser = role === 'user';
-  const isWaiting = !isUser && content === '';
+  const isWaiting = !isUser && content === '' && !toolStatus;
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -66,11 +86,16 @@ export function ChatMessageBubble({ role, content, timestamp }: ChatMessageBubbl
       >
         {isWaiting ? (
           <TypingDots />
+        ) : toolStatus && !content ? (
+          <ToolIndicator label={toolStatus} />
         ) : (
-          <div className="chat-markdown">
-            <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
-              {content}
-            </Markdown>
+          <div className="space-y-2">
+            {toolStatus && <ToolIndicator label={toolStatus} />}
+            <div className="chat-markdown">
+              <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
+                {content}
+              </Markdown>
+            </div>
           </div>
         )}
         {timestamp && (

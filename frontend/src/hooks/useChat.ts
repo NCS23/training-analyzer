@@ -17,6 +17,20 @@ function replaceStreamingId(msgs: ChatMessageDetail[], newId: number): ChatMessa
   return msgs.map((m) => (m.id === STREAMING_MSG_ID ? { ...m, id: newId } : m));
 }
 
+const TOOL_LABELS: Record<string, string> = {
+  get_session_details: 'Lade Session-Details',
+  search_sessions: 'Suche Sessions',
+  get_training_stats: 'Berechne Statistiken',
+  get_plan_details: 'Lade Trainingsplan',
+  get_plan_compliance: 'Prüfe Soll/Ist',
+  get_personal_records: 'Lade Bestleistungen',
+  get_exercises: 'Durchsuche Übungen',
+  get_ai_recommendations: 'Lade Empfehlungen',
+  get_weekly_review: 'Lade Wochenrückblick',
+  search_conversations: 'Durchsuche Gespräche',
+  get_plan_change_log: 'Lade Planänderungen',
+};
+
 interface UseChatReturn {
   messages: ChatMessageDetail[];
   conversations: ConversationSummary[];
@@ -24,6 +38,7 @@ interface UseChatReturn {
   sending: boolean;
   loading: boolean;
   error: string | null;
+  toolStatus: string | null;
   sendMessage: (text: string) => Promise<void>;
   cancelStream: () => void;
   selectConversation: (id: number) => Promise<void>;
@@ -40,6 +55,7 @@ export function useChat(): UseChatReturn {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
   const idRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -82,16 +98,21 @@ export function useChat(): UseChatReturn {
       if (event.type === 'start' && event.conversation_id) {
         setActiveConversationId(event.conversation_id);
       } else if (event.type === 'token' && event.content) {
+        setToolStatus(null);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === STREAMING_MSG_ID ? { ...m, content: m.content + event.content } : m,
           ),
         );
+      } else if (event.type === 'tool_call' && event.name) {
+        setToolStatus(TOOL_LABELS[event.name] ?? event.name);
       } else if (event.type === 'done') {
+        setToolStatus(null);
         idRef.current -= 1;
         setMessages((prev) => replaceStreamingId(prev, idRef.current));
         void loadConversations();
       } else if (event.type === 'error') {
+        setToolStatus(null);
         setError(event.message ?? 'Streaming-Fehler');
         setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
       }
@@ -161,6 +182,7 @@ export function useChat(): UseChatReturn {
     sending,
     loading,
     error,
+    toolStatus,
     sendMessage,
     cancelStream,
     selectConversation,

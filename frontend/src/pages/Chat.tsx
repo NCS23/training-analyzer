@@ -34,6 +34,7 @@ interface ChatAreaProps {
   loading: boolean;
   sending: boolean;
   error: string | null;
+  toolStatus: string | null;
   onSend: (text: string) => void;
   onCancel: () => void;
   sidebarOpen: boolean;
@@ -44,6 +45,7 @@ function ChatArea({
   loading,
   sending,
   error,
+  toolStatus,
   onSend,
   onCancel,
   sidebarOpen,
@@ -67,12 +69,13 @@ function ChatArea({
               </div>
             )}
             {!loading && messages.length === 0 && <EmptyState onQuickAction={onSend} />}
-            {messages.map((msg) => (
+            {messages.map((msg, idx) => (
               <ChatMessageBubble
                 key={msg.id}
                 role={msg.role}
                 content={msg.content}
                 timestamp={msg.created_at}
+                toolStatus={idx === messages.length - 1 && sending ? toolStatus : null}
               />
             ))}
             {error && (
@@ -97,6 +100,7 @@ export function ChatPage() {
     sending,
     loading,
     error,
+    toolStatus,
     sendMessage,
     cancelStream,
     selectConversation,
@@ -173,6 +177,7 @@ export function ChatPage() {
           loading={loading}
           sending={sending}
           error={error}
+          toolStatus={toolStatus}
           onSend={handleSend}
           onCancel={cancelStream}
           sidebarOpen={sidebarOpen}

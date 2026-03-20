@@ -5,7 +5,7 @@ Handles AI provider initialization, selection, and fallback logic.
 """
 
 from collections.abc import AsyncIterator
-from typing import Optional
+from typing import Any, Optional
 
 from app.core.config import settings
 from app.domain.interfaces.ai_service import AIProvider
@@ -187,6 +187,40 @@ class AIService:
                 )
 
         raise Exception("All AI providers failed")
+
+    async def stream_chat_with_tools(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        tools: list[dict],
+        tool_handler: Any,
+        api_key: str | None = None,
+    ) -> tuple[AsyncIterator[dict], str]:
+        """Streamt Chat mit Tool Use. Nur Claude unterstuetzt Tools.
+
+        Returns:
+            Tuple von (async_iterator mit dicts, provider_name).
+        """
+        if self.primary_provider and isinstance(self.primary_provider, ClaudeProvider):
+            return (
+                self.primary_provider.stream_chat_with_tools(
+                    messages, system_prompt, tools, tool_handler, api_key
+                ),
+                self.primary_provider.name,
+            )
+
+        # Fallback: Ohne Tools streamen (Ollama etc.)
+        if self.primary_provider and self.primary_provider.is_available(api_key):
+
+            async def _wrap_stream() -> AsyncIterator[dict]:
+                async for text in self.primary_provider.stream_chat_multi_turn(  # type: ignore[union-attr]
+                    messages, system_prompt, api_key
+                ):
+                    yield {"type": "token", "content": text}
+
+            return _wrap_stream(), self.primary_provider.name
+
+        raise Exception("No AI provider available for tool-use streaming")
 
     def get_active_provider(self) -> Optional[str]:
         """Get name of currently active provider"""

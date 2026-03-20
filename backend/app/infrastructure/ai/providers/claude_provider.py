@@ -2,14 +2,20 @@
 Claude (Anthropic) AI Provider
 
 High-quality AI analysis using Claude Sonnet 4.
+Unterstuetzt Tool Use fuer den KI-Chat (#407).
 """
 
+import json
+import logging
 from collections.abc import AsyncIterator
+from typing import Any
 
 import anthropic
 
 from app.core.config import settings
 from app.domain.interfaces.ai_service import AIProvider
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeProvider(AIProvider):
@@ -116,6 +122,60 @@ class ClaudeProvider(AIProvider):
         ) as stream:
             async for text in stream.text_stream:
                 yield text
+
+    async def stream_chat_with_tools(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        tools: list[dict],
+        tool_handler: Any,
+        api_key: str | None = None,
+    ) -> AsyncIterator[dict]:
+        """Streamt Chat mit Tool Use. Yields dicts mit type: tool_call | token."""
+        client = self._get_async_client(api_key)
+        api_messages: list[anthropic.types.MessageParam] = [
+            {"role": m["role"], "content": m["content"]}
+            for m in messages  # type: ignore[misc]
+        ]
+
+        max_tool_rounds = 5
+        for _ in range(max_tool_rounds):
+            async with client.messages.stream(
+                model=self.model,
+                max_tokens=4000,
+                temperature=0.3,
+                system=system_prompt,
+                messages=api_messages,
+                tools=tools,  # type: ignore[arg-type]
+            ) as stream:
+                # Text-Tokens streamen
+                async for text in stream.text_stream:
+                    yield {"type": "token", "content": text}
+
+                final = await stream.get_final_message()
+
+            # Pruefen ob Tool-Calls vorhanden
+            if final.stop_reason != "tool_use":
+                return  # Fertig, kein Tool-Call
+
+            # Tool-Calls verarbeiten
+            api_messages.append({"role": "assistant", "content": final.content})  # type: ignore[arg-type]
+
+            tool_results: list[dict] = []
+            for block in final.content:
+                if block.type == "tool_use":
+                    yield {"type": "tool_call", "name": block.name, "input": block.input}
+                    logger.info("Tool-Call: %s(%s)", block.name, json.dumps(block.input)[:200])
+                    result = await tool_handler(block.name, block.input)
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result, ensure_ascii=False),
+                        }
+                    )
+
+            api_messages.append({"role": "user", "content": tool_results})  # type: ignore[arg-type,typeddict-item]
 
     def is_available(self, api_key: str | None = None) -> bool:
         """Check if Claude API is available"""

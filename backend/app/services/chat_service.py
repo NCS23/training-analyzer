@@ -2,7 +2,7 @@
 
 Verwaltet Konversationen und Nachrichten. Baut den vollen
 Trainingskontext als System-Prompt und sendet Multi-Turn-Anfragen
-an den AI-Provider.
+an den AI-Provider. Unterstuetzt Tool Use (#407).
 """
 
 import json
@@ -10,6 +10,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from functools import partial
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,8 @@ from app.models.chat import (
 )
 from app.services.ai_log_service import AICallData, log_ai_call
 from app.services.chat_context_service import build_chat_system_prompt
+from app.services.chat_tool_handlers import dispatch_tool
+from app.services.chat_tools import CHAT_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -129,12 +132,12 @@ class StreamContext:
     start_time: float
 
 
-async def prepare_stream(
+async def prepare_stream_with_tools(
     message: str,
     conversation_id: int | None,
     db: AsyncSession,
-) -> tuple[AsyncIterator[str], StreamContext]:
-    """Bereitet Streaming vor: speichert User-Msg, gibt Stream + Kontext zurueck."""
+) -> tuple[AsyncIterator[dict], StreamContext]:
+    """Bereitet Streaming mit Tool Use vor."""
     if conversation_id:
         conversation = await _load_conversation(conversation_id, db)
     else:
@@ -156,8 +159,9 @@ async def prepare_stream(
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     api_key = await resolve_claude_api_key(db)
-    stream, provider_name = await ai_service.stream_chat_multi_turn(
-        api_messages, system_prompt, api_key
+    tool_handler = partial(dispatch_tool, db=db)
+    stream, provider_name = await ai_service.stream_chat_with_tools(
+        api_messages, system_prompt, CHAT_TOOLS, tool_handler, api_key
     )
 
     ctx = StreamContext(
@@ -208,17 +212,20 @@ async def stream_sse_events(
     conversation_id: int | None,
     db: AsyncSession,
 ) -> AsyncIterator[str]:
-    """Generiert SSE-Events fuer den Streaming-Endpoint."""
-    stream, ctx = await prepare_stream(message, conversation_id, db)
+    """Generiert SSE-Events fuer den Streaming-Endpoint (mit Tool Use)."""
+    stream, ctx = await prepare_stream_with_tools(message, conversation_id, db)
 
     # Erstes Event: Konversations-ID
     yield f"data: {json.dumps({'type': 'start', 'conversation_id': ctx.conversation_id})}\n\n"
 
     full_response = ""
     try:
-        async for token in stream:
-            full_response += token
-            yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+        async for event in stream:
+            if event["type"] == "token":
+                full_response += event["content"]
+                yield f"data: {json.dumps({'type': 'token', 'content': event['content']})}\n\n"
+            elif event["type"] == "tool_call":
+                yield f"data: {json.dumps({'type': 'tool_call', 'name': event['name']})}\n\n"
     except Exception as e:
         logger.error("Streaming-Fehler: %s", e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
