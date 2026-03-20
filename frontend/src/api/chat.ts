@@ -43,10 +43,11 @@ export interface ConversationListResponse {
 }
 
 export interface StreamEvent {
-  type: 'start' | 'token' | 'done' | 'error';
+  type: 'start' | 'token' | 'done' | 'error' | 'tool_call';
   conversation_id?: number;
   content?: string;
   message?: string;
+  name?: string;
 }
 
 // --- API Functions ---

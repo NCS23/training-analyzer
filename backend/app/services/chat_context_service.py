@@ -251,11 +251,15 @@ def _assemble_prompt(
         parts.append("\n## Letzte Sessions (2 Wochen)\n" + "\n".join(lines))
 
     parts.append(
-        "\n## Hinweis zu Session-Referenzen\n"
-        "Wenn du auf eine bestimmte Session verweist, verlinke sie als Markdown-Link: "
+        "\n## Hinweise\n"
+        "- Wenn du auf eine bestimmte Session verweist, verlinke sie als Markdown-Link: "
         "[Beschreibung](/sessions/ID). Beispiel: "
-        '"Dein [Dauerlauf am 15.03.](/sessions/42) war gut dosiert." '
-        "Der Nutzer kann dann direkt zur Session navigieren."
+        '"Dein [Dauerlauf am 15.03.](/sessions/42) war gut dosiert."\n'
+        "- Du hast Zugriff auf Tools um Details nachzuladen. "
+        "Nutze sie aktiv wenn der User nach spezifischen Daten fragt "
+        "(Session-Details, Statistiken, Plandetails, Uebungen etc.).\n"
+        "- Fasse Tool-Ergebnisse kompakt und hilfreich zusammen — "
+        "gib nicht alle Rohdaten wieder, sondern die relevanten Erkenntnisse."
     )
 
     return "\n".join(parts)
