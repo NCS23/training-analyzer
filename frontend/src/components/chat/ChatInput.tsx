@@ -30,7 +30,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 items-start">
       <div className="flex-1 [&>div>div:last-child]:hidden">
         <Textarea
           value={value}
