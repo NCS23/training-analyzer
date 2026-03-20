@@ -2,6 +2,23 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, User } from 'lucide-react';
 
+function TypingDots() {
+  return (
+    <div className="flex gap-1 items-center h-5" aria-label="KI denkt nach...">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] motion-reduce:animate-none"
+          style={{
+            animation: 'typing-dot 1.4s ease-in-out infinite',
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 interface ChatMessageBubbleProps {
   role: 'user' | 'assistant';
   content: string;
@@ -10,6 +27,7 @@ interface ChatMessageBubbleProps {
 
 export function ChatMessageBubble({ role, content, timestamp }: ChatMessageBubbleProps) {
   const isUser = role === 'user';
+  const isWaiting = !isUser && content === '';
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -29,9 +47,13 @@ export function ChatMessageBubble({ role, content, timestamp }: ChatMessageBubbl
             : 'bg-[var(--color-bg-surface)] text-[var(--color-text-base)]'
         }`}
       >
-        <div className="chat-markdown">
-          <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
-        </div>
+        {isWaiting ? (
+          <TypingDots />
+        ) : (
+          <div className="chat-markdown">
+            <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+          </div>
+        )}
         {timestamp && (
           <div className="mt-1.5 text-[10px] text-[var(--color-text-muted)] opacity-60">
             {new Date(timestamp).toLocaleTimeString('de-DE', {
