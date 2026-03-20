@@ -87,7 +87,7 @@ function ChatArea({ messages, loading, sending, error, onSend, sidebarOpen }: Ch
             )}
             <div ref={messagesEndRef} />
           </div>
-          <div className="border-t border-[var(--color-border-base)] px-4 py-3">
+          <div className="px-4 py-3">
             <ChatInput onSend={onSend} disabled={sending} />
           </div>
         </CardBody>
