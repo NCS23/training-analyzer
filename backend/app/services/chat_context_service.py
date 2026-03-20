@@ -239,12 +239,23 @@ def _assemble_prompt(
             pace = f", Pace {s['pace']}" if s.get("pace") else ""
             hr = f", HF {s['hr_avg']}" if s.get("hr_avg") else ""
             tt = f" [{s['training_type']}]" if s.get("training_type") else ""
+            sid = s.get("id")
+            link = f"[Details](/sessions/{sid})" if sid else ""
             lines.append(
                 f"  - {s['date']}: {s['type']}{tt}"
                 f" — {s.get('duration_min', '?')} min"
                 f", {s.get('distance_km', '?')} km"
                 f"{pace}{hr}"
+                f" {link}".rstrip()
             )
         parts.append("\n## Letzte Sessions (2 Wochen)\n" + "\n".join(lines))
+
+    parts.append(
+        "\n## Hinweis zu Session-Referenzen\n"
+        "Wenn du auf eine bestimmte Session verweist, verlinke sie als Markdown-Link: "
+        "[Beschreibung](/sessions/ID). Beispiel: "
+        '"Dein [Dauerlauf am 15.03.](/sessions/42) war gut dosiert." '
+        "Der Nutzer kann dann direkt zur Session navigieren."
+    )
 
     return "\n".join(parts)
