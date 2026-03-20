@@ -13,16 +13,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
     AIRecommendationModel,
+    AthleteModel,
     ChatConversationModel,
     ChatMessageModel,
     ExerciseModel,
     PlanChangeLogModel,
     PlannedSessionModel,
+    RaceGoalModel,
     TrainingPhaseModel,
     TrainingPlanModel,
     WeeklyPlanDayModel,
     WeeklyReviewModel,
     WorkoutModel,
+)
+from app.services.session_analysis_service import (
+    _athlete_to_dict,
+    _goal_to_dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -162,7 +168,7 @@ async def handle_search_sessions(args: dict, db: AsyncSession) -> dict:
 
 
 async def handle_get_training_stats(args: dict, db: AsyncSession) -> dict:
-    """Aggregierte Trainingsstatistiken."""
+    """Aggregierte Trainingsstatistiken + Athletenprofil."""
     today = date.today()
     delta = PERIOD_MAP.get(args["period"], timedelta(weeks=4))
     start = datetime.combine(today - delta, datetime.min.time())
@@ -182,6 +188,12 @@ async def handle_get_training_stats(args: dict, db: AsyncSession) -> dict:
             "to": str(prev_end.date()),
             **prev_stats,
         }
+
+    # Athletenprofil anhaengen
+    athlete_result = await db.execute(select(AthleteModel).limit(1))
+    athlete = athlete_result.scalar_one_or_none()
+    if athlete:
+        result["athlete"] = _athlete_to_dict(athlete)
 
     return result
 
@@ -227,6 +239,14 @@ async def handle_get_plan_details(args: dict, db: AsyncSession) -> dict:
     week_start = target_week - timedelta(days=target_week.weekday())
     week_sessions = await _load_week_planned_sessions(plan.id, week_start, db)
 
+    # Aktive Wettkampfziele
+    goal_result = await db.execute(
+        select(RaceGoalModel)
+        .where(RaceGoalModel.is_active.is_(True))
+        .order_by(RaceGoalModel.race_date.asc())
+    )
+    goals = [_goal_to_dict(g) for g in goal_result.scalars().all()]
+
     return {
         "plan_name": plan.name,
         "description": plan.description,
@@ -237,6 +257,7 @@ async def handle_get_plan_details(args: dict, db: AsyncSession) -> dict:
         "phases": phases,
         "week_sessions": week_sessions,
         "week_start": str(week_start),
+        "race_goals": goals,
     }
 
 
