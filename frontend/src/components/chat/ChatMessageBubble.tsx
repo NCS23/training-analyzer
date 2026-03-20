@@ -1,3 +1,5 @@
+import type { ComponentPropsWithoutRef } from 'react';
+import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, User } from 'lucide-react';
@@ -16,6 +18,21 @@ function TypingDots() {
         />
       ))}
     </div>
+  );
+}
+
+function ChatLink({ href, children, ...props }: ComponentPropsWithoutRef<'a'>) {
+  if (href?.startsWith('/')) {
+    return (
+      <Link to={href} className="text-[var(--color-text-primary)] underline hover:opacity-80">
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a href={href} {...props} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
   );
 }
 
@@ -51,7 +68,9 @@ export function ChatMessageBubble({ role, content, timestamp }: ChatMessageBubbl
           <TypingDots />
         ) : (
           <div className="chat-markdown">
-            <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
+              {content}
+            </Markdown>
           </div>
         )}
         {timestamp && (

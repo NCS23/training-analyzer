@@ -158,6 +158,7 @@ def _workout_to_summary(w: WorkoutModel) -> dict:
     w_date = w.date.date() if isinstance(w.date, datetime) else w.date
     effective_type = str(w.training_type_override or w.training_type_auto or "")
     return {
+        "id": w.id,
         "date": str(w_date),
         "type": str(w.workout_type),
         "training_type": effective_type,
