@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.enrichment import AirQualityData, WeatherData
+from app.models.enrichment import (
+    DAYTIME_LABELS,
+    AirQualityData,
+    WeatherData,
+    compute_daytime_tag,
+)
 from app.models.segment import Segment, laps_to_segments
 
 if TYPE_CHECKING:
@@ -110,6 +115,10 @@ class SessionResponse(BaseModel):
     air_quality: Optional[AirQualityData] = None
     surface: Optional[dict[str, float]] = None  # {"Asphalt": 70.0, "Schotter": 30.0}
     elevation_corrected: bool = False
+    daytime_tag: Optional[str] = None  # "dawn", "day", "dusk", "night"
+    daytime_label: Optional[str] = None  # "Morgenlauf", "Tageslauf", etc.
+    sunrise: Optional[str] = None  # ISO-Zeit
+    sunset: Optional[str] = None  # ISO-Zeit
     created_at: datetime
     updated_at: datetime
 
@@ -178,6 +187,16 @@ class SessionResponse(BaseModel):
             with contextlib.suppress(json.JSONDecodeError, Exception):
                 surface = json.loads(str(model.surface_json))
 
+        # Tageszeit-Tag berechnen
+        session_dt = (
+            model.date
+            if isinstance(model.date, datetime)
+            else datetime.combine(model.date, datetime.min.time().replace(hour=9))
+        )
+        sunrise = weather.sunrise if weather else None
+        sunset = weather.sunset if weather else None
+        daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
+
         return cls(
             id=model.id,
             date=session_date,
@@ -207,6 +226,10 @@ class SessionResponse(BaseModel):
             air_quality=air_quality,
             surface=surface,
             elevation_corrected=bool(model.elevation_corrected),
+            daytime_tag=daytime_tag,
+            daytime_label=DAYTIME_LABELS.get(daytime_tag),
+            sunrise=sunrise,
+            sunset=sunset,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -229,6 +252,8 @@ class SessionListItem(BaseModel):
     # Enrichment (kompakt fuer Liste)
     location_name: Optional[str] = None
     weather_label: Optional[str] = None
+    daytime_tag: Optional[str] = None  # "dawn", "day", "dusk", "night"
+    daytime_label: Optional[str] = None  # "Morgenlauf", "Tageslauf", etc.
 
     @classmethod
     def from_db(cls, model: WorkoutModel) -> SessionListItem:
@@ -260,12 +285,24 @@ class SessionListItem(BaseModel):
             exercises_count = m["total_exercises"]
             total_tonnage_kg = m["total_tonnage_kg"]
 
-        # Wetter-Label fuer Liste
+        # Wetter-Label + Sunrise/Sunset fuer Liste
         weather_label = None
+        sunrise = None
+        sunset = None
         if model.weather_json:
             with contextlib.suppress(json.JSONDecodeError, Exception):
                 w = json.loads(str(model.weather_json))
                 weather_label = w.get("weather_label")
+                sunrise = w.get("sunrise")
+                sunset = w.get("sunset")
+
+        # Tageszeit-Tag berechnen
+        session_dt = (
+            model.date
+            if isinstance(model.date, datetime)
+            else datetime.combine(model.date, datetime.min.time().replace(hour=9))
+        )
+        daytime_tag = compute_daytime_tag(session_dt, sunrise, sunset)
 
         return cls(
             id=model.id,
@@ -281,6 +318,8 @@ class SessionListItem(BaseModel):
             total_tonnage_kg=total_tonnage_kg,
             location_name=model.location_name if model.location_name else None,
             weather_label=weather_label,
+            daytime_tag=daytime_tag,
+            daytime_label=DAYTIME_LABELS.get(daytime_tag),
         )
 
 

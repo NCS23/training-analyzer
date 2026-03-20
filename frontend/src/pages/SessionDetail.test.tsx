@@ -102,6 +102,10 @@ const mockSession: SessionDetail = {
   air_quality: null,
   surface: null,
   elevation_corrected: false,
+  daytime_tag: 'dawn',
+  daytime_label: 'Morgenlauf',
+  sunrise: '2025-02-25T07:00',
+  sunset: '2025-02-25T17:45',
   created_at: '2025-02-25T08:00:00',
   updated_at: '2025-02-25T08:15:00',
 };

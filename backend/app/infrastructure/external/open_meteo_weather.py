@@ -14,6 +14,7 @@ class OpenMeteoWeatherClient:
     """Wetterdaten von Open-Meteo (kostenlos, kein API-Key)."""
 
     HOURLY_PARAMS = "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation,weather_code"
+    DAILY_PARAMS = "sunrise,sunset"
 
     def __init__(self) -> None:
         self.client = ExternalAPIClient(
@@ -28,6 +29,7 @@ class OpenMeteoWeatherClient:
             "latitude": lat,
             "longitude": lon,
             "hourly": self.HOURLY_PARAMS,
+            "daily": self.DAILY_PARAMS,
             "start_date": date_str,
             "end_date": date_str,
             "timezone": "auto",
@@ -51,6 +53,7 @@ class OpenMeteoWeatherClient:
                 "latitude": lat,
                 "longitude": lon,
                 "hourly": self.HOURLY_PARAMS,
+                "daily": self.DAILY_PARAMS,
                 "start_date": date_str,
                 "end_date": date_str,
                 "timezone": "auto",
@@ -59,7 +62,7 @@ class OpenMeteoWeatherClient:
         return self._extract_closest_hour(data, dt)
 
     def _extract_closest_hour(self, data: dict | None, dt: datetime) -> WeatherData | None:
-        """Extrahiert den naechstliegenden Stundenwert."""
+        """Extrahiert den naechstliegenden Stundenwert + Sunrise/Sunset."""
         if not data or "hourly" not in data:
             return None
 
@@ -72,6 +75,15 @@ class OpenMeteoWeatherClient:
         target_hour = dt.hour
         idx = min(target_hour, len(times) - 1)
 
+        # Sunrise/Sunset aus daily extrahieren
+        sunrise = None
+        sunset = None
+        daily = data.get("daily", {})
+        if daily.get("sunrise"):
+            sunrise = daily["sunrise"][0] if daily["sunrise"] else None
+        if daily.get("sunset"):
+            sunset = daily["sunset"][0] if daily["sunset"] else None
+
         try:
             weather_code = int(hourly["weather_code"][idx] or 0)
             return WeatherData(
@@ -81,6 +93,8 @@ class OpenMeteoWeatherClient:
                 precipitation_mm=float(hourly["precipitation"][idx] or 0),
                 weather_code=weather_code,
                 weather_label=wmo_to_label(weather_code),
+                sunrise=sunrise,
+                sunset=sunset,
             )
         except (IndexError, TypeError, ValueError) as e:
             logger.warning("Fehler beim Parsen der Wetterdaten: %s", e)

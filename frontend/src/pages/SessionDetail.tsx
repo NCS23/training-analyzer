@@ -416,13 +416,21 @@ export function SessionDetailPage() {
         />
       )}
 
-      {/* Umgebungsbedingungen (Wetter, Luftqualität, Location, Untergrund) */}
-      {(session.weather || session.air_quality || session.location_name || session.surface) && (
+      {/* Umgebungsbedingungen (Wetter, Luftqualität, Location, Untergrund, Tageszeit) */}
+      {(session.weather ||
+        session.air_quality ||
+        session.location_name ||
+        session.surface ||
+        session.daytime_tag) && (
         <SessionEnvironmentSection
           weather={session.weather}
           airQuality={session.air_quality}
           locationName={session.location_name}
           surface={session.surface}
+          daytimeTag={session.daytime_tag}
+          daytimeLabel={session.daytime_label}
+          sunrise={session.sunrise}
+          sunset={session.sunset}
         />
       )}
 

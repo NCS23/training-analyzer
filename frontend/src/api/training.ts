@@ -71,6 +71,8 @@ export interface SessionSummary {
   // Enrichment
   location_name: string | null;
   weather_label: string | null;
+  daytime_tag: string | null; // "dawn", "day", "dusk", "night"
+  daytime_label: string | null; // "Morgenlauf", "Tageslauf", etc.
 }
 
 interface SessionListApiResponse {
@@ -277,6 +279,10 @@ export interface SessionDetail {
   air_quality: AirQualityData | null;
   surface: Record<string, number> | null; // {"Asphalt": 70.0, "Schotter": 30.0}
   elevation_corrected: boolean;
+  daytime_tag: string | null; // "dawn", "day", "dusk", "night"
+  daytime_label: string | null; // "Morgenlauf", "Tageslauf", etc.
+  sunrise: string | null; // ISO-Zeit
+  sunset: string | null; // ISO-Zeit
   created_at: string;
   updated_at: string;
 }
@@ -288,6 +294,8 @@ export interface WeatherData {
   precipitation_mm: number;
   weather_code: number;
   weather_label: string;
+  sunrise: string | null;
+  sunset: string | null;
 }
 
 export interface AirQualityData {
