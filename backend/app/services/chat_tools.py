@@ -1,7 +1,7 @@
 """Chat Tool Definitions — JSON-Schemas fuer Claude Tool Use.
 
-Definiert die 11 Tools, die der KI-Chat nutzen kann, um
-Trainingsdaten on-demand nachzuladen.
+Definiert die Tools, die der KI-Chat nutzen kann, um
+Trainingsdaten on-demand nachzuladen und Aktionen auszufuehren.
 """
 
 CHAT_TOOLS: list[dict] = [
@@ -283,6 +283,118 @@ CHAT_TOOLS: list[dict] = [
                 },
             },
             "required": [],
+        },
+    },
+    {
+        "name": "propose_plan_change",
+        "description": (
+            "Schlaegt eine konkrete Planaenderung vor, die der User per Klick uebernehmen kann. "
+            "Erzeugt eine interaktive Karte im Chat. Nutze dieses Tool wenn du eine "
+            "Aenderung am Trainingsplan empfiehlst (z.B. Ruhetag einschieben, Session tauschen)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Art der Aenderung",
+                    "enum": ["swap", "skip", "add", "move", "replace", "rest_day"],
+                },
+                "day": {
+                    "type": "string",
+                    "description": "Betroffener Wochentag (z.B. 'Mittwoch')",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "Datum der Aenderung (YYYY-MM-DD)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Kurze Beschreibung der Aenderung",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Begruendung fuer die Aenderung",
+                },
+                "from_value": {
+                    "type": "string",
+                    "description": "Was aktuell geplant ist",
+                },
+                "to_value": {
+                    "type": "string",
+                    "description": "Was stattdessen geplant werden soll",
+                },
+            },
+            "required": ["action", "day", "description", "reason"],
+        },
+    },
+    {
+        "name": "generate_training_plan",
+        "description": (
+            "Generiert einen strukturierten Trainingsplan-Entwurf. "
+            "Nutze dieses Tool wenn der User einen neuen Trainingsplan erstellen moechte. "
+            "Gibt einen Plan-Entwurf zurueck, den der User ueberpruefen und uebernehmen kann."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "goal": {
+                    "type": "string",
+                    "description": "Wettkampfziel (z.B. 'Halbmarathon Sub-2h')",
+                },
+                "weeks": {
+                    "type": "integer",
+                    "description": "Planlaenge in Wochen (8-24)",
+                },
+                "sessions_per_week": {
+                    "type": "integer",
+                    "description": "Trainingseinheiten pro Woche (3-7)",
+                },
+                "current_weekly_km": {
+                    "type": "number",
+                    "description": "Aktuelles Wochenvolumen in km",
+                },
+                "race_date": {
+                    "type": "string",
+                    "description": "Wettkampfdatum (YYYY-MM-DD)",
+                },
+                "include_strength": {
+                    "type": "boolean",
+                    "description": "Krafttraining einplanen (Standard: true)",
+                },
+            },
+            "required": ["goal", "weeks"],
+        },
+    },
+    {
+        "name": "search_training_knowledge",
+        "description": (
+            "Durchsucht die Trainingswissen-Datenbank nach Fachbegriffen, "
+            "Trainingsmethoden und evidenzbasierten Empfehlungen. "
+            "Nutze dieses Tool fuer Fragen wie 'Was ist Laktatschwelle?', "
+            "'Wie funktioniert Periodisierung?', 'Was sagt Pfitzinger zu Tempolaeufen?'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Suchbegriff oder Frage zum Trainingswissen",
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Optional: Themenkategorie",
+                    "enum": [
+                        "physiology",
+                        "training_methods",
+                        "nutrition",
+                        "recovery",
+                        "race_prep",
+                        "injury_prevention",
+                    ],
+                },
+            },
+            "required": ["query"],
         },
     },
 ]

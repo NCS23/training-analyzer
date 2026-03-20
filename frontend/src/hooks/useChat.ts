@@ -29,6 +29,9 @@ const TOOL_LABELS: Record<string, string> = {
   get_weekly_review: 'Lade Wochenrückblick',
   search_conversations: 'Durchsuche Gespräche',
   get_plan_change_log: 'Lade Planänderungen',
+  propose_plan_change: 'Erstelle Planvorschlag',
+  generate_training_plan: 'Generiere Trainingsplan',
+  search_training_knowledge: 'Durchsuche Trainingswissen',
 };
 
 interface UseChatReturn {

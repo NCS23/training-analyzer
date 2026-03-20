@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, Search, User } from 'lucide-react';
+import { ChatChart } from './ChatChart';
+import { parseChartBlocks } from './chartParser';
+import { PlanSuggestionCard } from './PlanSuggestionCard';
+import { parsePlanSuggestions } from './planSuggestionParser';
+import type { PlanSuggestion } from './PlanSuggestionCard';
 
 function TypingDots() {
   return (
@@ -55,6 +60,7 @@ interface ChatMessageBubbleProps {
   content: string;
   timestamp?: string;
   toolStatus?: string | null;
+  onApplyPlanChange?: (suggestion: PlanSuggestion) => void;
 }
 
 export function ChatMessageBubble({
@@ -62,9 +68,18 @@ export function ChatMessageBubble({
   content,
   timestamp,
   toolStatus,
+  onApplyPlanChange,
 }: ChatMessageBubbleProps) {
   const isUser = role === 'user';
   const isWaiting = !isUser && content === '' && !toolStatus;
+
+  // Charts und Plan-Vorschläge aus dem Content parsen
+  const { text: textWithoutCharts, charts } = !isUser
+    ? parseChartBlocks(content)
+    : { text: content, charts: [] };
+  const { text: cleanText, suggestions } = !isUser
+    ? parsePlanSuggestions(textWithoutCharts)
+    : { text: textWithoutCharts, suggestions: [] };
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -91,11 +106,19 @@ export function ChatMessageBubble({
         ) : (
           <div className="space-y-2">
             {toolStatus && <ToolIndicator label={toolStatus} />}
-            <div className="chat-markdown">
-              <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
-                {content}
-              </Markdown>
-            </div>
+            {cleanText && (
+              <div className="chat-markdown">
+                <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
+                  {cleanText}
+                </Markdown>
+              </div>
+            )}
+            {charts.map((chart, i) => (
+              <ChatChart key={i} chart={chart} />
+            ))}
+            {suggestions.map((s, i) => (
+              <PlanSuggestionCard key={i} suggestion={s} onApply={onApplyPlanChange} />
+            ))}
           </div>
         )}
         {timestamp && (

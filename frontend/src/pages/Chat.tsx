@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button, Card, CardBody, Breadcrumbs, BreadcrumbItem } from '@nordlig/components';
@@ -7,7 +7,12 @@ import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatQuickActions } from '@/components/chat/ChatQuickActions';
 import { ConversationList } from '@/components/chat/ConversationList';
+import { ChatNotifications } from '@/components/chat/ChatNotifications';
+import { ChatContextPicker } from '@/components/chat/ChatContextPicker';
+import { ChatContextBadge } from '@/components/chat/ChatContextBadge';
+import type { ChatContext } from '@/components/chat/ChatContextBadge';
 import type { ChatMessageDetail } from '@/api/chat';
+import type { PlanSuggestion } from '@/components/chat/PlanSuggestionCard';
 
 function EmptyState({ onQuickAction }: { onQuickAction: (q: string) => void }) {
   return (
@@ -35,8 +40,12 @@ interface ChatAreaProps {
   sending: boolean;
   error: string | null;
   toolStatus: string | null;
+  pinnedContext: ChatContext | null;
   onSend: (text: string) => void;
   onCancel: () => void;
+  onPinContext: (ctx: ChatContext) => void;
+  onUnpinContext: () => void;
+  onApplyPlanChange: (suggestion: PlanSuggestion) => void;
   sidebarOpen: boolean;
 }
 
@@ -46,8 +55,12 @@ function ChatArea({
   sending,
   error,
   toolStatus,
+  pinnedContext,
   onSend,
   onCancel,
+  onPinContext,
+  onUnpinContext,
+  onApplyPlanChange,
   sidebarOpen,
 }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -68,7 +81,12 @@ function ChatArea({
                 Lade Konversation...
               </div>
             )}
-            {!loading && messages.length === 0 && <EmptyState onQuickAction={onSend} />}
+            {!loading && messages.length === 0 && (
+              <>
+                <ChatNotifications onQuickAction={onSend} />
+                <EmptyState onQuickAction={onSend} />
+              </>
+            )}
             {messages.map((msg, idx) => (
               <ChatMessageBubble
                 key={msg.id}
@@ -76,6 +94,7 @@ function ChatArea({
                 content={msg.content}
                 timestamp={msg.created_at}
                 toolStatus={idx === messages.length - 1 && sending ? toolStatus : null}
+                onApplyPlanChange={onApplyPlanChange}
               />
             ))}
             {error && (
@@ -84,7 +103,21 @@ function ChatArea({
             <div ref={messagesEndRef} />
           </div>
           <div className="px-4 py-3">
-            <ChatInput onSend={onSend} onCancel={onCancel} disabled={sending} streaming={sending} />
+            <ChatInput
+              onSend={onSend}
+              onCancel={onCancel}
+              disabled={sending}
+              streaming={sending}
+              contextBadge={
+                <div className="flex items-center gap-2">
+                  {pinnedContext ? (
+                    <ChatContextBadge context={pinnedContext} onRemove={onUnpinContext} />
+                  ) : (
+                    <ChatContextPicker onSelect={onPinContext} disabled={sending} />
+                  )}
+                </div>
+              }
+            />
           </div>
         </CardBody>
       </Card>
@@ -92,6 +125,7 @@ function ChatArea({
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- Main chat page orchestrating all features
 export function ChatPage() {
   const {
     messages,
@@ -110,15 +144,28 @@ export function ChatPage() {
   } = useChat();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pinnedContext, setPinnedContext] = useState<ChatContext | null>(null);
 
   useEffect(() => {
     void loadConversations();
   }, [loadConversations]);
 
-  const handleSend = (text: string) => {
-    void sendMessage(text);
-    setSidebarOpen(false);
-  };
+  const handleSend = useCallback(
+    (text: string) => {
+      // Wenn Kontext angeheftet, als Prefix mitsenden
+      const prefix = pinnedContext
+        ? `[Kontext: ${pinnedContext.type === 'session' ? 'Session' : 'Woche'} ${pinnedContext.id}]\n\n`
+        : '';
+      void sendMessage(prefix + text);
+      setSidebarOpen(false);
+    },
+    [pinnedContext, sendMessage],
+  );
+
+  const handleApplyPlanChange = useCallback((_suggestion: PlanSuggestion) => {
+    // TODO: API-Call zum Anwenden der Planänderung
+    // Für jetzt wird nur der State in der PlanSuggestionCard aktualisiert
+  }, []);
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto">
@@ -178,8 +225,12 @@ export function ChatPage() {
           sending={sending}
           error={error}
           toolStatus={toolStatus}
+          pinnedContext={pinnedContext}
           onSend={handleSend}
           onCancel={cancelStream}
+          onPinContext={setPinnedContext}
+          onUnpinContext={() => setPinnedContext(null)}
+          onApplyPlanChange={handleApplyPlanChange}
           sidebarOpen={sidebarOpen}
         />
       </div>

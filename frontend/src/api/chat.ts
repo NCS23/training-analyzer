@@ -111,3 +111,23 @@ export async function getConversation(id: number): Promise<ConversationDetail> {
 export async function deleteConversation(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/ai/conversations/${id}`);
 }
+
+// --- Notifications ---
+
+export interface ChatNotification {
+  type: string;
+  severity: 'info' | 'warning';
+  title: string;
+  message: string;
+  suggested_question: string;
+}
+
+export interface NotificationsResponse {
+  notifications: ChatNotification[];
+  count: number;
+}
+
+export async function getChatNotifications(): Promise<NotificationsResponse> {
+  const { data } = await apiClient.get<NotificationsResponse>('/api/v1/ai/notifications');
+  return data;
+}
