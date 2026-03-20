@@ -5,6 +5,7 @@ Manage AI providers, chat functionality, and KI-Chat-Assistent.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,6 +125,32 @@ async def send_chat_message(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat-Fehler: {str(e)}") from e
+
+
+@router.post("/ai/conversations/messages/stream")
+async def stream_chat_message(
+    request: ChatMessageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Streamt eine KI-Antwort als Server-Sent Events."""
+    try:
+        return StreamingResponse(
+            chat_service.stream_sse_events(
+                message=request.message,
+                conversation_id=request.conversation_id,
+                db=db,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Streaming-Fehler: {str(e)}") from e
 
 
 @router.get("/ai/conversations", response_model=ConversationListResponse)

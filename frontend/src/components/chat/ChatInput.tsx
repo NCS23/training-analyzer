@@ -1,16 +1,20 @@
 import { useState, useCallback } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 import { Button, Textarea } from '@nordlig/components';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onCancel?: () => void;
   disabled?: boolean;
+  streaming?: boolean;
   placeholder?: string;
 }
 
 export function ChatInput({
   onSend,
+  onCancel,
   disabled = false,
+  streaming = false,
   placeholder = 'Stelle eine Frage zu deinem Training...',
 }: ChatInputProps) {
   const [value, setValue] = useState('');
@@ -44,15 +48,21 @@ export function ChatInput({
           className="!min-h-[44px] max-h-[150px]"
         />
       </div>
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={handleSubmit}
-        disabled={disabled || !value.trim()}
-        aria-label="Nachricht senden"
-      >
-        <Send className="w-4 h-4" />
-      </Button>
+      {streaming ? (
+        <Button variant="secondary" size="sm" onClick={onCancel} aria-label="Antwort abbrechen">
+          <Square className="w-4 h-4" />
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleSubmit}
+          disabled={disabled || !value.trim()}
+          aria-label="Nachricht senden"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      )}
     </div>
   );
 }

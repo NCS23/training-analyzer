@@ -9,23 +9,6 @@ import { ChatQuickActions } from '@/components/chat/ChatQuickActions';
 import { ConversationList } from '@/components/chat/ConversationList';
 import type { ChatMessageDetail } from '@/api/chat';
 
-function TypingIndicator() {
-  return (
-    <div className="flex gap-3">
-      <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-[var(--color-bg-neutral-subtle)] text-[var(--color-text-muted)]">
-        <Bot className="w-4 h-4" />
-      </div>
-      <div className="bg-[var(--color-bg-surface)] rounded-[var(--radius-md)] px-4 py-3">
-        <div className="flex gap-1">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-pulse" />
-          <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-pulse [animation-delay:150ms]" />
-          <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-pulse [animation-delay:300ms]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmptyState({ onQuickAction }: { onQuickAction: (q: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-6 py-12">
@@ -52,15 +35,26 @@ interface ChatAreaProps {
   sending: boolean;
   error: string | null;
   onSend: (text: string) => void;
+  onCancel: () => void;
   sidebarOpen: boolean;
 }
 
-function ChatArea({ messages, loading, sending, error, onSend, sidebarOpen }: ChatAreaProps) {
+function ChatArea({
+  messages,
+  loading,
+  sending,
+  error,
+  onSend,
+  onCancel,
+  sidebarOpen,
+}: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMsg = messages[messages.length - 1];
 
+  // Auto-scroll bei neuen Nachrichten UND waehrend Streaming (content aendert sich)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, sending]);
+  }, [messages.length, lastMsg?.content, sending]);
 
   return (
     <div className={`flex-1 flex flex-col min-w-0 ${sidebarOpen ? 'hidden lg:flex' : 'flex'}`}>
@@ -81,14 +75,13 @@ function ChatArea({ messages, loading, sending, error, onSend, sidebarOpen }: Ch
                 timestamp={msg.created_at}
               />
             ))}
-            {sending && <TypingIndicator />}
             {error && (
               <div className="text-center text-sm text-[var(--color-text-error)] py-2">{error}</div>
             )}
             <div ref={messagesEndRef} />
           </div>
           <div className="px-4 py-3">
-            <ChatInput onSend={onSend} disabled={sending} />
+            <ChatInput onSend={onSend} onCancel={onCancel} disabled={sending} streaming={sending} />
           </div>
         </CardBody>
       </Card>
@@ -105,6 +98,7 @@ export function ChatPage() {
     loading,
     error,
     sendMessage,
+    cancelStream,
     selectConversation,
     startNewConversation,
     loadConversations,
@@ -180,6 +174,7 @@ export function ChatPage() {
           sending={sending}
           error={error}
           onSend={handleSend}
+          onCancel={cancelStream}
           sidebarOpen={sidebarOpen}
         />
       </div>

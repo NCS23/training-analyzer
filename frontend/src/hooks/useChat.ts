@@ -1,11 +1,21 @@
 import { useState, useCallback, useRef } from 'react';
-import type { ChatMessageDetail, ConversationSummary, ChatMessageResponse } from '@/api/chat';
+import type { ChatMessageDetail, ConversationSummary, StreamEvent } from '@/api/chat';
 import {
-  sendChatMessage,
+  streamChatMessage,
   listConversations,
   getConversation,
   deleteConversation,
 } from '@/api/chat';
+
+const STREAMING_MSG_ID = -999;
+
+function createTempMsg(id: number, role: 'user' | 'assistant', content: string): ChatMessageDetail {
+  return { id, role, content, created_at: new Date().toISOString() };
+}
+
+function replaceStreamingId(msgs: ChatMessageDetail[], newId: number): ChatMessageDetail[] {
+  return msgs.map((m) => (m.id === STREAMING_MSG_ID ? { ...m, id: newId } : m));
+}
 
 interface UseChatReturn {
   messages: ChatMessageDetail[];
@@ -14,13 +24,15 @@ interface UseChatReturn {
   sending: boolean;
   loading: boolean;
   error: string | null;
-  sendMessage: (text: string) => Promise<ChatMessageResponse | null>;
+  sendMessage: (text: string) => Promise<void>;
+  cancelStream: () => void;
   selectConversation: (id: number) => Promise<void>;
   startNewConversation: () => void;
   loadConversations: () => Promise<void>;
   removeConversation: (id: number) => Promise<void>;
 }
 
+// eslint-disable-next-line max-lines-per-function -- Hook mit vielen Callbacks, Aufteilung in Sub-Hooks wuerde Lesbarkeit verschlechtern
 export function useChat(): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessageDetail[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -28,7 +40,8 @@ export function useChat(): UseChatReturn {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const idRef = useRef(0); // Lokale temp-ID fuer optimistic updates
+  const idRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -59,55 +72,71 @@ export function useChat(): UseChatReturn {
     setError(null);
   }, []);
 
+  const cancelStream = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
+  const handleStreamEvent = useCallback(
+    (event: StreamEvent) => {
+      if (event.type === 'start' && event.conversation_id) {
+        setActiveConversationId(event.conversation_id);
+      } else if (event.type === 'token' && event.content) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === STREAMING_MSG_ID ? { ...m, content: m.content + event.content } : m,
+          ),
+        );
+      } else if (event.type === 'done') {
+        idRef.current -= 1;
+        setMessages((prev) => replaceStreamingId(prev, idRef.current));
+        void loadConversations();
+      } else if (event.type === 'error') {
+        setError(event.message ?? 'Streaming-Fehler');
+        setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
+      }
+    },
+    [loadConversations],
+  );
+
   const sendMessage = useCallback(
-    async (text: string): Promise<ChatMessageResponse | null> => {
+    async (text: string): Promise<void> => {
       setSending(true);
       setError(null);
 
-      // Optimistic: User-Nachricht sofort anzeigen
       idRef.current -= 1;
-      const tempUserMsg: ChatMessageDetail = {
-        id: idRef.current,
-        role: 'user',
-        content: text,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, tempUserMsg]);
+      const tempUserId = idRef.current;
+      setMessages((prev) => [
+        ...prev,
+        createTempMsg(tempUserId, 'user', text),
+        createTempMsg(STREAMING_MSG_ID, 'assistant', ''),
+      ]);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       try {
-        const response = await sendChatMessage({
-          message: text,
-          conversation_id: activeConversationId ?? undefined,
-        });
-
-        // Neue Konversation? ID merken
-        if (!activeConversationId) {
-          setActiveConversationId(response.conversation_id);
+        await streamChatMessage(
+          { message: text, conversation_id: activeConversationId ?? undefined },
+          handleStreamEvent,
+          controller.signal,
+        );
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          idRef.current -= 1;
+          setMessages((prev) => replaceStreamingId(prev, idRef.current));
+        } else {
+          setError('Nachricht konnte nicht gesendet werden.');
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== tempUserId && m.id !== STREAMING_MSG_ID),
+          );
         }
-
-        // Assistent-Antwort hinzufuegen
-        const assistantMsg: ChatMessageDetail = {
-          id: response.message_id,
-          role: 'assistant',
-          content: response.content,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-
-        // Konversationsliste aktualisieren
-        void loadConversations();
-
-        return response;
-      } catch {
-        setError('Nachricht konnte nicht gesendet werden.');
-        // Optimistic Update rueckgaengig machen
-        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-        return null;
       } finally {
         setSending(false);
+        abortRef.current = null;
       }
     },
-    [activeConversationId, loadConversations],
+    [activeConversationId, handleStreamEvent],
   );
 
   const removeConversation = useCallback(
@@ -133,6 +162,7 @@ export function useChat(): UseChatReturn {
     loading,
     error,
     sendMessage,
+    cancelStream,
     selectConversation,
     startNewConversation,
     loadConversations,

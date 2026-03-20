@@ -42,6 +42,13 @@ export interface ConversationListResponse {
   total: number;
 }
 
+export interface StreamEvent {
+  type: 'start' | 'token' | 'done' | 'error';
+  conversation_id?: number;
+  content?: string;
+  message?: string;
+}
+
 // --- API Functions ---
 
 export async function sendChatMessage(params: ChatMessageRequest): Promise<ChatMessageResponse> {
@@ -50,6 +57,44 @@ export async function sendChatMessage(params: ChatMessageRequest): Promise<ChatM
     params,
   );
   return data;
+}
+
+export async function streamChatMessage(
+  params: ChatMessageRequest,
+  onEvent: (event: StreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const baseUrl = apiClient.defaults.baseURL ?? '';
+  const response = await fetch(`${baseUrl}/api/v1/ai/conversations/messages/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    signal,
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Stream-Fehler: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const event = JSON.parse(line.slice(6)) as StreamEvent;
+        onEvent(event);
+      }
+    }
+  }
 }
 
 export async function listConversations(): Promise<ConversationListResponse> {
