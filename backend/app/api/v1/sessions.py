@@ -234,6 +234,19 @@ def _apply_lap_overrides(laps: list[dict] | None, overrides_json: str | None) ->
         pass
 
 
+def _resolve_session_datetime(training_date: date, summary: dict) -> datetime:
+    """Kombiniert Datum mit Uhrzeit aus Parser (FIT start_time) oder Fallback 00:00."""
+    start_time_str = summary.get("start_time")
+    if start_time_str:
+        try:
+            parsed_dt = datetime.fromisoformat(start_time_str)
+            # Uhrzeit aus FIT auf das vom User gewählte Datum setzen
+            return datetime.combine(training_date, parsed_dt.time())
+        except (ValueError, AttributeError):
+            pass
+    return datetime.combine(training_date, datetime.min.time())
+
+
 def _validate_type_override(override: str | None) -> str | None:
     """Gibt Override zurück wenn gültig, sonst None."""
     if override and override not in VALID_TRAINING_TYPES:
@@ -254,7 +267,7 @@ def _build_workout_model(
     laps = parsed["laps"]
 
     return WorkoutModel(
-        date=datetime.combine(form.training_date, datetime.min.time()),
+        date=_resolve_session_datetime(form.training_date, summary),
         workout_type=form.training_type.value,
         subtype=form.training_subtype.value if form.training_subtype else None,
         training_type_auto=classification.training_type if classification else None,
