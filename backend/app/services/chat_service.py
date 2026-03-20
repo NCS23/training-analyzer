@@ -5,8 +5,11 @@ Trainingskontext als System-Prompt und sendet Multi-Turn-Anfragen
 an den AI-Provider.
 """
 
+import json
 import logging
 import time
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -113,6 +116,118 @@ async def send_message(
         provider=provider_name,
         duration_ms=duration_ms,
     )
+
+
+@dataclass
+class StreamContext:
+    """Kontext fuer die Nachbearbeitung nach dem Streaming."""
+
+    conversation_id: int
+    system_prompt: str
+    user_message: str
+    provider_name: str
+    start_time: float
+
+
+async def prepare_stream(
+    message: str,
+    conversation_id: int | None,
+    db: AsyncSession,
+) -> tuple[AsyncIterator[str], StreamContext]:
+    """Bereitet Streaming vor: speichert User-Msg, gibt Stream + Kontext zurueck."""
+    if conversation_id:
+        conversation = await _load_conversation(conversation_id, db)
+    else:
+        title = message[:100].strip()
+        conversation = ChatConversationModel(title=title)
+        db.add(conversation)
+        await db.flush()
+
+    user_msg = ChatMessageModel(
+        conversation_id=conversation.id,
+        role="user",
+        content=message,
+    )
+    db.add(user_msg)
+    await db.flush()
+
+    history = await _load_message_history(conversation.id, db)
+    system_prompt = await build_chat_system_prompt(db)
+    api_messages = [{"role": m.role, "content": m.content} for m in history]
+
+    api_key = await resolve_claude_api_key(db)
+    stream, provider_name = await ai_service.stream_chat_multi_turn(
+        api_messages, system_prompt, api_key
+    )
+
+    ctx = StreamContext(
+        conversation_id=conversation.id,
+        system_prompt=system_prompt,
+        user_message=message,
+        provider_name=provider_name,
+        start_time=time.monotonic(),
+    )
+    return stream, ctx
+
+
+async def finalize_stream(
+    full_response: str,
+    ctx: StreamContext,
+    db: AsyncSession,
+) -> None:
+    """Speichert die gestreamte Antwort und loggt den AI-Call."""
+    duration_ms = int((time.monotonic() - ctx.start_time) * 1000)
+
+    assistant_msg = ChatMessageModel(
+        conversation_id=ctx.conversation_id,
+        role="assistant",
+        content=full_response,
+        provider=ctx.provider_name,
+        duration_ms=duration_ms,
+    )
+    db.add(assistant_msg)
+    await db.commit()
+
+    await log_ai_call(
+        db,
+        AICallData(
+            use_case="chat",
+            provider=ctx.provider_name,
+            system_prompt=ctx.system_prompt[:2000],
+            user_prompt=ctx.user_message,
+            raw_response=full_response,
+            parsed_ok=True,
+            duration_ms=duration_ms,
+            context_label=f"conversation:{ctx.conversation_id}",
+        ),
+    )
+
+
+async def stream_sse_events(
+    message: str,
+    conversation_id: int | None,
+    db: AsyncSession,
+) -> AsyncIterator[str]:
+    """Generiert SSE-Events fuer den Streaming-Endpoint."""
+    stream, ctx = await prepare_stream(message, conversation_id, db)
+
+    # Erstes Event: Konversations-ID
+    yield f"data: {json.dumps({'type': 'start', 'conversation_id': ctx.conversation_id})}\n\n"
+
+    full_response = ""
+    try:
+        async for token in stream:
+            full_response += token
+            yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+    except Exception as e:
+        logger.error("Streaming-Fehler: %s", e)
+        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        return
+
+    # Antwort persistieren
+    await finalize_stream(full_response, ctx, db)
+
+    yield f"data: {json.dumps({'type': 'done', 'conversation_id': ctx.conversation_id})}\n\n"
 
 
 async def list_conversations(db: AsyncSession) -> ConversationListResponse:

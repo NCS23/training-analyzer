@@ -4,6 +4,7 @@ AI Service Factory and Manager
 Handles AI provider initialization, selection, and fallback logic.
 """
 
+from collections.abc import AsyncIterator
 from typing import Optional
 
 from app.core.config import settings
@@ -158,6 +159,32 @@ class AIService:
                 except Exception as e:
                     print(f"Fallback provider {provider.name} failed: {e}")
                     continue
+
+        raise Exception("All AI providers failed")
+
+    async def stream_chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        api_key: str | None = None,
+    ) -> tuple[AsyncIterator[str], str]:
+        """Streamt Multi-Turn Chat Token fuer Token.
+
+        Returns:
+            Tuple von (async_iterator, provider_name).
+        """
+        if self.primary_provider and self.primary_provider.is_available(api_key):
+            return (
+                self.primary_provider.stream_chat_multi_turn(messages, system_prompt, api_key),
+                self.primary_provider.name,
+            )
+
+        for provider in self.fallback_providers:
+            if provider.is_available():
+                return (
+                    provider.stream_chat_multi_turn(messages, system_prompt),
+                    provider.name,
+                )
 
         raise Exception("All AI providers failed")
 

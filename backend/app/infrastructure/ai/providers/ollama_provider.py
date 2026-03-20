@@ -4,6 +4,9 @@ Ollama AI Provider
 Self-hosted LLM provider for cost-free, privacy-focused AI analysis.
 """
 
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 
 from app.core.config import settings
@@ -93,6 +96,37 @@ class OllamaProvider(AIProvider):
                 return result["message"]["content"]
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}") from e
+
+    async def stream_chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        _api_key: str | None = None,
+    ) -> AsyncIterator[str]:
+        """Streamt die KI-Antwort Token fuer Token via Ollama."""
+        ollama_messages = [{"role": "system", "content": system_prompt}]
+        ollama_messages.extend(messages)
+
+        async with (
+            httpx.AsyncClient(timeout=self.timeout) as client,
+            client.stream(
+                "POST",
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": ollama_messages,
+                    "stream": True,
+                    "options": {"temperature": 0.5, "num_predict": 1000},
+                },
+            ) as response,
+        ):
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    content = chunk.get("message", {}).get("content", "")
+                    if content:
+                        yield content
 
     def is_available(self, _api_key: str | None = None) -> bool:
         """Check if Ollama server is available"""

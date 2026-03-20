@@ -4,6 +4,8 @@ Claude (Anthropic) AI Provider
 High-quality AI analysis using Claude Sonnet 4.
 """
 
+from collections.abc import AsyncIterator
+
 import anthropic
 
 from app.core.config import settings
@@ -84,6 +86,29 @@ class ClaudeProvider(AIProvider):
             return response.content[0].text  # type: ignore[union-attr]
         except Exception as e:
             raise Exception(f"Claude API error: {str(e)}") from e
+
+    async def stream_chat_multi_turn(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        api_key: str | None = None,
+    ) -> AsyncIterator[str]:
+        """Streamt die KI-Antwort Token fuer Token."""
+        client = self._get_client(api_key)
+        api_messages: list[anthropic.types.MessageParam] = [
+            {"role": m["role"], "content": m["content"]}
+            for m in messages  # type: ignore[misc]
+        ]
+
+        with client.messages.stream(
+            model=self.model,
+            max_tokens=2000,
+            temperature=0.3,
+            system=system_prompt,
+            messages=api_messages,
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
 
     def is_available(self, api_key: str | None = None) -> bool:
         """Check if Claude API is available"""
