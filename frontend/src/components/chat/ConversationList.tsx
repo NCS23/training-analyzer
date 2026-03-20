@@ -55,17 +55,18 @@ export function ConversationList({
                 {formatDate(conv.updated_at)} · {conv.message_count} Nachrichten
               </div>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(conv.id);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-[var(--radius-sm)] hover:bg-[var(--color-bg-error-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-error)] transition-all"
-              aria-label={`${conv.title} loeschen`}
+              className="opacity-0 group-hover:opacity-100 !p-1 hover:bg-[var(--color-bg-error-subtle)] hover:text-[var(--color-text-error)]"
+              aria-label={`${conv.title} löschen`}
             >
               <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         ))}
       </div>
