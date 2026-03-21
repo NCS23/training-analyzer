@@ -8,7 +8,7 @@ export interface PlanCreatedInfo {
   status?: string;
   weeks: number;
   weeks_generated: number;
-  phases: number;
+  phases: number | { name: string }[];
   start_date: string;
   end_date: string;
   race_date?: string;
@@ -67,7 +67,9 @@ export function PlanCreatedCard({ plan }: PlanCreatedCardProps) {
         </div>
         <div>
           <span className="text-[var(--color-text-muted)]">Phasen: </span>
-          <span className="text-[var(--color-text-base)]">{plan.phases}</span>
+          <span className="text-[var(--color-text-base)]">
+            {Array.isArray(plan.phases) ? plan.phases.length : plan.phases}
+          </span>
         </div>
         {plan.race_date && (
           <div>
