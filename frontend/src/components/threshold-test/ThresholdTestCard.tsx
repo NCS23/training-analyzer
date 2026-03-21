@@ -166,15 +166,25 @@ function ManualEntryForm({ onSave, saving }: ManualEntryFormProps) {
   );
 }
 
+function calcTestAge(testDate: string): { days: number; label: string; color: string } {
+  const diff = Math.floor((Date.now() - new Date(testDate).getTime()) / (24 * 60 * 60 * 1000));
+  const weeks = Math.floor(diff / 7);
+  const label = weeks < 1 ? `vor ${diff} Tagen` : `vor ${weeks} Wochen`;
+
+  if (diff <= 42) return { days: diff, label, color: 'text-[var(--color-text-success)]' };
+  if (diff <= 56) return { days: diff, label, color: 'text-[var(--color-text-warning)]' };
+  return { days: diff, label, color: 'text-[var(--color-text-error)]' };
+}
+
 function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: ThresholdTest[] }) {
+  const age = calcTestAge(latest.test_date);
+
   return (
     <div className="space-y-4">
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold text-[var(--color-text-primary)]">{latest.lthr}</span>
         <span className="text-sm text-[var(--color-text-muted)]">bpm</span>
-        <span className="text-xs text-[var(--color-text-muted)] ml-auto">
-          {new Date(latest.test_date).toLocaleDateString('de-DE')}
-        </span>
+        <span className={`text-xs ml-auto font-medium ${age.color}`}>{age.label}</span>
       </div>
 
       {latest.friel_zones && (
