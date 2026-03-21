@@ -80,7 +80,6 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
     {"name": "Fußgelenksarbeit", "category": "drills"},
     {"name": "Prellhopser", "category": "drills"},
     {"name": "Sprunglauf", "category": "drills"},
-    {"name": "Steigerungslauf", "category": "drills"},
     {"name": "Seitwärts überkreuzen", "category": "drills"},
     {"name": "Seitsprünge", "category": "drills"},
     {"name": "Rückwärtslaufen", "category": "drills"},
@@ -90,9 +89,6 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
     {"name": "Vorderfußsprünge", "category": "drills"},
     {"name": "Überkreuzlauf", "category": "drills"},
     {"name": "Koordinationsleiter", "category": "drills"},
-    # Steigerungslauf-Varianten
-    {"name": "Steigerungslauf 100m", "category": "drills"},
-    {"name": "Steigerungslauf 80m", "category": "drills"},
     # Kraft (Plan-Generator)
     {"name": "Sprungkniebeugen", "category": "legs"},
     {"name": "Kniebeugen leicht", "category": "legs"},
@@ -238,24 +234,6 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         "primary_muscles_json": json.dumps(["Gesäß", "Quadrizeps", "Waden"]),
         "secondary_muscles_json": json.dumps(["Hüftbeuger", "Hamstrings", "Rumpf"]),
         "level": "intermediate",
-        "equipment": "body_only",
-        "image_urls_json": None,
-        "force": None,
-        "mechanic": None,
-        "exercise_db_id": None,
-    },
-    "Steigerungslauf": {
-        "instructions_json": json.dumps(
-            [
-                "Beginne im lockeren Trab und steigere das Tempo gleichmäßig über 80-100 Meter bis zum Sprinttempo.",
-                "Fokussiere dich auf eine saubere Lauftechnik: hohe Knie, aktiver Armschwung, Vorderfuß-Aufsatz.",
-                "Am Ende der Strecke solltest du bei etwa 95% deiner Maximalgeschwindigkeit sein.",
-                "Laufe locker aus — kein abruptes Stoppen.",
-            ]
-        ),
-        "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
-        "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
-        "level": "beginner",
         "equipment": "body_only",
         "image_urls_json": None,
         "force": None,
@@ -417,42 +395,6 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         ),
         "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Hüftbeuger", "Rumpf"]),
-        "level": "beginner",
-        "equipment": "body_only",
-        "image_urls_json": None,
-        "force": None,
-        "mechanic": None,
-        "exercise_db_id": None,
-    },
-    "Steigerungslauf 100m": {
-        "instructions_json": json.dumps(
-            [
-                "Beginne im lockeren Dauerlauf-Tempo und steigere über 100 Meter gleichmäßig bis zum Sprint.",
-                "Die Beschleunigung sollte fließend sein — nicht ruckartig.",
-                "Achte auf saubere Lauftechnik: hohe Knie, aktiver Armeinsatz, Vorderfuß-Aufsatz.",
-                "Laufe die letzten 20 Meter nahezu im vollen Sprint aus und bremse kontrolliert ab.",
-            ]
-        ),
-        "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
-        "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
-        "level": "beginner",
-        "equipment": "body_only",
-        "image_urls_json": None,
-        "force": None,
-        "mechanic": None,
-        "exercise_db_id": None,
-    },
-    "Steigerungslauf 80m": {
-        "instructions_json": json.dumps(
-            [
-                "Beginne im lockeren Dauerlauf-Tempo und steigere über 80 Meter gleichmäßig bis zum Sprint.",
-                "Die kürzere Distanz erfordert eine schnellere Beschleunigung als 100m-Steigerungen.",
-                "Achte auf saubere Lauftechnik: aktiver Kniehub, kurzer Bodenkontakt.",
-                "Nutze die Arme aktiv für den Vortrieb und bremse nach dem Sprint kontrolliert ab.",
-            ]
-        ),
-        "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
-        "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
         "level": "beginner",
         "equipment": "body_only",
         "image_urls_json": None,

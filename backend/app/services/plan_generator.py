@@ -411,7 +411,7 @@ _EASY_EXTRAS: list[list[tuple[str, float, int, float | None, str | None]] | None
     None,
     # Steigerungsläufe Set A
     [
-        ("strides", 0.5, 4, 0.1, "Steigerungslauf"),
+        ("strides", 0.5, 4, 0.1, None),
         ("recovery_jog", 1.0, 3, None, None),
     ],
     # Lauf-ABC Set A: individuelle Übungen
@@ -424,7 +424,7 @@ _EASY_EXTRAS: list[list[tuple[str, float, int, float | None, str | None]] | None
     None,
     # Steigerungsläufe Set B
     [
-        ("strides", 0.5, 5, 0.08, "Steigerungslauf"),
+        ("strides", 0.5, 5, 0.08, None),
         ("recovery_jog", 1.0, 4, None, None),
     ],
     # Lauf-ABC Set B: andere Übungen
