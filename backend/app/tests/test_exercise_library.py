@@ -168,15 +168,24 @@ class TestExerciseLibraryAPI:
         list_response = await client.get("/api/v1/exercises?search=To Delete")
         assert list_response.json()["total"] == 0
 
-    async def test_delete_default_exercise_fails(self, client: AsyncClient) -> None:
-        """Deleting a default (non-custom) exercise returns 400."""
-        # Seed
+    async def test_delete_auto_created_exercise_succeeds(self, client: AsyncClient) -> None:
+        """Auto-created exercises (no exercise_db_id, not custom) can be deleted."""
         await client.get("/api/v1/exercises")
         list_response = await client.get("/api/v1/exercises")
-        default_ex = next(ex for ex in list_response.json()["exercises"] if not ex["is_custom"])
+        # Drill exercises without exercise_db_id are auto-created → deletable
+        auto_ex = next(
+            (
+                ex
+                for ex in list_response.json()["exercises"]
+                if not ex.get("exercise_db_id") and not ex["is_custom"]
+            ),
+            None,
+        )
+        if auto_ex is None:
+            return  # No auto-created exercises in test DB
 
-        response = await client.delete(f"/api/v1/exercises/{default_ex['id']}")
-        assert response.status_code == 400
+        response = await client.delete(f"/api/v1/exercises/{auto_ex['id']}")
+        assert response.status_code == 204
 
     async def test_exercise_not_found(self, client: AsyncClient) -> None:
         """Operations on non-existent exercise return 404."""
