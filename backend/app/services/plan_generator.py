@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import Any, Optional
 
 from app.infrastructure.database.models import RaceGoalModel, TrainingPhaseModel, TrainingPlanModel
+from app.models.exercise import TemplateExercise
 from app.models.segment import Segment
 from app.models.training_plan import PhaseWeeklyTemplate, PhaseWeeklyTemplates
 from app.models.weekly_plan import PlannedSession, RunDetails, WeeklyPlanEntry
@@ -445,6 +446,45 @@ _FARTLEK_PROGRESSION = [
     (3.0, 1.5, 5),  # 5× (3' schnell / 1.5' locker)
 ]
 
+# Kraft-Übungen pro Phase-Typ: list[TemplateExercise-Dicts]
+# (name, category, sets, reps, exercise_type)
+_STRENGTH_EXERCISES: dict[str, list[tuple[str, str, int, int, str]]] = {
+    "recovery": [
+        ("Plank", "core", 3, 30, "kraft"),
+        ("Seitstütz", "core", 2, 20, "kraft"),
+        ("Hüftbrücke", "legs", 3, 15, "kraft"),
+        ("Ausfallschritt", "legs", 2, 10, "kraft"),
+    ],
+    "base": [
+        ("Kniebeugen", "legs", 3, 12, "kraft"),
+        ("Rumänisches Kreuzheben", "legs", 3, 10, "kraft"),
+        ("Wadenheben", "legs", 3, 15, "kraft"),
+        ("Plank", "core", 3, 45, "kraft"),
+        ("Ausfallschritte", "legs", 3, 10, "kraft"),
+        ("Seitstütz", "core", 3, 30, "kraft"),
+    ],
+    "build": [
+        ("Kniebeugen", "legs", 4, 8, "kraft"),
+        ("Kreuzheben", "legs", 3, 8, "kraft"),
+        ("Step-Ups", "legs", 3, 10, "kraft"),
+        ("Wadenheben einbeinig", "legs", 3, 12, "kraft"),
+        ("Plank mit Arm heben", "core", 3, 30, "kraft"),
+        ("Russian Twist", "core", 3, 15, "kraft"),
+    ],
+    "peak": [
+        ("Sprungkniebeugen", "legs", 3, 8, "kraft"),
+        ("Einbeinige Kniebeuge", "legs", 3, 6, "kraft"),
+        ("Box Jumps", "legs", 3, 8, "kraft"),
+        ("Plank", "core", 3, 45, "kraft"),
+        ("Bergsteiger", "core", 3, 20, "kraft"),
+    ],
+    "taper": [
+        ("Kniebeugen leicht", "legs", 2, 10, "kraft"),
+        ("Plank", "core", 2, 30, "kraft"),
+        ("Hüftbrücke", "legs", 2, 12, "kraft"),
+    ],
+}
+
 
 def _enrich_sessions_for_week(
     entries: list[WeeklyPlanEntry],
@@ -462,6 +502,11 @@ def _enrich_sessions_for_week(
     easy_idx = 0
     for entry in entries:
         for sess in entry.sessions:
+            # Kraft-Sessions mit Übungen anreichern
+            if sess.training_type == "strength":
+                _enrich_strength_exercises(sess, phase_type)
+                continue
+
             if sess.training_type != "running" or not sess.run_details:
                 continue
             # Sessions mit bereits strukturierten Segmenten (>1) überspringen
@@ -487,6 +532,30 @@ def _enrich_sessions_for_week(
                 _enrich_progression_segments(sess, week_in_phase, race_pace)
             elif rt == "fartlek":
                 _enrich_fartlek_segments(sess, week_in_phase, race_pace)
+
+
+def _enrich_strength_exercises(sess: PlannedSession, phase_type: str) -> None:
+    """Fügt Standard-Kraftübungen hinzu, wenn keine Übungen definiert sind.
+
+    Nur wenn die Session noch keine exercises hat — manuelle Übungen
+    werden nicht überschrieben.
+    """
+    if sess.exercises and len(sess.exercises) > 0:
+        return
+
+    exercises_data = _STRENGTH_EXERCISES.get(phase_type, _STRENGTH_EXERCISES["base"])
+    sess.exercises = [
+        TemplateExercise(
+            name=name,
+            category=category,
+            sets=sets,
+            reps=reps,
+            weight_kg=None,
+            exercise_type=exercise_type,
+            notes=None,
+        )
+        for name, category, sets, reps, exercise_type in exercises_data
+    ]
 
 
 def _enrich_easy_segments(
