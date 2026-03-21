@@ -736,15 +736,16 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     Der Algorithmus berechnet daraus Volumen und Pace-Zonen.
     """
     goal_text = args.get("goal", "Trainingsplan")
-    weeks = min(max(args.get("weeks", 12), 4), 24)
+    weeks = min(max(args.get("weeks", 12), 4), 52)
     sessions_per_week = min(max(args.get("sessions_per_week", 4), 3), 7)
     include_strength = args.get("include_strength", True)
     current_km = args.get("current_weekly_km", 20.0)
     race_date_str = args.get("race_date")
+    start_date_str = args.get("start_date")
     ki_phase_templates = args.get("phase_templates", [])
 
     today = date.today()
-    start_date = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
+    start_date = _resolve_start_date(start_date_str, today)
     end_date = start_date + timedelta(weeks=weeks) - timedelta(days=1)
 
     race_date = _parse_date_safe(race_date_str)
@@ -825,6 +826,22 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
             f"{plan_block}"
         ),
     }
+
+
+def _resolve_start_date(start_date_str: str | None, today: date) -> date:
+    """Berechnet das Startdatum — auf nächsten Montag aufgerundet.
+
+    Wenn kein Startdatum angegeben wird, wird der nächste Montag verwendet.
+    """
+    if start_date_str:
+        parsed = _parse_date_safe(start_date_str)
+        if parsed and parsed > today:
+            # Auf nächsten Montag aufrunden
+            days_to_monday = (7 - parsed.weekday()) % 7
+            return parsed + timedelta(days=days_to_monday) if days_to_monday else parsed
+    # Default: nächster Montag
+    days_to_next_monday = (7 - today.weekday()) % 7 or 7
+    return today + timedelta(days=days_to_next_monday)
 
 
 def _extract_rest_days(ki_phase_templates: list[dict]) -> list[int]:
@@ -999,6 +1016,149 @@ def _estimate_peak_volume(distance_km: float, current_km: float) -> float:
     return max(target_peak, current_km * 1.3)
 
 
+# Mapping: phase_type → (deutscher Name, default Strength-Sessions, Quality-Sessions)
+_PHASE_META: dict[str, tuple[str, int, int]] = {
+    "recovery": ("Erholung", 0, 0),
+    "base": ("Grundlagen", 2, 0),
+    "build": ("Aufbau", 1, 1),
+    "peak": ("Spitze", 1, 2),
+    "taper": ("Tapering", 0, 1),
+    "transition": ("Übergang", 1, 0),
+}
+
+# Volumen-Faktor relativ zum Peak-Volumen pro Phase-Typ
+_VOLUME_FACTORS: dict[str, float] = {
+    "recovery": 0.35,
+    "base": 0.6,
+    "build": 0.8,
+    "peak": 1.0,
+    "taper": 0.5,
+    "transition": 0.4,
+}
+
+
+def _build_phase_defs(
+    total_weeks: int,
+    ki_phase_templates: list[dict] | None,
+    peak_vol: float,
+    current_km: float,
+    sessions_per_week: int,
+) -> list[dict]:
+    """Baut die Phasen-Definition aus KI-Templates oder Default-Verteilung.
+
+    Wenn KI-Templates Wochen-Angaben enthalten, werden diese verwendet.
+    Sonst: 40% base, 30% build, 15% peak, Rest taper.
+    """
+    if ki_phase_templates and any(t.get("weeks") for t in ki_phase_templates):
+        return _phases_from_ki_templates(
+            ki_phase_templates,
+            peak_vol,
+            current_km,
+            sessions_per_week,
+        )
+
+    return _phases_default_distribution(
+        total_weeks,
+        peak_vol,
+        current_km,
+        sessions_per_week,
+    )
+
+
+def _phases_from_ki_templates(
+    templates: list[dict],
+    peak_vol: float,
+    current_km: float,
+    sessions_per_week: int,
+) -> list[dict]:
+    """Erzeugt Phasen-Definitionen aus KI-Templates mit Wochen-Angaben."""
+    defs = []
+    current_week = 1
+    for tpl in templates:
+        ptype = tpl.get("phase_type", "base")
+        w = tpl.get("weeks", 2)
+        meta = _PHASE_META.get(ptype, ("Phase", 1, 0))
+        vol_factor = _VOLUME_FACTORS.get(ptype, 0.6)
+        vol = max(current_km * 0.5, peak_vol * vol_factor)
+
+        sess = sessions_per_week
+        if ptype == "taper":
+            sess = max(3, sessions_per_week - 1)
+        elif ptype == "recovery":
+            sess = min(3, sessions_per_week)
+
+        defs.append(
+            {
+                "name": meta[0],
+                "type": ptype,
+                "start_week": current_week,
+                "end_week": current_week + w - 1,
+                "volume": vol,
+                "sessions": sess,
+                "strength": meta[1],
+                "quality": meta[2],
+            }
+        )
+        current_week += w
+    return defs
+
+
+def _phases_default_distribution(
+    total_weeks: int,
+    peak_vol: float,
+    current_km: float,
+    sessions_per_week: int,
+) -> list[dict]:
+    """Fallback: Standard-Phasenverteilung (40/30/15/15)."""
+    base_w = max(2, round(total_weeks * 0.4))
+    build_w = max(2, round(total_weeks * 0.3))
+    peak_w = max(1, round(total_weeks * 0.15))
+    base_vol = max(current_km, peak_vol * 0.6)
+
+    return [
+        {
+            "name": "Grundlagen",
+            "type": "base",
+            "start_week": 1,
+            "end_week": base_w,
+            "volume": base_vol,
+            "sessions": sessions_per_week,
+            "strength": 2,
+            "quality": 0,
+        },
+        {
+            "name": "Aufbau",
+            "type": "build",
+            "start_week": base_w + 1,
+            "end_week": base_w + build_w,
+            "volume": peak_vol * 0.8,
+            "sessions": sessions_per_week,
+            "strength": 1,
+            "quality": 1,
+        },
+        {
+            "name": "Spitze",
+            "type": "peak",
+            "start_week": base_w + build_w + 1,
+            "end_week": base_w + build_w + peak_w,
+            "volume": peak_vol,
+            "sessions": sessions_per_week,
+            "strength": 1,
+            "quality": 2,
+        },
+        {
+            "name": "Tapering",
+            "type": "taper",
+            "start_week": base_w + build_w + peak_w + 1,
+            "end_week": total_weeks,
+            "volume": peak_vol * 0.5,
+            "sessions": max(3, sessions_per_week - 1),
+            "strength": 0,
+            "quality": 1,
+        },
+    ]
+
+
 async def _create_plan_phases(
     db: AsyncSession,
     plan_id: int,
@@ -1011,18 +1171,17 @@ async def _create_plan_phases(
 ) -> list[dict]:
     """Erstellt die Trainingsphasen für den Plan.
 
-    Wenn ki_phase_templates vorhanden sind, werden diese als weekly_template_json
-    in den Phasen gespeichert. Der plan_generator nutzt sie dann (Tier 2).
-    Volumen wird basierend auf Wettkampfdistanz berechnet.
+    Phasen-Aufteilung wird aus den KI-Templates abgeleitet (weeks pro Phase).
+    Wenn keine KI-Templates vorhanden → Default-Verteilung (40/30/15/15).
     """
-    base_w = max(2, round(weeks * 0.4))
-    build_w = max(2, round(weeks * 0.3))
-    peak_w = max(1, round(weeks * 0.15))
-
     peak_vol = _estimate_peak_volume(distance_km, current_km)
-    base_vol = max(current_km, peak_vol * 0.6)
-    build_vol = peak_vol * 0.8
-    taper_vol = peak_vol * 0.5
+    phase_defs = _build_phase_defs(
+        weeks,
+        ki_phase_templates,
+        peak_vol,
+        current_km,
+        sessions_per_week,
+    )
 
     # KI-Templates nach phase_type indizieren
     ki_templates_by_type = {}
@@ -1031,51 +1190,24 @@ async def _create_plan_phases(
         if ptype:
             ki_templates_by_type[ptype] = tpl
 
-    phase_defs = [
-        ("Grundlagen", "base", 1, base_w, base_vol, sessions_per_week, 2, 0),
-        ("Aufbau", "build", base_w + 1, base_w + build_w, build_vol, sessions_per_week, 1, 1),
-        (
-            "Spitze",
-            "peak",
-            base_w + build_w + 1,
-            base_w + build_w + peak_w,
-            peak_vol,
-            sessions_per_week,
-            1,
-            2,
-        ),
-        (
-            "Tapering",
-            "taper",
-            base_w + build_w + peak_w + 1,
-            weeks,
-            taper_vol,
-            max(3, sessions_per_week - 1),
-            0,
-            1,
-        ),
-    ]
-
     phases_created = []
-    for name, ptype, sw, ew, vol, sess, strength, quality in phase_defs:
-        strength_count = strength if include_strength else 0
-
-        # KI-Template in weekly_template_json konvertieren
-        template_json = _convert_ki_template(ki_templates_by_type.get(ptype))
+    for pdef in phase_defs:
+        strength_count = pdef["strength"] if include_strength else 0
+        template_json = _convert_ki_template(ki_templates_by_type.get(pdef["type"]))
 
         phase = TrainingPhaseModel(
             training_plan_id=plan_id,
-            name=name,
-            phase_type=ptype,
-            start_week=sw,
-            end_week=ew,
-            focus_json=json.dumps({"primary": [name], "secondary": []}),
+            name=pdef["name"],
+            phase_type=pdef["type"],
+            start_week=pdef["start_week"],
+            end_week=pdef["end_week"],
+            focus_json=json.dumps({"primary": [pdef["name"]], "secondary": []}),
             weekly_template_json=template_json,
             target_metrics_json=json.dumps(
                 {
-                    "weekly_volume_min": round(vol * 0.9, 1),
-                    "weekly_volume_max": round(vol * 1.1, 1),
-                    "quality_sessions_per_week": quality,
+                    "weekly_volume_min": round(pdef["volume"] * 0.9, 1),
+                    "weekly_volume_max": round(pdef["volume"] * 1.1, 1),
+                    "quality_sessions_per_week": pdef["quality"],
                     "strength_sessions_per_week": strength_count,
                 }
             ),
@@ -1084,11 +1216,11 @@ async def _create_plan_phases(
         await db.flush()
         phases_created.append(
             {
-                "name": name,
-                "type": ptype,
-                "weeks": f"KW {sw}–{ew}",
-                "volume_km": round(vol, 1),
-                "sessions": sess,
+                "name": pdef["name"],
+                "type": pdef["type"],
+                "weeks": f"KW {pdef['start_week']}–{pdef['end_week']}",
+                "volume_km": round(pdef["volume"], 1),
+                "sessions": pdef["sessions"],
                 "strength": strength_count,
             }
         )

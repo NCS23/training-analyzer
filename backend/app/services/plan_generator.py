@@ -51,6 +51,12 @@ PHASE_DEFAULTS: dict[str, dict[str, Any]] = {
         "strength": 1,
         "long_run_volume_pct": 0.0,
     },
+    "recovery": {
+        # Erholungsphase: nur lockere Läufe, kein Krafttraining
+        "run_types": ["easy", "easy", "easy"],
+        "strength": 0,
+        "long_run_volume_pct": 0.0,
+    },
 }
 
 # Pace multipliers relative to race pace (Daniels-based).
