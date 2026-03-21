@@ -2,8 +2,10 @@
 
 import json
 import logging
+from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -182,3 +184,116 @@ async def delete_test(
         raise HTTPException(status_code=404, detail="Schwellentest nicht gefunden")
     await db.delete(test)
     await db.commit()
+
+
+# --- FIT-Import & Protokoll-Export ---
+
+
+def _extract_hr_from_fit(file_content: bytes) -> list[int]:
+    """Extrahiert per-Sekunde HR-Werte direkt aus einer FIT-Datei."""
+    try:
+        import fitparse  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail="fitparse nicht installiert") from exc
+
+    fitfile = fitparse.FitFile(file_content)
+    fitfile.parse()
+
+    hr_values: list[int] = []
+    for record in fitfile.get_messages("record"):
+        for field in record.fields:
+            if field.name == "heart_rate" and field.value is not None:
+                hr_values.append(int(field.value))
+                break
+    return hr_values
+
+
+@router.post("/analyze/fit", response_model=ThresholdAnalysisResponse)
+async def analyze_fit_upload(
+    file: UploadFile,
+) -> ThresholdAnalysisResponse:
+    """Analysiert eine hochgeladene FIT-Datei für LTHR-Berechnung.
+
+    Extrahiert HR-Daten, berechnet LTHR aus den letzten 20 Min.
+    Speichert KEINEN Test — der User muss das Ergebnis bestätigen.
+    """
+    if not file.filename or not file.filename.lower().endswith(".fit"):
+        raise HTTPException(status_code=400, detail="Nur .fit Dateien erlaubt")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Leere Datei")
+
+    hr_values = _extract_hr_from_fit(content)
+    if not hr_values:
+        raise HTTPException(
+            status_code=400,
+            detail="Keine HR-Daten in der FIT-Datei gefunden",
+        )
+
+    total_seconds = len(hr_values)
+    if total_seconds < _MIN_SESSION_DURATION_SEC:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Aufzeichnung zu kurz ({total_seconds // 60} Min). "
+            f"Mindestens 25 Min erforderlich.",
+        )
+
+    analysis_window = hr_values[-_ANALYSIS_WINDOW_SEC:]
+    lthr = round(sum(analysis_window) / len(analysis_window))
+    max_hr = max(hr_values)
+    duration_minutes = round(total_seconds / 60.0, 1)
+    friel_zones = calculate_friel_zones(lthr)
+
+    return ThresholdAnalysisResponse(
+        session_id=0,
+        session_date=date.today(),
+        duration_minutes=duration_minutes,
+        lthr=lthr,
+        max_hr_measured=max_hr,
+        avg_pace_sec=None,
+        friel_zones=friel_zones,
+        hr_sample_count=len(analysis_window),
+    )
+
+
+@router.get("/protocol/fit")
+async def download_test_protocol() -> Response:
+    """Generiert das 30-Min-Friel-Testprotokoll als FIT-Workout.
+
+    Struktur: 10 Min Warmup → 30 Min Open (Vollgas) → 5 Min Cooldown
+    """
+    from app.models.segment import Segment
+    from app.services.fit_export import export_template_to_fit
+
+    segments = [
+        Segment(
+            position=1,
+            segment_type="warmup",
+            target_duration_minutes=10.0,
+            notes="Einlaufen",
+        ),
+        Segment(
+            position=2,
+            segment_type="work",
+            target_duration_minutes=30.0,
+            notes="30 Min Vollgas — gleichmäßig!",
+        ),
+        Segment(
+            position=3,
+            segment_type="cooldown",
+            target_duration_minutes=5.0,
+            notes="Auslaufen",
+        ),
+    ]
+
+    fit_bytes = export_template_to_fit(
+        template_name="Friel 30-Min Schwellentest",
+        segments=segments,
+    )
+
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": 'attachment; filename="friel-schwellentest.fit"'},
+    )

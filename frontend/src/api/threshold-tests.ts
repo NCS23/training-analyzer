@@ -63,3 +63,27 @@ export async function createThresholdTest(data: ThresholdTestCreate): Promise<Th
 export async function deleteThresholdTest(testId: number): Promise<void> {
   await apiClient.delete(`/api/v1/threshold-tests/${testId}`);
 }
+
+export async function analyzeFitFile(file: File): Promise<ThresholdAnalysis> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post<ThresholdAnalysis>(
+    '/api/v1/threshold-tests/analyze/fit',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+}
+
+export async function downloadTestProtocol(): Promise<void> {
+  const response = await apiClient.get('/api/v1/threshold-tests/protocol/fit', {
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'friel-schwellentest.fit';
+  a.click();
+  URL.revokeObjectURL(url);
+}
