@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@nordlig/components';
 import {
@@ -15,6 +15,7 @@ import {
   Library,
   Bot,
 } from 'lucide-react';
+import { getChatNotifications } from '@/api/chat';
 import { BottomNav } from './BottomNav';
 
 interface NavItem {
@@ -49,6 +50,13 @@ function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [planExpanded, setPlanExpanded] = useState(location.pathname.startsWith('/plan'));
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  useEffect(() => {
+    void getChatNotifications()
+      .then((res) => setNotificationCount(res.count))
+      .catch(() => {});
+  }, []);
 
   return (
     <nav className="fixed top-0 bottom-0 left-0 z-[100] hidden w-[224px] flex-col overflow-y-auto border-r border-[var(--color-border-muted)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-sm)] lg:flex">
@@ -128,6 +136,8 @@ function Sidebar() {
           );
         }
 
+        const showBadge = item.to === '/chat' && notificationCount > 0 && !isActive;
+
         return (
           <button
             key={item.to}
@@ -140,6 +150,11 @@ function Sidebar() {
           >
             <Icon icon={item.icon} size="sm" />
             {item.label}
+            {showBadge && (
+              <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-interactive-primary)] text-[10px] font-semibold text-[var(--color-text-on-primary)] px-1">
+                {notificationCount}
+              </span>
+            )}
             {isActive && (
               <span className="absolute right-0 top-1 bottom-1 w-[3px] rounded-l-sm bg-[var(--color-interactive-primary)]" />
             )}

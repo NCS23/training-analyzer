@@ -1,4 +1,4 @@
-"""Chat Tool Handlers — DB-Queries fuer die 11 KI-Chat-Tools.
+"""Chat Tool Handlers — DB-Queries fuer die KI-Chat-Tools.
 
 Jeder Handler bekommt die Tool-Argumente und eine DB-Session,
 fuehrt die Abfrage durch und gibt ein JSON-serialisierbares Dict zurueck.
@@ -57,6 +57,9 @@ async def dispatch_tool(name: str, args: dict, db: AsyncSession) -> dict:
         "get_weekly_review": handle_get_weekly_review,
         "search_conversations": handle_search_conversations,
         "get_plan_change_log": handle_get_plan_change_log,
+        "propose_plan_change": handle_propose_plan_change,
+        "generate_training_plan": handle_generate_training_plan,
+        "search_training_knowledge": handle_search_training_knowledge,
     }
     handler = handlers.get(name)
     if not handler:
@@ -677,3 +680,120 @@ async def _load_week_planned_sessions(
             sessions.append(entry)
 
     return sessions
+
+
+async def handle_propose_plan_change(args: dict, _db: AsyncSession) -> dict:
+    """Formatiert einen Plan-Vorschlag als strukturierten Block.
+
+    Die KI-Antwort wird den Vorschlag als ```plan-change``` Block enthalten,
+    den das Frontend als interaktive Karte rendert.
+    """
+    return {
+        "rendered": True,
+        "block": (
+            "```plan-change\n"
+            + json.dumps(
+                {
+                    "action": args.get("action", "replace"),
+                    "day": args.get("day", ""),
+                    "date": args.get("date"),
+                    "description": args.get("description", ""),
+                    "reason": args.get("reason", ""),
+                    "from": args.get("from_value"),
+                    "to": args.get("to_value"),
+                },
+                ensure_ascii=False,
+            )
+            + "\n```"
+        ),
+        "instruction": (
+            "Fuege den obigen ```plan-change``` Block UNMODIFIZIERT in deine Antwort ein. "
+            "Das Frontend rendert ihn automatisch als interaktive Karte mit Uebernehmen-Button."
+        ),
+    }
+
+
+async def handle_generate_training_plan(args: dict, _db: AsyncSession) -> dict:
+    """Generiert einen Trainingsplan-Entwurf basierend auf den Zielen."""
+    weeks = min(max(args.get("weeks", 12), 4), 24)
+    sessions = min(max(args.get("sessions_per_week", 4), 3), 7)
+    include_strength = args.get("include_strength", True)
+    current_km = args.get("current_weekly_km", 20)
+
+    # Phase-Aufteilung berechnen
+    base_weeks = max(2, round(weeks * 0.4))
+    build_weeks = max(2, round(weeks * 0.3))
+    peak_weeks = max(1, round(weeks * 0.15))
+    taper_weeks = max(1, weeks - base_weeks - build_weeks - peak_weeks)
+
+    phases = [
+        {
+            "name": "Grundlagen",
+            "type": "base",
+            "weeks": base_weeks,
+            "focus": "Aerobe Basis aufbauen, Volumen steigern",
+            "weekly_km_target": round(current_km * 1.1, 1),
+            "sessions_per_week": sessions,
+            "strength_sessions": 2 if include_strength else 0,
+            "key_sessions": ["Easy Runs", "Langer Lauf"],
+        },
+        {
+            "name": "Aufbau",
+            "type": "build",
+            "weeks": build_weeks,
+            "focus": "Spezifische Intensitaet, Tempolaeufe einfuehren",
+            "weekly_km_target": round(current_km * 1.3, 1),
+            "sessions_per_week": sessions,
+            "strength_sessions": 1 if include_strength else 0,
+            "key_sessions": ["Tempolauf", "Progression Run", "Langer Lauf"],
+        },
+        {
+            "name": "Spitze",
+            "type": "peak",
+            "weeks": peak_weeks,
+            "focus": "Race-Pace Training, maximale Fitness",
+            "weekly_km_target": round(current_km * 1.4, 1),
+            "sessions_per_week": sessions,
+            "strength_sessions": 1 if include_strength else 0,
+            "key_sessions": ["Intervalle", "Race-Pace Run", "Langer Lauf"],
+        },
+        {
+            "name": "Tapering",
+            "type": "taper",
+            "weeks": taper_weeks,
+            "focus": "Erholung, Volumen reduzieren, frisch zum Wettkampf",
+            "weekly_km_target": round(current_km * 0.6, 1),
+            "sessions_per_week": max(3, sessions - 1),
+            "strength_sessions": 0,
+            "key_sessions": ["Easy Runs", "kurze Race-Pace Einheiten"],
+        },
+    ]
+
+    return {
+        "plan": {
+            "goal": args.get("goal", ""),
+            "total_weeks": weeks,
+            "race_date": args.get("race_date"),
+            "phases": phases,
+        },
+        "instruction": (
+            "Praesentiere den Plan dem User als uebersichtliche Zusammenfassung. "
+            "Frage ob er den Plan uebernehmen moechte oder Anpassungen wuenscht."
+        ),
+    }
+
+
+async def handle_search_training_knowledge(args: dict, _db: AsyncSession) -> dict:
+    """Durchsucht die Trainingswissen-Datenbank."""
+    from app.services.training_knowledge import search_knowledge
+
+    results = search_knowledge(
+        query=args["query"],
+        category=args.get("category"),
+        limit=3,
+    )
+
+    if not results:
+        return {"results": [], "message": "Kein passendes Trainingswissen gefunden."}
+
+    return {"results": results, "count": len(results)}

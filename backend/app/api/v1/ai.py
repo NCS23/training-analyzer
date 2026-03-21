@@ -19,6 +19,7 @@ from app.models.chat import (
     ConversationListResponse,
 )
 from app.services import chat_service
+from app.services.chat_notifications import get_notifications
 
 router = APIRouter()
 
@@ -182,3 +183,10 @@ async def delete_conversation(
         return {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.get("/ai/notifications")
+async def get_ai_notifications(db: AsyncSession = Depends(get_db)):
+    """Liefert proaktive KI-Benachrichtigungen basierend auf Trainingsdaten."""
+    notifications = await get_notifications(db)
+    return {"notifications": notifications, "count": len(notifications)}
