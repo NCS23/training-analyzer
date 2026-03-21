@@ -109,6 +109,8 @@ export function useChat(): UseChatReturn {
         );
       } else if (event.type === 'tool_call' && event.name) {
         setToolStatus(TOOL_LABELS[event.name] ?? event.name);
+      } else if (event.type === 'thinking') {
+        setToolStatus('Verarbeite Ergebnisse');
       } else if (event.type === 'done') {
         setToolStatus(null);
         idRef.current -= 1;

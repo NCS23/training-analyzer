@@ -88,6 +88,14 @@ DEFAULT_EXERCISES: list[dict[str, str]] = [
     {"name": "High Kicks", "category": "drills"},
     {"name": "Wechselsprünge", "category": "drills"},
     {"name": "Vorderfußsprünge", "category": "drills"},
+    {"name": "Überkreuzlauf", "category": "drills"},
+    {"name": "Koordinationsleiter", "category": "drills"},
+    # Steigerungslauf-Varianten
+    {"name": "Steigerungslauf 100m", "category": "drills"},
+    {"name": "Steigerungslauf 80m", "category": "drills"},
+    # Kraft (Plan-Generator)
+    {"name": "Sprungkniebeugen", "category": "legs"},
+    {"name": "Kniebeugen leicht", "category": "legs"},
 ]
 
 # Inline enrichment for drills (not in free-exercise-db)
@@ -373,6 +381,78 @@ _DRILL_ENRICHMENT: dict[str, dict[str, Optional[str]]] = {
         ),
         "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
         "secondary_muscles_json": json.dumps(["Quadrizeps", "Schienbeinmuskel", "Rumpf"]),
+        "level": "beginner",
+        "equipment": "body_only",
+        "image_urls_json": None,
+        "force": None,
+        "mechanic": None,
+        "exercise_db_id": None,
+    },
+    "Überkreuzlauf": {
+        "instructions_json": json.dumps(
+            [
+                "Laufe seitwärts und überkreuze die Beine abwechselnd vor und hinter dem Körper.",
+                "Das vordere Bein kreuzt über das hintere, dann wechselt die Überkreuzung.",
+                "Halte den Oberkörper aufrecht und nach vorne gerichtet — die Rotation kommt aus der Hüfte.",
+                "Achte auf einen flüssigen Rhythmus und eine aktive Armarbeit.",
+            ]
+        ),
+        "primary_muscles_json": json.dumps(["Hüftabduktoren", "Hüftadduktoren"]),
+        "secondary_muscles_json": json.dumps(["Waden", "Rumpf", "Gesäß"]),
+        "level": "beginner",
+        "equipment": "body_only",
+        "image_urls_json": None,
+        "force": None,
+        "mechanic": None,
+        "exercise_db_id": None,
+    },
+    "Koordinationsleiter": {
+        "instructions_json": json.dumps(
+            [
+                "Lege eine Koordinationsleiter auf den Boden und laufe verschiedene Schrittmuster durch die Felder.",
+                "Beginne mit einfachen Mustern: zwei Füße pro Feld, dann ein Fuß pro Feld.",
+                "Steigere zu komplexeren Mustern: seitlich, Icky Shuffle, Kreuzschritte.",
+                "Fokus auf schnelle, präzise Fußarbeit — Geschwindigkeit kommt mit der Technik.",
+            ]
+        ),
+        "primary_muscles_json": json.dumps(["Waden", "Fußgelenke"]),
+        "secondary_muscles_json": json.dumps(["Quadrizeps", "Hüftbeuger", "Rumpf"]),
+        "level": "beginner",
+        "equipment": "body_only",
+        "image_urls_json": None,
+        "force": None,
+        "mechanic": None,
+        "exercise_db_id": None,
+    },
+    "Steigerungslauf 100m": {
+        "instructions_json": json.dumps(
+            [
+                "Beginne im lockeren Dauerlauf-Tempo und steigere über 100 Meter gleichmäßig bis zum Sprint.",
+                "Die Beschleunigung sollte fließend sein — nicht ruckartig.",
+                "Achte auf saubere Lauftechnik: hohe Knie, aktiver Armeinsatz, Vorderfuß-Aufsatz.",
+                "Laufe die letzten 20 Meter nahezu im vollen Sprint aus und bremse kontrolliert ab.",
+            ]
+        ),
+        "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
+        "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
+        "level": "beginner",
+        "equipment": "body_only",
+        "image_urls_json": None,
+        "force": None,
+        "mechanic": None,
+        "exercise_db_id": None,
+    },
+    "Steigerungslauf 80m": {
+        "instructions_json": json.dumps(
+            [
+                "Beginne im lockeren Dauerlauf-Tempo und steigere über 80 Meter gleichmäßig bis zum Sprint.",
+                "Die kürzere Distanz erfordert eine schnellere Beschleunigung als 100m-Steigerungen.",
+                "Achte auf saubere Lauftechnik: aktiver Kniehub, kurzer Bodenkontakt.",
+                "Nutze die Arme aktiv für den Vortrieb und bremse nach dem Sprint kontrolliert ab.",
+            ]
+        ),
+        "primary_muscles_json": json.dumps(["Quadrizeps", "Hamstrings", "Waden"]),
+        "secondary_muscles_json": json.dumps(["Gesäß", "Hüftbeuger", "Rumpf"]),
         "level": "beginner",
         "equipment": "body_only",
         "image_urls_json": None,

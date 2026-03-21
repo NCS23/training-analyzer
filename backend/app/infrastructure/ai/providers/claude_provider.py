@@ -139,7 +139,10 @@ class ClaudeProvider(AIProvider):
         ]
 
         max_tool_rounds = 5
-        for _ in range(max_tool_rounds):
+        for round_idx in range(max_tool_rounds):
+            # Signal: Neuer API-Call startet (nach Tool-Verarbeitung)
+            if round_idx > 0:
+                yield {"type": "thinking"}
             async with client.messages.stream(
                 model=self.model,
                 max_tokens=4000,

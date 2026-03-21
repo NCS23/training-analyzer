@@ -43,7 +43,7 @@ export interface ConversationListResponse {
 }
 
 export interface StreamEvent {
-  type: 'start' | 'token' | 'done' | 'error' | 'tool_call';
+  type: 'start' | 'token' | 'done' | 'error' | 'tool_call' | 'thinking';
   conversation_id?: number;
   content?: string;
   message?: string;
