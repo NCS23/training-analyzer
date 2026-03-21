@@ -730,13 +730,18 @@ async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
 
 
 async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
-    """Erstellt einen echten Trainingsplan in der Datenbank."""
+    """Erstellt einen echten Trainingsplan in der Datenbank.
+
+    Die KI liefert phase_templates mit der Trainingsstruktur pro Phase.
+    Der Algorithmus berechnet daraus Volumen und Pace-Zonen.
+    """
     goal_text = args.get("goal", "Trainingsplan")
     weeks = min(max(args.get("weeks", 12), 4), 24)
     sessions_per_week = min(max(args.get("sessions_per_week", 4), 3), 7)
     include_strength = args.get("include_strength", True)
     current_km = args.get("current_weekly_km", 20.0)
     race_date_str = args.get("race_date")
+    ki_phase_templates = args.get("phase_templates", [])
 
     today = date.today()
     start_date = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
@@ -745,7 +750,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     race_date = _parse_date_safe(race_date_str)
     goal_id = await _create_race_goal(db, goal_text, race_date)
 
-    rest_days = [0, 6]
+    rest_days = _extract_rest_days(ki_phase_templates)
     plan = await _create_plan_model(
         db,
         goal_text,
@@ -764,6 +769,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
         sessions_per_week,
         include_strength,
         distance_km=_parse_goal_distance(goal_text),
+        ki_phase_templates=ki_phase_templates,
     )
     weeks_generated = await _generate_and_save_weekly_plans(
         db,
@@ -819,6 +825,80 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
             f"{plan_block}"
         ),
     }
+
+
+def _extract_rest_days(ki_phase_templates: list[dict]) -> list[int]:
+    """Ermittelt Ruhetage aus den KI-Templates (erster Phase als Referenz).
+
+    Gibt [0, 6] (Mo+So) als Default zurück wenn keine Templates vorhanden.
+    """
+    if not ki_phase_templates:
+        return [0, 6]
+    first_tpl = ki_phase_templates[0]
+    days = first_tpl.get("days", [])
+    rest = [d["day_of_week"] for d in days if d.get("is_rest_day")]
+    return rest if rest else [0, 6]
+
+
+def _convert_ki_template(ki_template: dict | None) -> str | None:
+    """Konvertiert ein KI-Phase-Template in weekly_template_json.
+
+    Wandelt das KI-Format (phase_type + days mit sessions) in das
+    PhaseWeeklyTemplate-Format um, das der plan_generator versteht.
+    """
+    if not ki_template:
+        return None
+
+    days = ki_template.get("days", [])
+    if not days:
+        return None
+
+    template_days = []
+    for day in days:
+        dow = day.get("day_of_week", 0)
+        is_rest = day.get("is_rest_day", False)
+        sessions_data = []
+
+        for i, sess in enumerate(day.get("sessions", [])):
+            training_type = sess.get("training_type", "running")
+            entry: dict = {
+                "position": i + 1,
+                "training_type": training_type,
+            }
+
+            run_type = sess.get("run_type")
+            if run_type and training_type == "running":
+                entry["run_type"] = run_type
+                entry["run_details"] = {"run_type": run_type}
+
+            notes = sess.get("notes")
+            if notes:
+                entry["notes"] = notes
+
+            sessions_data.append(entry)
+
+        template_days.append(
+            {
+                "day_of_week": dow,
+                "is_rest_day": is_rest,
+                "sessions": sessions_data,
+            }
+        )
+
+    # Fehlende Tage als Ruhetage auffüllen
+    existing = {d["day_of_week"] for d in template_days}
+    for dow in range(7):
+        if dow not in existing:
+            template_days.append(
+                {
+                    "day_of_week": dow,
+                    "is_rest_day": True,
+                    "sessions": [],
+                }
+            )
+    template_days.sort(key=lambda d: d["day_of_week"])
+
+    return json.dumps({"days": template_days})
 
 
 def _parse_date_safe(date_str: str | None) -> date | None:
@@ -927,27 +1007,30 @@ async def _create_plan_phases(
     sessions_per_week: int,
     include_strength: bool,
     distance_km: float = 21.0975,
+    ki_phase_templates: list[dict] | None = None,
 ) -> list[dict]:
     """Erstellt die Trainingsphasen für den Plan.
 
-    Volumen wird basierend auf Wettkampfdistanz berechnet, nicht nur current_km.
-    Quality-Sessions folgen den PHASE_DEFAULTS im plan_generator.
+    Wenn ki_phase_templates vorhanden sind, werden diese als weekly_template_json
+    in den Phasen gespeichert. Der plan_generator nutzt sie dann (Tier 2).
+    Volumen wird basierend auf Wettkampfdistanz berechnet.
     """
     base_w = max(2, round(weeks * 0.4))
     build_w = max(2, round(weeks * 0.3))
     peak_w = max(1, round(weeks * 0.15))
 
     peak_vol = _estimate_peak_volume(distance_km, current_km)
-    # Progressiver Aufbau: Grundlagen startet bei current_km oder 60% Peak
     base_vol = max(current_km, peak_vol * 0.6)
     build_vol = peak_vol * 0.8
     taper_vol = peak_vol * 0.5
 
-    # Quality-Sessions pro Phase folgen den PHASE_DEFAULTS:
-    # base: 0 Quality (nur easy + long_run)
-    # build: 1 Quality (progression)
-    # peak: 2 Quality (intervals + tempo)
-    # taper: 1 Quality (fartlek)
+    # KI-Templates nach phase_type indizieren
+    ki_templates_by_type = {}
+    for tpl in ki_phase_templates or []:
+        ptype = tpl.get("phase_type")
+        if ptype:
+            ki_templates_by_type[ptype] = tpl
+
     phase_defs = [
         ("Grundlagen", "base", 1, base_w, base_vol, sessions_per_week, 2, 0),
         ("Aufbau", "build", base_w + 1, base_w + build_w, build_vol, sessions_per_week, 1, 1),
@@ -976,6 +1059,10 @@ async def _create_plan_phases(
     phases_created = []
     for name, ptype, sw, ew, vol, sess, strength, quality in phase_defs:
         strength_count = strength if include_strength else 0
+
+        # KI-Template in weekly_template_json konvertieren
+        template_json = _convert_ki_template(ki_templates_by_type.get(ptype))
+
         phase = TrainingPhaseModel(
             training_plan_id=plan_id,
             name=name,
@@ -983,6 +1070,7 @@ async def _create_plan_phases(
             start_week=sw,
             end_week=ew,
             focus_json=json.dumps({"primary": [name], "secondary": []}),
+            weekly_template_json=template_json,
             target_metrics_json=json.dumps(
                 {
                     "weekly_volume_min": round(vol * 0.9, 1),
