@@ -226,6 +226,8 @@ async def stream_sse_events(
                 yield f"data: {json.dumps({'type': 'token', 'content': event['content']})}\n\n"
             elif event["type"] == "tool_call":
                 yield f"data: {json.dumps({'type': 'tool_call', 'name': event['name']})}\n\n"
+            elif event["type"] == "thinking":
+                yield f"data: {json.dumps({'type': 'thinking'})}\n\n"
     except Exception as e:
         logger.error("Streaming-Fehler: %s", e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"

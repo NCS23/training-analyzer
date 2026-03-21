@@ -782,6 +782,11 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
         rest_days,
     )
 
+    # Fehlende Übungen automatisch anlegen
+    exercises_created = await _ensure_exercises_exist(db, plan.id)
+    if exercises_created:
+        logger.info("%d Übungen automatisch angelegt für Plan %d", exercises_created, plan.id)
+
     changelog = PlanChangeLogModel(
         plan_id=plan.id,
         change_type="plan_created",
@@ -792,6 +797,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
                 "source": "ki_chat",
                 "phases": phases_created,
                 "weeks_generated": weeks_generated,
+                "exercises_created": exercises_created,
             }
         ),
     )
@@ -1530,3 +1536,80 @@ async def handle_search_training_knowledge(args: dict, _db: AsyncSession) -> dic
         return {"results": [], "message": "Kein passendes Trainingswissen gefunden."}
 
     return {"results": results, "count": len(results)}
+
+
+def _collect_exercise_names_from_json(json_str: str | None, key: str) -> set[str]:
+    """Extrahiert Übungsnamen aus einem JSON-String (segments oder exercises)."""
+    if not json_str:
+        return set()
+    try:
+        data = json.loads(json_str)
+        items = data.get("segments", []) if key == "exercise_name" else data
+        if not isinstance(items, list):
+            return set()
+        return {item[key] for item in items if item.get(key)}
+    except (json.JSONDecodeError, TypeError):
+        return set()
+
+
+# Kategorie-Mapping für Kraft-Übungen aus plan_generator
+_EXERCISE_CATEGORY_HINTS: dict[str, str] = {
+    "Plank": "core",
+    "Seitstütz": "core",
+    "Hüftbrücke": "legs",
+    "Ausfallschritt": "legs",
+    "Step-Ups": "legs",
+    "Wadenheben einbeinig": "legs",
+    "Plank mit Arm heben": "core",
+    "Einbeinige Kniebeuge": "legs",
+    "Box Jumps": "legs",
+    "Bergsteiger": "core",
+}
+
+
+async def _ensure_exercises_exist(db: AsyncSession, plan_id: int) -> int:
+    """Stellt sicher, dass alle referenzierten Übungen in der DB existieren.
+
+    Sammelt Übungsnamen aus Segmenten und Kraft-Sessions,
+    legt fehlende automatisch mit Enrichment an.
+    """
+    from app.api.v1.exercise_library import _DRILL_ENRICHMENT, _apply_enrichment
+    from app.services.exercise_enrichment import enrich_exercise_model
+
+    sessions_result = await db.execute(
+        select(PlannedSessionModel)
+        .join(WeeklyPlanDayModel)
+        .where(WeeklyPlanDayModel.plan_id == plan_id)
+    )
+    sessions = sessions_result.scalars().all()
+
+    exercise_names: set[str] = set()
+    for sess in sessions:
+        exercise_names |= _collect_exercise_names_from_json(sess.run_details_json, "exercise_name")
+        exercise_names |= _collect_exercise_names_from_json(sess.exercises_json, "name")
+
+    if not exercise_names:
+        return 0
+
+    existing_result = await db.execute(
+        select(ExerciseModel.name).where(ExerciseModel.name.in_(exercise_names))
+    )
+    existing_names = {str(n) for n in existing_result.scalars().all()}
+    missing_names = exercise_names - existing_names
+
+    if not missing_names:
+        return 0
+
+    created = 0
+    for name in sorted(missing_names):
+        category = _EXERCISE_CATEGORY_HINTS.get(name, "drills")
+        model = ExerciseModel(name=name, category=category, is_custom=False, is_favorite=False)
+        enrichment = _DRILL_ENRICHMENT.get(name) or enrich_exercise_model(name)
+        if enrichment:
+            _apply_enrichment(model, enrichment)
+        db.add(model)
+        created += 1
+        logger.info("Übung auto-erstellt: %s (Kategorie: %s)", name, category)
+
+    await db.flush()
+    return created
