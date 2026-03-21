@@ -61,3 +61,16 @@ class ThresholdTestListResponse(BaseModel):
 
     tests: list[ThresholdTestResponse]
     total: int
+
+
+class ThresholdAnalysisResponse(BaseModel):
+    """Ergebnis der automatischen LTHR-Berechnung aus einer Session."""
+
+    session_id: int
+    session_date: date
+    duration_minutes: float
+    lthr: int = Field(description="Berechnete LTHR (Ø HR der letzten 20 Min)")
+    max_hr_measured: int = Field(description="Höchste gemessene HR")
+    avg_pace_sec: Optional[float] = Field(None, description="Ø Pace in sec/km")
+    friel_zones: list[dict]
+    hr_sample_count: int = Field(description="Anzahl HR-Datenpunkte in der Analyse")

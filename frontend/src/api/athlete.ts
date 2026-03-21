@@ -17,6 +17,9 @@ export interface AthleteSettings {
   elevation_gain_factor: number;
   elevation_loss_factor: number;
   karvonen_zones: KarvonenZone[] | null;
+  lthr: number | null;
+  zone_method: 'friel' | 'karvonen' | 'none';
+  hr_zones: KarvonenZone[] | null;
 }
 
 export async function getAthleteSettings(): Promise<AthleteSettings> {

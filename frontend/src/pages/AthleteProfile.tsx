@@ -16,6 +16,7 @@ import {
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
 import { useApiKeySettings } from '@/hooks/useApiKeySettings';
 import { ApiKeyCard } from '@/components/settings/ApiKeyCard';
+import { ThresholdTestCard } from '@/components/threshold-test/ThresholdTestCard';
 
 // Karvonen zone definitions — mirrors backend/app/services/hr_zone_calculator.py
 const KARVONEN_ZONES = [
@@ -259,6 +260,9 @@ export function AthleteProfilePage() {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Schwellentest / LTHR */}
+      <ThresholdTestCard />
 
       {/* Elevation Correction */}
       <Card elevation="raised" padding="spacious">
