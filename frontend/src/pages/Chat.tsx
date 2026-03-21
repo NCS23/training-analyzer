@@ -12,7 +12,6 @@ import { ChatContextPicker } from '@/components/chat/ChatContextPicker';
 import { ChatContextBadge } from '@/components/chat/ChatContextBadge';
 import type { ChatContext } from '@/components/chat/ChatContextBadge';
 import type { ChatMessageDetail } from '@/api/chat';
-import type { PlanSuggestion } from '@/components/chat/PlanSuggestionCard';
 
 function EmptyState({ onQuickAction }: { onQuickAction: (q: string) => void }) {
   return (
@@ -45,7 +44,6 @@ interface ChatAreaProps {
   onCancel: () => void;
   onPinContext: (ctx: ChatContext) => void;
   onUnpinContext: () => void;
-  onApplyPlanChange: (suggestion: PlanSuggestion) => void;
   sidebarOpen: boolean;
 }
 
@@ -60,7 +58,6 @@ function ChatArea({
   onCancel,
   onPinContext,
   onUnpinContext,
-  onApplyPlanChange,
   sidebarOpen,
 }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -94,7 +91,6 @@ function ChatArea({
                 content={msg.content}
                 timestamp={msg.created_at}
                 toolStatus={idx === messages.length - 1 && sending ? toolStatus : null}
-                onApplyPlanChange={onApplyPlanChange}
               />
             ))}
             {error && (
@@ -125,7 +121,6 @@ function ChatArea({
   );
 }
 
-// eslint-disable-next-line max-lines-per-function -- Main chat page orchestrating all features
 export function ChatPage() {
   const {
     messages,
@@ -161,11 +156,6 @@ export function ChatPage() {
     },
     [pinnedContext, sendMessage],
   );
-
-  const handleApplyPlanChange = useCallback((_suggestion: PlanSuggestion) => {
-    // TODO: API-Call zum Anwenden der Planänderung
-    // Für jetzt wird nur der State in der PlanSuggestionCard aktualisiert
-  }, []);
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto">
@@ -230,7 +220,6 @@ export function ChatPage() {
           onCancel={cancelStream}
           onPinContext={setPinnedContext}
           onUnpinContext={() => setPinnedContext(null)}
-          onApplyPlanChange={handleApplyPlanChange}
           sidebarOpen={sidebarOpen}
         />
       </div>

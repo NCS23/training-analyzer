@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, Search, User } from 'lucide-react';
+import type { ChartData } from './ChatChart';
 import { ChatChart } from './ChatChart';
 import { parseChartBlocks } from './chartParser';
+import type { PlanCreatedInfo } from './PlanCreatedCard';
+import { PlanCreatedCard } from './PlanCreatedCard';
+import { parsePlanCreated } from './planCreatedParser';
+import type { PlanSuggestion } from './PlanSuggestionCard';
 import { PlanSuggestionCard } from './PlanSuggestionCard';
 import { parsePlanSuggestions } from './planSuggestionParser';
-import type { PlanSuggestion } from './PlanSuggestionCard';
 
 function TypingDots() {
   return (
@@ -55,12 +59,26 @@ function ChatLink({ href, children, ...props }: ComponentPropsWithoutRef<'a'>) {
   );
 }
 
+interface ParsedContent {
+  text: string;
+  charts: ChartData[];
+  plans: PlanCreatedInfo[];
+  suggestions: PlanSuggestion[];
+}
+
+/** Parst Charts, Plan-Erstellungen und Plan-Vorschläge aus dem Content. */
+function parseAssistantContent(content: string): ParsedContent {
+  const { text: t1, charts } = parseChartBlocks(content);
+  const { text: t2, plans } = parsePlanCreated(t1);
+  const { text, suggestions } = parsePlanSuggestions(t2);
+  return { text, charts, plans, suggestions };
+}
+
 interface ChatMessageBubbleProps {
   role: 'user' | 'assistant';
   content: string;
   timestamp?: string;
   toolStatus?: string | null;
-  onApplyPlanChange?: (suggestion: PlanSuggestion) => void;
 }
 
 export function ChatMessageBubble({
@@ -68,18 +86,13 @@ export function ChatMessageBubble({
   content,
   timestamp,
   toolStatus,
-  onApplyPlanChange,
 }: ChatMessageBubbleProps) {
   const isUser = role === 'user';
   const isWaiting = !isUser && content === '' && !toolStatus;
 
-  // Charts und Plan-Vorschläge aus dem Content parsen
-  const { text: textWithoutCharts, charts } = !isUser
-    ? parseChartBlocks(content)
-    : { text: content, charts: [] };
-  const { text: cleanText, suggestions } = !isUser
-    ? parsePlanSuggestions(textWithoutCharts)
-    : { text: textWithoutCharts, suggestions: [] };
+  const parsed = !isUser
+    ? parseAssistantContent(content)
+    : { text: content, charts: [], plans: [], suggestions: [] };
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -104,22 +117,7 @@ export function ChatMessageBubble({
         ) : toolStatus && !content ? (
           <ToolIndicator label={toolStatus} />
         ) : (
-          <div className="space-y-2">
-            {toolStatus && <ToolIndicator label={toolStatus} />}
-            {cleanText && (
-              <div className="chat-markdown">
-                <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
-                  {cleanText}
-                </Markdown>
-              </div>
-            )}
-            {charts.map((chart, i) => (
-              <ChatChart key={i} chart={chart} />
-            ))}
-            {suggestions.map((s, i) => (
-              <PlanSuggestionCard key={i} suggestion={s} onApply={onApplyPlanChange} />
-            ))}
-          </div>
+          <BubbleContent toolStatus={toolStatus} parsed={parsed} />
         )}
         {timestamp && (
           <div className="mt-1.5 text-[10px] text-[var(--color-text-muted)] opacity-60">
@@ -130,6 +128,36 @@ export function ChatMessageBubble({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function BubbleContent({
+  toolStatus,
+  parsed,
+}: {
+  toolStatus?: string | null;
+  parsed: ParsedContent;
+}) {
+  return (
+    <div className="space-y-2">
+      {toolStatus && <ToolIndicator label={toolStatus} />}
+      {parsed.text && (
+        <div className="chat-markdown">
+          <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
+            {parsed.text}
+          </Markdown>
+        </div>
+      )}
+      {parsed.plans.map((p, i) => (
+        <PlanCreatedCard key={i} plan={p} />
+      ))}
+      {parsed.charts.map((chart, i) => (
+        <ChatChart key={i} chart={chart} />
+      ))}
+      {parsed.suggestions.map((s, i) => (
+        <PlanSuggestionCard key={i} suggestion={s} />
+      ))}
     </div>
   );
 }

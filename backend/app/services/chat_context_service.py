@@ -78,6 +78,11 @@ def _assemble_prompt(today: date) -> str:
         "Das erzeugt eine interaktive Karte, die der User direkt uebernehmen kann.",
         "Beschreibe die Aenderung zusaetzlich kurz in deinem Text.",
         "",
+        "## Plan-Erstellung",
+        "Nach erfolgreicher Plan-Erstellung enthaelt das Tool-Ergebnis einen plan-created Block.",
+        "Bette diesen Block EXAKT so in deine Antwort ein — er wird als interaktive Karte ",
+        "mit Link zum Wochenplan angezeigt.",
+        "",
         "## Session-Links",
         "Wenn du auf eine bestimmte Session verweist, verlinke sie als Markdown-Link: "
         "[Beschreibung](/sessions/ID). Beispiel: "
