@@ -26,6 +26,7 @@ import {
   Dumbbell,
 } from 'lucide-react';
 import { listSessions } from '@/api/training';
+import { ThresholdTestReminder } from '@/components/threshold-test/ThresholdTestReminder';
 import type { SessionSummary } from '@/api/training';
 import { listGoals, getGoalProgress } from '@/api/goals';
 import type { GoalProgress } from '@/api/goals';
@@ -172,6 +173,9 @@ export function DashboardPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      {/* Schwellentest-Erinnerung */}
+      <ThresholdTestReminder />
 
       {/* Stat Metrics — same pattern as SessionDetail */}
       <Card elevation="raised">
