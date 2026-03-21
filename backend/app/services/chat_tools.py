@@ -356,6 +356,14 @@ CHAT_TOOLS: list[dict] = [
                     "type": "number",
                     "description": "Aktuelles Wochenvolumen in km (aus get_training_stats)",
                 },
+                "start_date": {
+                    "type": "string",
+                    "description": (
+                        "Startdatum des Plans (YYYY-MM-DD). "
+                        "Wird auf den naechsten Montag aufgerundet. "
+                        "Nutze dies z.B. fuer Erholungswochen nach einem Wettkampf."
+                    ),
+                },
                 "race_date": {
                     "type": "string",
                     "description": "Wettkampfdatum (YYYY-MM-DD)",
@@ -368,7 +376,7 @@ CHAT_TOOLS: list[dict] = [
                     "type": "array",
                     "description": (
                         "Eine Wochenvorlage pro Phase. Die KI designt hier den Trainingsinhalt. "
-                        "Reihenfolge: base, build, peak, taper. "
+                        "Reihenfolge: recovery (optional), base, build, peak, taper. "
                         "Volumen/Pace werden automatisch berechnet — hier nur Trainingstypen und Struktur."
                     ),
                     "items": {
@@ -376,7 +384,11 @@ CHAT_TOOLS: list[dict] = [
                         "properties": {
                             "phase_type": {
                                 "type": "string",
-                                "enum": ["base", "build", "peak", "taper"],
+                                "enum": ["recovery", "base", "build", "peak", "taper"],
+                            },
+                            "weeks": {
+                                "type": "integer",
+                                "description": "Anzahl Wochen fuer diese Phase",
                             },
                             "days": {
                                 "type": "array",

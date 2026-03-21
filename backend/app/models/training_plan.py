@@ -85,7 +85,7 @@ class TrainingPhaseCreate(BaseModel):
     """Request schema: create a training phase."""
 
     name: str = Field(..., min_length=1, max_length=200)
-    phase_type: str = Field(..., pattern="^(base|build|peak|taper|transition)$")
+    phase_type: str = Field(..., pattern="^(base|build|peak|taper|transition|recovery)$")
     start_week: int = Field(..., ge=1, le=52)
     end_week: int = Field(..., ge=1, le=52)
     focus: Optional[PhaseFocus] = None
@@ -99,7 +99,7 @@ class TrainingPhaseUpdate(BaseModel):
     """Request schema: update a training phase."""
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
-    phase_type: Optional[str] = Field(None, pattern="^(base|build|peak|taper|transition)$")
+    phase_type: Optional[str] = Field(None, pattern="^(base|build|peak|taper|transition|recovery)$")
     start_week: Optional[int] = Field(None, ge=1, le=52)
     end_week: Optional[int] = Field(None, ge=1, le=52)
     focus: Optional[PhaseFocus] = None
