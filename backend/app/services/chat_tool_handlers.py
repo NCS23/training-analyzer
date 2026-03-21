@@ -682,12 +682,26 @@ async def _load_week_planned_sessions(
     return sessions
 
 
-async def handle_propose_plan_change(args: dict, _db: AsyncSession) -> dict:
+async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
     """Formatiert einen Plan-Vorschlag als strukturierten Block.
 
-    Die KI-Antwort wird den Vorschlag als ```plan-change``` Block enthalten,
-    den das Frontend als interaktive Karte rendert.
+    Ermittelt die betroffene Woche aus dem Datum und lädt den aktuellen
+    Wochenplan, damit das Frontend die Änderung direkt anwenden kann.
     """
+    target_date = args.get("date")
+    week_start_str = None
+
+    if target_date:
+        try:
+            d = datetime.strptime(target_date, "%Y-%m-%d").date()
+            week_start = d - timedelta(days=d.weekday())
+            week_start_str = str(week_start)
+        except ValueError:
+            pass
+
+    # Plan-ID ermitteln für Changelog
+    plan_id = await _get_active_plan_id(db)
+
     return {
         "rendered": True,
         "block": (
@@ -697,6 +711,8 @@ async def handle_propose_plan_change(args: dict, _db: AsyncSession) -> dict:
                     "action": args.get("action", "replace"),
                     "day": args.get("day", ""),
                     "date": args.get("date"),
+                    "week_start": week_start_str,
+                    "plan_id": plan_id,
                     "description": args.get("description", ""),
                     "reason": args.get("reason", ""),
                     "from": args.get("from_value"),
@@ -713,74 +729,322 @@ async def handle_propose_plan_change(args: dict, _db: AsyncSession) -> dict:
     }
 
 
-async def handle_generate_training_plan(args: dict, _db: AsyncSession) -> dict:
-    """Generiert einen Trainingsplan-Entwurf basierend auf den Zielen."""
+async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
+    """Erstellt einen echten Trainingsplan in der Datenbank."""
+    goal_text = args.get("goal", "Trainingsplan")
     weeks = min(max(args.get("weeks", 12), 4), 24)
-    sessions = min(max(args.get("sessions_per_week", 4), 3), 7)
+    sessions_per_week = min(max(args.get("sessions_per_week", 4), 3), 7)
     include_strength = args.get("include_strength", True)
-    current_km = args.get("current_weekly_km", 20)
+    current_km = args.get("current_weekly_km", 20.0)
+    race_date_str = args.get("race_date")
 
-    # Phase-Aufteilung berechnen
-    base_weeks = max(2, round(weeks * 0.4))
-    build_weeks = max(2, round(weeks * 0.3))
-    peak_weeks = max(1, round(weeks * 0.15))
-    taper_weeks = max(1, weeks - base_weeks - build_weeks - peak_weeks)
+    today = date.today()
+    start_date = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
+    end_date = start_date + timedelta(weeks=weeks) - timedelta(days=1)
 
-    phases = [
-        {
-            "name": "Grundlagen",
-            "type": "base",
-            "weeks": base_weeks,
-            "focus": "Aerobe Basis aufbauen, Volumen steigern",
-            "weekly_km_target": round(current_km * 1.1, 1),
-            "sessions_per_week": sessions,
-            "strength_sessions": 2 if include_strength else 0,
-            "key_sessions": ["Easy Runs", "Langer Lauf"],
-        },
-        {
-            "name": "Aufbau",
-            "type": "build",
-            "weeks": build_weeks,
-            "focus": "Spezifische Intensitaet, Tempolaeufe einfuehren",
-            "weekly_km_target": round(current_km * 1.3, 1),
-            "sessions_per_week": sessions,
-            "strength_sessions": 1 if include_strength else 0,
-            "key_sessions": ["Tempolauf", "Progression Run", "Langer Lauf"],
-        },
-        {
-            "name": "Spitze",
-            "type": "peak",
-            "weeks": peak_weeks,
-            "focus": "Race-Pace Training, maximale Fitness",
-            "weekly_km_target": round(current_km * 1.4, 1),
-            "sessions_per_week": sessions,
-            "strength_sessions": 1 if include_strength else 0,
-            "key_sessions": ["Intervalle", "Race-Pace Run", "Langer Lauf"],
-        },
-        {
-            "name": "Tapering",
-            "type": "taper",
-            "weeks": taper_weeks,
-            "focus": "Erholung, Volumen reduzieren, frisch zum Wettkampf",
-            "weekly_km_target": round(current_km * 0.6, 1),
-            "sessions_per_week": max(3, sessions - 1),
-            "strength_sessions": 0,
-            "key_sessions": ["Easy Runs", "kurze Race-Pace Einheiten"],
-        },
-    ]
+    race_date = _parse_date_safe(race_date_str)
+    goal_id = await _create_race_goal(db, goal_text, race_date)
+
+    rest_days = [0, 6]
+    plan = await _create_plan_model(
+        db,
+        goal_text,
+        goal_id,
+        start_date,
+        end_date,
+        race_date,
+        rest_days,
+        today,
+    )
+    phases_created = await _create_plan_phases(
+        db,
+        plan.id,
+        weeks,
+        current_km,
+        sessions_per_week,
+        include_strength,
+    )
+    weeks_generated = await _generate_and_save_weekly_plans(
+        db,
+        plan.id,
+        rest_days,
+    )
+
+    changelog = PlanChangeLogModel(
+        plan_id=plan.id,
+        change_type="plan_created",
+        category="structure",
+        summary=f"Plan '{goal_text}' mit {weeks} Wochen per KI-Chat erstellt",
+        details_json=json.dumps(
+            {
+                "source": "ki_chat",
+                "phases": phases_created,
+                "weeks_generated": weeks_generated,
+            }
+        ),
+    )
+    db.add(changelog)
+    await db.commit()
 
     return {
-        "plan": {
-            "goal": args.get("goal", ""),
-            "total_weeks": weeks,
-            "race_date": args.get("race_date"),
-            "phases": phases,
-        },
+        "plan_id": plan.id,
+        "plan_name": goal_text,
+        "status": "active",
+        "start_date": str(start_date),
+        "end_date": str(end_date),
+        "weeks": weeks,
+        "weeks_generated": weeks_generated,
+        "phases": phases_created,
+        "race_date": race_date_str,
         "instruction": (
-            "Praesentiere den Plan dem User als uebersichtliche Zusammenfassung. "
-            "Frage ob er den Plan uebernehmen moechte oder Anpassungen wuenscht."
+            "Der Plan wurde erfolgreich erstellt und ist sofort aktiv. "
+            "Teile dem User die Zusammenfassung mit und weise auf den "
+            "Wochenplan hin, wo die einzelnen Sessions sichtbar sind."
         ),
     }
+
+
+def _parse_date_safe(date_str: str | None) -> date | None:
+    """Parst ein Datum sicher, gibt None bei Fehler zurück."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+async def _create_race_goal(
+    db: AsyncSession,
+    goal_text: str,
+    race_date: date | None,
+) -> int | None:
+    """Erstellt ein Wettkampfziel wenn ein Datum vorhanden ist."""
+    if not race_date:
+        return None
+    goal_model = RaceGoalModel(
+        title=goal_text,
+        race_date=race_date,
+        distance_km=_parse_goal_distance(goal_text),
+        target_time_seconds=_parse_goal_time(goal_text),
+        is_active=True,
+    )
+    db.add(goal_model)
+    await db.flush()
+    return goal_model.id
+
+
+async def _create_plan_model(
+    db: AsyncSession,
+    goal_text: str,
+    goal_id: int | None,
+    start_date: date,
+    end_date: date,
+    race_date: date | None,
+    rest_days: list[int],
+    today: date,
+) -> TrainingPlanModel:
+    """Erstellt das TrainingPlan-Modell in der DB."""
+    plan = TrainingPlanModel(
+        name=goal_text,
+        description=f"Generiert per KI-Chat am {today.strftime('%d.%m.%Y')}",
+        goal_id=goal_id,
+        start_date=start_date,
+        end_date=end_date,
+        target_event_date=race_date,
+        weekly_structure_json=json.dumps({"rest_days": rest_days}),
+        status="active",
+    )
+    db.add(plan)
+    await db.flush()
+    return plan
+
+
+async def _create_plan_phases(
+    db: AsyncSession,
+    plan_id: int,
+    weeks: int,
+    current_km: float,
+    sessions_per_week: int,
+    include_strength: bool,
+) -> list[dict]:
+    """Erstellt die Trainingsphasen für den Plan."""
+    base_w = max(2, round(weeks * 0.4))
+    build_w = max(2, round(weeks * 0.3))
+    peak_w = max(1, round(weeks * 0.15))
+
+    phase_defs = [
+        ("Grundlagen", "base", 1, base_w, current_km * 1.1, sessions_per_week, 2),
+        ("Aufbau", "build", base_w + 1, base_w + build_w, current_km * 1.3, sessions_per_week, 1),
+        (
+            "Spitze",
+            "peak",
+            base_w + build_w + 1,
+            base_w + build_w + peak_w,
+            current_km * 1.4,
+            sessions_per_week,
+            1,
+        ),
+        (
+            "Tapering",
+            "taper",
+            base_w + build_w + peak_w + 1,
+            weeks,
+            current_km * 0.6,
+            max(3, sessions_per_week - 1),
+            0,
+        ),
+    ]
+
+    phases_created = []
+    for name, ptype, sw, ew, vol, sess, strength in phase_defs:
+        strength_count = strength if include_strength else 0
+        phase = TrainingPhaseModel(
+            training_plan_id=plan_id,
+            name=name,
+            phase_type=ptype,
+            start_week=sw,
+            end_week=ew,
+            focus_json=json.dumps({"primary": [name], "secondary": []}),
+            target_metrics_json=json.dumps(
+                {
+                    "weekly_volume_min": round(vol * 0.9, 1),
+                    "weekly_volume_max": round(vol * 1.1, 1),
+                    "quality_sessions_per_week": min(2, sess - 1),
+                    "strength_sessions_per_week": strength_count,
+                }
+            ),
+        )
+        db.add(phase)
+        await db.flush()
+        phases_created.append(
+            {
+                "name": name,
+                "type": ptype,
+                "weeks": f"KW {sw}–{ew}",
+                "volume_km": round(vol, 1),
+                "sessions": sess,
+                "strength": strength_count,
+            }
+        )
+    return phases_created
+
+
+async def _generate_and_save_weekly_plans(
+    db: AsyncSession,
+    plan_id: int,
+    rest_days: list[int],
+) -> int:
+    """Generiert Wochenpläne und speichert sie in der DB."""
+    from app.services.plan_generator import generate_weekly_plans
+
+    plan = await db.get(TrainingPlanModel, plan_id)
+    if not plan:
+        return 0
+
+    phases_result = await db.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan_id)
+        .order_by(TrainingPhaseModel.start_week)
+    )
+    db_phases = list(phases_result.scalars().all())
+
+    # Wettkampfziel für Pace-Berechnung
+    goal = None
+    if plan.goal_id:
+        goal = await db.get(RaceGoalModel, plan.goal_id)
+
+    weekly_data = generate_weekly_plans(
+        plan=plan,
+        phases=db_phases,
+        rest_days=rest_days,
+        goal=goal,
+    )
+
+    weeks_generated = 0
+    for week_start_date, entries in weekly_data:
+        for entry in entries:
+            day = WeeklyPlanDayModel(
+                plan_id=plan_id,
+                week_start=week_start_date,
+                day_of_week=entry.day_of_week,
+                is_rest_day=entry.is_rest_day,
+                notes=entry.notes,
+            )
+            db.add(day)
+            await db.flush()
+            for sess in entry.sessions:
+                ps = PlannedSessionModel(
+                    day_id=day.id,
+                    position=sess.position,
+                    training_type=sess.training_type,
+                    template_id=sess.template_id,
+                    run_details_json=(
+                        json.dumps(sess.run_details.model_dump()) if sess.run_details else None
+                    ),
+                    notes=sess.notes,
+                )
+                db.add(ps)
+        weeks_generated += 1
+    return weeks_generated
+    return None
+
+
+async def _get_active_plan_id(db: AsyncSession) -> int | None:
+    """Gibt die ID des aktiven Trainingsplans zurück."""
+    today = date.today()
+    result = await db.execute(
+        select(TrainingPlanModel.id)
+        .where(
+            TrainingPlanModel.status == "active",
+            TrainingPlanModel.start_date <= today,
+            TrainingPlanModel.end_date >= today,
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _parse_goal_distance(goal_text: str) -> float:
+    """Extrahiert die Wettkampfdistanz aus dem Zieltext."""
+    text = goal_text.lower()
+    if "marathon" in text and "halb" not in text and "half" not in text:
+        return 42.195
+    if "halb" in text or "half" in text or "hm" in text:
+        return 21.0975
+    if "10k" in text or "10 km" in text:
+        return 10.0
+    if "5k" in text or "5 km" in text:
+        return 5.0
+    return 21.0975  # Default: Halbmarathon
+
+
+def _parse_goal_time(goal_text: str) -> int:
+    """Extrahiert die Zielzeit in Sekunden aus dem Zieltext."""
+    import re
+
+    text = goal_text.lower()
+    # "sub-2h", "unter 2 stunden", "sub 1:45"
+    match = re.search(r"sub[- ]?(\d+)[:\.]?(\d{2})?(?:h|$|\s)", text)
+    if match:
+        hours = int(match.group(1))
+        mins = int(match.group(2)) if match.group(2) else 0
+        return hours * 3600 + mins * 60
+
+    match = re.search(r"(\d+):(\d{2}):(\d{2})", text)
+    if match:
+        return int(match.group(1)) * 3600 + int(match.group(2)) * 60 + int(match.group(3))
+
+    match = re.search(r"(\d+):(\d{2})", text)
+    if match:
+        h_or_m = int(match.group(1))
+        rest = int(match.group(2))
+        if h_or_m <= 6:
+            return h_or_m * 3600 + rest * 60
+        return h_or_m * 60 + rest
+
+    # Default: ~2h für HM
+    return 7200
 
 
 async def handle_search_training_knowledge(args: dict, _db: AsyncSession) -> dict:

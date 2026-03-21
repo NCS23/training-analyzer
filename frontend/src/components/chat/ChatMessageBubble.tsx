@@ -7,7 +7,6 @@ import { ChatChart } from './ChatChart';
 import { parseChartBlocks } from './chartParser';
 import { PlanSuggestionCard } from './PlanSuggestionCard';
 import { parsePlanSuggestions } from './planSuggestionParser';
-import type { PlanSuggestion } from './PlanSuggestionCard';
 
 function TypingDots() {
   return (
@@ -60,7 +59,6 @@ interface ChatMessageBubbleProps {
   content: string;
   timestamp?: string;
   toolStatus?: string | null;
-  onApplyPlanChange?: (suggestion: PlanSuggestion) => void;
 }
 
 export function ChatMessageBubble({
@@ -68,7 +66,6 @@ export function ChatMessageBubble({
   content,
   timestamp,
   toolStatus,
-  onApplyPlanChange,
 }: ChatMessageBubbleProps) {
   const isUser = role === 'user';
   const isWaiting = !isUser && content === '' && !toolStatus;
@@ -117,7 +114,7 @@ export function ChatMessageBubble({
               <ChatChart key={i} chart={chart} />
             ))}
             {suggestions.map((s, i) => (
-              <PlanSuggestionCard key={i} suggestion={s} onApply={onApplyPlanChange} />
+              <PlanSuggestionCard key={i} suggestion={s} />
             ))}
           </div>
         )}

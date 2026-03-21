@@ -131,3 +131,31 @@ export async function getChatNotifications(): Promise<NotificationsResponse> {
   const { data } = await apiClient.get<NotificationsResponse>('/api/v1/ai/notifications');
   return data;
 }
+
+// --- Plan Changes ---
+
+export interface ApplyPlanChangeRequest {
+  action: string;
+  date: string;
+  week_start?: string;
+  plan_id?: number;
+  description?: string;
+  reason?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface ApplyPlanChangeResponse {
+  success: boolean;
+  message: string;
+}
+
+export async function applyPlanChange(
+  params: ApplyPlanChangeRequest,
+): Promise<ApplyPlanChangeResponse> {
+  const { data } = await apiClient.post<ApplyPlanChangeResponse>(
+    '/api/v1/ai/apply-plan-change',
+    params,
+  );
+  return data;
+}
