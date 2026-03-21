@@ -32,11 +32,29 @@ class AthleteSettingsResponse(BaseModel):
     elevation_gain_factor: float = 10.0
     elevation_loss_factor: float = 5.0
     karvonen_zones: Optional[list[dict]] = None
+    lthr: Optional[int] = None
+    zone_method: str = "none"  # "friel" | "karvonen" | "none"
+    hr_zones: Optional[list[dict]] = None  # Aktive Zonen (Friel oder Karvonen)
 
     @classmethod
     def from_db(
-        cls, model: AthleteModel, zones: Optional[list[dict]] = None
+        cls,
+        model: AthleteModel,
+        zones: Optional[list[dict]] = None,
+        lthr: Optional[int] = None,
+        friel_zones: Optional[list[dict]] = None,
     ) -> AthleteSettingsResponse:
+        # Bestimme aktive Zonen und Methode
+        if friel_zones:
+            zone_method = "friel"
+            active_zones = friel_zones
+        elif zones:
+            zone_method = "karvonen"
+            active_zones = zones
+        else:
+            zone_method = "none"
+            active_zones = None
+
         return cls(
             id=model.id,
             resting_hr=model.resting_hr if model.resting_hr else None,
@@ -48,4 +66,7 @@ class AthleteSettingsResponse(BaseModel):
             if model.elevation_loss_factor
             else 5.0,
             karvonen_zones=zones,
+            lthr=lthr,
+            zone_method=zone_method,
+            hr_zones=active_zones,
         )
