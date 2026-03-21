@@ -834,21 +834,11 @@ async def delete_exercise(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Löscht eine Übung.
-
-    Seed-Übungen aus der free-exercise-db (mit exercise_db_id) sind geschützt.
-    Alle anderen Übungen (Custom + auto-erstellt) können gelöscht werden.
-    """
+    """Löscht eine Übung aus der Bibliothek."""
     result = await db.execute(select(ExerciseModel).where(ExerciseModel.id == exercise_id))
     exercise = result.scalar_one_or_none()
     if not exercise:
         raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
-
-    if exercise.exercise_db_id and not exercise.is_custom:
-        raise HTTPException(
-            status_code=400,
-            detail="Standard-Übungen aus der Datenbank können nicht gelöscht werden.",
-        )
 
     await db.delete(exercise)
     await db.commit()
