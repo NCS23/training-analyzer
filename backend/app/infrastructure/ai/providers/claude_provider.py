@@ -145,7 +145,7 @@ class ClaudeProvider(AIProvider):
                 yield {"type": "thinking"}
             async with client.messages.stream(
                 model=self.model,
-                max_tokens=4000,
+                max_tokens=8000,
                 temperature=0.3,
                 system=system_prompt,
                 messages=api_messages,
@@ -170,6 +170,8 @@ class ClaudeProvider(AIProvider):
                     yield {"type": "tool_call", "name": block.name, "input": block.input}
                     logger.info("Tool-Call: %s(%s)", block.name, json.dumps(block.input)[:200])
                     result = await tool_handler(block.name, block.input)
+                    # Signal: Tool-Ergebnis wird verarbeitet
+                    yield {"type": "thinking"}
                     tool_results.append(
                         {
                             "type": "tool_result",

@@ -141,7 +141,6 @@ function BubbleContent({
 }) {
   return (
     <div className="space-y-2">
-      {toolStatus && <ToolIndicator label={toolStatus} />}
       {parsed.text && (
         <div className="chat-markdown">
           <Markdown remarkPlugins={[remarkGfm]} components={{ a: ChatLink }}>
@@ -158,6 +157,7 @@ function BubbleContent({
       {parsed.suggestions.map((s, i) => (
         <PlanSuggestionCard key={i} suggestion={s} />
       ))}
+      {toolStatus && <ToolIndicator label={toolStatus} />}
     </div>
   );
 }
