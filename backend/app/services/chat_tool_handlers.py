@@ -8,7 +8,7 @@ import json
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
@@ -745,6 +745,13 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     race_date = _parse_date_safe(race_date_str)
     goal_id = await _create_race_goal(db, goal_text, race_date)
 
+    # Bisherige aktive Pläne auf "archived" setzen
+    await db.execute(
+        update(TrainingPlanModel)
+        .where(TrainingPlanModel.status == "active")
+        .values(status="archived")
+    )
+
     rest_days = [0, 6]
     plan = await _create_plan_model(
         db,
@@ -786,20 +793,28 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     db.add(changelog)
     await db.commit()
 
-    return {
+    plan_data = {
         "plan_id": plan.id,
         "plan_name": goal_text,
-        "status": "active",
-        "start_date": str(start_date),
-        "end_date": str(end_date),
         "weeks": weeks,
         "weeks_generated": weeks_generated,
         "phases": phases_created,
+        "start_date": str(start_date),
+        "end_date": str(end_date),
         "race_date": race_date_str,
+    }
+
+    plan_block = f"```plan-created\n{json.dumps(plan_data)}\n```"
+
+    return {
+        **plan_data,
+        "status": "active",
         "instruction": (
             "Der Plan wurde erfolgreich erstellt und ist sofort aktiv. "
-            "Teile dem User die Zusammenfassung mit und weise auf den "
-            "Wochenplan hin, wo die einzelnen Sessions sichtbar sind."
+            "Fasse den Plan kurz zusammen (Wochen, Phasen, Zeitraum). "
+            "Bette dann GENAU diesen Block in deine Antwort ein, damit "
+            "der User direkt zum Plan navigieren kann:\n\n"
+            f"{plan_block}"
         ),
     }
 
@@ -961,6 +976,10 @@ async def _generate_and_save_weekly_plans(
         goal=goal,
     )
 
+    # Alte Wochenplandaten löschen die im selben Zeitraum liegen
+    # (UniqueConstraint auf week_start + day_of_week)
+    await _remove_overlapping_weekly_plans(db, weekly_data)
+
     weeks_generated = 0
     for week_start_date, entries in weekly_data:
         for entry in entries:
@@ -987,7 +1006,30 @@ async def _generate_and_save_weekly_plans(
                 db.add(ps)
         weeks_generated += 1
     return weeks_generated
-    return None
+
+
+async def _remove_overlapping_weekly_plans(
+    db: AsyncSession,
+    weekly_data: list[tuple[date, list]],
+) -> None:
+    """Löscht bestehende Wochenplandaten die mit dem neuen Plan kollidieren."""
+    week_starts = [ws for ws, _ in weekly_data]
+    if not week_starts:
+        return
+
+    # IDs der betroffenen Tage finden
+    day_ids_result = await db.execute(
+        select(WeeklyPlanDayModel.id).where(WeeklyPlanDayModel.week_start.in_(week_starts))
+    )
+    day_ids = list(day_ids_result.scalars().all())
+
+    if day_ids:
+        # Erst geplante Sessions löschen, dann die Tage
+        await db.execute(delete(PlannedSessionModel).where(PlannedSessionModel.day_id.in_(day_ids)))
+        await db.execute(
+            delete(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start.in_(week_starts))
+        )
+        await db.flush()
 
 
 async def _get_active_plan_id(db: AsyncSession) -> int | None:
