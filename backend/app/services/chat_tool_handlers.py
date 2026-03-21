@@ -1035,48 +1035,49 @@ def _estimate_peak_volume(distance_km: float, current_km: float) -> float:
 
 
 # Mapping: phase_type → (Name, Strength-Sessions, Quality-Sessions, Focus-Primary, Focus-Secondary)
+# Focus-Werte MÜSSEN kanonische Keys aus frontend/src/constants/taxonomy.ts sein!
 _PHASE_META: dict[str, tuple[str, int, int, list[str], list[str]]] = {
     "recovery": (
         "Erholung",
         0,
         0,
-        ["Regeneration", "Aktive Erholung"],
-        ["Mobilität", "Verletzungsprävention"],
+        ["regeneration"],
+        ["mobility", "injury_prevention"],
     ),
     "base": (
         "Grundlagen",
         2,
         0,
-        ["Aerobe Grundlagenausdauer", "Lauftechnik"],
-        ["Kraftaufbau", "Beweglichkeit", "Lauf-ABC"],
+        ["aerobic_base", "running_economy"],
+        ["specific_strength", "mobility", "injury_prevention"],
     ),
     "build": (
         "Aufbau",
         1,
         1,
-        ["Tempohärte", "Laktatschwelle"],
-        ["Wettkampfspezifik", "Kraftausdauer"],
+        ["tempo_hardness", "lactate_threshold"],
+        ["race_pace_intro", "specific_strength"],
     ),
     "peak": (
         "Spitze",
         1,
         2,
-        ["Wettkampftempo", "VO2max"],
-        ["Intervalltraining", "Schnellkraft"],
+        ["race_pace", "vo2max"],
+        ["race_tactics", "mental_toughness"],
     ),
     "taper": (
         "Tapering",
         0,
         1,
-        ["Frische", "Wettkampfvorbereitung"],
-        ["Intensität erhalten", "Volumen reduzieren"],
+        ["supercompensation", "race_preparation"],
+        ["fatigue_reduction", "mental_preparation"],
     ),
     "transition": (
         "Übergang",
         1,
         0,
-        ["Allgemeine Fitness", "Regeneration"],
-        ["Koordination", "Ausgleichssport"],
+        ["aerobic_base", "regeneration"],
+        ["running_economy", "mobility"],
     ),
 }
 
@@ -1612,7 +1613,7 @@ async def _ensure_exercises_exist(db: AsyncSession, plan_id: int) -> int:
     for name in sorted(missing_names):
         try:
             category = _EXERCISE_CATEGORY_HINTS.get(name, "drills")
-            model = ExerciseModel(name=name, category=category, is_custom=False, is_favorite=False)
+            model = ExerciseModel(name=name, category=category, is_custom=True, is_favorite=False)
             enrichment = _DRILL_ENRICHMENT.get(name) or enrich_exercise_model(name)
             if enrichment:
                 _apply_enrichment(model, enrichment)
