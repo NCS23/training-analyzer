@@ -335,7 +335,7 @@ export function ExerciseLibraryPage() {
                         >
                           {ex.is_favorite ? 'Favorit entfernen' : 'Als Favorit'}
                         </DropdownMenuItem>
-                        {ex.is_custom && (
+                        {(ex.is_custom || !ex.exercise_db_id) && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
