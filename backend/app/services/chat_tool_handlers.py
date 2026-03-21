@@ -763,6 +763,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
         current_km,
         sessions_per_week,
         include_strength,
+        distance_km=_parse_goal_distance(goal_text),
     )
     weeks_generated = await _generate_and_save_weekly_plans(
         db,
@@ -899,6 +900,25 @@ async def _create_plan_model(
     return plan
 
 
+def _estimate_peak_volume(distance_km: float, current_km: float) -> float:
+    """Schätzt das Peak-Wochenvolumen basierend auf Wettkampfdistanz.
+
+    Faustregel: Peak-Volumen = ca. 2.5x Wettkampfdistanz (min. current + 30%).
+    """
+    target_by_distance = {
+        42.195: 65.0,  # Marathon: 55-75 km/Woche Peak
+        21.0975: 45.0,  # HM: 35-55 km/Woche Peak
+        10.0: 35.0,  # 10k: 30-40 km/Woche Peak
+        5.0: 30.0,  # 5k: 25-35 km/Woche Peak
+    }
+    # Nächste bekannte Distanz finden
+    closest = min(target_by_distance.keys(), key=lambda d: abs(d - distance_km))
+    target_peak = target_by_distance[closest]
+
+    # Nicht unter dem aktuellen Volumen + 30% starten
+    return max(target_peak, current_km * 1.3)
+
+
 async def _create_plan_phases(
     db: AsyncSession,
     plan_id: int,
@@ -906,37 +926,55 @@ async def _create_plan_phases(
     current_km: float,
     sessions_per_week: int,
     include_strength: bool,
+    distance_km: float = 21.0975,
 ) -> list[dict]:
-    """Erstellt die Trainingsphasen für den Plan."""
+    """Erstellt die Trainingsphasen für den Plan.
+
+    Volumen wird basierend auf Wettkampfdistanz berechnet, nicht nur current_km.
+    Quality-Sessions folgen den PHASE_DEFAULTS im plan_generator.
+    """
     base_w = max(2, round(weeks * 0.4))
     build_w = max(2, round(weeks * 0.3))
     peak_w = max(1, round(weeks * 0.15))
 
+    peak_vol = _estimate_peak_volume(distance_km, current_km)
+    # Progressiver Aufbau: Grundlagen startet bei current_km oder 60% Peak
+    base_vol = max(current_km, peak_vol * 0.6)
+    build_vol = peak_vol * 0.8
+    taper_vol = peak_vol * 0.5
+
+    # Quality-Sessions pro Phase folgen den PHASE_DEFAULTS:
+    # base: 0 Quality (nur easy + long_run)
+    # build: 1 Quality (progression)
+    # peak: 2 Quality (intervals + tempo)
+    # taper: 1 Quality (fartlek)
     phase_defs = [
-        ("Grundlagen", "base", 1, base_w, current_km * 1.1, sessions_per_week, 2),
-        ("Aufbau", "build", base_w + 1, base_w + build_w, current_km * 1.3, sessions_per_week, 1),
+        ("Grundlagen", "base", 1, base_w, base_vol, sessions_per_week, 2, 0),
+        ("Aufbau", "build", base_w + 1, base_w + build_w, build_vol, sessions_per_week, 1, 1),
         (
             "Spitze",
             "peak",
             base_w + build_w + 1,
             base_w + build_w + peak_w,
-            current_km * 1.4,
+            peak_vol,
             sessions_per_week,
             1,
+            2,
         ),
         (
             "Tapering",
             "taper",
             base_w + build_w + peak_w + 1,
             weeks,
-            current_km * 0.6,
+            taper_vol,
             max(3, sessions_per_week - 1),
             0,
+            1,
         ),
     ]
 
     phases_created = []
-    for name, ptype, sw, ew, vol, sess, strength in phase_defs:
+    for name, ptype, sw, ew, vol, sess, strength, quality in phase_defs:
         strength_count = strength if include_strength else 0
         phase = TrainingPhaseModel(
             training_plan_id=plan_id,
@@ -949,7 +987,7 @@ async def _create_plan_phases(
                 {
                     "weekly_volume_min": round(vol * 0.9, 1),
                     "weekly_volume_max": round(vol * 1.1, 1),
-                    "quality_sessions_per_week": min(2, sess - 1),
+                    "quality_sessions_per_week": quality,
                     "strength_sessions_per_week": strength_count,
                 }
             ),
