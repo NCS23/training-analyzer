@@ -746,9 +746,13 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
 
     today = date.today()
     start_date = _resolve_start_date(start_date_str, today)
-    end_date = start_date + timedelta(weeks=weeks) - timedelta(days=1)
-
     race_date = _parse_date_safe(race_date_str)
+
+    # Wenn race_date und start_date gegeben: Wochen aus der Differenz berechnen
+    if race_date and start_date < race_date:
+        weeks = max(4, (race_date - start_date).days // 7 + 1)
+
+    end_date = start_date + timedelta(weeks=weeks) - timedelta(days=1)
     goal_id = await _create_race_goal(db, goal_text, race_date)
 
     rest_days = _extract_rest_days(ki_phase_templates)
@@ -1299,56 +1303,75 @@ async def _backfill_phase_templates(
     phases: list[TrainingPhaseModel],
     weekly_data: list[tuple[date, list]],
 ) -> None:
-    """Schreibt weekly_template_json in Phasen aus den generierten Daten.
+    """Schreibt enriched per-week Templates in die Phasen zurück.
 
-    Nimmt die erste Woche jeder Phase und wandelt sie in ein
-    PhaseWeeklyTemplate (7-Tage-Vorlage) um.
+    Die generierten Wochenpläne enthalten angereicherte Segmente (Intervalle,
+    Tempo, Pace-Zonen etc.). Diese werden als weekly_templates_json (pro Woche)
+    UND als weekly_template_json (erste Woche als Shared-Template) gespeichert,
+    damit die Planübersicht (/plan/programs/:id) die echten Trainingsdaten zeigt.
     """
     if not phases or not weekly_data:
         return
 
     for phase in phases:
-        if phase.weekly_template_json:
-            continue  # Phase hat schon ein Template
+        phase_weeks: dict[str, dict] = {}
+        shared_template = None
 
-        # Erste Woche der Phase finden
-        first_week_idx = phase.start_week - 1  # 0-indexed
-        if first_week_idx >= len(weekly_data):
-            continue
+        for week_num in range(phase.start_week, phase.end_week + 1):
+            week_idx = week_num - 1
+            if week_idx >= len(weekly_data):
+                break
 
-        _, entries = weekly_data[first_week_idx]
-        template_days = []
-        for entry in sorted(entries, key=lambda e: e.day_of_week):
-            sessions_data = []
-            for s in entry.sessions:
-                sess_entry = {
-                    "position": s.position,
-                    "training_type": s.training_type,
-                }
-                if s.run_details:
-                    sess_entry["run_type"] = s.run_details.run_type
-                    sess_entry["run_details"] = s.run_details.model_dump()
-                if s.notes:
-                    sess_entry["notes"] = s.notes
-                sessions_data.append(sess_entry)
+            _, entries = weekly_data[week_idx]
+            week_template = _entries_to_template_dict(entries)
+            phase_weeks[str(week_num - phase.start_week + 1)] = week_template
+            if shared_template is None:
+                shared_template = week_template
 
-            template_days.append(
-                {
-                    "day_of_week": entry.day_of_week,
-                    "is_rest_day": entry.is_rest_day,
-                    "sessions": sessions_data,
-                }
-            )
+        if phase_weeks:
+            phase.weekly_templates_json = json.dumps({"weeks": phase_weeks})
+        if shared_template:
+            phase.weekly_template_json = json.dumps(shared_template)
 
-        # Fehlende Tage auffüllen (auf 7 Tage)
-        existing_days = {d["day_of_week"] for d in template_days}
-        for dow in range(7):
-            if dow not in existing_days:
-                template_days.append({"day_of_week": dow, "is_rest_day": True, "sessions": []})
-        template_days.sort(key=lambda d: d["day_of_week"])
-
-        phase.weekly_template_json = json.dumps({"days": template_days})
     await db.flush()
+
+
+def _entries_to_template_dict(entries: list) -> dict:
+    """Konvertiert generierte WeeklyPlanEntry-Liste in ein Template-Dict."""
+    template_days = []
+    for entry in sorted(entries, key=lambda e: e.day_of_week):
+        sessions_data = []
+        for s in entry.sessions:
+            sess_entry: dict = {
+                "position": s.position,
+                "training_type": s.training_type,
+            }
+            if s.run_details:
+                sess_entry["run_type"] = s.run_details.run_type
+                sess_entry["run_details"] = s.run_details.model_dump()
+            if s.notes:
+                sess_entry["notes"] = s.notes
+            if s.exercises:
+                sess_entry["exercises"] = [e.model_dump() for e in s.exercises]
+            sessions_data.append(sess_entry)
+
+        template_days.append(
+            {
+                "day_of_week": entry.day_of_week,
+                "is_rest_day": entry.is_rest_day,
+                "sessions": sessions_data,
+                **({"notes": entry.notes} if entry.notes else {}),
+            }
+        )
+
+    # Fehlende Tage auffüllen (auf 7 Tage)
+    existing_days = {d["day_of_week"] for d in template_days}
+    for dow in range(7):
+        if dow not in existing_days:
+            template_days.append({"day_of_week": dow, "is_rest_day": True, "sessions": []})
+    template_days.sort(key=lambda d: d["day_of_week"])
+
+    return {"days": template_days}
 
 
 async def _remove_overlapping_weekly_plans(
