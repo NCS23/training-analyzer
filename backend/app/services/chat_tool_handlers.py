@@ -1029,7 +1029,68 @@ async def _generate_and_save_weekly_plans(
                 )
                 db.add(ps)
         weeks_generated += 1
+
+    # Phasen-Templates aus den generierten Daten ableiten
+    await _backfill_phase_templates(db, db_phases, weekly_data)
+
     return weeks_generated
+
+
+async def _backfill_phase_templates(
+    db: AsyncSession,
+    phases: list[TrainingPhaseModel],
+    weekly_data: list[tuple[date, list]],
+) -> None:
+    """Schreibt weekly_template_json in Phasen aus den generierten Daten.
+
+    Nimmt die erste Woche jeder Phase und wandelt sie in ein
+    PhaseWeeklyTemplate (7-Tage-Vorlage) um.
+    """
+    if not phases or not weekly_data:
+        return
+
+    for phase in phases:
+        if phase.weekly_template_json:
+            continue  # Phase hat schon ein Template
+
+        # Erste Woche der Phase finden
+        first_week_idx = phase.start_week - 1  # 0-indexed
+        if first_week_idx >= len(weekly_data):
+            continue
+
+        _, entries = weekly_data[first_week_idx]
+        template_days = []
+        for entry in sorted(entries, key=lambda e: e.day_of_week):
+            sessions_data = []
+            for s in entry.sessions:
+                sess_entry = {
+                    "position": s.position,
+                    "training_type": s.training_type,
+                }
+                if s.run_details:
+                    sess_entry["run_type"] = s.run_details.run_type
+                    sess_entry["run_details"] = s.run_details.model_dump()
+                if s.notes:
+                    sess_entry["notes"] = s.notes
+                sessions_data.append(sess_entry)
+
+            template_days.append(
+                {
+                    "day_of_week": entry.day_of_week,
+                    "is_rest_day": entry.is_rest_day,
+                    "sessions": sessions_data,
+                }
+            )
+
+        # Fehlende Tage auffüllen (auf 7 Tage)
+        existing_days = {d["day_of_week"] for d in template_days}
+        for dow in range(7):
+            if dow not in existing_days:
+                template_days.append({"day_of_week": dow, "is_rest_day": True, "sessions": []})
+        template_days.sort(key=lambda d: d["day_of_week"])
+
+        phase.weekly_template_json = json.dumps({"days": template_days})
+    await db.flush()
 
 
 async def _remove_overlapping_weekly_plans(
