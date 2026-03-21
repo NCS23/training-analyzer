@@ -17,7 +17,7 @@ const SEGMENT_OPTIONS = SEGMENT_TYPES.map((key) => ({
 }));
 
 /** Segment types that show the exercise picker. */
-const EXERCISE_SEGMENT_TYPES = new Set<string>(['drills', 'strides']);
+const EXERCISE_SEGMENT_TYPES = new Set<string>(['drills']);
 
 type TargetMode = 'duration' | 'distance';
 
