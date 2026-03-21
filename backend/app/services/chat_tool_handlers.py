@@ -776,16 +776,24 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
         distance_km=_parse_goal_distance(goal_text),
         ki_phase_templates=ki_phase_templates,
     )
-    weeks_generated = await _generate_and_save_weekly_plans(
-        db,
-        plan.id,
-        rest_days,
-    )
+    try:
+        weeks_generated = await _generate_and_save_weekly_plans(
+            db,
+            plan.id,
+            rest_days,
+        )
+    except Exception:
+        logger.exception("Wochenpläne-Generierung fehlgeschlagen für Plan %d", plan.id)
+        weeks_generated = 0
 
-    # Fehlende Übungen automatisch anlegen
-    exercises_created = await _ensure_exercises_exist(db, plan.id)
-    if exercises_created:
-        logger.info("%d Übungen automatisch angelegt für Plan %d", exercises_created, plan.id)
+    # Fehlende Übungen automatisch anlegen (darf Planerstellung nicht blockieren)
+    exercises_created = 0
+    try:
+        exercises_created = await _ensure_exercises_exist(db, plan.id)
+        if exercises_created:
+            logger.info("%d Übungen automatisch angelegt für Plan %d", exercises_created, plan.id)
+    except Exception as e:
+        logger.warning("Übungs-Auto-Erstellung fehlgeschlagen (Plan %d): %s", plan.id, e)
 
     changelog = PlanChangeLogModel(
         plan_id=plan.id,
@@ -863,7 +871,7 @@ def _extract_rest_days(ki_phase_templates: list[dict]) -> list[int]:
         return [0, 6]
     first_tpl = ki_phase_templates[0]
     days = first_tpl.get("days", [])
-    rest = [d["day_of_week"] for d in days if d.get("is_rest_day")]
+    rest = [d.get("day_of_week", 0) for d in days if d.get("is_rest_day")]
     return rest if rest else [0, 6]
 
 
@@ -1602,14 +1610,18 @@ async def _ensure_exercises_exist(db: AsyncSession, plan_id: int) -> int:
 
     created = 0
     for name in sorted(missing_names):
-        category = _EXERCISE_CATEGORY_HINTS.get(name, "drills")
-        model = ExerciseModel(name=name, category=category, is_custom=False, is_favorite=False)
-        enrichment = _DRILL_ENRICHMENT.get(name) or enrich_exercise_model(name)
-        if enrichment:
-            _apply_enrichment(model, enrichment)
-        db.add(model)
-        created += 1
-        logger.info("Übung auto-erstellt: %s (Kategorie: %s)", name, category)
+        try:
+            category = _EXERCISE_CATEGORY_HINTS.get(name, "drills")
+            model = ExerciseModel(name=name, category=category, is_custom=False, is_favorite=False)
+            enrichment = _DRILL_ENRICHMENT.get(name) or enrich_exercise_model(name)
+            if enrichment:
+                _apply_enrichment(model, enrichment)
+            db.add(model)
+            created += 1
+            logger.info("Übung auto-erstellt: %s (Kategorie: %s)", name, category)
+        except Exception as e:
+            logger.warning("Übung '%s' konnte nicht angelegt werden: %s", name, e)
 
-    await db.flush()
+    if created:
+        await db.flush()
     return created
