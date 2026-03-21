@@ -77,6 +77,12 @@ PACE_MULTIPLIERS: dict[str, tuple[float, float]] = {
 # Volume share per run type (as fraction of remaining volume after long run).
 QUALITY_VOLUME_PCT = 0.22  # Each quality session gets ~22% of non-long-run volume
 
+# Duration guardrails (minutes) — based on Daniels/Pfitzinger/Fitzgerald.
+# Easy runs should not exceed 60 min (beyond that it's a long run).
+# Long runs should be at least 60 min to deliver aerobic adaptations.
+EASY_MAX_DURATION_MIN = 60.0
+LONG_RUN_MIN_DURATION_MIN = 60.0
+
 
 # --- Helpers ---
 
@@ -230,6 +236,13 @@ def _build_run_details(
     elif distance_km > 0:
         # No goal: estimate ~6:30/km average
         duration_minutes = float(_round_to_5(distance_km * 390.0 / 60.0))
+
+    # Guardrails: easy runs max 60 min, long runs min 60 min
+    if duration_minutes is not None:
+        if run_type in ("easy", "recovery"):
+            duration_minutes = min(duration_minutes, EASY_MAX_DURATION_MIN)
+        elif run_type == "long_run":
+            duration_minutes = max(duration_minutes, LONG_RUN_MIN_DURATION_MIN)
 
     return RunDetails(
         run_type=run_type,
@@ -1147,6 +1160,23 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
                 quality_total_km = quality_km_each * len(quality_sessions)
                 easy_total_km = remaining_km - quality_total_km
                 easy_km_each = easy_total_km / len(easy_sessions) if easy_sessions else 0.0
+
+                # Enforce duration guardrails on distance allocation.
+                # Estimate avg pace for km → min conversion (6:30/km fallback).
+                avg_sec_per_km = 390.0
+                if race_pace:
+                    easy_mults = PACE_MULTIPLIERS["easy"]
+                    avg_sec_per_km = race_pace * (easy_mults[0] + easy_mults[1]) / 2.0
+
+                # Cap easy run distance so duration stays ≤ 60 min
+                easy_max_km = EASY_MAX_DURATION_MIN * 60.0 / avg_sec_per_km
+                easy_km_each = min(easy_km_each, easy_max_km)
+
+                # Ensure long run distance gives at least 60 min
+                lr_mults = PACE_MULTIPLIERS["long_run"]
+                lr_avg_sec = race_pace * (lr_mults[0] + lr_mults[1]) / 2.0 if race_pace else 390.0
+                long_run_min_km = LONG_RUN_MIN_DURATION_MIN * 60.0 / lr_avg_sec
+                long_run_km = max(long_run_km, long_run_min_km)
 
                 for sess in running_sessions:
                     if sess.run_details is None:
