@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   CardHeader,
@@ -11,13 +11,16 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { Activity, Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Activity, Plus, TrendingUp, TrendingDown, Minus, Upload, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   listThresholdTests,
   createThresholdTest,
+  analyzeFitFile,
+  downloadTestProtocol,
   type ThresholdTest,
   type ThresholdTestCreate,
+  type ThresholdAnalysis,
 } from '@/api/threshold-tests';
 import type { KarvonenZone } from '@/api/athlete';
 
@@ -167,6 +170,201 @@ function ManualEntryForm({ onSave, saving }: ManualEntryFormProps) {
   );
 }
 
+// --- FIT Import Flow ---
+
+function AnalysisPreview({
+  analysis,
+  saving,
+  onConfirm,
+  onReset,
+}: {
+  analysis: ThresholdAnalysis;
+  saving: boolean;
+  onConfirm: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-[var(--color-bg-surface-alt)] rounded-[var(--radius-component-sm)] p-3 space-y-2">
+        <h5 className="text-xs font-semibold text-[var(--color-text-base)]">Analyse-Ergebnis</h5>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span className="text-[var(--color-text-muted)]">LTHR</span>
+            <p className="font-semibold text-[var(--color-text-primary)]">{analysis.lthr} bpm</p>
+          </div>
+          <div>
+            <span className="text-[var(--color-text-muted)]">Max-HF</span>
+            <p className="font-semibold text-[var(--color-text-base)]">
+              {analysis.max_hr_measured} bpm
+            </p>
+          </div>
+          <div>
+            <span className="text-[var(--color-text-muted)]">Dauer</span>
+            <p className="font-medium text-[var(--color-text-base)]">
+              {analysis.duration_minutes} Min
+            </p>
+          </div>
+          <div>
+            <span className="text-[var(--color-text-muted)]">HR-Samples</span>
+            <p className="font-medium text-[var(--color-text-base)]">{analysis.hr_sample_count}</p>
+          </div>
+        </div>
+        {analysis.friel_zones.length > 0 && (
+          <div className="pt-2 space-y-1">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
+              Berechnete Friel-Zonen
+            </span>
+            {analysis.friel_zones.map((z) => (
+              <ZoneRow key={z.zone} zone={z} />
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant="primary"
+          size="sm"
+          className="flex-1"
+          onClick={onConfirm}
+          disabled={saving}
+        >
+          {saving ? <Spinner size="sm" aria-hidden="true" /> : 'Übernehmen'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onReset} disabled={saving}>
+          Verwerfen
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface FitImportFlowProps {
+  onSave: (data: ThresholdTestCreate) => Promise<void>;
+  saving: boolean;
+}
+
+function FitImportFlow({ onSave, saving }: FitImportFlowProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<ThresholdAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAnalyzing(true);
+    setError(null);
+    setAnalysis(null);
+    try {
+      setAnalysis(await analyzeFitFile(file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'FIT-Datei konnte nicht analysiert werden');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!analysis) return;
+    await onSave({
+      test_date: new Date().toISOString().split('T')[0],
+      lthr: analysis.lthr,
+      max_hr_measured: analysis.max_hr_measured,
+      notes: `FIT-Import · ${analysis.duration_minutes} Min · ${analysis.hr_sample_count} HR-Samples`,
+    });
+    setAnalysis(null);
+  };
+
+  const handleReset = () => {
+    setAnalysis(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-3 pt-3 border-t border-[var(--color-border-default)]">
+      <h4 className="text-xs font-semibold text-[var(--color-text-base)]">FIT-Datei importieren</h4>
+
+      {!analysis && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".fit"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={analyzing}
+          >
+            {analyzing ? (
+              <Spinner size="sm" aria-hidden="true" />
+            ) : (
+              <>
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                FIT-Datei auswählen
+              </>
+            )}
+          </Button>
+        </>
+      )}
+
+      {error && (
+        <Alert variant="error" closeable onClose={() => setError(null)}>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {analysis && (
+        <AnalysisPreview
+          analysis={analysis}
+          saving={saving}
+          onConfirm={handleConfirm}
+          onReset={handleReset}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Protocol Download ---
+
+function ProtocolDownloadButton() {
+  const { toast } = useToast();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadTestProtocol();
+      toast({ title: 'Testprotokoll heruntergeladen', variant: 'success' });
+    } catch {
+      toast({ title: 'Download fehlgeschlagen', variant: 'error' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Button variant="ghost" size="sm" onClick={handleDownload} disabled={downloading}>
+      {downloading ? (
+        <Spinner size="sm" aria-hidden="true" />
+      ) : (
+        <>
+          <Download className="w-3.5 h-3.5 mr-1" />
+          Testprotokoll für Uhr
+        </>
+      )}
+    </Button>
+  );
+}
+
+// --- Chart & Delta ---
+
 function calcTestAge(testDate: string): { days: number; label: string; color: string } {
   const diff = Math.floor((Date.now() - new Date(testDate).getTime()) / (24 * 60 * 60 * 1000));
   const weeks = Math.floor(diff / 7);
@@ -271,6 +469,8 @@ function LthrTrendChart({ tests }: { tests: ThresholdTest[] }) {
   );
 }
 
+// --- Result & Empty Views ---
+
 function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: ThresholdTest[] }) {
   const age = calcTestAge(latest.test_date);
   const previousTest = tests.length > 1 ? tests[1] : null;
@@ -329,6 +529,9 @@ function EmptyTestState() {
           Empfehlung: Alle 6–8 Wochen wiederholen.
         </p>
       </div>
+      <div className="mt-3">
+        <ProtocolDownloadButton />
+      </div>
     </div>
   );
 }
@@ -376,14 +579,16 @@ function useThresholdTests() {
 
 // --- Main Component ---
 
+type InputMode = 'none' | 'manual' | 'fit';
+
 export function ThresholdTestCard() {
   const { tests, loading, saving, saveTest } = useThresholdTests();
-  const [showForm, setShowForm] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>('none');
   const latestTest = tests[0] ?? null;
 
   const handleSave = async (data: ThresholdTestCreate) => {
     const ok = await saveTest(data);
-    if (ok) setShowForm(false);
+    if (ok) setInputMode('none');
   };
 
   if (loading) {
@@ -406,17 +611,29 @@ export function ThresholdTestCard() {
               Laktatschwelle (LTHR)
             </h2>
           </div>
-          {!showForm && (
-            <Button variant="ghost" size="sm" onClick={() => setShowForm(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Test eintragen
-            </Button>
+          {inputMode === 'none' && (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setInputMode('fit')}>
+                <Upload className="w-3.5 h-3.5 mr-1" />
+                FIT importieren
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setInputMode('manual')}>
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Manuell
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
       <CardBody>
         {latestTest ? <TestResultView latest={latestTest} tests={tests} /> : <EmptyTestState />}
-        {showForm && <ManualEntryForm onSave={handleSave} saving={saving} />}
+        {inputMode === 'manual' && <ManualEntryForm onSave={handleSave} saving={saving} />}
+        {inputMode === 'fit' && <FitImportFlow onSave={handleSave} saving={saving} />}
+        {latestTest && inputMode === 'none' && (
+          <div className="pt-3 border-t border-[var(--color-border-default)]">
+            <ProtocolDownloadButton />
+          </div>
+        )}
       </CardBody>
     </Card>
   );
