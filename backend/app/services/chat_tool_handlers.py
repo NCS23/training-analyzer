@@ -8,7 +8,7 @@ import json
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
@@ -745,13 +745,6 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     race_date = _parse_date_safe(race_date_str)
     goal_id = await _create_race_goal(db, goal_text, race_date)
 
-    # Bisherige aktive Pläne auf "archived" setzen
-    await db.execute(
-        update(TrainingPlanModel)
-        .where(TrainingPlanModel.status == "active")
-        .values(status="archived")
-    )
-
     rest_days = [0, 6]
     plan = await _create_plan_model(
         db,
@@ -793,9 +786,11 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     db.add(changelog)
     await db.commit()
 
+    plan_status = str(plan.status)
     plan_data = {
         "plan_id": plan.id,
         "plan_name": goal_text,
+        "status": plan_status,
         "weeks": weeks,
         "weeks_generated": weeks_generated,
         "phases": phases_created,
@@ -806,11 +801,17 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
 
     plan_block = f"```plan-created\n{json.dumps(plan_data)}\n```"
 
+    draft_hint = (
+        " Der Plan wurde als Entwurf erstellt, da bereits ein aktiver Plan existiert. "
+        "Weise den User darauf hin, dass er den Plan unter Plandetails aktivieren kann."
+        if plan_status == "draft"
+        else ""
+    )
+
     return {
         **plan_data,
-        "status": "active",
         "instruction": (
-            "Der Plan wurde erfolgreich erstellt und ist sofort aktiv. "
+            f"Der Plan wurde erfolgreich erstellt (Status: {plan_status}).{draft_hint} "
             "Fasse den Plan kurz zusammen (Wochen, Phasen, Zeitraum). "
             "Bette dann GENAU diesen Block in deine Antwort ein, damit "
             "der User direkt zum Plan navigieren kann:\n\n"
@@ -859,7 +860,30 @@ async def _create_plan_model(
     rest_days: list[int],
     today: date,
 ) -> TrainingPlanModel:
-    """Erstellt das TrainingPlan-Modell in der DB."""
+    """Erstellt das TrainingPlan-Modell in der DB.
+
+    Abgelaufene aktive Pläne werden auf "completed" gesetzt.
+    Status wird nur auf "active" gesetzt wenn kein anderer aktiver Plan existiert,
+    sonst "draft".
+    """
+    # Abgelaufene aktive Pläne automatisch auf "completed" setzen
+    from sqlalchemy import update
+
+    await db.execute(
+        update(TrainingPlanModel)
+        .where(
+            TrainingPlanModel.status == "active",
+            TrainingPlanModel.end_date < today,
+        )
+        .values(status="completed")
+    )
+
+    active_count = await db.execute(
+        select(func.count(TrainingPlanModel.id)).where(TrainingPlanModel.status == "active")
+    )
+    has_active = (active_count.scalar() or 0) > 0
+    status = "draft" if has_active else "active"
+
     plan = TrainingPlanModel(
         name=goal_text,
         description=f"Generiert per KI-Chat am {today.strftime('%d.%m.%Y')}",
@@ -868,7 +892,7 @@ async def _create_plan_model(
         end_date=end_date,
         target_event_date=race_date,
         weekly_structure_json=json.dumps({"rest_days": rest_days}),
-        status="active",
+        status=status,
     )
     db.add(plan)
     await db.flush()

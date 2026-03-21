@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { CalendarCheck, ChevronRight } from 'lucide-react';
+import { CalendarPlus, ChevronRight } from 'lucide-react';
 import { Button } from '@nordlig/components';
 
 export interface PlanCreatedInfo {
   plan_id: number;
   plan_name: string;
+  status?: string;
   weeks: number;
   weeks_generated: number;
   phases: number;
@@ -30,16 +31,25 @@ function formatDate(dateStr: string): string {
 }
 
 export function PlanCreatedCard({ plan }: PlanCreatedCardProps) {
+  const isDraft = plan.status === 'draft';
+
   return (
-    <div className="my-2 rounded-[var(--radius-md)] border border-[var(--color-border-success)] bg-[var(--color-bg-success-subtle)] p-4 space-y-3">
+    <div className="my-2 rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-[var(--color-bg-success-subtle)] flex items-center justify-center">
-          <CalendarCheck className="w-4 h-4 text-[var(--color-text-success)]" />
+        <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary-subtle)] flex items-center justify-center">
+          <CalendarPlus className="w-4 h-4 text-[var(--color-text-primary)]" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-[var(--color-text-base)]">
-            Trainingsplan erstellt
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-[var(--color-text-base)]">
+              Trainingsplan erstellt
+            </p>
+            {isDraft && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--color-bg-warning-subtle)] text-[var(--color-text-warning)]">
+                Entwurf
+              </span>
+            )}
+          </div>
           <p className="text-xs text-[var(--color-text-muted)]">{plan.plan_name}</p>
         </div>
       </div>
@@ -68,17 +78,19 @@ export function PlanCreatedCard({ plan }: PlanCreatedCardProps) {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Link to="/plan">
+        <Link to={`/plan/programs/${plan.plan_id}`}>
           <Button variant="primary" size="sm" className="!text-xs !px-3 !py-1.5 !min-h-0">
-            Zum Wochenplan
+            {isDraft ? 'Plan ansehen' : 'Zum Wochenplan'}
             <ChevronRight className="w-3 h-3 ml-1" />
           </Button>
         </Link>
-        <Link to={`/plan/programs/${plan.plan_id}`}>
-          <Button variant="ghost" size="sm" className="!text-xs !px-3 !py-1.5 !min-h-0">
-            Plandetails
-          </Button>
-        </Link>
+        {!isDraft && (
+          <Link to="/plan">
+            <Button variant="ghost" size="sm" className="!text-xs !px-3 !py-1.5 !min-h-0">
+              Wochenplan
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );
