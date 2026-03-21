@@ -404,14 +404,45 @@ _INTERVAL_PROGRESSION = [
 # Tempo progression: (tempo_minutes,)
 _TEMPO_PROGRESSION = [15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
 
-# Easy run extras: (segment_type, notes)
-_EASY_EXTRAS = [
+# Easy run extras: None = plain easy run, list[tuple] = extra segments to append
+_EASY_EXTRAS: list[list[tuple[str, float, int, float | None, str | None]] | None] = [
+    # (segment_type, duration_min, repeats, target_distance_km, exercise_name)
     None,
-    ("strides", "4×100m Steigerungsläufe"),
-    ("drills", "10 Min. Lauf-ABC: Skippings, Anfersen, Kniehebelauf"),
+    # Steigerungsläufe Set A
+    [
+        ("strides", 0.5, 4, 0.1, "Steigerungslauf 100m"),
+        ("recovery_jog", 1.0, 3, None, None),
+    ],
+    # Lauf-ABC Set A: individuelle Übungen
+    [
+        ("drills", 2.0, 1, None, "Skippings"),
+        ("drills", 2.0, 1, None, "Anfersen"),
+        ("drills", 2.0, 1, None, "Kniehebelauf"),
+        ("drills", 2.0, 1, None, "Hopserlauf"),
+    ],
     None,
-    ("strides", "5×80m Steigerungsläufe + Koordination"),
-    ("drills", "10 Min. Lauf-ABC: Seitgalopp, Überkreuzlauf, Hopserlauf"),
+    # Steigerungsläufe Set B
+    [
+        ("strides", 0.5, 5, 0.08, "Steigerungslauf 80m"),
+        ("recovery_jog", 1.0, 4, None, None),
+    ],
+    # Lauf-ABC Set B: andere Übungen
+    [
+        ("drills", 2.0, 1, None, "Seitgalopp"),
+        ("drills", 2.0, 1, None, "Überkreuzlauf"),
+        ("drills", 2.0, 1, None, "Kniehebelauf"),
+        ("drills", 2.0, 1, None, "Koordinationsleiter"),
+    ],
+]
+
+# Fartlek progressions: (fast_dur_min, slow_dur_min, repeats)
+_FARTLEK_PROGRESSION = [
+    (1.0, 2.0, 5),  # 5× (1' schnell / 2' locker)
+    (1.5, 1.5, 6),  # 6× (1.5' schnell / 1.5' locker)
+    (2.0, 1.5, 5),  # 5× (2' schnell / 1.5' locker)
+    (2.0, 1.0, 6),  # 6× (2' schnell / 1' locker)
+    (3.0, 2.0, 4),  # 4× (3' schnell / 2' locker)
+    (3.0, 1.5, 5),  # 5× (3' schnell / 1.5' locker)
 ]
 
 
@@ -453,7 +484,9 @@ def _enrich_sessions_for_week(
             elif rt == "tempo":
                 _enrich_tempo_segments(sess, week_in_phase, phase_type, race_pace)
             elif rt == "progression":
-                _enrich_progression_segments(sess, race_pace)
+                _enrich_progression_segments(sess, week_in_phase, race_pace)
+            elif rt == "fartlek":
+                _enrich_fartlek_segments(sess, week_in_phase, race_pace)
 
 
 def _enrich_easy_segments(
@@ -462,32 +495,50 @@ def _enrich_easy_segments(
     easy_idx: int,
     _race_pace: float | None,
 ) -> None:
-    """Fügt Easy Runs rotierende Extras hinzu (Strides, Drills als Segmente)."""
+    """Fügt Easy Runs rotierende Extras hinzu (Strides, Drills als Segmente).
+
+    Jede Übung/Steigerung wird als eigenes Segment angelegt, damit die
+    Laufuhr den Athleten Schritt für Schritt durchführen kann.
+    """
     rotation_idx = (week_in_phase * 3 + easy_idx) % len(_EASY_EXTRAS)
-    extra = _EASY_EXTRAS[rotation_idx]
-    if not extra:
+    extras = _EASY_EXTRAS[rotation_idx]
+    if not extras:
         return
 
-    seg_type, note = extra
     rd = sess.run_details
     if not rd or not rd.segments:
         return
 
-    # Hauptsegment kürzen, Extra-Segment anhängen
+    # Gesamtdauer der Extras berechnen
+    extra_total = sum(dur * reps for _, dur, reps, _, _ in extras)
     main_seg = rd.segments[0]
     main_dur = main_seg.target_duration_minutes or 30.0
-    extra_dur = 10.0 if seg_type == "drills" else 5.0
-    main_seg.target_duration_minutes = max(15.0, main_dur - extra_dur)
+    main_seg.target_duration_minutes = max(15.0, main_dur - extra_total)
 
-    rd.segments.append(
-        Segment(
-            position=len(rd.segments),
-            segment_type=seg_type,
-            target_duration_minutes=extra_dur,
-            notes=note,
+    # Jede Übung als eigenes Segment
+    pos = 1
+    note_parts = []
+    for seg_type, dur, reps, dist_km, exercise in extras:
+        rd.segments.append(
+            Segment(
+                position=pos,
+                segment_type=seg_type,
+                target_duration_minutes=dur,
+                target_distance_km=dist_km,
+                repeats=reps,
+                exercise_name=exercise,
+            )
         )
-    )
-    sess.notes = note
+        pos += 1
+        if exercise:
+            if reps > 1 and dist_km:
+                note_parts.append(f"{reps}×{int(dist_km * 1000)}m {exercise}")
+            elif reps > 1:
+                note_parts.append(f"{reps}× {exercise}")
+            else:
+                note_parts.append(exercise)
+
+    sess.notes = ", ".join(note_parts) if note_parts else None
 
 
 def _enrich_long_run_segments(
@@ -497,7 +548,7 @@ def _enrich_long_run_segments(
     weekly_volume: float | None,
     race_pace: float | None,
 ) -> None:
-    """Macht Long Runs progressiv: ab Build-Phase mit Race-Pace-Abschnitten."""
+    """Macht Long Runs progressiv: Warmup + Steady + ggf. Race-Pace + Cooldown."""
     rd = sess.run_details
     if not rd or not rd.segments:
         return
@@ -505,37 +556,81 @@ def _enrich_long_run_segments(
     total_dur = rd.segments[0].target_duration_minutes or 60.0
     long_dist = round(weekly_volume * 0.30, 1) if weekly_volume else 12.0
 
+    easy_mults = PACE_MULTIPLIERS["long_run"]
+    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0]) if race_pace else None
+    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1]) if race_pace else None
+
+    warmup_dur = 10.0
+    cooldown_dur = 5.0
+    main_dur = max(20.0, total_dur - warmup_dur - cooldown_dur)
+
     if phase_type in ("build", "peak") and race_pace:
         # Race-Pace-Abschnitt am Ende (progressiv länger)
         rp_fraction = min(0.15 + week_in_phase * 0.05, 0.40)
-        rp_dur = round(total_dur * rp_fraction / 5) * 5
-        easy_dur = total_dur - rp_dur
+        rp_dur = round(main_dur * rp_fraction / 5) * 5
+        steady_dur = main_dur - rp_dur
         rp_pace_min = _seconds_to_pace(race_pace * 0.98)
         rp_pace_max = _seconds_to_pace(race_pace * 1.02)
-        easy_mults = PACE_MULTIPLIERS["long_run"]
-        easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
-        easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
 
         rd.segments = [
             Segment(
                 position=0,
-                segment_type="steady",
-                target_duration_minutes=easy_dur,
+                segment_type="warmup",
+                target_duration_minutes=warmup_dur,
                 target_pace_min=easy_pace_min,
                 target_pace_max=easy_pace_max,
             ),
             Segment(
                 position=1,
+                segment_type="steady",
+                target_duration_minutes=steady_dur,
+                target_distance_km=round(long_dist * (1 - rp_fraction), 1),
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
+            Segment(
+                position=2,
                 segment_type="work",
                 target_duration_minutes=rp_dur,
                 target_pace_min=rp_pace_min,
                 target_pace_max=rp_pace_max,
                 notes="Race Pace",
             ),
+            Segment(
+                position=3,
+                segment_type="cooldown",
+                target_duration_minutes=cooldown_dur,
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
         ]
-        sess.notes = f"~{long_dist:.0f} km. Letzte {rp_dur:.0f} Min. in Race Pace"
+        sess.notes = f"~{long_dist:.0f} km, davon {rp_dur:.0f} Min. Race Pace"
     else:
-        sess.notes = f"~{long_dist:.0f} km. Gleichmäßig, locker"
+        rd.segments = [
+            Segment(
+                position=0,
+                segment_type="warmup",
+                target_duration_minutes=warmup_dur,
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
+            Segment(
+                position=1,
+                segment_type="steady",
+                target_duration_minutes=main_dur,
+                target_distance_km=long_dist,
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
+            Segment(
+                position=2,
+                segment_type="cooldown",
+                target_duration_minutes=cooldown_dur,
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
+        ]
+        sess.notes = f"~{long_dist:.0f} km, gleichmäßig locker"
 
 
 def _enrich_interval_segments(
@@ -646,37 +741,152 @@ def _enrich_tempo_segments(
     sess.notes = f"{tempo_dur:.0f} Min. Tempodauerlauf"
 
 
-def _enrich_progression_segments(sess: PlannedSession, race_pace: float | None) -> None:
-    """Baut Progression-Segmente: Easy → Tempo (Negativsplit)."""
+def _enrich_progression_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    race_pace: float | None,
+) -> None:
+    """Baut Progression-Segmente: Warmup + 3 Tempostufen + Cooldown.
+
+    Jede Stufe wird schneller — die Uhr zeigt klare Pace-Ziele pro Abschnitt.
+    """
     rd = sess.run_details
     if not rd or not rd.segments or not race_pace:
         return
 
     total_dur = rd.segments[0].target_duration_minutes or 40.0
-    first_half = round(total_dur * 0.6 / 5) * 5
-    second_half = total_dur - first_half
+    warmup_dur = 10.0
+    cooldown_dur = 5.0
+    main_dur = max(15.0, total_dur - warmup_dur - cooldown_dur)
 
+    # Drei Stufen: locker → moderat → schnell (je 1/3)
+    step_dur = round(main_dur / 3 / 5) * 5 or 5.0
     easy_mults = PACE_MULTIPLIERS["easy"]
     prog_mults = PACE_MULTIPLIERS["progression"]
+
+    # Stufenweise schneller: 100% easy → 90% → Progression-Tempo
+    mid_factor_fast = easy_mults[0] * 0.95
+    mid_factor_slow = easy_mults[1] * 0.95
+
+    # Progression wird mit Wochen etwas aggressiver
+    fast_factor = max(prog_mults[0] - week_in_phase * 0.01, 0.90)
 
     rd.segments = [
         Segment(
             position=0,
-            segment_type="steady",
-            target_duration_minutes=first_half,
+            segment_type="warmup",
+            target_duration_minutes=warmup_dur,
             target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
             target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
         ),
         Segment(
             position=1,
+            segment_type="steady",
+            target_duration_minutes=step_dur,
+            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
+            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
+            notes="Locker einlaufen",
+        ),
+        Segment(
+            position=2,
+            segment_type="steady",
+            target_duration_minutes=step_dur,
+            target_pace_min=_seconds_to_pace(race_pace * mid_factor_fast),
+            target_pace_max=_seconds_to_pace(race_pace * mid_factor_slow),
+            notes="Moderate Steigerung",
+        ),
+        Segment(
+            position=3,
             segment_type="work",
-            target_duration_minutes=second_half,
-            target_pace_min=_seconds_to_pace(race_pace * prog_mults[0]),
+            target_duration_minutes=step_dur,
+            target_pace_min=_seconds_to_pace(race_pace * fast_factor),
             target_pace_max=_seconds_to_pace(race_pace * prog_mults[1]),
-            notes="Progressiv schneller werden",
+            notes="Zügig, nahe HM-Pace",
+        ),
+        Segment(
+            position=4,
+            segment_type="cooldown",
+            target_duration_minutes=cooldown_dur,
+            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
+            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
         ),
     ]
-    sess.notes = "Negativsplit: letzte 40% schneller"
+    sess.notes = f"Progressionslauf: 3 Stufen à {step_dur:.0f} Min."
+
+
+def _enrich_fartlek_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    race_pace: float | None,
+) -> None:
+    """Baut Fartlek-Segmente: Warmup + alternierende schnell/locker Abschnitte + Cooldown.
+
+    Jeder Tempowechsel wird als eigenes Segment angelegt, damit die Uhr
+    den Athleten durch jeden Abschnitt führen kann.
+    """
+    rd = sess.run_details
+    if not rd or not rd.segments or not race_pace:
+        return
+
+    idx = min(week_in_phase, len(_FARTLEK_PROGRESSION) - 1)
+    fast_dur, slow_dur, repeats = _FARTLEK_PROGRESSION[idx]
+
+    easy_mults = PACE_MULTIPLIERS["easy"]
+    # Fartlek-Tempo: zwischen Tempo und Intervall-Pace
+    fast_pace_min = _seconds_to_pace(race_pace * 0.92)
+    fast_pace_max = _seconds_to_pace(race_pace * 1.02)
+    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
+    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+
+    segments: list[Segment] = [
+        Segment(
+            position=0,
+            segment_type="warmup",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+    ]
+
+    pos = 1
+    for i in range(repeats):
+        segments.append(
+            Segment(
+                position=pos,
+                segment_type="work",
+                target_duration_minutes=fast_dur,
+                target_pace_min=fast_pace_min,
+                target_pace_max=fast_pace_max,
+                notes=f"Schnell ({i + 1}/{repeats})",
+            )
+        )
+        pos += 1
+        # Recovery nach jedem schnellen Abschnitt (außer dem letzten)
+        if i < repeats - 1:
+            segments.append(
+                Segment(
+                    position=pos,
+                    segment_type="recovery_jog",
+                    target_duration_minutes=slow_dur,
+                    target_pace_min=easy_pace_min,
+                    target_pace_max=easy_pace_max,
+                )
+            )
+            pos += 1
+
+    segments.append(
+        Segment(
+            position=pos,
+            segment_type="cooldown",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        )
+    )
+
+    rd.segments = segments
+    sess.run_details = RunDetails(run_type="fartlek", segments=segments)
+    sess.notes = f"{repeats}× ({fast_dur:.0f}' schnell / {slow_dur:.0f}' locker)"
 
 
 def _insert_race_day(
