@@ -1020,14 +1020,50 @@ def _estimate_peak_volume(distance_km: float, current_km: float) -> float:
     return max(target_peak, current_km * 1.3)
 
 
-# Mapping: phase_type → (deutscher Name, default Strength-Sessions, Quality-Sessions)
-_PHASE_META: dict[str, tuple[str, int, int]] = {
-    "recovery": ("Erholung", 0, 0),
-    "base": ("Grundlagen", 2, 0),
-    "build": ("Aufbau", 1, 1),
-    "peak": ("Spitze", 1, 2),
-    "taper": ("Tapering", 0, 1),
-    "transition": ("Übergang", 1, 0),
+# Mapping: phase_type → (Name, Strength-Sessions, Quality-Sessions, Focus-Primary, Focus-Secondary)
+_PHASE_META: dict[str, tuple[str, int, int, list[str], list[str]]] = {
+    "recovery": (
+        "Erholung",
+        0,
+        0,
+        ["Regeneration", "Aktive Erholung"],
+        ["Mobilität", "Verletzungsprävention"],
+    ),
+    "base": (
+        "Grundlagen",
+        2,
+        0,
+        ["Aerobe Grundlagenausdauer", "Lauftechnik"],
+        ["Kraftaufbau", "Beweglichkeit", "Lauf-ABC"],
+    ),
+    "build": (
+        "Aufbau",
+        1,
+        1,
+        ["Tempohärte", "Laktatschwelle"],
+        ["Wettkampfspezifik", "Kraftausdauer"],
+    ),
+    "peak": (
+        "Spitze",
+        1,
+        2,
+        ["Wettkampftempo", "VO2max"],
+        ["Intervalltraining", "Schnellkraft"],
+    ),
+    "taper": (
+        "Tapering",
+        0,
+        1,
+        ["Frische", "Wettkampfvorbereitung"],
+        ["Intensität erhalten", "Volumen reduzieren"],
+    ),
+    "transition": (
+        "Übergang",
+        1,
+        0,
+        ["Allgemeine Fitness", "Regeneration"],
+        ["Koordination", "Ausgleichssport"],
+    ),
 }
 
 # Volumen-Faktor relativ zum Peak-Volumen pro Phase-Typ
@@ -1081,7 +1117,7 @@ def _phases_from_ki_templates(
     for tpl in templates:
         ptype = tpl.get("phase_type", "base")
         w = tpl.get("weeks", 2)
-        meta = _PHASE_META.get(ptype, ("Phase", 1, 0))
+        meta = _PHASE_META.get(ptype, ("Phase", 1, 0, ["Training"], []))
         vol_factor = _VOLUME_FACTORS.get(ptype, 0.6)
         vol = max(current_km * 0.5, peak_vol * vol_factor)
 
@@ -1101,6 +1137,8 @@ def _phases_from_ki_templates(
                 "sessions": sess,
                 "strength": meta[1],
                 "quality": meta[2],
+                "focus_primary": meta[3],
+                "focus_secondary": meta[4] if len(meta) > 4 else [],
             }
         )
         current_week += w
@@ -1119,6 +1157,12 @@ def _phases_default_distribution(
     peak_w = max(1, round(total_weeks * 0.15))
     base_vol = max(current_km, peak_vol * 0.6)
 
+    def _focus(ptype: str) -> tuple[list[str], list[str]]:
+        meta = _PHASE_META.get(ptype)
+        if meta and len(meta) > 3:
+            return (meta[3], meta[4] if len(meta) > 4 else [])
+        return (["Training"], [])
+
     return [
         {
             "name": "Grundlagen",
@@ -1129,6 +1173,8 @@ def _phases_default_distribution(
             "sessions": sessions_per_week,
             "strength": 2,
             "quality": 0,
+            "focus_primary": _focus("base")[0],
+            "focus_secondary": _focus("base")[1],
         },
         {
             "name": "Aufbau",
@@ -1139,6 +1185,8 @@ def _phases_default_distribution(
             "sessions": sessions_per_week,
             "strength": 1,
             "quality": 1,
+            "focus_primary": _focus("build")[0],
+            "focus_secondary": _focus("build")[1],
         },
         {
             "name": "Spitze",
@@ -1149,6 +1197,8 @@ def _phases_default_distribution(
             "sessions": sessions_per_week,
             "strength": 1,
             "quality": 2,
+            "focus_primary": _focus("peak")[0],
+            "focus_secondary": _focus("peak")[1],
         },
         {
             "name": "Tapering",
@@ -1159,6 +1209,8 @@ def _phases_default_distribution(
             "sessions": max(3, sessions_per_week - 1),
             "strength": 0,
             "quality": 1,
+            "focus_primary": _focus("taper")[0],
+            "focus_secondary": _focus("taper")[1],
         },
     ]
 
@@ -1205,7 +1257,12 @@ async def _create_plan_phases(
             phase_type=pdef["type"],
             start_week=pdef["start_week"],
             end_week=pdef["end_week"],
-            focus_json=json.dumps({"primary": [pdef["name"]], "secondary": []}),
+            focus_json=json.dumps(
+                {
+                    "primary": pdef.get("focus_primary", [pdef["name"]]),
+                    "secondary": pdef.get("focus_secondary", []),
+                }
+            ),
             weekly_template_json=template_json,
             target_metrics_json=json.dumps(
                 {
@@ -1279,6 +1336,9 @@ async def _generate_and_save_weekly_plans(
             db.add(day)
             await db.flush()
             for sess in entry.sessions:
+                exercises_json = None
+                if sess.exercises:
+                    exercises_json = json.dumps([e.model_dump() for e in sess.exercises])
                 ps = PlannedSessionModel(
                     day_id=day.id,
                     position=sess.position,
@@ -1287,6 +1347,7 @@ async def _generate_and_save_weekly_plans(
                     run_details_json=(
                         json.dumps(sess.run_details.model_dump()) if sess.run_details else None
                     ),
+                    exercises_json=exercises_json,
                     notes=sess.notes,
                 )
                 db.add(ps)
