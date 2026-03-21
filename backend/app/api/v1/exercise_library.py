@@ -605,7 +605,7 @@ async def list_exercises(
     """Liste aller Übungen mit Filtern."""
     await _ensure_seed_data(db)
 
-    query = select(ExerciseModel)
+    query = select(ExerciseModel).where(ExerciseModel.is_hidden.is_(False))
 
     if category and category in VALID_CATEGORIES:
         query = query.where(ExerciseModel.category == category)
@@ -703,7 +703,12 @@ async def get_exercise(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseResponse:
     """Einzelne Übung mit allen Details."""
-    result = await db.execute(select(ExerciseModel).where(ExerciseModel.id == exercise_id))
+    result = await db.execute(
+        select(ExerciseModel).where(
+            ExerciseModel.id == exercise_id,
+            ExerciseModel.is_hidden.is_(False),
+        )
+    )
     exercise = result.scalar_one_or_none()
     if not exercise:
         raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
@@ -834,13 +839,21 @@ async def delete_exercise(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Löscht eine Übung aus der Bibliothek."""
+    """Löscht eine Übung aus der Bibliothek.
+
+    Custom-Übungen werden hart gelöscht.
+    Default-Übungen werden soft-deleted (is_hidden=True), damit das Seeding
+    sie nicht sofort wieder erstellt.
+    """
     result = await db.execute(select(ExerciseModel).where(ExerciseModel.id == exercise_id))
     exercise = result.scalar_one_or_none()
     if not exercise:
         raise HTTPException(status_code=404, detail="Übung nicht gefunden.")
 
-    await db.delete(exercise)
+    if exercise.is_custom:
+        await db.delete(exercise)
+    else:
+        exercise.is_hidden = True
     await db.commit()
 
 

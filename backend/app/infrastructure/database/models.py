@@ -120,6 +120,7 @@ class ExerciseModel(Base):
     category: Mapped[str] = mapped_column(String(20))
     is_favorite: Mapped[bool] = mapped_column(default=False, server_default="false")
     is_custom: Mapped[bool] = mapped_column(default=True, server_default="true")
+    is_hidden: Mapped[bool] = mapped_column(default=False, server_default="false")
     usage_count: Mapped[int] = mapped_column(default=0, server_default="0")
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
