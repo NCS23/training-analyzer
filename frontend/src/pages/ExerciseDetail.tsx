@@ -310,7 +310,7 @@ export function ExerciseDetailPage() {
               >
                 {exercise.exercise_db_id ? 'Zuordnung ändern' : 'Anreichern'}
               </DropdownMenuItem>
-              {exercise.is_custom && (
+              {(exercise.is_custom || !exercise.exercise_db_id) && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
