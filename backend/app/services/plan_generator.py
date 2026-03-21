@@ -22,22 +22,27 @@ from app.models.weekly_plan import PlannedSession, RunDetails, WeeklyPlanEntry
 # long_run_volume_pct: percentage of weekly volume for the long run.
 PHASE_DEFAULTS: dict[str, dict[str, Any]] = {
     "base": {
+        # Grundlagenphase: aerobe Basis aufbauen, kein harter Tempobereich
+        # 3 Easy + 1 Long Run; Steigerungsläufe/Lauf-ABC über Notes
         "run_types": ["easy", "easy", "easy", "long_run"],
         "strength": 2,
         "long_run_volume_pct": 0.30,
     },
     "build": {
-        "run_types": ["easy", "progression", "easy", "long_run"],
+        # Aufbauphase: erste Qualitätseinheiten, Progression + Fartlek
+        "run_types": ["easy", "progression", "fartlek", "long_run"],
         "strength": 1,
         "long_run_volume_pct": 0.28,
     },
     "peak": {
+        # Spitzenphase: spezifisches Training, Intervalle + Tempo
         "run_types": ["easy", "intervals", "tempo", "long_run"],
         "strength": 1,
         "long_run_volume_pct": 0.25,
     },
     "taper": {
-        "run_types": ["easy", "fartlek", "easy"],
+        # Tapering: Umfang runter, Intensität beibehalten
+        "run_types": ["easy", "tempo", "easy"],
         "strength": 0,
         "long_run_volume_pct": 0.0,
     },
@@ -346,7 +351,15 @@ def _distribute_days(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             ],
         )
 
-    for day, run_type in easy_days:
+    # Abwechselnde Notes für Easy-Runs (Lauf-ABC, Steigerungsläufe etc.)
+    _easy_notes = [
+        "Inkl. 4×100m Steigerungsläufe am Ende",
+        "Inkl. 10 Min. Lauf-ABC (Skippings, Anfersen, Kniehebelauf)",
+        None,  # Reiner Easy Run ohne Zusatz
+        "Inkl. 5×80m Steigerungsläufe + Koordination",
+    ]
+    for idx, (day, run_type) in enumerate(easy_days):
+        note = _easy_notes[idx % len(_easy_notes)]
         entries[day] = WeeklyPlanEntry(
             day_of_week=day,
             sessions=[
@@ -354,6 +367,7 @@ def _distribute_days(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
                     position=0,
                     training_type="running",
                     run_details=RunDetails(run_type=run_type),
+                    notes=note,
                 )
             ],
         )
