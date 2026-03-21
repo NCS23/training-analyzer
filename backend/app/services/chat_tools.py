@@ -331,16 +331,18 @@ CHAT_TOOLS: list[dict] = [
     {
         "name": "generate_training_plan",
         "description": (
-            "Generiert einen strukturierten Trainingsplan-Entwurf. "
-            "Nutze dieses Tool wenn der User einen neuen Trainingsplan erstellen moechte. "
-            "Gibt einen Plan-Entwurf zurueck, den der User ueberpruefen und uebernehmen kann."
+            "Erstellt einen Trainingsplan in der Datenbank. "
+            "DU (die KI) designst den Plan — nutze dein Trainingswissen! "
+            "Rufe VORHER get_training_stats auf, um die Athletendaten zu kennen. "
+            "Uebergib phase_templates mit einer detaillierten 7-Tage-Vorlage pro Phase. "
+            "Der Algorithmus berechnet dann Volumen-Verteilung und Pace-Zonen automatisch."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "goal": {
                     "type": "string",
-                    "description": "Wettkampfziel (z.B. 'Halbmarathon Sub-2h')",
+                    "description": "Wettkampfziel (z.B. 'Halbmarathon Sub-1:55')",
                 },
                 "weeks": {
                     "type": "integer",
@@ -352,7 +354,7 @@ CHAT_TOOLS: list[dict] = [
                 },
                 "current_weekly_km": {
                     "type": "number",
-                    "description": "Aktuelles Wochenvolumen in km",
+                    "description": "Aktuelles Wochenvolumen in km (aus get_training_stats)",
                 },
                 "race_date": {
                     "type": "string",
@@ -362,8 +364,69 @@ CHAT_TOOLS: list[dict] = [
                     "type": "boolean",
                     "description": "Krafttraining einplanen (Standard: true)",
                 },
+                "phase_templates": {
+                    "type": "array",
+                    "description": (
+                        "Eine Wochenvorlage pro Phase. Die KI designt hier den Trainingsinhalt. "
+                        "Reihenfolge: base, build, peak, taper. "
+                        "Volumen/Pace werden automatisch berechnet — hier nur Trainingstypen und Struktur."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "phase_type": {
+                                "type": "string",
+                                "enum": ["base", "build", "peak", "taper"],
+                            },
+                            "days": {
+                                "type": "array",
+                                "description": "7 Tage (0=Mo bis 6=So)",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "day_of_week": {
+                                            "type": "integer",
+                                            "description": "0=Mo, 6=So",
+                                        },
+                                        "is_rest_day": {"type": "boolean"},
+                                        "sessions": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "training_type": {
+                                                        "type": "string",
+                                                        "enum": ["running", "strength"],
+                                                    },
+                                                    "run_type": {
+                                                        "type": "string",
+                                                        "description": (
+                                                            "Lauftyp: easy, long_run, tempo, intervals, "
+                                                            "progression, fartlek, repetitions, recovery"
+                                                        ),
+                                                    },
+                                                    "notes": {
+                                                        "type": "string",
+                                                        "description": (
+                                                            "Trainingshinweise, z.B. 'Inkl. 4x100m Steigerungen', "
+                                                            "'Lauf-ABC vor dem Lauf', '5x1000m in 4:50-5:00', "
+                                                            "'Negativsplits: 2. Haelfte schneller'"
+                                                        ),
+                                                    },
+                                                },
+                                                "required": ["training_type"],
+                                            },
+                                        },
+                                    },
+                                    "required": ["day_of_week"],
+                                },
+                            },
+                        },
+                        "required": ["phase_type", "days"],
+                    },
+                },
             },
-            "required": ["goal", "weeks"],
+            "required": ["goal", "weeks", "phase_templates"],
         },
     },
     {
