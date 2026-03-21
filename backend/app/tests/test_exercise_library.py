@@ -168,15 +168,21 @@ class TestExerciseLibraryAPI:
         list_response = await client.get("/api/v1/exercises?search=To Delete")
         assert list_response.json()["total"] == 0
 
-    async def test_delete_default_exercise_succeeds(self, client: AsyncClient) -> None:
-        """Deleting any exercise (including default) succeeds."""
+    async def test_delete_default_exercise_soft_deletes(self, client: AsyncClient) -> None:
+        """Deleting a default exercise soft-deletes it (is_hidden=True)."""
         # Seed
         await client.get("/api/v1/exercises")
         list_response = await client.get("/api/v1/exercises")
         default_ex = next(ex for ex in list_response.json()["exercises"] if not ex["is_custom"])
+        name = default_ex["name"]
 
         response = await client.delete(f"/api/v1/exercises/{default_ex['id']}")
         assert response.status_code == 204
+
+        # Should no longer appear in list (even after re-seeding)
+        list_after = await client.get(f"/api/v1/exercises?search={name}")
+        names = [ex["name"] for ex in list_after.json()["exercises"]]
+        assert name not in names
 
     async def test_exercise_not_found(self, client: AsyncClient) -> None:
         """Operations on non-existent exercise return 404."""
