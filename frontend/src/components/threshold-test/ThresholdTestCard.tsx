@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -11,7 +11,8 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { Activity, Plus } from 'lucide-react';
+import { Activity, Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   listThresholdTests,
   createThresholdTest,
@@ -176,14 +177,110 @@ function calcTestAge(testDate: string): { days: number; label: string; color: st
   return { days: diff, label, color: 'text-[var(--color-text-error)]' };
 }
 
+function LthrDelta({ current, previous }: { current: number; previous: number }) {
+  const delta = current - previous;
+  if (delta === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-muted)]">
+        <Minus className="w-3 h-3" />
+        ±0 bpm
+      </span>
+    );
+  }
+  const improved = delta > 0;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-medium ${
+        improved ? 'text-[var(--color-text-success)]' : 'text-[var(--color-text-error)]'
+      }`}
+    >
+      {improved ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {improved ? '+' : ''}
+      {delta} bpm
+    </span>
+  );
+}
+
+function LthrTrendChart({ tests }: { tests: ThresholdTest[] }) {
+  const chartData = useMemo(
+    () =>
+      [...tests].reverse().map((t) => ({
+        date: new Date(t.test_date).toLocaleDateString('de-DE', {
+          day: '2-digit',
+          month: '2-digit',
+        }),
+        lthr: t.lthr,
+        fullDate: new Date(t.test_date).toLocaleDateString('de-DE', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
+      })),
+    [tests],
+  );
+
+  const lthrs = chartData.map((d) => d.lthr);
+  const minLthr = Math.min(...lthrs) - 3;
+  const maxLthr = Math.max(...lthrs) + 3;
+
+  return (
+    <div className="pt-3 border-t border-[var(--color-border-default)]">
+      <h3 className="text-xs font-semibold text-[var(--color-text-muted)] mb-2">LTHR-Trend</h3>
+      <div className="h-[140px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[minLthr, maxLthr]}
+              tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-border-default)',
+                borderRadius: 'var(--radius-component-sm)',
+                fontSize: 12,
+              }}
+              formatter={(value) => [`${value} bpm`, 'LTHR']}
+              labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullDate ?? _label}
+            />
+            <Line
+              type="monotone"
+              dataKey="lthr"
+              stroke="var(--color-text-primary)"
+              strokeWidth={2}
+              dot={{
+                r: 4,
+                fill: 'var(--color-bg-elevated)',
+                stroke: 'var(--color-text-primary)',
+                strokeWidth: 2,
+              }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: ThresholdTest[] }) {
   const age = calcTestAge(latest.test_date);
+  const previousTest = tests.length > 1 ? tests[1] : null;
 
   return (
     <div className="space-y-4">
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold text-[var(--color-text-primary)]">{latest.lthr}</span>
         <span className="text-sm text-[var(--color-text-muted)]">bpm</span>
+        {previousTest && <LthrDelta current={latest.lthr} previous={previousTest.lthr} />}
         <span className={`text-xs ml-auto font-medium ${age.color}`}>{age.label}</span>
       </div>
 
@@ -197,6 +294,8 @@ function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: Thres
           ))}
         </div>
       )}
+
+      {tests.length >= 2 && <LthrTrendChart tests={tests} />}
 
       {tests.length > 1 && (
         <div className="pt-3 border-t border-[var(--color-border-default)]">
