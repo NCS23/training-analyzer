@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import AthleteModel
+from app.infrastructure.database.models import AthleteModel, ThresholdTestModel
 from app.infrastructure.database.session import get_db
 from app.models.athlete import AthleteSettingsRequest, AthleteSettingsResponse
-from app.services.hr_zone_calculator import calculate_karvonen_zones
+from app.services.hr_zone_calculator import calculate_friel_zones, calculate_karvonen_zones
 
 router = APIRouter(prefix="/athlete", tags=["athlete"])
 
@@ -24,19 +24,40 @@ async def _get_or_create_athlete(db: AsyncSession) -> AthleteModel:
     return athlete
 
 
+async def _get_latest_lthr(db: AsyncSession) -> int | None:
+    """Holt die LTHR aus dem neuesten Schwellentest."""
+    result = await db.execute(
+        select(ThresholdTestModel.lthr).order_by(ThresholdTestModel.test_date.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _build_settings_response(
+    athlete: AthleteModel, db: AsyncSession
+) -> AthleteSettingsResponse:
+    """Erstellt AthleteSettingsResponse mit Zonen (Friel bevorzugt)."""
+    karvonen_zones = None
+    if athlete.resting_hr and athlete.max_hr:
+        karvonen_zones = calculate_karvonen_zones(athlete.resting_hr, athlete.max_hr)
+
+    lthr = await _get_latest_lthr(db)
+    friel_zones = calculate_friel_zones(lthr) if lthr else None
+
+    return AthleteSettingsResponse.from_db(
+        athlete,
+        zones=karvonen_zones,
+        lthr=lthr,
+        friel_zones=friel_zones,
+    )
+
+
 @router.get("/settings", response_model=AthleteSettingsResponse)
 async def get_settings(
     db: AsyncSession = Depends(get_db),
 ) -> AthleteSettingsResponse:
-    """Gibt aktuelle Athleten-Einstellungen zurueck."""
+    """Gibt aktuelle Athleten-Einstellungen zurück."""
     athlete = await _get_or_create_athlete(db)
-    zones = None
-    if athlete.resting_hr and athlete.max_hr:
-        zones = calculate_karvonen_zones(
-            athlete.resting_hr,
-            athlete.max_hr,
-        )
-    return AthleteSettingsResponse.from_db(athlete, zones)
+    return await _build_settings_response(athlete, db)
 
 
 @router.put("/settings", response_model=AthleteSettingsResponse)
@@ -58,11 +79,4 @@ async def update_settings(
 
     await db.commit()
     await db.refresh(athlete)
-
-    zones = None
-    if athlete.resting_hr and athlete.max_hr:
-        zones = calculate_karvonen_zones(
-            athlete.resting_hr,
-            athlete.max_hr,
-        )
-    return AthleteSettingsResponse.from_db(athlete, zones)
+    return await _build_settings_response(athlete, db)

@@ -112,6 +112,29 @@ class AthleteModel(Base):
     )
 
 
+class ThresholdTestModel(Base):
+    """Ergebnis eines Laktatschwellen-Feldtests (z.B. 30-Min-Friel-Test)."""
+
+    __tablename__ = "threshold_tests"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    test_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Kern-Ergebnisse
+    lthr: Mapped[int] = mapped_column(nullable=False)  # Laktatschwellen-HF (bpm)
+    max_hr_measured: Mapped[int | None] = mapped_column(default=None)  # Gemessene Max-HF
+    avg_pace_sec: Mapped[float | None] = mapped_column(Float, default=None)  # Ø Pace (sec/km)
+
+    # Optionale Referenz zur importierten Session
+    session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workouts.id", ondelete="SET NULL"), default=None
+    )
+
+    notes: Mapped[str | None] = mapped_column(Text, default=None)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class ExerciseModel(Base):
     __tablename__ = "exercises"
 
