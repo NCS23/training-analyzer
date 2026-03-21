@@ -389,6 +389,322 @@ def _distribute_days(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     return [e for e in entries if e is not None]
 
 
+# --- Session enrichment: Structured segments for quality sessions ---
+
+# Interval progression: (repeats, distance_km, recovery_minutes)
+_INTERVAL_PROGRESSION = [
+    (4, 0.8, 2.0),  # 4×800m
+    (5, 1.0, 1.5),  # 5×1000m
+    (6, 1.0, 1.5),  # 6×1000m
+    (4, 1.2, 2.0),  # 4×1200m
+    (5, 1.2, 1.5),  # 5×1200m
+    (3, 2.0, 2.5),  # 3×2000m
+]
+
+# Tempo progression: (tempo_minutes,)
+_TEMPO_PROGRESSION = [15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
+
+# Easy run extras: (segment_type, notes)
+_EASY_EXTRAS = [
+    None,
+    ("strides", "4×100m Steigerungsläufe"),
+    ("drills", "10 Min. Lauf-ABC: Skippings, Anfersen, Kniehebelauf"),
+    None,
+    ("strides", "5×80m Steigerungsläufe + Koordination"),
+    ("drills", "10 Min. Lauf-ABC: Seitgalopp, Überkreuzlauf, Hopserlauf"),
+]
+
+
+def _enrich_sessions_for_week(
+    entries: list[WeeklyPlanEntry],
+    week_in_phase: int,
+    _phase_duration: int,
+    phase_type: str,
+    weekly_volume: float | None,
+    race_pace: float | None,
+) -> None:
+    """Ersetzt generische Template-Segmente durch wochenspezifische Strukturen.
+
+    Schreibt progressive Intervall-/Tempo-Segmente und Easy-Run-Extras
+    direkt in die RunDetails-Segmente (nicht nur Notes).
+    """
+    easy_idx = 0
+    for entry in entries:
+        for sess in entry.sessions:
+            if sess.training_type != "running" or not sess.run_details:
+                continue
+            # Nur Sessions ohne explizite Segment-Daten anreichern
+            if _has_explicit_run_details(sess.run_details):
+                continue
+            rt = sess.run_details.run_type
+            if rt == "easy":
+                _enrich_easy_segments(sess, week_in_phase, easy_idx, race_pace)
+                easy_idx += 1
+            elif rt == "long_run":
+                _enrich_long_run_segments(
+                    sess,
+                    week_in_phase,
+                    phase_type,
+                    weekly_volume,
+                    race_pace,
+                )
+            elif rt == "intervals":
+                _enrich_interval_segments(sess, week_in_phase, phase_type, race_pace)
+            elif rt == "tempo":
+                _enrich_tempo_segments(sess, week_in_phase, phase_type, race_pace)
+            elif rt == "progression":
+                _enrich_progression_segments(sess, race_pace)
+
+
+def _enrich_easy_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    easy_idx: int,
+    _race_pace: float | None,
+) -> None:
+    """Fügt Easy Runs rotierende Extras hinzu (Strides, Drills als Segmente)."""
+    rotation_idx = (week_in_phase * 3 + easy_idx) % len(_EASY_EXTRAS)
+    extra = _EASY_EXTRAS[rotation_idx]
+    if not extra:
+        return
+
+    seg_type, note = extra
+    rd = sess.run_details
+    if not rd or not rd.segments:
+        return
+
+    # Hauptsegment kürzen, Extra-Segment anhängen
+    main_seg = rd.segments[0]
+    main_dur = main_seg.target_duration_minutes or 30.0
+    extra_dur = 10.0 if seg_type == "drills" else 5.0
+    main_seg.target_duration_minutes = max(15.0, main_dur - extra_dur)
+
+    rd.segments.append(
+        Segment(
+            position=len(rd.segments),
+            segment_type=seg_type,
+            target_duration_minutes=extra_dur,
+            notes=note,
+        )
+    )
+    sess.notes = note
+
+
+def _enrich_long_run_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    phase_type: str,
+    weekly_volume: float | None,
+    race_pace: float | None,
+) -> None:
+    """Macht Long Runs progressiv: ab Build-Phase mit Race-Pace-Abschnitten."""
+    rd = sess.run_details
+    if not rd or not rd.segments:
+        return
+
+    total_dur = rd.segments[0].target_duration_minutes or 60.0
+    long_dist = round(weekly_volume * 0.30, 1) if weekly_volume else 12.0
+
+    if phase_type in ("build", "peak") and race_pace:
+        # Race-Pace-Abschnitt am Ende (progressiv länger)
+        rp_fraction = min(0.15 + week_in_phase * 0.05, 0.40)
+        rp_dur = round(total_dur * rp_fraction / 5) * 5
+        easy_dur = total_dur - rp_dur
+        rp_pace_min = _seconds_to_pace(race_pace * 0.98)
+        rp_pace_max = _seconds_to_pace(race_pace * 1.02)
+        easy_mults = PACE_MULTIPLIERS["long_run"]
+        easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
+        easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+
+        rd.segments = [
+            Segment(
+                position=0,
+                segment_type="steady",
+                target_duration_minutes=easy_dur,
+                target_pace_min=easy_pace_min,
+                target_pace_max=easy_pace_max,
+            ),
+            Segment(
+                position=1,
+                segment_type="work",
+                target_duration_minutes=rp_dur,
+                target_pace_min=rp_pace_min,
+                target_pace_max=rp_pace_max,
+                notes="Race Pace",
+            ),
+        ]
+        sess.notes = f"~{long_dist:.0f} km. Letzte {rp_dur:.0f} Min. in Race Pace"
+    else:
+        sess.notes = f"~{long_dist:.0f} km. Gleichmäßig, locker"
+
+
+def _enrich_interval_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    phase_type: str,
+    race_pace: float | None,
+) -> None:
+    """Baut echte Intervall-Segmente: Warmup + N×(Work+Recovery) + Cooldown."""
+    offset = 2 if phase_type == "peak" else 0
+    idx = min(offset + week_in_phase, len(_INTERVAL_PROGRESSION) - 1)
+    repeats, dist_km, recovery_min = _INTERVAL_PROGRESSION[idx]
+
+    if not race_pace:
+        return
+
+    mults = PACE_MULTIPLIERS["intervals"]
+    work_pace_min = _seconds_to_pace(race_pace * mults[0])
+    work_pace_max = _seconds_to_pace(race_pace * mults[1])
+    easy_mults = PACE_MULTIPLIERS["easy"]
+    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
+    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+
+    segments = [
+        Segment(
+            position=0,
+            segment_type="warmup",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+        Segment(
+            position=1,
+            segment_type="work",
+            target_distance_km=dist_km,
+            repeats=repeats,
+            target_pace_min=work_pace_min,
+            target_pace_max=work_pace_max,
+        ),
+        Segment(
+            position=2,
+            segment_type="recovery_jog",
+            target_duration_minutes=recovery_min,
+            repeats=max(1, repeats - 1),
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+        Segment(
+            position=3,
+            segment_type="cooldown",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+    ]
+
+    sess.run_details = RunDetails(run_type="intervals", segments=segments)
+    sess.notes = f"{repeats}×{int(dist_km * 1000)}m, {recovery_min:.0f} Min. Trabpause"
+
+
+def _enrich_tempo_segments(
+    sess: PlannedSession,
+    week_in_phase: int,
+    phase_type: str,
+    race_pace: float | None,
+) -> None:
+    """Baut echte Tempo-Segmente: Warmup + Tempo-Block + Cooldown."""
+    offset = 2 if phase_type == "peak" else 0
+    idx = min(offset + week_in_phase, len(_TEMPO_PROGRESSION) - 1)
+    tempo_dur = _TEMPO_PROGRESSION[idx]
+
+    if not race_pace:
+        return
+
+    mults = PACE_MULTIPLIERS["tempo"]
+    tempo_pace_min = _seconds_to_pace(race_pace * mults[0])
+    tempo_pace_max = _seconds_to_pace(race_pace * mults[1])
+    easy_mults = PACE_MULTIPLIERS["easy"]
+    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
+    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+
+    segments = [
+        Segment(
+            position=0,
+            segment_type="warmup",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+        Segment(
+            position=1,
+            segment_type="work",
+            target_duration_minutes=tempo_dur,
+            target_pace_min=tempo_pace_min,
+            target_pace_max=tempo_pace_max,
+            notes="Schwellentempo",
+        ),
+        Segment(
+            position=2,
+            segment_type="cooldown",
+            target_duration_minutes=10.0,
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
+        ),
+    ]
+
+    sess.run_details = RunDetails(run_type="tempo", segments=segments)
+    sess.notes = f"{tempo_dur:.0f} Min. Tempodauerlauf"
+
+
+def _enrich_progression_segments(sess: PlannedSession, race_pace: float | None) -> None:
+    """Baut Progression-Segmente: Easy → Tempo (Negativsplit)."""
+    rd = sess.run_details
+    if not rd or not rd.segments or not race_pace:
+        return
+
+    total_dur = rd.segments[0].target_duration_minutes or 40.0
+    first_half = round(total_dur * 0.6 / 5) * 5
+    second_half = total_dur - first_half
+
+    easy_mults = PACE_MULTIPLIERS["easy"]
+    prog_mults = PACE_MULTIPLIERS["progression"]
+
+    rd.segments = [
+        Segment(
+            position=0,
+            segment_type="steady",
+            target_duration_minutes=first_half,
+            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
+            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
+        ),
+        Segment(
+            position=1,
+            segment_type="work",
+            target_duration_minutes=second_half,
+            target_pace_min=_seconds_to_pace(race_pace * prog_mults[0]),
+            target_pace_max=_seconds_to_pace(race_pace * prog_mults[1]),
+            notes="Progressiv schneller werden",
+        ),
+    ]
+    sess.notes = "Negativsplit: letzte 40% schneller"
+
+
+def _insert_race_day(
+    entries: list[WeeklyPlanEntry],
+    race_date: date,
+    goal: RaceGoalModel,
+) -> None:
+    """Fügt den Wettkampftag in den Wochenplan ein."""
+    race_dow = race_date.weekday()  # 0=Mo, 6=So
+
+    dist_km = float(goal.distance_km) if goal.distance_km else 21.0975
+    race_pace = _compute_race_pace(goal)
+
+    race_session = PlannedSession(
+        position=0,
+        training_type="running",
+        run_details=_build_run_details("race", dist_km, race_pace),
+        notes=f"🏁 WETTKAMPF: {goal.title or 'Rennen'}",
+    )
+
+    for entry in entries:
+        if entry.day_of_week == race_dow:
+            entry.is_rest_day = False
+            entry.sessions = [race_session]
+            entry.notes = f"Wettkampftag: {goal.title}"
+            break
+
+
 # --- Main Generator ---
 
 
@@ -568,6 +884,22 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
                         dist = easy_km_each
 
                     sess.run_details = _build_run_details(rt, dist, race_pace)
+
+        # Enrich sessions with structured segments (intervals, tempo, strides etc.)
+        _enrich_sessions_for_week(
+            entries,
+            week_in_phase,
+            phase_duration,
+            phase_type,
+            weekly_volume,
+            race_pace,
+        )
+
+        # Add race day if this is the race week
+        if goal and goal.race_date:
+            race_date_obj = date(goal.race_date.year, goal.race_date.month, goal.race_date.day)
+            if week_start <= race_date_obj < week_start + timedelta(days=7):
+                _insert_race_day(entries, race_date_obj, goal)
 
         result.append((week_start, entries))
 
