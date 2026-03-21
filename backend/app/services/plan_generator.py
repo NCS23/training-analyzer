@@ -433,8 +433,8 @@ def _enrich_sessions_for_week(
         for sess in entry.sessions:
             if sess.training_type != "running" or not sess.run_details:
                 continue
-            # Nur Sessions ohne explizite Segment-Daten anreichern
-            if _has_explicit_run_details(sess.run_details):
+            # Sessions mit bereits strukturierten Segmenten (>1) überspringen
+            if sess.run_details.segments and len(sess.run_details.segments) > 1:
                 continue
             rt = sess.run_details.run_type
             if rt == "easy":
