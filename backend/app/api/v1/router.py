@@ -7,6 +7,7 @@ from app.api.v1 import (
     exercise_library,
     goals,
     health,
+    pacing,
     session_templates,
     sessions,
     streak,
@@ -30,6 +31,7 @@ api_router.include_router(sessions.router, tags=["sessions"])
 api_router.include_router(athlete.router, tags=["athlete"])
 api_router.include_router(threshold_tests.router, tags=["threshold-tests"])
 api_router.include_router(goals.router, tags=["goals"])
+api_router.include_router(pacing.router, tags=["pacing"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(ai_log.router, tags=["ai-log"])
 api_router.include_router(trends.router, tags=["trends"])
