@@ -11,7 +11,7 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { Activity, Plus, TrendingUp, TrendingDown, Minus, Upload, Download } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Minus, Upload, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   listThresholdTests,
@@ -74,6 +74,8 @@ function TestHistoryItem({ test }: { test: ThresholdTest }) {
   );
 }
 
+// --- Manual Entry ---
+
 interface ManualEntryFormProps {
   onSave: (data: ThresholdTestCreate) => Promise<void>;
   saving: boolean;
@@ -112,10 +114,7 @@ function ManualEntryForm({ onSave, saving }: ManualEntryFormProps) {
   };
 
   return (
-    <div className="space-y-3 pt-3 border-t border-[var(--color-border-default)]">
-      <h4 className="text-xs font-semibold text-[var(--color-text-base)]">
-        Testergebnis eintragen
-      </h4>
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-[10px]">LTHR (bpm) *</Label>
@@ -282,9 +281,7 @@ function FitImportFlow({ onSave, saving }: FitImportFlowProps) {
   };
 
   return (
-    <div className="space-y-3 pt-3 border-t border-[var(--color-border-default)]">
-      <h4 className="text-xs font-semibold text-[var(--color-text-base)]">FIT-Datei importieren</h4>
-
+    <div className="space-y-3">
       {!analysis && (
         <>
           <input
@@ -469,6 +466,37 @@ function LthrTrendChart({ tests }: { tests: ThresholdTest[] }) {
   );
 }
 
+// --- Action Buttons (Toggle) ---
+
+interface ActionButtonsProps {
+  activeMode: InputMode;
+  onToggle: (mode: InputMode) => void;
+}
+
+function ActionButtons({ activeMode, onToggle }: ActionButtonsProps) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Button
+        variant={activeMode === 'fit' ? 'primary' : 'secondary'}
+        size="sm"
+        onClick={() => onToggle(activeMode === 'fit' ? 'none' : 'fit')}
+        className="w-full"
+      >
+        <Upload className="w-3.5 h-3.5 mr-1.5" />
+        FIT importieren
+      </Button>
+      <Button
+        variant={activeMode === 'manual' ? 'primary' : 'secondary'}
+        size="sm"
+        onClick={() => onToggle(activeMode === 'manual' ? 'none' : 'manual')}
+        className="w-full"
+      >
+        Manuell eintragen
+      </Button>
+    </div>
+  );
+}
+
 // --- Result & Empty Views ---
 
 function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: ThresholdTest[] }) {
@@ -477,11 +505,13 @@ function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: Thres
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-bold text-[var(--color-text-primary)]">{latest.lthr}</span>
-        <span className="text-sm text-[var(--color-text-muted)]">bpm</span>
-        {previousTest && <LthrDelta current={latest.lthr} previous={previousTest.lthr} />}
-        <span className={`text-xs ml-auto font-medium ${age.color}`}>{age.label}</span>
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-bold text-[var(--color-text-primary)]">{latest.lthr}</span>
+          <span className="text-sm text-[var(--color-text-muted)]">bpm</span>
+          {previousTest && <LthrDelta current={latest.lthr} previous={previousTest.lthr} />}
+        </div>
+        <span className={`text-xs font-medium ${age.color}`}>{age.label}</span>
       </div>
 
       {latest.friel_zones && (
@@ -513,25 +543,14 @@ function TestResultView({ latest, tests }: { latest: ThresholdTest; tests: Thres
 
 function EmptyTestState() {
   return (
-    <div className="text-center py-4">
-      <p className="text-sm text-[var(--color-text-muted)] mb-3">
+    <div className="space-y-3">
+      <p className="text-sm text-[var(--color-text-muted)] text-center">
         Noch kein Schwellentest durchgeführt.
       </p>
-      <div className="text-left bg-[var(--color-bg-surface-alt)] rounded-[var(--radius-component-sm)] p-3 space-y-2">
-        <h4 className="text-xs font-semibold text-[var(--color-text-base)]">30-Min-Friel-Test</h4>
-        <ol className="text-xs text-[var(--color-text-muted)] space-y-1 list-decimal list-inside">
-          <li>10 Min locker einlaufen</li>
-          <li>30 Min so schnell wie möglich laufen (gleichmäßig!)</li>
-          <li>Ø HF der letzten 20 Min = deine LTHR</li>
-          <li>Auslaufen</li>
-        </ol>
-        <p className="text-[10px] text-[var(--color-text-muted)] italic">
-          Empfehlung: Alle 6–8 Wochen wiederholen.
-        </p>
-      </div>
-      <div className="mt-3">
-        <ProtocolDownloadButton />
-      </div>
+      <p className="text-xs text-[var(--color-text-muted)]">
+        Lauf 30 Min so schnell wie möglich (gleichmäßig). Ø HF der letzten 20 Min = deine LTHR.
+        <span className="italic"> Alle 6–8 Wochen wiederholen.</span>
+      </p>
     </div>
   );
 }
@@ -604,36 +623,24 @@ export function ThresholdTestCard() {
   return (
     <Card elevation="raised" padding="spacious">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-[var(--color-text-primary)]" />
-            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
-              Laktatschwelle (LTHR)
-            </h2>
-          </div>
-          {inputMode === 'none' && (
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => setInputMode('fit')}>
-                <Upload className="w-3.5 h-3.5 mr-1" />
-                FIT importieren
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setInputMode('manual')}>
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Manuell
-              </Button>
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[var(--color-text-primary)]" />
+          <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+            Laktatschwelle (LTHR)
+          </h2>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="space-y-4">
         {latestTest ? <TestResultView latest={latestTest} tests={tests} /> : <EmptyTestState />}
+
+        <ActionButtons activeMode={inputMode} onToggle={setInputMode} />
+
         {inputMode === 'manual' && <ManualEntryForm onSave={handleSave} saving={saving} />}
         {inputMode === 'fit' && <FitImportFlow onSave={handleSave} saving={saving} />}
-        {latestTest && inputMode === 'none' && (
-          <div className="pt-3 border-t border-[var(--color-border-default)]">
-            <ProtocolDownloadButton />
-          </div>
-        )}
+
+        <div className="flex justify-center">
+          <ProtocolDownloadButton />
+        </div>
       </CardBody>
     </Card>
   );
