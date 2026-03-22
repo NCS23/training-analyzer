@@ -219,14 +219,14 @@ export function ChatPage() {
   );
 
   return (
-    <div className="flex flex-col p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto h-[calc(100dvh-64px)] lg:h-[calc(100dvh)] overflow-hidden">
+    <div className="flex flex-col p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto h-[calc(100dvh-64px-82px)] lg:h-[calc(100dvh)] overflow-hidden">
       <ChatHeader
         sheetOpen={sheetOpen}
         onSheetChange={setSheetOpen}
         sidebarContent={sidebarContent}
       />
 
-      <div className="flex gap-4 flex-1 min-h-0 pb-[82px] lg:pb-0">
+      <div className="flex gap-4 flex-1 min-h-0">
         <div className="hidden lg:block w-64 shrink-0 overflow-y-auto">
           <Card elevation="flat">
             <CardBody>{sidebarContent}</CardBody>
