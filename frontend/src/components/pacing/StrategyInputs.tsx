@@ -1,5 +1,6 @@
 import { Label, Select } from '@nordlig/components';
-import type { PacingRecommendationResponse } from '@/api/pacing';
+import type { ElevationSegment, PacingRecommendationResponse } from '@/api/pacing';
+import { ElevationProfile } from './ElevationProfile';
 import { RecommendButton, RecommendReasoning } from './RecommendButton';
 
 type Strategy = 'even' | 'negative' | 'effort_based';
@@ -20,6 +21,7 @@ const ELEVATION_OPTIONS = [
 interface StrategyInputsProps {
   strategy: Strategy;
   elevationPreset: ElevationPreset;
+  elevationSegments: ElevationSegment[] | null;
   raceName: string;
   distanceKm: number | null;
   targetTimeSeconds: number | null;
@@ -27,6 +29,7 @@ interface StrategyInputsProps {
   disabled?: boolean;
   onStrategyChange: (val: Strategy) => void;
   onElevationChange: (val: ElevationPreset) => void;
+  onElevationSegmentsChange: (segments: ElevationSegment[] | null) => void;
   onRecommendation: (rec: PacingRecommendationResponse) => void;
   onReasoningClose: () => void;
 }
@@ -34,6 +37,7 @@ interface StrategyInputsProps {
 export function StrategyInputs({
   strategy,
   elevationPreset,
+  elevationSegments,
   raceName,
   distanceKm,
   targetTimeSeconds,
@@ -41,6 +45,7 @@ export function StrategyInputs({
   disabled,
   onStrategyChange,
   onElevationChange,
+  onElevationSegmentsChange,
   onRecommendation,
   onReasoningClose,
 }: StrategyInputsProps) {
@@ -74,11 +79,19 @@ export function StrategyInputs({
             value={elevationPreset}
             onChange={(val) => {
               if (val) onElevationChange(val as ElevationPreset);
+              onElevationSegmentsChange(null);
               onReasoningClose();
             }}
+            disabled={!!elevationSegments}
           />
         </div>
       </div>
+
+      <ElevationProfile
+        segments={elevationSegments}
+        onSegmentsChange={onElevationSegmentsChange}
+        disabled={disabled}
+      />
 
       {reasoning && <RecommendReasoning reasoning={reasoning} onClose={onReasoningClose} />}
     </>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button, Label, Select, Alert, AlertDescription } from '@nordlig/components';
 import { Play } from 'lucide-react';
 import type { RaceGoal } from '@/api/goals';
-import type { PacingRequest, PacingRecommendationResponse } from '@/api/pacing';
+import type { ElevationSegment, PacingRequest, PacingRecommendationResponse } from '@/api/pacing';
 import { DistanceTimeInputs } from './DistanceTimeInputs';
 import { StrategyInputs } from './StrategyInputs';
 import { WeatherInputs } from './WeatherInputs';
@@ -28,6 +28,7 @@ function usePacingForm(goals: RaceGoal[]) {
   const [windSpeed, setWindSpeed] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [raceName, setRaceName] = useState('');
+  const [elevationSegments, setElevationSegments] = useState<ElevationSegment[] | null>(null);
 
   useEffect(() => {
     if (!goalId) return;
@@ -64,7 +65,8 @@ function usePacingForm(goals: RaceGoal[]) {
       target_time_seconds: totalSec,
       distance_km: dist,
       strategy,
-      elevation_preset: elevationPreset,
+      elevation_preset: elevationSegments ? null : elevationPreset,
+      elevation_segments: elevationSegments,
       goal_id: goalId,
     };
     const temp = parseFloat(temperature);
@@ -95,6 +97,8 @@ function usePacingForm(goals: RaceGoal[]) {
     setWindSpeed,
     error,
     raceName,
+    elevationSegments,
+    setElevationSegments,
     getTimeSeconds,
     validate,
   };
@@ -145,6 +149,7 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
       <StrategyInputs
         strategy={form.strategy}
         elevationPreset={form.elevationPreset}
+        elevationSegments={form.elevationSegments}
         raceName={form.raceName}
         distanceKm={parseFloat(form.distance) || null}
         targetTimeSeconds={form.getTimeSeconds() || null}
@@ -152,6 +157,7 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
         disabled={loading}
         onStrategyChange={form.setStrategy}
         onElevationChange={form.setElevationPreset}
+        onElevationSegmentsChange={form.setElevationSegments}
         onRecommendation={handleRecommendation}
         onReasoningClose={() => setReasoning(null)}
       />
