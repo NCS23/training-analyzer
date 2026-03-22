@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,12 +16,14 @@ from app.infrastructure.database.session import get_db
 from app.infrastructure.external.http_client import ExternalAPIClient
 from app.models.enrichment import wmo_to_label
 from app.models.pacing import (
+    ElevationSegment,
     PacingRecommendationRequest,
     PacingRecommendationResponse,
     PacingRequest,
     PacingResponse,
     RaceDayWeatherResponse,
 )
+from app.services.gpx_elevation_parser import parse_gpx_elevation
 from app.services.pacing_recommendation import get_pacing_recommendation
 from app.services.pacing_strategy import generate_pacing_strategy
 
@@ -140,6 +142,25 @@ async def recommend_pacing(
         raise HTTPException(
             status_code=502, detail="KI-Empfehlung konnte nicht generiert werden"
         ) from e
+
+
+@router.post("/parse-gpx", response_model=list[ElevationSegment])
+async def parse_gpx(file: UploadFile) -> list[ElevationSegment]:
+    """Parst eine GPX-Datei und gibt pro-km Höhenprofil zurück."""
+    if not file.filename or not file.filename.lower().endswith(".gpx"):
+        raise HTTPException(status_code=400, detail="Nur GPX-Dateien werden unterstützt")
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10 MB Limit
+        raise HTTPException(status_code=400, detail="Datei zu groß (max. 10 MB)")
+
+    try:
+        return parse_gpx_elevation(content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error("GPX-Parsing fehlgeschlagen: %s", e)
+        raise HTTPException(status_code=400, detail="GPX-Datei konnte nicht gelesen werden") from e
 
 
 def _safe_float(value: object) -> float | None:

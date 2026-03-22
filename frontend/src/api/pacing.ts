@@ -103,6 +103,13 @@ export async function getPacingRecommendation(
   return response.data;
 }
 
+export async function parseGpxElevation(file: File): Promise<ElevationSegment[]> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post<ElevationSegment[]>('/api/v1/pacing/parse-gpx', formData);
+  return response.data;
+}
+
 export async function getWeatherForecast(
   lat: number,
   lng: number,
