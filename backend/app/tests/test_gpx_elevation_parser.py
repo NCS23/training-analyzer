@@ -35,6 +35,28 @@ _FLAT_3KM_GPX = b"""\
 </gpx>
 """
 
+_WAYPOINT_GPX = b"""\
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="52.5200" lon="13.4050"><ele>34.0</ele></wpt>
+  <wpt lat="52.5290" lon="13.4050"><ele>36.0</ele></wpt>
+  <wpt lat="52.5380" lon="13.4050"><ele>33.0</ele></wpt>
+  <wpt lat="52.5470" lon="13.4050"><ele>35.0</ele></wpt>
+</gpx>
+"""
+
+_ROUTE_GPX = b"""\
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <rtept lat="52.5200" lon="13.4050"><ele>34.0</ele></rtept>
+    <rtept lat="52.5290" lon="13.4050"><ele>36.0</ele></rtept>
+    <rtept lat="52.5380" lon="13.4050"><ele>33.0</ele></rtept>
+    <rtept lat="52.5470" lon="13.4050"><ele>35.0</ele></rtept>
+  </rte>
+</gpx>
+"""
+
 
 class TestGpxElevationParser:
     """Tests fuer parse_gpx_elevation."""
@@ -87,6 +109,16 @@ class TestGpxElevationParser:
 """
         with pytest.raises(ValueError, match="zu wenige"):
             parse_gpx_elevation(gpx)
+
+    def test_waypoint_gpx_returns_segments(self) -> None:
+        """GPX mit <wpt> Elementen wird korrekt geparst."""
+        segments = parse_gpx_elevation(_WAYPOINT_GPX)
+        assert len(segments) > 0
+
+    def test_route_gpx_returns_segments(self) -> None:
+        """GPX mit <rtept> Elementen wird korrekt geparst."""
+        segments = parse_gpx_elevation(_ROUTE_GPX)
+        assert len(segments) > 0
 
     def test_invalid_xml_raises(self) -> None:
         """Ungueltige XML-Datei wirft ET.ParseError."""
