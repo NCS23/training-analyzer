@@ -118,6 +118,11 @@
   margin: 0.75em 0;
 }
 
+/* Sheet z-index override — über MobileTopBar (z-90) und BottomNav (z-200) */
+[data-radix-dialog-overlay][data-state] {
+  z-index: 299 !important;
+}
+
 @keyframes typing-dot {
   0%,
   80%,
