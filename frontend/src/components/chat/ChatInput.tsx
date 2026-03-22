@@ -58,7 +58,7 @@ export function ChatInput({
     <div className="space-y-2">
       {contextBadge}
       {error && <p className="text-xs text-[var(--color-text-error)]">{error}</p>}
-      <div className="flex gap-2 items-start">
+      <div className="flex gap-2 items-end">
         <div className="flex-1 [&>div>div:last-child]:hidden">
           <Textarea
             value={value}
@@ -69,7 +69,7 @@ export function ChatInput({
             rows={1}
             autoResize
             inputSize="sm"
-            className="!min-h-[44px] max-h-[150px]"
+            className="!min-h-[44px] max-h-[150px] !pb-2.5"
           />
         </div>
         {isSupported && !streaming && (
