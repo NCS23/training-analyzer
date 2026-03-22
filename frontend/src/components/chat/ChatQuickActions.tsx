@@ -28,6 +28,7 @@ export function ChatQuickActions({ onSelect, disabled }: ChatQuickActionsProps) 
             size="sm"
             onClick={() => onSelect(q)}
             disabled={disabled}
+            className="!h-auto"
           >
             {q}
           </Button>
