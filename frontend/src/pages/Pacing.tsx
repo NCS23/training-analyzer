@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   AlertDescription,
@@ -10,7 +11,6 @@ import {
 } from '@nordlig/components';
 import { Printer, Info } from 'lucide-react';
 import { listGoals } from '@/api/goals';
-import type { RaceGoal } from '@/api/goals';
 import { generatePacing } from '@/api/pacing';
 import type { PacingRequest, PacingResponse } from '@/api/pacing';
 import { PacingForm } from '@/components/pacing/PacingForm';
@@ -81,22 +81,13 @@ function PacingResult({ result }: { result: PacingResponse }) {
 
 export function PacingPage() {
   const { toast } = useToast();
-  const [goals, setGoals] = useState<RaceGoal[]>([]);
+  const { data: goalsData } = useQuery({
+    queryKey: ['goals'],
+    queryFn: listGoals,
+  });
+  const goals = goalsData?.goals ?? [];
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PacingResponse | null>(null);
-
-  const loadGoals = useCallback(async () => {
-    try {
-      const res = await listGoals();
-      setGoals(res.goals);
-    } catch {
-      // Goals sind optional — kein harter Fehler
-    }
-  }, []);
-
-  useEffect(() => {
-    loadGoals();
-  }, [loadGoals]);
 
   const handleGenerate = async (params: PacingRequest) => {
     setLoading(true);
