@@ -155,11 +155,11 @@ function ChatHeader({ sheetOpen, onSheetChange, sidebarContent }: ChatHeaderProp
               <PanelLeftOpen className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left">
+          <SheetContent side="left" className="!z-[300] flex flex-col">
             <SheetHeader>
               <SheetTitle>Unterhaltungen</SheetTitle>
             </SheetHeader>
-            {sidebarContent}
+            <div className="flex-1 overflow-y-auto mt-2">{sidebarContent}</div>
           </SheetContent>
         </Sheet>
       </div>
