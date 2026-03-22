@@ -58,8 +58,8 @@ export function ChatInput({
     <div className="space-y-2">
       {contextBadge}
       {error && <p className="text-xs text-[var(--color-text-error)]">{error}</p>}
-      <div className="flex gap-2 items-end">
-        <div className="flex-1 [&>div>div:last-child]:hidden [&_textarea]:!pb-3">
+      <div className="flex gap-2 items-center">
+        <div className="flex-1 [&>div>div:last-child]:hidden [&_textarea]:!pb-3 [&_textarea::placeholder]:!whitespace-nowrap [&_textarea::placeholder]:!overflow-hidden [&_textarea::placeholder]:!text-ellipsis">
           <Textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
