@@ -1,6 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { Alert, AlertDescription, Button } from '@nordlig/components';
-import { Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Alert, AlertDescription } from '@nordlig/components';
 import { useThresholdReminder, type ReminderStatus } from '@/hooks/useThresholdReminder';
 
 type AlertVariant = 'info' | 'warning' | 'error';
@@ -33,7 +32,6 @@ const REMINDER_CONFIG: Record<
  * Kann für 1 Woche dismissed werden.
  */
 export function ThresholdTestReminder() {
-  const navigate = useNavigate();
   const { status, daysSinceTest, loading, dismissed, dismiss } = useThresholdReminder();
 
   if (loading || dismissed || status === 'fresh') return null;
@@ -42,18 +40,18 @@ export function ThresholdTestReminder() {
 
   return (
     <Alert variant={config.variant} closeable onClose={dismiss}>
-      <Activity className="w-4 h-4 shrink-0" />
       <AlertDescription>
-        <div className="space-y-1.5">
-          <p className="font-semibold">{config.title}</p>
-          <p className="text-xs opacity-80">
-            {config.message}
-            {daysSinceTest !== null && <span className="ml-1">(vor {daysSinceTest} Tagen)</span>}
-          </p>
-          <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate('/profile')}>
-            Zum Schwellentest →
-          </Button>
-        </div>
+        <p className="font-semibold">{config.title}</p>
+        <p className="text-xs opacity-80 mt-1">
+          {config.message}
+          {daysSinceTest !== null && <span className="ml-1">(vor {daysSinceTest} Tagen)</span>}
+        </p>
+        <Link
+          to="/profile"
+          className="inline-block text-xs font-semibold underline underline-offset-2 mt-2 opacity-90 hover:opacity-100 transition-opacity motion-reduce:transition-none"
+        >
+          Zum Schwellentest →
+        </Link>
       </AlertDescription>
     </Alert>
   );
