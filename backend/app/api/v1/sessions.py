@@ -1575,3 +1575,51 @@ async def enrich_batch(
 
     background_tasks.add_task(_batch_enrich)
     return {"status": "queued", "pending": pending_count}
+
+
+# --- Race Report (#52) ---
+
+
+@router.get("/{session_id}/race-report")
+async def get_race_report(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Generiert Post-Race Analyse fuer eine Wettkampf-Session."""
+    from app.services.race_report_service import generate_race_report
+
+    report = await generate_race_report(session_id, db)
+    return report.model_dump()
+
+
+@router.patch("/{session_id}/race-goal")
+async def update_race_goal(
+    session_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Verknuepft oder entknuepft eine Session mit einem Race Goal."""
+    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden.")
+
+    race_goal_id = body.get("race_goal_id")
+    workout.race_goal_id = race_goal_id
+    await db.commit()
+
+    return {"session_id": session_id, "race_goal_id": race_goal_id}
+
+
+@router.post("/{session_id}/race-analysis")
+async def analyze_race(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """KI-Analyse speziell fuer Wettkampf-Sessions."""
+    from app.services.race_report_service import generate_race_report
+    from app.services.session_analysis_service import analyze_race_session
+
+    report = await generate_race_report(session_id, db)
+    analysis = await analyze_race_session(session_id, db, report.model_dump())
+    return analysis.model_dump()

@@ -22,3 +22,16 @@ class SessionAnalysisResponse(BaseModel):
     fatigue_indicators: str | None = None
     recommendations: list[str]
     cached: bool = False
+
+
+class RaceAnalysisResponse(BaseModel):
+    """KI-Analyse speziell fuer Wettkampf-Sessions (#52)."""
+
+    session_id: int
+    provider: str
+    pacing_assessment: str
+    goal_assessment: str | None = None
+    what_went_well: list[str]
+    lessons_learned: list[str]
+    summary: str
+    cached: bool = False

@@ -64,6 +64,7 @@ import {
   SessionEditFields,
   SessionComparisonSection,
   SessionAIAnalysis,
+  RaceReportCTA,
 } from '@/components/session-detail';
 import { SessionEnvironmentSection } from '@/components/session-detail/SessionEnvironmentSection';
 
@@ -359,6 +360,9 @@ export function SessionDetailPage() {
 
       {/* Metrics */}
       <SessionMetricsGrid session={session} sessionGap={sessionGap} effectiveRpe={effectiveRpe} />
+
+      {/* Race Report CTA (#52) — nur bei Wettkampf-Sessions */}
+      {editing.trainingTypeInfo?.effective === 'race' && <RaceReportCTA sessionId={sessionId} />}
 
       {/* Insights — nur als Fallback wenn keine KI-Analyse vorhanden */}
       {insights.length > 0 && !session.ai_analysis && (

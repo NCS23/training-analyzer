@@ -22,7 +22,7 @@ from app.infrastructure.database.models import (
     RaceGoalModel,
     WorkoutModel,
 )
-from app.models.ai_analysis import SessionAnalysisResponse
+from app.models.ai_analysis import RaceAnalysisResponse, SessionAnalysisResponse
 from app.services.ai_log_service import AICallData, log_ai_call
 
 logger = logging.getLogger(__name__)
@@ -611,4 +611,159 @@ def _parse_analysis_json(raw: str, session_id: int, provider: str) -> SessionAna
             intensity_text="Konnte nicht automatisch bestimmt werden.",
             hr_zone_assessment="Keine strukturierte Bewertung verfuegbar.",
             recommendations=["Analyse erneut durchfuehren fuer detaillierte Ergebnisse."],
+        )
+
+
+# --- Race Analysis (#52) ---
+
+
+async def analyze_race_session(
+    session_id: int,
+    db: AsyncSession,
+    race_report: dict | None = None,
+) -> RaceAnalysisResponse:
+    """Analysiert eine Wettkampf-Session mit race-spezifischem Prompt."""
+    workout = await _load_workout(session_id, db)
+    context = await _load_analysis_context(workout, db)
+    prompt = _build_race_prompt(workout, context, race_report)
+    system_prompt = _build_system_prompt(context)
+    api_key = await resolve_claude_api_key(db)
+
+    t0 = time.monotonic()
+    raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    provider = ai_service.get_active_provider() or "unknown"
+
+    analysis = _parse_race_analysis_json(raw, session_id, provider)
+    await log_ai_call(
+        db,
+        AICallData(
+            use_case="race_analysis",
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+            raw_response=raw,
+            parsed_ok=analysis.summary != raw[:500],
+            duration_ms=duration_ms,
+            workout_id=session_id,
+        ),
+    )
+    await db.commit()
+
+    return analysis
+
+
+def _build_race_prompt(
+    workout: WorkoutModel,
+    ctx: AnalysisContext,
+    race_report: dict | None,
+) -> str:
+    """Baut race-spezifischen Analyse-Prompt."""
+    parts = [_build_session_section(workout)]
+
+    if workout.laps_json:
+        parts.append(_build_laps_section(workout.laps_json))
+
+    if workout.hr_zones_json:
+        parts.append(_build_hr_zones_section(workout.hr_zones_json))
+
+    if ctx.history:
+        parts.append(_build_history_section(ctx.history))
+
+    if race_report:
+        parts.append(_build_race_report_section(race_report))
+
+    parts.append(_build_race_instructions())
+
+    return "\n\n".join(parts)
+
+
+def _build_race_report_section(report: dict) -> str:
+    """Fuegt berechnete Race-Metriken in den Prompt ein."""
+    lines = ["## Wettkampf-Metriken (berechnet)"]
+
+    goal = report.get("goal_comparison")
+    if goal:
+        achieved = "JA" if goal["target_achieved"] else "NEIN"
+        lines.append(f"- Ziel erreicht: {achieved}")
+        lines.append(f"- Zielzeit: {goal['target_time_formatted']}")
+        lines.append(f"- Istzeit: {goal['actual_time_formatted']} ({goal['delta_formatted']})")
+
+    pacing = report.get("pacing_strategy")
+    if pacing:
+        lines.append(f"- Pacing: {pacing['label']}")
+        lines.append(f"  1. Haelfte: {pacing['first_half_pace_formatted']}")
+        lines.append(f"  2. Haelfte: {pacing['second_half_pace_formatted']}")
+
+    consistency = report.get("pace_consistency")
+    if consistency:
+        lines.append(
+            f"- Pace-Konsistenz: {consistency['label']} (CV {consistency['coefficient_of_variation']}%)"
+        )
+
+    hr = report.get("hr_management")
+    if hr and hr.get("hr_drift_label"):
+        lines.append(f"- HR-Drift: {hr['hr_drift_label']} ({hr.get('hr_drift_pct', '?')}%)")
+
+    training = report.get("training_comparison")
+    if training:
+        lines.append(f"- Race-Pace vs. Training: {training['delta_pct']}% schneller")
+
+    return "\n".join(lines)
+
+
+def _build_race_instructions() -> str:
+    """Race-spezifische Anweisungen fuer die KI."""
+    return """## Anweisungen
+Analysiere diesen Wettkampf. Antworte NUR mit validem JSON (ohne Markdown-Codeblock):
+
+{
+  "summary": "2-3 Saetze Gesamtbewertung des Wettkampfs",
+  "pacing_assessment": "Bewertung der Pacing-Strategie (gleichmaessig? zu schnell gestartet?)",
+  "goal_assessment": "Bewertung Zielerreichung (null wenn kein Ziel vorhanden)",
+  "what_went_well": ["Positiv 1", "Positiv 2"],
+  "lessons_learned": ["Learning 1", "Learning 2"]
+}
+
+Regeln:
+- Sachlich, konkret, auf Deutsch
+- 2-4 Punkte je Liste
+- Beziehe die berechneten Metriken ein (Pacing, HR-Drift, Konsistenz)
+- Wenn kein Ziel vorhanden: goal_assessment = null
+- Sei ehrlich aber konstruktiv"""
+
+
+def _parse_race_analysis_json(
+    raw: str,
+    session_id: int,
+    provider: str,
+) -> RaceAnalysisResponse:
+    """Parst die Race-Analyse AI-Antwort."""
+    text = raw.strip()
+    if text.startswith("[") and "]" in text:
+        text = text[text.index("]") + 1 :].strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    try:
+        data = json.loads(text)
+        return RaceAnalysisResponse(
+            session_id=session_id,
+            provider=provider,
+            summary=data.get("summary", ""),
+            pacing_assessment=data.get("pacing_assessment", ""),
+            goal_assessment=data.get("goal_assessment"),
+            what_went_well=data.get("what_went_well", []),
+            lessons_learned=data.get("lessons_learned", []),
+        )
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Race-AI-Antwort nicht parsbar: %s", text[:200])
+        return RaceAnalysisResponse(
+            session_id=session_id,
+            provider=provider,
+            summary=text[:500],
+            pacing_assessment="Konnte nicht automatisch bestimmt werden.",
+            what_went_well=[],
+            lessons_learned=["Analyse erneut durchfuehren."],
         )
