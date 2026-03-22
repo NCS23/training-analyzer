@@ -106,7 +106,9 @@ export async function getPacingRecommendation(
 export async function parseGpxElevation(file: File): Promise<ElevationSegment[]> {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await apiClient.post<ElevationSegment[]>('/api/v1/pacing/parse-gpx', formData);
+  const response = await apiClient.post<ElevationSegment[]>('/api/v1/pacing/parse-gpx', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return response.data;
 }
 
