@@ -44,6 +44,15 @@ class TestEvenSplit:
         for pace in full_km_paces:
             assert abs(pace - full_km_paces[0]) < 0.5
 
+    def test_hilly_course_all_splits_equal(self) -> None:
+        """Huegelige Strecke: Even Split hat trotzdem gleiche Pace."""
+        result = generate_pacing_strategy(_hm_request(elevation_preset="hilly"))
+
+        paces = [s.target_pace_sec_per_km for s in result.splits]
+        full_km_paces = paces[:-1]
+        for pace in full_km_paces:
+            assert abs(pace - full_km_paces[0]) < 0.5
+
     def test_total_matches_target(self) -> None:
         """Gesamtzeit muss exakt der Zielzeit entsprechen."""
         result = generate_pacing_strategy(_hm_request(elevation_preset="flat"))
