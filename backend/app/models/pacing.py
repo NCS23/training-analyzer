@@ -112,3 +112,27 @@ class RaceDayWeatherResponse(BaseModel):
     precipitation_mm: float
     humidity_percent: float | None = None
     weather_label: str
+
+
+# ---------------------------------------------------------------------------
+# KI-Empfehlung
+# ---------------------------------------------------------------------------
+
+
+class PacingRecommendationRequest(BaseModel):
+    """Request-Schema: KI-Empfehlung fuer Pacing-Strategie."""
+
+    race_name: str | None = Field(None, description="Name des Rennens (z.B. Berlin Halbmarathon)")
+    distance_km: float = Field(..., gt=0, description="Distanz in Kilometern")
+    target_time_seconds: int = Field(..., gt=0, description="Zielzeit in Sekunden")
+    experience_level: Literal["beginner", "intermediate", "advanced"] | None = Field(
+        None, description="Erfahrungslevel"
+    )
+
+
+class PacingRecommendationResponse(BaseModel):
+    """Response-Schema: KI-Empfehlung mit Begruendung."""
+
+    strategy: Literal["even", "negative", "effort_based"]
+    elevation_preset: Literal["flat", "rolling", "hilly"]
+    reasoning: str = Field(description="Begruendung der Empfehlung")

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Button, Label, Select, Alert, AlertDescription } from '@nordlig/components';
 import { Play } from 'lucide-react';
 import type { RaceGoal } from '@/api/goals';
-import type { PacingRequest } from '@/api/pacing';
+import type { PacingRequest, PacingRecommendationResponse } from '@/api/pacing';
 import { DistanceTimeInputs } from './DistanceTimeInputs';
+import { StrategyInputs } from './StrategyInputs';
 import { WeatherInputs } from './WeatherInputs';
 
 interface PacingFormProps {
@@ -14,18 +15,6 @@ interface PacingFormProps {
 
 type Strategy = 'even' | 'negative' | 'effort_based';
 type ElevationPreset = 'flat' | 'rolling' | 'hilly';
-
-const STRATEGY_OPTIONS = [
-  { value: 'even', label: 'Gleichmäßig (Even Split)' },
-  { value: 'negative', label: 'Negative Splits' },
-  { value: 'effort_based', label: 'Effort-Based (konstante Belastung)' },
-];
-
-const ELEVATION_OPTIONS = [
-  { value: 'flat', label: 'Flach' },
-  { value: 'rolling', label: 'Wellig (~15m/km)' },
-  { value: 'hilly', label: 'Hügelig (~30m/km)' },
-];
 
 function usePacingForm(goals: RaceGoal[]) {
   const [goalId, setGoalId] = useState<number | null>(null);
@@ -38,17 +27,26 @@ function usePacingForm(goals: RaceGoal[]) {
   const [temperature, setTemperature] = useState('');
   const [windSpeed, setWindSpeed] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [raceName, setRaceName] = useState('');
 
   useEffect(() => {
     if (!goalId) return;
     const goal = goals.find((g) => g.id === goalId);
     if (!goal) return;
     setDistance(String(goal.distance_km));
+    setRaceName(goal.title);
     const secs = goal.target_time_seconds;
     setTimeH(String(Math.floor(secs / 3600)));
     setTimeM(String(Math.floor((secs % 3600) / 60)));
     setTimeS(String(secs % 60));
   }, [goalId, goals]);
+
+  const getTimeSeconds = (): number => {
+    const h = parseInt(timeH || '0', 10);
+    const m = parseInt(timeM || '0', 10);
+    const s = parseInt(timeS || '0', 10);
+    return h * 3600 + m * 60 + s;
+  };
 
   const validate = (): PacingRequest | null => {
     setError(null);
@@ -57,10 +55,7 @@ function usePacingForm(goals: RaceGoal[]) {
       setError('Bitte eine gültige Distanz eingeben.');
       return null;
     }
-    const h = parseInt(timeH || '0', 10);
-    const m = parseInt(timeM || '0', 10);
-    const s = parseInt(timeS || '0', 10);
-    const totalSec = h * 3600 + m * 60 + s;
+    const totalSec = getTimeSeconds();
     if (totalSec <= 0) {
       setError('Bitte eine gültige Zielzeit eingeben.');
       return null;
@@ -99,12 +94,15 @@ function usePacingForm(goals: RaceGoal[]) {
     windSpeed,
     setWindSpeed,
     error,
+    raceName,
+    getTimeSeconds,
     validate,
   };
 }
 
 export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
   const form = usePacingForm(goals);
+  const [reasoning, setReasoning] = useState<string | null>(null);
   const activeGoals = goals.filter((g) => g.is_active);
   const goalOptions = [
     { value: '', label: 'Manuell eingeben' },
@@ -114,9 +112,10 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
     })),
   ];
 
-  const handleSubmit = () => {
-    const params = form.validate();
-    if (params) onGenerate(params);
+  const handleRecommendation = (rec: PacingRecommendationResponse) => {
+    form.setStrategy(rec.strategy);
+    form.setElevationPreset(rec.elevation_preset);
+    setReasoning(rec.reasoning);
   };
 
   return (
@@ -143,28 +142,19 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
         onTimeSChange={form.setTimeS}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label>Strategie</Label>
-          <Select
-            options={STRATEGY_OPTIONS}
-            value={form.strategy}
-            onChange={(val) => {
-              if (val) form.setStrategy(val as Strategy);
-            }}
-          />
-        </div>
-        <div>
-          <Label>Höhenprofil</Label>
-          <Select
-            options={ELEVATION_OPTIONS}
-            value={form.elevationPreset}
-            onChange={(val) => {
-              if (val) form.setElevationPreset(val as ElevationPreset);
-            }}
-          />
-        </div>
-      </div>
+      <StrategyInputs
+        strategy={form.strategy}
+        elevationPreset={form.elevationPreset}
+        raceName={form.raceName}
+        distanceKm={parseFloat(form.distance) || null}
+        targetTimeSeconds={form.getTimeSeconds() || null}
+        reasoning={reasoning}
+        disabled={loading}
+        onStrategyChange={form.setStrategy}
+        onElevationChange={form.setElevationPreset}
+        onRecommendation={handleRecommendation}
+        onReasoningClose={() => setReasoning(null)}
+      />
 
       <WeatherInputs
         temperature={form.temperature}
@@ -179,7 +169,14 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
         </Alert>
       )}
 
-      <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+      <Button
+        variant="primary"
+        onClick={() => {
+          const p = form.validate();
+          if (p) onGenerate(p);
+        }}
+        disabled={loading}
+      >
         {loading ? (
           'Berechne…'
         ) : (
