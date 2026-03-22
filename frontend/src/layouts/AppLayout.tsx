@@ -16,6 +16,7 @@ import {
   Bot,
 } from 'lucide-react';
 import { getChatNotifications } from '@/api/chat';
+import { ChatFAB } from '@/components/ChatFAB';
 import { BottomNav } from './BottomNav';
 
 interface NavItem {
@@ -205,6 +206,7 @@ export function AppLayout() {
         </div>
       </main>
 
+      <ChatFAB />
       <BottomNav />
     </div>
   );
