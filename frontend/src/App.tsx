@@ -107,6 +107,9 @@ const AthleteProfilePage = lazy(() =>
 );
 const KiLogPage = lazy(() => import('./pages/KiLog').then((m) => ({ default: m.KiLogPage })));
 const ChatPage = lazy(() => import('./pages/Chat').then((m) => ({ default: m.ChatPage })));
+const RaceReportPage = lazy(() =>
+  import('./pages/RaceReport').then((m) => ({ default: m.RaceReportPage })),
+);
 const NotFoundPage = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -134,6 +137,7 @@ function App() {
                   <Route path="/sessions/new" element={<UploadPage />} />
                   <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
                   <Route path="/sessions/:id" element={<SessionDetailPage />} />
+                  <Route path="/sessions/:id/race-report" element={<RaceReportPage />} />
                   <Route path="/analyse" element={<AnalysePage />} />
                   <Route path="/trends" element={<Navigate to="/analyse" replace />} />
                   <Route

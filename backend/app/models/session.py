@@ -128,6 +128,7 @@ class SessionResponse(BaseModel):
     exercises: Optional[list] = None
     has_gps: bool = False
     planned_entry_id: Optional[int] = None  # S10: Soll/Ist-Link
+    race_goal_id: Optional[int] = None  # #52: Wettkampf-Zuordnung
     athlete_resting_hr: Optional[int] = None
     athlete_max_hr: Optional[int] = None
     ai_analysis: Optional[dict] = None
@@ -238,6 +239,7 @@ class SessionResponse(BaseModel):
             exercises=exercises,
             has_gps=bool(model.has_gps),
             planned_entry_id=model.planned_entry_id if model.planned_entry_id else None,
+            race_goal_id=model.race_goal_id if model.race_goal_id else None,
             athlete_resting_hr=model.athlete_resting_hr if model.athlete_resting_hr else None,
             athlete_max_hr=model.athlete_max_hr if model.athlete_max_hr else None,
             ai_analysis=ai_analysis,

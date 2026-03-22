@@ -701,6 +701,107 @@ export async function exportSessionFit(sessionId: number): Promise<void> {
   _downloadBlob(response.data as Blob, response.headers);
 }
 
+// --- Race Report (#52) ---
+
+export interface GoalComparison {
+  goal_id: number;
+  goal_title: string;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  actual_time_seconds: number;
+  actual_time_formatted: string;
+  delta_seconds: number;
+  delta_formatted: string;
+  target_achieved: boolean;
+  target_pace_sec_per_km: number;
+  target_pace_formatted: string;
+  actual_pace_sec_per_km: number;
+  actual_pace_formatted: string;
+}
+
+export interface PacingStrategy {
+  type: 'negative_split' | 'positive_split' | 'even_split';
+  label: string;
+  first_half_pace_formatted: string;
+  second_half_pace_formatted: string;
+  split_delta_sec: number;
+}
+
+export interface PaceConsistency {
+  coefficient_of_variation: number;
+  label: string;
+  fastest_km: number;
+  slowest_km: number;
+  fastest_pace_formatted: string;
+  slowest_pace_formatted: string;
+}
+
+export interface HRManagement {
+  avg_hr: number;
+  max_hr: number;
+  zone_distribution: Record<string, number>;
+  hr_drift_pct: number | null;
+  hr_drift_label: string | null;
+}
+
+export interface TrainingComparison {
+  avg_training_pace_sec: number;
+  avg_training_pace_formatted: string;
+  race_pace_sec: number;
+  race_pace_formatted: string;
+  delta_pct: number;
+}
+
+export interface PreviousRace {
+  session_id: number;
+  date: string;
+  distance_km: number;
+  duration_formatted: string;
+  pace_formatted: string;
+  delta_seconds: number;
+}
+
+export interface RaceReportData {
+  session_id: number;
+  goal_comparison: GoalComparison | null;
+  pacing_strategy: PacingStrategy | null;
+  pace_consistency: PaceConsistency | null;
+  hr_management: HRManagement | null;
+  training_comparison: TrainingComparison | null;
+  previous_races: PreviousRace[];
+}
+
+export interface RaceAnalysis {
+  session_id: number;
+  provider: string;
+  pacing_assessment: string;
+  goal_assessment: string | null;
+  what_went_well: string[];
+  lessons_learned: string[];
+  summary: string;
+}
+
+export async function getRaceReport(sessionId: number): Promise<RaceReportData> {
+  const response = await apiClient.get<RaceReportData>(`/api/v1/sessions/${sessionId}/race-report`);
+  return response.data;
+}
+
+export async function triggerRaceAnalysis(sessionId: number): Promise<RaceAnalysis> {
+  const response = await apiClient.post<RaceAnalysis>(
+    `/api/v1/sessions/${sessionId}/race-analysis`,
+  );
+  return response.data;
+}
+
+export async function updateRaceGoalId(
+  sessionId: number,
+  raceGoalId: number | null,
+): Promise<void> {
+  await apiClient.patch(`/api/v1/sessions/${sessionId}/race-goal`, {
+    race_goal_id: raceGoalId,
+  });
+}
+
 function _downloadBlob(blob: Blob, headers: Record<string, unknown>): void {
   const contentDisposition = String(headers['content-disposition'] || '');
   const match = contentDisposition.match(/filename="?([^"]+)"?/);

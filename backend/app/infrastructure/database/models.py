@@ -74,6 +74,9 @@ class WorkoutModel(Base):
     # Soll/Ist-Link (S10)
     planned_entry_id: Mapped[int | None] = mapped_column(default=None)  # FK to planned_sessions
 
+    # Wettkampf-Zuordnung (#52)
+    race_goal_id: Mapped[int | None] = mapped_column(default=None)  # FK to race_goals
+
     # Enrichment (externe APIs: Wetter, Location, Luftqualität, Untergrund)
     weather_json: Mapped[str | None] = mapped_column(Text, default=None)
     location_name: Mapped[str | None] = mapped_column(String(200), default=None)

@@ -7,3 +7,4 @@ export { SessionEditFields } from './SessionEditFields';
 export { SessionComparisonSection } from './SessionComparisonSection';
 export { SessionAIAnalysis } from './SessionAIAnalysis';
 export { SessionRecommendations } from './SessionRecommendations';
+export { RaceReportCTA } from './RaceReportCTA';
