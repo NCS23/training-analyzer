@@ -18,7 +18,7 @@ export function ChatInput({
   onCancel,
   disabled = false,
   streaming = false,
-  placeholder = 'Stelle eine Frage zu deinem Training...',
+  placeholder = 'Frage stellen...',
   contextBadge,
 }: ChatInputProps) {
   const [value, setValue] = useState('');
