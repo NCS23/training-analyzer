@@ -65,10 +65,13 @@ def generate_pacing_strategy(request: PacingRequest) -> PacingResponse:
     # 2) Strategie-Modifier anwenden
     raw_paces = _apply_strategy(base_pace_sec, distance, request.strategy)
 
-    # 3) Hoehen-Anpassung pro km
+    # 3) Hoehen-Anpassung pro km (nur bei effort_based — konstanter Effort)
+    #    Even/Negative = konstante Pace, Effort variiert mit Hoehe
+    #    Effort-Based  = konstanter Effort, Pace variiert mit Hoehe
     elevation_adjustments = _calc_elevation_adjustments(elevation)
-    for i, adj in enumerate(elevation_adjustments):
-        raw_paces[i] += adj
+    if request.strategy == "effort_based":
+        for i, adj in enumerate(elevation_adjustments):
+            raw_paces[i] += adj
 
     # 4) Wetter-Anpassung (gleichmaessig auf alle km)
     weather_adj = _calc_weather_adjustment(
@@ -102,8 +105,12 @@ def generate_pacing_strategy(request: PacingRequest) -> PacingResponse:
         elev = (
             elevation[i] if i < len(elevation) else ElevationSegment(km=km_num, gain_m=0, loss_m=0)
         )
-        note = _build_adjustment_note(
-            elevation_adjustments[i] if i < len(elevation_adjustments) else 0.0
+        note = (
+            _build_adjustment_note(
+                elevation_adjustments[i] if i < len(elevation_adjustments) else 0.0
+            )
+            if request.strategy == "effort_based"
+            else None
         )
 
         splits.append(
@@ -154,8 +161,8 @@ def _apply_strategy(
 
     if strategy == "negative":
         return _negative_split_paces(base_pace_sec, total_splits)
-    # even und effort_based starten beide mit gleichmaessiger Pace
-    # (effort_based wird durch Hoehen-Anpassung differenziert)
+    # even: konstante Pace (Hoehen-Anpassung wird NICHT angewendet)
+    # effort_based: startet gleichmaessig, Hoehen-Anpassung kommt in Schritt 3
     return [base_pace_sec] * total_splits
 
 
