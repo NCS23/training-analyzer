@@ -80,6 +80,29 @@ export async function generatePacing(params: PacingRequest): Promise<PacingRespo
   return response.data;
 }
 
+export interface PacingRecommendationRequest {
+  race_name?: string | null;
+  distance_km: number;
+  target_time_seconds: number;
+  experience_level?: 'beginner' | 'intermediate' | 'advanced' | null;
+}
+
+export interface PacingRecommendationResponse {
+  strategy: 'even' | 'negative' | 'effort_based';
+  elevation_preset: 'flat' | 'rolling' | 'hilly';
+  reasoning: string;
+}
+
+export async function getPacingRecommendation(
+  params: PacingRecommendationRequest,
+): Promise<PacingRecommendationResponse> {
+  const response = await apiClient.post<PacingRecommendationResponse>(
+    '/api/v1/pacing/recommend',
+    params,
+  );
+  return response.data;
+}
+
 export async function getWeatherForecast(
   lat: number,
   lng: number,
