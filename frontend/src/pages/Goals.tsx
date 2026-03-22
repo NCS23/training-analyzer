@@ -165,11 +165,12 @@ export function GoalsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deletingGoal) return;
+    const goal = deletingGoal;
+    if (!goal) return;
     setDeleting(true);
     try {
-      await deleteGoal(deletingGoal.id);
-      toast({ title: `„${deletingGoal.title}" gelöscht`, variant: 'success' });
+      await deleteGoal(goal.id);
+      toast({ title: `„${goal.title}" gelöscht`, variant: 'success' });
       setDeletingGoal(null);
       await loadGoals();
     } catch {
@@ -294,7 +295,7 @@ export function GoalsPage() {
       <AlertDialog
         open={!!deletingGoal}
         onOpenChange={(open) => {
-          if (!open) setDeletingGoal(null);
+          if (!open && !deleting) setDeletingGoal(null);
         }}
       >
         <AlertDialogContent>
