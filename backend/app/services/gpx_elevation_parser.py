@@ -20,17 +20,21 @@ def parse_gpx_elevation(gpx_content: bytes) -> list[ElevationSegment]:
     Returns:
         Liste von ElevationSegment, ein Eintrag pro Kilometer.
     """
-    points = _extract_trackpoints(gpx_content)
+    points = _extract_points(gpx_content)
     if len(points) < 2:
         raise ValueError("GPX-Datei enthält zu wenige Trackpunkte")
 
     return _calculate_km_segments(points)
 
 
-def _extract_trackpoints(
+def _extract_points(
     gpx_content: bytes,
 ) -> list[tuple[float, float, float]]:
-    """Extrahiert (lat, lon, elevation) Tupel aus GPX-Trackpunkten."""
+    """Extrahiert (lat, lon, elevation) Tupel aus GPX-Daten.
+
+    Unterstützt Trackpunkte (<trkpt>), Routenpunkte (<rtept>) und
+    Wegpunkte (<wpt>) — in dieser Priorität.
+    """
     root = ET.fromstring(gpx_content)  # noqa: S314
     points: list[tuple[float, float, float]] = []
 
@@ -39,15 +43,17 @@ def _extract_trackpoints(
         ns = _GPX_NS[ns_prefix]
         prefix = f"{{{ns}}}" if ns else ""
 
-        for trkpt in root.iter(f"{prefix}trkpt"):
-            lat = float(trkpt.get("lat", "0"))
-            lon = float(trkpt.get("lon", "0"))
-            ele_elem = trkpt.find(f"{prefix}ele")
-            ele = float(ele_elem.text) if ele_elem is not None and ele_elem.text else 0.0
-            points.append((lat, lon, ele))
+        # Priorität: trkpt > rtept > wpt
+        for tag in ["trkpt", "rtept", "wpt"]:
+            for pt in root.iter(f"{prefix}{tag}"):
+                lat = float(pt.get("lat", "0"))
+                lon = float(pt.get("lon", "0"))
+                ele_elem = pt.find(f"{prefix}ele")
+                ele = float(ele_elem.text) if ele_elem is not None and ele_elem.text else 0.0
+                points.append((lat, lon, ele))
 
-        if points:
-            break
+            if points:
+                return points
 
     return points
 
