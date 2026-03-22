@@ -78,11 +78,10 @@ function TestHistoryItem({ test }: { test: ThresholdTest }) {
 
 interface ManualEntryFormProps {
   onSave: (data: ThresholdTestCreate) => Promise<void>;
-  onCancel: () => void;
   saving: boolean;
 }
 
-function ManualEntryForm({ onSave, onCancel, saving }: ManualEntryFormProps) {
+function ManualEntryForm({ onSave, saving }: ManualEntryFormProps) {
   const [lthr, setLthr] = useState('');
   const [maxHr, setMaxHr] = useState('');
   const [notes, setNotes] = useState('');
@@ -116,14 +115,6 @@ function ManualEntryForm({ onSave, onCancel, saving }: ManualEntryFormProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-[var(--color-text-base)]">
-          Testergebnis eintragen
-        </h4>
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          Abbrechen
-        </Button>
-      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-[10px]">LTHR (bpm) *</Label>
@@ -248,11 +239,10 @@ function AnalysisPreview({
 
 interface FitImportFlowProps {
   onSave: (data: ThresholdTestCreate) => Promise<void>;
-  onCancel: () => void;
   saving: boolean;
 }
 
-function FitImportFlow({ onSave, onCancel, saving }: FitImportFlowProps) {
+function FitImportFlow({ onSave, saving }: FitImportFlowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ThresholdAnalysis | null>(null);
@@ -292,15 +282,6 @@ function FitImportFlow({ onSave, onCancel, saving }: FitImportFlowProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-[var(--color-text-base)]">
-          FIT-Datei importieren
-        </h4>
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          Abbrechen
-        </Button>
-      </div>
-
       {!analysis && (
         <>
           <input
@@ -485,21 +466,31 @@ function LthrTrendChart({ tests }: { tests: ThresholdTest[] }) {
   );
 }
 
-// --- Action Buttons ---
+// --- Action Buttons (Toggle) ---
 
 interface ActionButtonsProps {
-  onFitImport: () => void;
-  onManualEntry: () => void;
+  activeMode: InputMode;
+  onToggle: (mode: InputMode) => void;
 }
 
-function ActionButtons({ onFitImport, onManualEntry }: ActionButtonsProps) {
+function ActionButtons({ activeMode, onToggle }: ActionButtonsProps) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Button variant="secondary" size="sm" onClick={onFitImport} className="w-full">
+      <Button
+        variant={activeMode === 'fit' ? 'primary' : 'secondary'}
+        size="sm"
+        onClick={() => onToggle(activeMode === 'fit' ? 'none' : 'fit')}
+        className="w-full"
+      >
         <Upload className="w-3.5 h-3.5 mr-1.5" />
         FIT importieren
       </Button>
-      <Button variant="secondary" size="sm" onClick={onManualEntry} className="w-full">
+      <Button
+        variant={activeMode === 'manual' ? 'primary' : 'secondary'}
+        size="sm"
+        onClick={() => onToggle(activeMode === 'manual' ? 'none' : 'manual')}
+        className="w-full"
+      >
         Manuell eintragen
       </Button>
     </div>
@@ -642,32 +633,14 @@ export function ThresholdTestCard() {
       <CardBody className="space-y-4">
         {latestTest ? <TestResultView latest={latestTest} tests={tests} /> : <EmptyTestState />}
 
-        {inputMode === 'none' && (
-          <>
-            <ActionButtons
-              onFitImport={() => setInputMode('fit')}
-              onManualEntry={() => setInputMode('manual')}
-            />
-            <div className="flex justify-center">
-              <ProtocolDownloadButton />
-            </div>
-          </>
-        )}
+        <ActionButtons activeMode={inputMode} onToggle={setInputMode} />
 
-        {inputMode === 'manual' && (
-          <ManualEntryForm
-            onSave={handleSave}
-            onCancel={() => setInputMode('none')}
-            saving={saving}
-          />
-        )}
-        {inputMode === 'fit' && (
-          <FitImportFlow
-            onSave={handleSave}
-            onCancel={() => setInputMode('none')}
-            saving={saving}
-          />
-        )}
+        {inputMode === 'manual' && <ManualEntryForm onSave={handleSave} saving={saving} />}
+        {inputMode === 'fit' && <FitImportFlow onSave={handleSave} saving={saving} />}
+
+        <div className="flex justify-center">
+          <ProtocolDownloadButton />
+        </div>
       </CardBody>
     </Card>
   );
