@@ -102,6 +102,7 @@ const WeeklyPlanPage = lazy(() =>
   import('./pages/WeeklyPlan').then((m) => ({ default: m.WeeklyPlanPage })),
 );
 const GoalsPage = lazy(() => import('./pages/Goals').then((m) => ({ default: m.GoalsPage })));
+const PacingPage = lazy(() => import('./pages/Pacing').then((m) => ({ default: m.PacingPage })));
 const AthleteProfilePage = lazy(() =>
   import('./pages/AthleteProfile').then((m) => ({ default: m.AthleteProfilePage })),
 );
@@ -150,6 +151,7 @@ function App() {
                   <Route path="/plan" element={<PlanLayout />}>
                     <Route index element={<WeeklyPlanPage />} />
                     <Route path="goals" element={<GoalsPage />} />
+                    <Route path="pacing" element={<PacingPage />} />
                     <Route path="programs" element={<TrainingPlansPage />} />
                     <Route path="programs/new" element={<TrainingPlanEditorPage />} />
                     <Route path="programs/:planId" element={<TrainingPlanEditorPage />} />

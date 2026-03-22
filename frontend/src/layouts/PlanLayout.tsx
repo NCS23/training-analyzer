@@ -7,6 +7,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 const tabs = [
   { to: '/plan', label: 'Woche', end: true },
   { to: '/plan/goals', label: 'Ziele', end: false },
+  { to: '/plan/pacing', label: 'Pacing', end: false },
   { to: '/plan/programs', label: 'Programme', end: false },
   { to: '/plan/templates', label: 'Vorlagen', end: false },
   { to: '/plan/exercises', label: 'Übungen', end: false },
