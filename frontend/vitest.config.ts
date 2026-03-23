@@ -14,6 +14,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
     css: false,
+    server: {
+      deps: {
+        // Inline NDS packages so Vitest can process their CSS token imports
+        inline: [/@nordlig\//],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary', 'lcov'],
