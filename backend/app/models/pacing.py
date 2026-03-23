@@ -128,6 +128,9 @@ class PacingRecommendationRequest(BaseModel):
     experience_level: Literal["beginner", "intermediate", "advanced"] | None = Field(
         None, description="Erfahrungslevel"
     )
+    temperature_celsius: float | None = Field(
+        None, description="Temperatur am Wettkampftag (fuer Hitze-Erkennung)"
+    )
 
 
 class PacingRecommendationResponse(BaseModel):

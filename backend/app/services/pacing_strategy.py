@@ -167,9 +167,11 @@ def _apply_strategy(
 
 
 def _negative_split_paces(base_pace: float, num_splits: int) -> list[float]:
-    """Negative Split: erste Haelfte ~3% langsamer, zweite ~3% schneller.
+    """Negative Split: erste Haelfte ~1.5% langsamer, zweite ~1.5% schneller.
 
-    Linearer Uebergang von +3% bei km 1 zu -3% bei letzter km.
+    Linearer Uebergang von +1.5% bei km 1 zu -1.5% bei letzter km.
+    Sportwissenschaftlich fundiert: WR-Analysen zeigen 1-2% Spread
+    (Abbiss & Laursen 2008, Hanley 2016). ±3% war zu aggressiv.
     """
     if num_splits <= 1:
         return [base_pace] * num_splits
@@ -178,8 +180,8 @@ def _negative_split_paces(base_pace: float, num_splits: int) -> list[float]:
     for i in range(num_splits):
         # t geht von 0.0 (erste km) bis 1.0 (letzte km)
         t = i / (num_splits - 1)
-        # modifier: +0.03 bei t=0, -0.03 bei t=1
-        modifier = 0.03 * (1.0 - 2.0 * t)
+        # modifier: +0.015 bei t=0, -0.015 bei t=1
+        modifier = 0.015 * (1.0 - 2.0 * t)
         paces.append(base_pace * (1.0 + modifier))
     return paces
 
