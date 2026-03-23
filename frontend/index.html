@@ -26,9 +26,20 @@
       />
     </noscript>
     <title>Training Analyzer</title>
+    <!-- Critical CSS: enables instant FCP with loading spinner -->
+    <style>
+      body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f8fafc}
+      #root{min-height:100vh}
+      .critical-loader{display:flex;align-items:center;justify-content:center;min-height:100vh}
+      .critical-spinner{width:2.5rem;height:2.5rem;border:3px solid #e2e8f0;border-top-color:#228dbf;border-radius:50%;animation:spin .6s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static loading indicator replaced by React on mount -->
+      <div class="critical-loader"><div class="critical-spinner"></div></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
