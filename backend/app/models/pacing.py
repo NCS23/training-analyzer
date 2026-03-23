@@ -120,19 +120,28 @@ class RaceDayWeatherResponse(BaseModel):
 
 
 class PacingRecommendationRequest(BaseModel):
-    """Request-Schema: KI-Empfehlung fuer Pacing-Strategie."""
+    """Request-Schema: Evidenzbasierte Pacing-Strategie-Empfehlung."""
 
     race_name: str | None = Field(None, description="Name des Rennens (z.B. Berlin Halbmarathon)")
     distance_km: float = Field(..., gt=0, description="Distanz in Kilometern")
     target_time_seconds: int = Field(..., gt=0, description="Zielzeit in Sekunden")
-    experience_level: Literal["beginner", "intermediate", "advanced"] | None = Field(
-        None, description="Erfahrungslevel"
+    experience_level: Literal["beginner", "intermediate", "advanced"] = Field(
+        ..., description="Erfahrungslevel"
+    )
+    temperature_celsius: float | None = Field(
+        None, description="Erwartete Temperatur am Renntag in Grad Celsius"
+    )
+    elevation_preset: Literal["flat", "rolling", "hilly"] | None = Field(
+        None, description="Manuell gewaehltes Hoehenprofil-Preset"
+    )
+    elevation_segments: list[ElevationSegment] | None = Field(
+        None, description="Hoehenprofil aus GPX-Upload (pro km)"
     )
 
 
 class PacingRecommendationResponse(BaseModel):
-    """Response-Schema: KI-Empfehlung mit Begruendung."""
+    """Response-Schema: Evidenzbasierte Empfehlung mit Begruendung."""
 
     strategy: Literal["even", "negative", "effort_based"]
-    elevation_preset: Literal["flat", "rolling", "hilly"]
-    reasoning: str = Field(description="Begruendung der Empfehlung")
+    elevation_preset: Literal["flat", "rolling", "hilly"] | None
+    reasoning: str = Field(description="Evidenzbasierte Begruendung der Empfehlung")
