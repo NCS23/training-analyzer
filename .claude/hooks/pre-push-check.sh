@@ -26,5 +26,25 @@ EOF
   exit 2
 fi
 
-# On a feature branch — allow
+# --- Check if branch has a merged PR (don't push to merged branches) ---
+MERGED_PR=$(gh pr list -R NCS23/training-analyzer --head "$BRANCH" --state merged --json number --jq '.[0].number' 2>/dev/null || echo "")
+if [ -n "$MERGED_PR" ] && [ "$MERGED_PR" != "null" ]; then
+  cat <<EOF
+
+============================================
+  BLOCKIERT: Branch hat bereits gemergten PR
+============================================
+
+  Branch: $BRANCH
+  PR #$MERGED_PR wurde bereits gemergt.
+
+  Erstelle einen neuen Branch von main:
+    git fetch origin main
+    git checkout -b fix/<issue>-<slug> origin/main
+
+EOF
+  exit 2
+fi
+
+# On a feature branch without merged PR — allow
 exit 0
