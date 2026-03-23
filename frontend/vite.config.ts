@@ -1,29 +1,9 @@
 import { defineConfig } from 'vite';
-import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-/**
- * Converts render-blocking CSS <link> tags to non-blocking preload/onload
- * pattern. The browser can paint the inline critical CSS (in index.html)
- * immediately for a fast FCP, while the full stylesheet loads in parallel.
- */
-function asyncCssPlugin(): Plugin {
-  return {
-    name: 'async-css',
-    enforce: 'post',
-    transformIndexHtml(html) {
-      return html.replace(
-        /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g,
-        (_match, href: string) =>
-          `<link rel="preload" as="style" href="${href}" onload="this.onload=null;this.rel='stylesheet'" />\n    <noscript><link rel="stylesheet" href="${href}" /></noscript>`,
-      );
-    },
-  };
-}
-
 export default defineConfig({
-  plugins: [react(), asyncCssPlugin()],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
