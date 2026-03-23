@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
 from app.core.config import settings
 from app.infrastructure.database.models import RaceGoalModel
 from app.infrastructure.database.session import get_db
@@ -24,7 +23,7 @@ from app.models.pacing import (
     RaceDayWeatherResponse,
 )
 from app.services.gpx_elevation_parser import parse_gpx_elevation
-from app.services.pacing_recommendation import get_pacing_recommendation
+from app.services.pacing_recommendation import recommend_pacing
 from app.services.pacing_strategy import generate_pacing_strategy
 
 logger = logging.getLogger(__name__)
@@ -124,24 +123,11 @@ async def get_weather_forecast(
 
 
 @router.post("/recommend", response_model=PacingRecommendationResponse)
-async def recommend_pacing(
+async def recommend_pacing_endpoint(
     body: PacingRecommendationRequest,
-    db: AsyncSession = Depends(get_db),
 ) -> PacingRecommendationResponse:
-    """KI-Empfehlung fuer die optimale Pacing-Strategie."""
-    api_key = await resolve_claude_api_key(db)
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Kein KI-Provider verfügbar")
-
-    try:
-        return await get_pacing_recommendation(body, api_key, db)
-    except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
-    except Exception as e:
-        logger.error("Pacing-Empfehlung fehlgeschlagen: %s", e)
-        raise HTTPException(
-            status_code=502, detail="KI-Empfehlung konnte nicht generiert werden"
-        ) from e
+    """Evidenzbasierte Empfehlung fuer die optimale Pacing-Strategie."""
+    return recommend_pacing(body)
 
 
 @router.post("/parse-gpx", response_model=list[ElevationSegment])
