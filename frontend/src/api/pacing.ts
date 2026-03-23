@@ -80,16 +80,21 @@ export async function generatePacing(params: PacingRequest): Promise<PacingRespo
   return response.data;
 }
 
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface PacingRecommendationRequest {
   race_name?: string | null;
   distance_km: number;
   target_time_seconds: number;
-  experience_level?: 'beginner' | 'intermediate' | 'advanced' | null;
+  experience_level: ExperienceLevel;
+  temperature_celsius?: number | null;
+  elevation_preset?: 'flat' | 'rolling' | 'hilly' | null;
+  elevation_segments?: ElevationSegment[] | null;
 }
 
 export interface PacingRecommendationResponse {
   strategy: 'even' | 'negative' | 'effort_based';
-  elevation_preset: 'flat' | 'rolling' | 'hilly';
+  elevation_preset: 'flat' | 'rolling' | 'hilly' | null;
   reasoning: string;
 }
 

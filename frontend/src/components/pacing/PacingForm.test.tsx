@@ -35,11 +35,12 @@ describe('PacingForm', () => {
     expect(screen.getByText('Wettkampfziel')).toBeDefined();
   });
 
-  it('zeigt keine Goal-Auswahl ohne aktive Ziele', () => {
+  it('zeigt Hinweis statt Select ohne aktive Ziele', () => {
     const inactiveGoal = { ...mockGoal, is_active: false };
     render(<PacingForm goals={[inactiveGoal]} loading={false} onGenerate={vi.fn()} />);
 
-    expect(screen.queryByText('Wettkampfziel')).toBeNull();
+    expect(screen.getByText('Wettkampfziel')).toBeDefined();
+    expect(screen.getByText(/Noch keine Ziele angelegt/)).toBeDefined();
   });
 
   it('zeigt Fehlermeldung bei fehlender Distanz', () => {

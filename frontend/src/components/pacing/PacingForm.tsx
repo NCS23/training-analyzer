@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Button, Label, Select, Alert, AlertDescription } from '@nordlig/components';
 import { Play } from 'lucide-react';
 import type { RaceGoal } from '@/api/goals';
-import type { ElevationSegment, PacingRequest, PacingRecommendationResponse } from '@/api/pacing';
+import type {
+  ElevationSegment,
+  ExperienceLevel,
+  PacingRequest,
+  PacingRecommendationResponse,
+} from '@/api/pacing';
 import { DistanceTimeInputs } from './DistanceTimeInputs';
 import { StrategyInputs } from './StrategyInputs';
 import { WeatherInputs } from './WeatherInputs';
@@ -29,6 +34,7 @@ function usePacingForm(goals: RaceGoal[]) {
   const [error, setError] = useState<string | null>(null);
   const [raceName, setRaceName] = useState('');
   const [elevationSegments, setElevationSegments] = useState<ElevationSegment[] | null>(null);
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('intermediate');
 
   useEffect(() => {
     if (!goalId) return;
@@ -99,6 +105,8 @@ function usePacingForm(goals: RaceGoal[]) {
     raceName,
     elevationSegments,
     setElevationSegments,
+    experienceLevel,
+    setExperienceLevel,
     getTimeSeconds,
     validate,
   };
@@ -118,22 +126,30 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
 
   const handleRecommendation = (rec: PacingRecommendationResponse) => {
     form.setStrategy(rec.strategy);
-    form.setElevationPreset(rec.elevation_preset);
+    if (rec.elevation_preset) form.setElevationPreset(rec.elevation_preset);
     setReasoning(rec.reasoning);
   };
 
   return (
     <div className="space-y-5">
-      {activeGoals.length > 0 && (
-        <div>
-          <Label>Wettkampfziel</Label>
+      <div>
+        <Label>Wettkampfziel</Label>
+        {activeGoals.length > 0 ? (
           <Select
             options={goalOptions}
             value={form.goalId ? String(form.goalId) : ''}
             onChange={(val) => form.setGoalId(val ? Number(val) : null)}
           />
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Noch keine Ziele angelegt. Du kannst unter{' '}
+            <a href="/plan/goals" className="underline text-[var(--color-text-primary)]">
+              Ziele
+            </a>{' '}
+            ein Wettkampfziel erstellen.
+          </p>
+        )}
+      </div>
 
       <DistanceTimeInputs
         distance={form.distance}
@@ -146,27 +162,30 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
         onTimeSChange={form.setTimeS}
       />
 
-      <StrategyInputs
-        strategy={form.strategy}
-        elevationPreset={form.elevationPreset}
-        elevationSegments={form.elevationSegments}
-        raceName={form.raceName}
-        distanceKm={parseFloat(form.distance) || null}
-        targetTimeSeconds={form.getTimeSeconds() || null}
-        reasoning={reasoning}
-        disabled={loading}
-        onStrategyChange={form.setStrategy}
-        onElevationChange={form.setElevationPreset}
-        onElevationSegmentsChange={form.setElevationSegments}
-        onRecommendation={handleRecommendation}
-        onReasoningClose={() => setReasoning(null)}
-      />
-
       <WeatherInputs
         temperature={form.temperature}
         windSpeed={form.windSpeed}
         onTemperatureChange={form.setTemperature}
         onWindSpeedChange={form.setWindSpeed}
+      />
+
+      <StrategyInputs
+        strategy={form.strategy}
+        elevationPreset={form.elevationPreset}
+        elevationSegments={form.elevationSegments}
+        experienceLevel={form.experienceLevel}
+        raceName={form.raceName}
+        distanceKm={parseFloat(form.distance) || null}
+        targetTimeSeconds={form.getTimeSeconds() || null}
+        temperatureCelsius={parseFloat(form.temperature) || null}
+        reasoning={reasoning}
+        disabled={loading}
+        onStrategyChange={form.setStrategy}
+        onElevationChange={form.setElevationPreset}
+        onElevationSegmentsChange={form.setElevationSegments}
+        onExperienceLevelChange={form.setExperienceLevel}
+        onRecommendation={handleRecommendation}
+        onReasoningClose={() => setReasoning(null)}
       />
 
       {form.error && (
@@ -182,6 +201,7 @@ export function PacingForm({ goals, loading, onGenerate }: PacingFormProps) {
           if (p) onGenerate(p);
         }}
         disabled={loading}
+        className="w-full"
       >
         {loading ? (
           'Berechne…'
