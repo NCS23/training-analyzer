@@ -51,92 +51,44 @@ class TestDetermineElevationPreset:
 
 
 class TestDetermineStrategy:
-    """Tests fuer den evidenzbasierten Entscheidungsbaum."""
+    """Tests fuer den evidenzbasierten Entscheidungsbaum.
 
-    # Schritt 1: Hoehenprofil (dominanter Faktor)
+    Nur ein Faktor: Hoehenprofil.
+    - Flach → even (energetisch optimal, Abbiss & Laursen 2005)
+    - Wellig/Huegelig → effort_based (konstanter Effort)
+    """
 
-    def test_hilly_always_effort_based(self) -> None:
-        """Huegelig → effort_based, unabhaengig von Distanz/Level."""
-        assert determine_strategy(21.1, "hilly", "beginner", None) == "effort_based"
-        assert determine_strategy(42.195, "hilly", "advanced", None) == "effort_based"
-        assert determine_strategy(10.0, "hilly", None, None) == "effort_based"
+    def test_hilly_effort_based(self) -> None:
+        assert determine_strategy("hilly") == "effort_based"
 
-    def test_rolling_always_effort_based(self) -> None:
-        """Wellig → effort_based."""
-        assert determine_strategy(21.1, "rolling", "advanced", None) == "effort_based"
-        assert determine_strategy(5.0, "rolling", "beginner", None) == "effort_based"
+    def test_rolling_effort_based(self) -> None:
+        assert determine_strategy("rolling") == "effort_based"
 
-    # Schritt 2: Distanz (bei flacher Strecke)
+    def test_flat_even(self) -> None:
+        assert determine_strategy("flat") == "even"
 
-    def test_5k_always_even(self) -> None:
-        """5K → even (zu kurz fuer Negative-Split-Vorteil)."""
-        assert determine_strategy(5.0, "flat", "advanced", None) == "even"
-
-    def test_10k_always_even(self) -> None:
-        """10K → even."""
-        assert determine_strategy(10.0, "flat", "advanced", None) == "even"
-
-    def test_marathon_always_even(self) -> None:
-        """Marathon → even (Glykogen-Management)."""
-        assert determine_strategy(42.195, "flat", "advanced", None) == "even"
-
-    def test_ultra_always_even(self) -> None:
-        """Ultra → even (Energie-Management)."""
-        assert determine_strategy(50.0, "flat", "advanced", None) == "even"
-        assert determine_strategy(100.0, "flat", "advanced", None) == "even"
-
-    # Schritt 3: HM-spezifisch
-
-    def test_hm_beginner_even(self) -> None:
-        """HM + Anfaenger → even (negative Splits schwer umsetzbar)."""
-        assert determine_strategy(21.1, "flat", "beginner", None) == "even"
-
-    def test_hm_no_level_even(self) -> None:
-        """HM + kein Level → even (sicherster Default)."""
-        assert determine_strategy(21.1, "flat", None, None) == "even"
-
-    def test_hm_intermediate_no_heat_negative(self) -> None:
-        """HM + Fortgeschritten + keine Hitze → negative."""
-        assert determine_strategy(21.1, "flat", "intermediate", None) == "negative"
-
-    def test_hm_advanced_no_heat_negative(self) -> None:
-        """HM + Erfahren + keine Hitze → negative."""
-        assert determine_strategy(21.1, "flat", "advanced", None) == "negative"
-
-    def test_hm_advanced_cool_negative(self) -> None:
-        """HM + Erfahren + kuehle Bedingungen → negative."""
-        assert determine_strategy(21.1, "flat", "advanced", 12.0) == "negative"
-
-    def test_hm_heat_forces_even(self) -> None:
-        """HM + Hitze > 20°C → even (auch fuer Erfahrene)."""
-        assert determine_strategy(21.1, "flat", "advanced", 25.0) == "even"
-        assert determine_strategy(21.1, "flat", "intermediate", 21.0) == "even"
-
-    def test_hm_exactly_20_not_heat(self) -> None:
-        """Genau 20°C ist noch keine Hitze (Schwelle ist >20°C)."""
-        assert determine_strategy(21.1, "flat", "advanced", 20.0) == "negative"
-
-    # Determinismus-Check
-
-    def test_deterministic_same_input_same_output(self) -> None:
+    def test_deterministic(self) -> None:
         """Gleiche Inputs muessen immer das gleiche Ergebnis liefern."""
-        results = [determine_strategy(21.1, "flat", "advanced", 15.0) for _ in range(100)]
+        results = [determine_strategy("flat") for _ in range(100)]
         assert all(r == results[0] for r in results)
 
-    # Grenzfaelle Distanz
+    # Integration: Rennname → Preset → Strategie (End-to-End)
 
-    def test_15km_counts_as_hm(self) -> None:
-        """15 km liegt im HM-Bereich."""
-        assert determine_strategy(15.0, "flat", "advanced", None) == "negative"
+    def test_berlin_hm_always_even(self) -> None:
+        """Berlin HM ist immer even — kein Muenzwurf."""
+        preset = determine_elevation_preset("Berlin Halbmarathon")
+        assert determine_strategy(preset) == "even"
 
-    def test_25km_counts_as_hm(self) -> None:
-        """25 km liegt noch im HM-Bereich."""
-        assert determine_strategy(25.0, "flat", "advanced", None) == "negative"
+    def test_zuerich_marathon_always_effort_based(self) -> None:
+        preset = determine_elevation_preset("Zürich Marathon")
+        assert determine_strategy(preset) == "effort_based"
 
-    def test_14km_not_hm(self) -> None:
-        """14 km ist kein HM → even."""
-        assert determine_strategy(14.0, "flat", "advanced", None) == "even"
+    def test_frankfurt_hm_always_effort_based(self) -> None:
+        """Frankfurt (wellig) ist immer effort_based."""
+        preset = determine_elevation_preset("Frankfurt Halbmarathon")
+        assert determine_strategy(preset) == "effort_based"
 
-    def test_26km_not_hm(self) -> None:
-        """26 km ist kein HM mehr → even."""
-        assert determine_strategy(26.0, "flat", "advanced", None) == "even"
+    def test_unknown_race_always_even(self) -> None:
+        """Unbekanntes Rennen → flat → even."""
+        preset = determine_elevation_preset("Dorflauf Hintertupfingen")
+        assert determine_strategy(preset) == "even"

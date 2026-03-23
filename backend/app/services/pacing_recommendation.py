@@ -72,15 +72,6 @@ _KNOWN_RACES: dict[str, ElevationPresetType] = {
 }
 
 # ---------------------------------------------------------------------------
-# Schwellenwerte
-# ---------------------------------------------------------------------------
-
-_HEAT_THRESHOLD_C = 20.0
-_HM_DISTANCE_RANGE = (15.0, 25.0)
-_MARATHON_DISTANCE_RANGE = (35.0, 45.0)
-
-
-# ---------------------------------------------------------------------------
 # Deterministische Strategieauswahl
 # ---------------------------------------------------------------------------
 
@@ -107,46 +98,30 @@ def determine_elevation_preset(race_name: str | None) -> ElevationPresetType:
 
 
 def determine_strategy(
-    distance_km: float,
     elevation_preset: str,
-    experience_level: str | None,
-    temperature_celsius: float | None,
 ) -> StrategyType:
     """Evidenzbasierter Entscheidungsbaum fuer die Pacing-Strategie.
 
-    Schritt 1: Hoehenprofil (dominanter Faktor)
-      - hilly/rolling → effort_based (konstanter Effort bei variablem Terrain)
+    Nur zwei Faktoren bestimmen die Strategie — Hoehenprofil und Distanz.
+    Experience-Level und Temperatur beeinflussen die Ausfuehrung (Sicherheitsmarge),
+    nicht die Grundstrategie selbst.
 
-    Schritt 2: Distanz
-      - 5K-10K  → even (zu kurz fuer Negative-Split-Vorteil)
-      - Marathon → even (Glykogen-Management, Einbruch-Praevention)
-      - Ultra    → even (Energie-Management noch kritischer)
-      - HM      → weiter zu Schritt 3
+    Sportwissenschaftliche Grundlage:
+    - Even Pacing ist energetisch optimal auf flacher Strecke
+      (Abbiss & Laursen 2005/2008, Hanley 2016)
+    - Effort-Based ist optimal bei relevantem Hoehenprofil
+    - Negative Splits bieten keinen nachgewiesenen Vorteil gegenueber
+      Even Pacing und sind schwerer umsetzbar — daher keine Empfehlung,
+      aber als manuelle Option weiterhin verfuegbar
 
-    Schritt 3: HM-spezifisch (einzige Distanz wo negativ sinnvoll)
-      - Hitze >20°C        → even (konservativer Start bei Hitze Pflicht)
-      - Beginner           → even (negative Splits schwer umsetzbar)
-      - Intermediate/Advanced + gute Bedingungen → negative
-      - Default            → even
+    Entscheidungsbaum:
+      1. hilly/rolling → effort_based (konstanter Effort bei variablem Terrain)
+      2. flat          → even (energetisch optimal, alle Distanzen)
     """
-    # Schritt 1: Hoehenprofil
     if elevation_preset in ("hilly", "rolling"):
         return "effort_based"
 
-    # Schritt 2: Distanz
-    is_hm = _HM_DISTANCE_RANGE[0] <= distance_km <= _HM_DISTANCE_RANGE[1]
-    if not is_hm:
-        return "even"
-
-    # Schritt 3: HM-spezifisch
-    if temperature_celsius is not None and temperature_celsius > _HEAT_THRESHOLD_C:
-        return "even"
-
-    if experience_level is None or experience_level == "beginner":
-        return "even"
-
-    # Intermediate oder Advanced + HM + keine Hitze
-    return "negative"
+    return "even"
 
 
 # ---------------------------------------------------------------------------
@@ -287,12 +262,7 @@ async def get_pacing_recommendation(
 ) -> PacingRecommendationResponse:
     """Deterministische Strategieempfehlung mit KI-Begruendung."""
     elevation_preset = determine_elevation_preset(request.race_name)
-    strategy = determine_strategy(
-        distance_km=request.distance_km,
-        elevation_preset=elevation_preset,
-        experience_level=request.experience_level,
-        temperature_celsius=request.temperature_celsius,
-    )
+    strategy = determine_strategy(elevation_preset)
 
     reasoning = await _get_ai_reasoning(request, strategy, elevation_preset, api_key, db)
 
