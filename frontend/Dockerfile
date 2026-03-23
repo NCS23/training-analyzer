@@ -17,6 +17,10 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Pre-compress static assets at max gzip level (served via gzip_static)
+RUN find /usr/share/nginx/html/assets -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' -o -name '*.json' \) \
+    -exec sh -c 'gzip -9 -k "$1"' _ {} \;
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
