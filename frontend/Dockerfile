@@ -12,7 +12,8 @@ COPY . .
 RUN npm run build
 
 # ---- Production Stage ----
-FROM nginx:alpine
+# nginx-brotli adds Brotli compression module (~20-30% smaller than gzip)
+FROM fholzer/nginx-brotli:latest
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
