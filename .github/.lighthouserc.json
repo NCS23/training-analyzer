@@ -1,0 +1,11 @@
+{
+  "ci": {
+    "assert": {
+      "assertions": {
+        "first-contentful-paint": ["warn", { "maxNumericValue": 4000 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 6000 }],
+        "interactive": ["warn", { "maxNumericValue": 7000 }]
+      }
+    }
+  }
+}
