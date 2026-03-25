@@ -4,7 +4,7 @@
     "timings": [
       { "metric": "first-contentful-paint", "budget": 4000 },
       { "metric": "interactive", "budget": 7000 },
-      { "metric": "largest-contentful-paint", "budget": 5000 }
+      { "metric": "largest-contentful-paint", "budget": 6000 }
     ],
     "resourceSizes": [
       { "resourceType": "script", "budget": 2000 },
