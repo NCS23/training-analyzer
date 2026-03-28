@@ -9,6 +9,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from datetime import date as date_type
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -104,6 +105,36 @@ def _from_cache(session_id: int, raw: str) -> SessionAnalysisResponse:
         raise ValueError("Cache ungueltig") from e
 
 
+async def _select_relevant_goal(db: AsyncSession, workout_date: date_type) -> RaceGoalModel | None:
+    """Waehlt das relevante aktive Ziel fuer eine Session.
+
+    Logik: Das naechste aktive Ziel, dessen race_date >= Session-Datum.
+    Fallback: Das zeitlich naechste aktive Ziel (nach race_date ASC).
+    """
+    # Primaer: naechstes Ziel NACH dem Session-Datum
+    result = await db.execute(
+        select(RaceGoalModel)
+        .where(
+            RaceGoalModel.is_active.is_(True),
+            RaceGoalModel.race_date >= workout_date,
+        )
+        .order_by(RaceGoalModel.race_date.asc())
+        .limit(1)
+    )
+    goal = result.scalar_one_or_none()
+    if goal:
+        return goal
+
+    # Fallback: irgendein aktives Ziel (naechstes Renndatum)
+    result = await db.execute(
+        select(RaceGoalModel)
+        .where(RaceGoalModel.is_active.is_(True))
+        .order_by(RaceGoalModel.race_date.asc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def _load_analysis_context(workout: WorkoutModel, db: AsyncSession) -> AnalysisContext:
     """Laedt Trainingshistorie, Ziel, geplante Session und Athleten-Daten."""
     workout_date = workout.date.date() if isinstance(workout.date, datetime) else workout.date
@@ -123,11 +154,8 @@ async def _load_analysis_context(workout: WorkoutModel, db: AsyncSession) -> Ana
     )
     history = [_workout_to_summary(w) for w in hist_result.scalars().all()]
 
-    # Aktives Wettkampfziel
-    goal_result = await db.execute(
-        select(RaceGoalModel).where(RaceGoalModel.is_active.is_(True)).limit(1)
-    )
-    goal_model = goal_result.scalar_one_or_none()
+    # Aktives Wettkampfziel — das naechste Ziel NACH dem Session-Datum
+    goal_model = await _select_relevant_goal(db, workout_date)
     race_goal = _goal_to_dict(goal_model) if goal_model else None
 
     # Geplante Session
