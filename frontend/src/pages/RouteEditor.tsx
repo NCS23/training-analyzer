@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
+  ActionBar,
   Button,
   Card,
   CardBody,
@@ -102,25 +103,30 @@ function EditorActionBar({
   onCancel: () => void;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 flex items-center justify-end gap-3">
-      <Button variant="secondary" onClick={onCancel}>
-        Abbrechen
-      </Button>
-      <Button
-        variant="primary"
-        onClick={onSave}
-        disabled={editor.saving || editor.waypoints.length < 2 || !editor.name.trim()}
-      >
-        {editor.saving ? (
-          <Spinner size="sm" />
-        ) : (
-          <>
-            <Save className="w-4 h-4 mr-1.5" />
-            Speichern
-          </>
-        )}
-      </Button>
-    </div>
+    <ActionBar
+      sticky={false}
+      className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40"
+    >
+      <div className="flex items-center justify-end gap-3 w-full">
+        <Button variant="secondary" onClick={onCancel}>
+          Abbrechen
+        </Button>
+        <Button
+          variant="primary"
+          onClick={onSave}
+          disabled={editor.saving || editor.waypoints.length < 2 || !editor.name.trim()}
+        >
+          {editor.saving ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-1.5" />
+              Speichern
+            </>
+          )}
+        </Button>
+      </div>
+    </ActionBar>
   );
 }
 
@@ -212,7 +218,7 @@ export function RouteEditorPage() {
         onSave={handleSave}
         onCancel={() => navigate('/plan/routes')}
       />
-      <div className="h-16" />
+      <div className="h-24 lg:h-16" />
     </div>
   );
 }
