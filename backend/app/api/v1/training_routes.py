@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models import (
     SessionTemplateModel,
     TrainingRouteModel,
+    WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
 from app.models.training_route import (
@@ -21,6 +22,7 @@ from app.models.training_route import (
     TrainingRouteUpdate,
     Waypoint,
 )
+from app.services.route_from_session import session_to_route_data
 
 router = APIRouter(prefix="/routes")
 
@@ -195,6 +197,44 @@ async def list_routes(
         routes=[_model_to_summary(r) for r in routes],
         total=total,
     )
+
+
+@router.post("/from-session/{session_id}", response_model=TrainingRouteResponse, status_code=201)
+async def create_route_from_session(
+    session_id: int,
+    name: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+) -> TrainingRouteResponse:
+    """Route aus einer bestehenden Session mit GPS-Daten erstellen."""
+    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    workout = result.scalar_one_or_none()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+
+    if not workout.gps_track_json:
+        raise HTTPException(status_code=422, detail="Session hat keine GPS-Daten")
+
+    try:
+        route_data = session_to_route_data(workout, name=name)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    route = TrainingRouteModel(
+        name=route_data["name"],
+        distance_km=route_data["distance_km"],
+        elevation_gain_m=route_data["elevation_gain_m"],
+        elevation_loss_m=route_data["elevation_loss_m"],
+        location_name=route_data["location_name"],
+        surface_json=json.dumps(route_data["surface"]) if route_data["surface"] else None,
+        waypoints_json=json.dumps(route_data["waypoints"]),
+        route_segments_json=(
+            json.dumps(route_data["route_segments"]) if route_data["route_segments"] else None
+        ),
+    )
+    db.add(route)
+    await db.commit()
+    await db.refresh(route)
+    return _model_to_response(route)
 
 
 @router.get("/{route_id}", response_model=TrainingRouteResponse)

@@ -1,4 +1,6 @@
-"""Tests for Training Routes API (#508 / #509)."""
+"""Tests for Training Routes API (#508 / #509 / #513)."""
+
+import json
 
 import pytest
 from httpx import AsyncClient
@@ -321,3 +323,137 @@ async def test_update_waypoints(client: AsyncClient) -> None:
     resp = await client.patch(f"{BASE}/{route_id}", json={"waypoints": new_waypoints})
     assert resp.status_code == 200
     assert len(resp.json()["waypoints"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# From-Session Import (#513)
+# ---------------------------------------------------------------------------
+
+GPS_TRACK = {
+    "points": [
+        {"lat": 53.5670, "lng": 9.9930, "alt": 12.0, "seconds": 0, "hr": 130},
+        {"lat": 53.5680, "lng": 9.9920, "alt": 14.0, "seconds": 60, "hr": 140},
+        {"lat": 53.5690, "lng": 9.9910, "alt": 16.0, "seconds": 120, "hr": 150},
+        {"lat": 53.5700, "lng": 9.9900, "alt": 13.0, "seconds": 180, "hr": 145},
+        {"lat": 53.5710, "lng": 9.9890, "alt": 11.0, "seconds": 240, "hr": 135},
+    ],
+    "total_ascent_m": 4.0,
+    "total_descent_m": 5.0,
+}
+
+LAPS_DATA = [
+    {
+        "lap_number": 1,
+        "duration_seconds": 120,
+        "distance_km": 0.5,
+        "pace_formatted": "4:00",
+        "avg_hr_bpm": 135,
+        "max_hr_bpm": 140,
+        "suggested_type": "warmup",
+    },
+    {
+        "lap_number": 2,
+        "duration_seconds": 120,
+        "distance_km": 0.8,
+        "pace_formatted": "3:30",
+        "avg_hr_bpm": 155,
+        "max_hr_bpm": 165,
+        "suggested_type": "work",
+    },
+]
+
+
+async def _create_session_with_gps(
+    client: AsyncClient,
+    has_gps: bool = True,
+    with_laps: bool = False,
+    location: str | None = "Alster, Hamburg",
+    surface: dict | None = None,
+) -> int:
+    """Helper: Session mit GPS-Daten direkt in DB anlegen."""
+    from datetime import datetime
+
+    from app.infrastructure.database.models import WorkoutModel
+    from app.infrastructure.database.session import get_db
+    from app.main import app
+
+    # Get DB session via dependency override
+    db_gen = app.dependency_overrides[get_db]()
+    db = await db_gen.__anext__()
+
+    workout = WorkoutModel(
+        date=datetime(2026, 3, 15, 8, 0, 0),
+        workout_type="running",
+        duration_sec=240,
+        distance_km=1.3,
+        gps_track_json=json.dumps(GPS_TRACK) if has_gps else None,
+        has_gps=has_gps,
+        laps_json=json.dumps(LAPS_DATA) if with_laps else None,
+        location_name=location,
+        surface_json=json.dumps(surface) if surface else None,
+    )
+    db.add(workout)
+    await db.commit()
+    await db.refresh(workout)
+    return workout.id
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session(client: AsyncClient) -> None:
+    session_id = await _create_session_with_gps(client, location="Alster, Hamburg")
+
+    resp = await client.post(f"{BASE}/from-session/{session_id}")
+    assert resp.status_code == 201
+    body = resp.json()
+    assert "Alster" in body["name"]
+    assert body["distance_km"] > 0
+    assert len(body["waypoints"]) >= 2
+    assert body["waypoints"][0]["km_marker"] == 0.0
+    assert body["location_name"] == "Alster, Hamburg"
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session_custom_name(client: AsyncClient) -> None:
+    session_id = await _create_session_with_gps(client)
+
+    resp = await client.post(f"{BASE}/from-session/{session_id}", params={"name": "Meine Runde"})
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "Meine Runde"
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session_with_laps(client: AsyncClient) -> None:
+    session_id = await _create_session_with_gps(client, with_laps=True)
+
+    resp = await client.post(f"{BASE}/from-session/{session_id}")
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["route_segments"] is not None
+    assert len(body["route_segments"]) == 2
+    assert body["route_segments"][0]["segment_type"] == "warmup"
+    assert body["route_segments"][1]["segment_type"] == "work"
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session_with_surface(client: AsyncClient) -> None:
+    surface = {"Asphalt": 70.0, "Gras": 30.0}
+    session_id = await _create_session_with_gps(client, surface=surface)
+
+    resp = await client.post(f"{BASE}/from-session/{session_id}")
+    assert resp.status_code == 201
+    assert resp.json()["surface"]["Asphalt"] == 70.0
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session_no_gps(client: AsyncClient) -> None:
+    session_id = await _create_session_with_gps(client, has_gps=False)
+
+    resp = await client.post(f"{BASE}/from-session/{session_id}")
+    assert resp.status_code == 422
+    assert "GPS" in resp.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_create_route_from_session_not_found(client: AsyncClient) -> None:
+    resp = await client.post(f"{BASE}/from-session/99999")
+    assert resp.status_code == 404
