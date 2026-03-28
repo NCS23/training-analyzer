@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.segment import Segment
 
 from app.models.pacing import (
     ElevationSegment,
@@ -167,21 +171,21 @@ def _apply_strategy(
 
 
 def _negative_split_paces(base_pace: float, num_splits: int) -> list[float]:
-    """Negative Split: erste Haelfte ~3% langsamer, zweite ~3% schneller.
+    """Negative Split: Stufenmodell (Kipchoge-Stil).
 
-    Linearer Uebergang von +3% bei km 1 zu -3% bei letzter km.
+    Erste Haelfte konstant ~3% langsamer, zweite Haelfte konstant schneller.
+    Der gewichtete Durchschnitt beider Bloecke ergibt exakt die base_pace.
     """
     if num_splits <= 1:
         return [base_pace] * num_splits
 
-    paces: list[float] = []
-    for i in range(num_splits):
-        # t geht von 0.0 (erste km) bis 1.0 (letzte km)
-        t = i / (num_splits - 1)
-        # modifier: +0.03 bei t=0, -0.03 bei t=1
-        modifier = 0.03 * (1.0 - 2.0 * t)
-        paces.append(base_pace * (1.0 + modifier))
-    return paces
+    midpoint = num_splits // 2
+    slow_pace = base_pace * 1.03
+    # fast_pace so berechnen, dass gewichteter Durchschnitt = base_pace
+    remaining = num_splits - midpoint
+    fast_pace = (base_pace * num_splits - slow_pace * midpoint) / remaining
+
+    return [slow_pace] * midpoint + [fast_pace] * remaining
 
 
 # ---------------------------------------------------------------------------
@@ -383,3 +387,53 @@ def _build_notes(
         notes.append("Trinke frühzeitig und regelmäßig bei diesen Bedingungen.")
 
     return notes
+
+
+# ---------------------------------------------------------------------------
+# Splits → Segments Konvertierung (fuer FIT-Export + Wochenplan)
+# ---------------------------------------------------------------------------
+
+_GROUPING_TOLERANCE_SEC = 3.0  # km mit <=3s Pace-Differenz werden zusammengefasst
+
+
+def pacing_splits_to_segments(splits: list[KmPacingSplit]) -> list[Segment]:
+    """Konvertiert Pacing-Splits zu Segment-Objekten fuer FIT-Export.
+
+    Aufeinanderfolgende km mit aehnlicher Pace (<=3 sec/km) werden
+    zu einem einzelnen Segment zusammengefasst.
+    """
+    from app.models.segment import Segment
+
+    if not splits:
+        return []
+
+    groups: list[list[KmPacingSplit]] = []
+    current_group: list[KmPacingSplit] = [splits[0]]
+
+    for split in splits[1:]:
+        ref_pace = current_group[0].target_pace_sec_per_km
+        if abs(split.target_pace_sec_per_km - ref_pace) <= _GROUPING_TOLERANCE_SEC:
+            current_group.append(split)
+        else:
+            groups.append(current_group)
+            current_group = [split]
+    groups.append(current_group)
+
+    segments: list[Segment] = []
+    for i, group in enumerate(groups):
+        total_dist = round(sum(s.distance_km for s in group), 2)
+        paces = [s.target_pace_sec_per_km for s in group]
+        min_pace = min(paces)  # schnellste
+        max_pace = max(paces)  # langsamste
+
+        segments.append(
+            Segment(
+                position=i,
+                segment_type="steady",
+                target_distance_km=total_dist,
+                target_pace_min=_format_pace_sec(min_pace),
+                target_pace_max=_format_pace_sec(max_pace),
+            )
+        )
+
+    return segments
