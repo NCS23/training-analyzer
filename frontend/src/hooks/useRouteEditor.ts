@@ -102,23 +102,83 @@ function useRouteSnapping(setState: React.Dispatch<React.SetStateAction<EditorSt
   return recalculate;
 }
 
-export function useRouteEditor(): UseRouteEditorReturn {
-  const [state, setState] = useState<EditorState>({
-    waypoints: [],
-    routePoints: [],
-    name: '',
-    distanceKm: 0,
-    elevationGainM: 0,
-    elevationLossM: 0,
-    loading: false,
-    routing: false,
-    saving: false,
-    dirty: false,
-    existingRouteId: null,
-    existingRoute: null,
-  });
+function useRoutePersistence(
+  state: EditorState,
+  setState: React.Dispatch<React.SetStateAction<EditorState>>,
+) {
+  const save = useCallback(async (): Promise<number | null> => {
+    if (state.waypoints.length < 2 || !state.name.trim()) return null;
+    setState((s) => ({ ...s, saving: true }));
+    try {
+      const data = {
+        name: state.name.trim(),
+        distance_km: state.distanceKm,
+        elevation_gain_m: state.elevationGainM,
+        elevation_loss_m: state.elevationLossM,
+        waypoints: state.routePoints.length > 0 ? state.routePoints : state.waypoints,
+        route_segments: state.existingRoute?.route_segments ?? undefined,
+        pacing_strategy: state.existingRoute?.pacing_strategy ?? undefined,
+        tags: state.existingRoute?.tags ?? undefined,
+      };
+      const result = state.existingRouteId
+        ? await updateRoute(state.existingRouteId, data)
+        : await createRoute(data);
+      setState((s) => ({ ...s, saving: false, dirty: false, existingRouteId: result.id }));
+      return result.id;
+    } catch (e) {
+      setState((s) => ({ ...s, saving: false }));
+      throw e;
+    }
+  }, [state, setState]);
 
+  const loadRoute = useCallback(
+    async (routeId: number) => {
+      setState((s) => ({ ...s, loading: true }));
+      try {
+        const route = await getRoute(routeId);
+        setState((s) => ({
+          ...s,
+          loading: false,
+          existingRouteId: route.id,
+          existingRoute: route,
+          name: route.name,
+          distanceKm: route.distance_km,
+          elevationGainM: route.elevation_gain_m,
+          elevationLossM: route.elevation_loss_m,
+          routePoints: route.waypoints,
+          waypoints: extractMarkerWaypoints(route.waypoints),
+          dirty: false,
+        }));
+      } catch (e) {
+        setState((s) => ({ ...s, loading: false }));
+        throw e;
+      }
+    },
+    [setState],
+  );
+
+  return { save, loadRoute };
+}
+
+const INITIAL_STATE: EditorState = {
+  waypoints: [],
+  routePoints: [],
+  name: '',
+  distanceKm: 0,
+  elevationGainM: 0,
+  elevationLossM: 0,
+  loading: false,
+  routing: false,
+  saving: false,
+  dirty: false,
+  existingRouteId: null,
+  existingRoute: null,
+};
+
+export function useRouteEditor(): UseRouteEditorReturn {
+  const [state, setState] = useState<EditorState>(INITIAL_STATE);
   const recalculate = useRouteSnapping(setState);
+  const { save, loadRoute } = useRoutePersistence(state, setState);
 
   const addWaypoint = useCallback(
     (lat: number, lng: number) => {
@@ -161,54 +221,6 @@ export function useRouteEditor(): UseRouteEditorReturn {
 
   const setName = useCallback((n: string) => {
     setState((s) => ({ ...s, name: n, dirty: true }));
-  }, []);
-
-  const save = useCallback(async (): Promise<number | null> => {
-    if (state.waypoints.length < 2 || !state.name.trim()) return null;
-    setState((s) => ({ ...s, saving: true }));
-    try {
-      const data = {
-        name: state.name.trim(),
-        distance_km: state.distanceKm,
-        elevation_gain_m: state.elevationGainM,
-        elevation_loss_m: state.elevationLossM,
-        waypoints: state.routePoints.length > 0 ? state.routePoints : state.waypoints,
-        route_segments: state.existingRoute?.route_segments ?? undefined,
-        pacing_strategy: state.existingRoute?.pacing_strategy ?? undefined,
-        tags: state.existingRoute?.tags ?? undefined,
-      };
-      const result = state.existingRouteId
-        ? await updateRoute(state.existingRouteId, data)
-        : await createRoute(data);
-      setState((s) => ({ ...s, saving: false, dirty: false, existingRouteId: result.id }));
-      return result.id;
-    } catch (e) {
-      setState((s) => ({ ...s, saving: false }));
-      throw e;
-    }
-  }, [state]);
-
-  const loadRoute = useCallback(async (routeId: number) => {
-    setState((s) => ({ ...s, loading: true }));
-    try {
-      const route = await getRoute(routeId);
-      setState((s) => ({
-        ...s,
-        loading: false,
-        existingRouteId: route.id,
-        existingRoute: route,
-        name: route.name,
-        distanceKm: route.distance_km,
-        elevationGainM: route.elevation_gain_m,
-        elevationLossM: route.elevation_loss_m,
-        routePoints: route.waypoints,
-        waypoints: extractMarkerWaypoints(route.waypoints),
-        dirty: false,
-      }));
-    } catch (e) {
-      setState((s) => ({ ...s, loading: false }));
-      throw e;
-    }
   }, []);
 
   return { ...state, addWaypoint, moveWaypoint, deleteWaypoint, setName, save, loadRoute };
