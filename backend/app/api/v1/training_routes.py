@@ -13,8 +13,14 @@ from app.infrastructure.database.models import (
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
+from app.infrastructure.external.osrm import OSRMClient
 from app.models.training_route import (
+    RoundTripOption,
+    RoundTripRequest,
+    RoundTripResponse,
     RouteSegment,
+    RouteSnapRequest,
+    RouteSnapResponse,
     TrainingRouteCreate,
     TrainingRouteListResponse,
     TrainingRouteResponse,
@@ -235,6 +241,61 @@ async def create_route_from_session(
     await db.commit()
     await db.refresh(route)
     return _model_to_response(route)
+
+
+@router.post("/snap", response_model=RouteSnapResponse)
+async def snap_route(data: RouteSnapRequest) -> RouteSnapResponse:
+    """Waypoints auf Wege snappen via OSRM."""
+    osrm = OSRMClient()
+    try:
+        result = await osrm.route([{"lat": wp.lat, "lng": wp.lng} for wp in data.waypoints])
+    finally:
+        await osrm.close()
+
+    if not result:
+        raise HTTPException(status_code=502, detail="Routing-Service nicht erreichbar")
+
+    points = [Waypoint(lat=p["lat"], lng=p["lng"]) for p in result["points"]]
+    snapped = [Waypoint(lat=p["lat"], lng=p["lng"]) for p in result["snapped_waypoints"]]
+
+    return RouteSnapResponse(
+        points=points,
+        distance_km=round(result["distance_m"] / 1000.0, 2),
+        duration_s=result["duration_s"],
+        snapped_waypoints=snapped,
+    )
+
+
+@router.post("/generate-round-trip", response_model=RoundTripResponse)
+async def generate_round_trip(data: RoundTripRequest) -> RoundTripResponse:
+    """Rundkurs-Vorschläge generieren ab Startpunkt."""
+    osrm = OSRMClient()
+    try:
+        results = await osrm.generate_round_trip(
+            start_lat=data.start_lat,
+            start_lng=data.start_lng,
+            target_distance_km=data.target_distance_km,
+            num_alternatives=data.num_alternatives,
+        )
+    finally:
+        await osrm.close()
+
+    if not results:
+        raise HTTPException(status_code=502, detail="Routing-Service nicht erreichbar")
+
+    options = [
+        RoundTripOption(
+            points=[Waypoint(lat=p["lat"], lng=p["lng"]) for p in r["points"]],
+            distance_km=r["distance_km"],
+            duration_s=r["duration_s"],
+            target_distance_km=r["target_distance_km"],
+            deviation_percent=r["deviation_percent"],
+            direction_deg=r["direction_deg"],
+        )
+        for r in results
+    ]
+
+    return RoundTripResponse(options=options)
 
 
 @router.get("/{route_id}", response_model=TrainingRouteResponse)
