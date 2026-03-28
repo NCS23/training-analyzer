@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -12,9 +12,15 @@ import {
 import { Printer, Info, Download, CalendarPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { listGoals } from '@/api/goals';
-import { generatePacing, exportPacingFit, transferPacingToWeeklyPlan } from '@/api/pacing';
+import {
+  generatePacing,
+  exportPacingFit,
+  transferPacingToWeeklyPlan,
+  listSavedStrategies,
+} from '@/api/pacing';
 import type { PacingRequest, PacingResponse } from '@/api/pacing';
 import { PacingForm } from '@/components/pacing/PacingForm';
+import type { SavedStrategyPrefill } from '@/components/pacing/PacingForm';
 import { PacingTable } from '@/components/pacing/PacingTable';
 import { PacingChart } from '@/components/pacing/PacingChart';
 
@@ -141,6 +147,7 @@ export function PacingPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PacingResponse | null>(null);
   const [lastParams, setLastParams] = useState<PacingRequest | null>(null);
+  const [prefill, setPrefill] = useState<SavedStrategyPrefill | null>(null);
 
   const handleGenerate = async (params: PacingRequest) => {
     setLoading(true);
@@ -154,6 +161,53 @@ export function PacingPage() {
     }
   };
 
+  const handleGoalChange = useCallback(async (goalId: number | null) => {
+    if (!goalId) {
+      setResult(null);
+      setLastParams(null);
+      setPrefill(null);
+      return;
+    }
+    try {
+      const { strategies } = await listSavedStrategies(goalId);
+      if (strategies.length > 0) {
+        const latest = strategies[0]; // neueste zuerst
+        // Ergebnis direkt anzeigen
+        setResult({
+          strategy: latest.strategy,
+          strategy_label: latest.strategy_label,
+          distance_km: latest.distance_km,
+          target_time_seconds: latest.target_time_seconds,
+          target_time_formatted: latest.target_time_formatted,
+          avg_pace_sec_per_km: latest.avg_pace_sec_per_km,
+          avg_pace_formatted: latest.avg_pace_formatted,
+          splits: latest.splits,
+          weather_adjustment: latest.weather_adjustment,
+          notes: latest.notes,
+        });
+        setLastParams({
+          target_time_seconds: latest.target_time_seconds,
+          distance_km: latest.distance_km,
+          strategy: latest.strategy as 'even' | 'negative' | 'effort_based',
+          elevation_preset: (latest.elevation_preset as 'flat' | 'rolling' | 'hilly') ?? 'flat',
+          goal_id: goalId,
+        });
+        setPrefill({
+          strategy: latest.strategy,
+          elevation_preset: latest.elevation_preset,
+          weather_adjustment: latest.weather_adjustment,
+        });
+      } else {
+        setResult(null);
+        setLastParams(null);
+        setPrefill(null);
+      }
+    } catch {
+      // Fehler ignorieren — Formular bleibt leer
+      setPrefill(null);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       <Card elevation="raised" padding="spacious">
@@ -161,7 +215,13 @@ export function PacingPage() {
           <h2 className="text-lg font-semibold text-[var(--color-text-base)] mb-4">
             Pacing-Strategie erstellen
           </h2>
-          <PacingForm goals={goals} loading={loading} onGenerate={handleGenerate} />
+          <PacingForm
+            goals={goals}
+            loading={loading}
+            onGenerate={handleGenerate}
+            onGoalChange={handleGoalChange}
+            savedStrategyPrefill={prefill}
+          />
         </CardBody>
       </Card>
 

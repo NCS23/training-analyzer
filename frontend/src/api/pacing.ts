@@ -174,3 +174,37 @@ export async function transferPacingToWeeklyPlan(
   );
   return response.data;
 }
+
+// ---------------------------------------------------------------------------
+// Gespeicherte Pacing-Strategien (#528)
+// ---------------------------------------------------------------------------
+
+export interface SavedPacingStrategy {
+  id: number;
+  goal_id: number;
+  strategy: string;
+  strategy_label: string;
+  distance_km: number;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  avg_pace_sec_per_km: number;
+  avg_pace_formatted: string;
+  splits: KmPacingSplit[];
+  weather_adjustment: WeatherAdjustment | null;
+  elevation_preset: string | null;
+  notes: string[];
+  created_at: string;
+}
+
+export async function listSavedStrategies(
+  goalId: number,
+): Promise<{ strategies: SavedPacingStrategy[] }> {
+  const response = await apiClient.get<{ strategies: SavedPacingStrategy[] }>(
+    `/api/v1/pacing/goals/${goalId}/strategies`,
+  );
+  return response.data;
+}
+
+export async function deleteSavedStrategy(goalId: number, strategyId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/pacing/goals/${goalId}/strategies/${strategyId}`);
+}
