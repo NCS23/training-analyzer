@@ -394,13 +394,16 @@ def _build_notes(
 # ---------------------------------------------------------------------------
 
 _GROUPING_TOLERANCE_SEC = 3.0  # km mit <=3s Pace-Differenz werden zusammengefasst
+_PACE_BAND_SEC = 10.0  # ±10s Toleranzband um die Zielpace fuer FIT-Export
 
 
 def pacing_splits_to_segments(splits: list[KmPacingSplit]) -> list[Segment]:
     """Konvertiert Pacing-Splits zu Segment-Objekten fuer FIT-Export.
 
     Aufeinanderfolgende km mit aehnlicher Pace (<=3 sec/km) werden
-    zu einem einzelnen Segment zusammengefasst.
+    zu einem einzelnen Segment zusammengefasst. Auf die Zielpace wird
+    ein Toleranzband von ±10 sec/km angewendet, damit die Uhr nicht
+    bei minimalen Abweichungen alarmiert.
     """
     from app.models.segment import Segment
 
@@ -423,16 +426,20 @@ def pacing_splits_to_segments(splits: list[KmPacingSplit]) -> list[Segment]:
     for i, group in enumerate(groups):
         total_dist = round(sum(s.distance_km for s in group), 2)
         paces = [s.target_pace_sec_per_km for s in group]
-        min_pace = min(paces)  # schnellste
-        max_pace = max(paces)  # langsamste
+        fastest = min(paces)
+        slowest = max(paces)
+
+        # Toleranzband: schnellere Grenze = fastest - Band, langsamere = slowest + Band
+        pace_min_sec = max(fastest - _PACE_BAND_SEC, 60.0)  # nicht unter 1:00/km
+        pace_max_sec = slowest + _PACE_BAND_SEC
 
         segments.append(
             Segment(
                 position=i,
                 segment_type="steady",
                 target_distance_km=total_dist,
-                target_pace_min=_format_pace_sec(min_pace),
-                target_pace_max=_format_pace_sec(max_pace),
+                target_pace_min=_format_pace_sec(pace_min_sec),
+                target_pace_max=_format_pace_sec(pace_max_sec),
             )
         )
 

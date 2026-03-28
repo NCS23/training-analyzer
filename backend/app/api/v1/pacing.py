@@ -243,11 +243,11 @@ async def transfer_pacing_to_weekly_plan(
         db.add(day_model)
         await db.flush()  # ID generieren
 
-    # 5) RunDetails JSON bauen
-    run_details = {
-        "run_type": "race",
-        "segments": [seg.model_dump(exclude_none=True) for seg in segments],
-    }
+    # 5) RunDetails via Pydantic Model bauen (Validatoren berechnen top-level Felder)
+    from app.models.weekly_plan import RunDetails
+
+    run_details_model = RunDetails(run_type="race", segments=segments)
+    run_details = run_details_model.model_dump(exclude_none=True)
 
     # 6) Existierende Race-Session suchen (Duplikat-Erkennung)
     sessions_result = await db.execute(
