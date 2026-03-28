@@ -7,7 +7,8 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { TILES } from './tileStyles';
-import type { Waypoint } from '@/api/routes';
+import type { Waypoint, RouteSegment } from '@/api/routes';
+import { SEGMENT_TYPE_COLORS } from '@/constants/segmentColors';
 
 export interface RouteEditorMapProps {
   waypoints: Waypoint[];
@@ -17,6 +18,7 @@ export interface RouteEditorMapProps {
   onWaypointDelete: (index: number) => void;
   routing?: boolean;
   height?: string;
+  segments?: RouteSegment[];
 }
 
 const DEFAULT_CENTER: L.LatLngTuple = [53.55, 9.99]; // Hamburg
@@ -115,6 +117,45 @@ function MapOverlays({ routing, empty }: { routing: boolean; empty: boolean }) {
   );
 }
 
+/** Erstelle farbige Polylines basierend auf Segmenten. */
+function createSegmentPolylines(
+  map: L.Map,
+  routePoints: Waypoint[],
+  segments: RouteSegment[],
+): L.Polyline[] {
+  if (routePoints.length < 2 || segments.length === 0) return [];
+
+  // Berechne kumulative Distanz für jeden Punkt
+  const cumDist: number[] = [0];
+  for (let i = 1; i < routePoints.length; i++) {
+    const dlat = routePoints[i].lat - routePoints[i - 1].lat;
+    const dlng = routePoints[i].lng - routePoints[i - 1].lng;
+    cumDist.push(cumDist[i - 1] + Math.sqrt(dlat * dlat + dlng * dlng) * 111.32);
+  }
+  const totalKm = cumDist[cumDist.length - 1];
+  if (totalKm <= 0) return [];
+
+  return segments.map((seg) => {
+    const startFrac = seg.start_km / totalKm;
+    const endFrac = seg.end_km / totalKm;
+    const startIdx = Math.max(
+      0,
+      cumDist.findIndex((d) => d / totalKm >= startFrac),
+    );
+    const endIdx = Math.min(
+      routePoints.length - 1,
+      cumDist.findIndex((d) => d / totalKm >= endFrac),
+    );
+    const segPoints = routePoints.slice(startIdx, endIdx + 1);
+    const color = SEGMENT_TYPE_COLORS[seg.segment_type] ?? '#3b82f6';
+
+    return L.polyline(
+      segPoints.map((p) => [p.lat, p.lng] as L.LatLngTuple),
+      { color, weight: 5, opacity: 0.85 },
+    ).addTo(map);
+  });
+}
+
 export function RouteEditorMap({
   waypoints,
   routePoints,
@@ -123,11 +164,13 @@ export function RouteEditorMap({
   onWaypointDelete,
   routing = false,
   height = '60vh',
+  segments = [],
 }: RouteEditorMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const segmentLinesRef = useRef<L.Polyline[]>([]);
   const callbacksRef = useRef({ onWaypointAdd, onWaypointMove, onWaypointDelete });
 
   useEffect(() => {
@@ -180,6 +223,19 @@ export function RouteEditorMap({
       },
     ).addTo(map);
   }, [routePoints, waypoints, routing]);
+
+  // Update segment color overlays
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    segmentLinesRef.current.forEach((l) => l.remove());
+    segmentLinesRef.current = [];
+
+    if (segments.length > 0 && routePoints.length > 1) {
+      segmentLinesRef.current = createSegmentPolylines(map, routePoints, segments);
+    }
+  }, [segments, routePoints]);
 
   // Update waypoint markers
   useEffect(() => {
