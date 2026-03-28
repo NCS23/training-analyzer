@@ -202,6 +202,34 @@ class RaceGoalModel(Base):
     )
 
 
+class TrainingRouteModel(Base):
+    """Trainingsroute mit GPS-Waypoints und Segment-Zielen (#508)."""
+
+    __tablename__ = "training_routes"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
+    distance_km: Mapped[float] = mapped_column(Float)
+    elevation_gain_m: Mapped[float] = mapped_column(Float, server_default="0")
+    elevation_loss_m: Mapped[float] = mapped_column(Float, server_default="0")
+    location_name: Mapped[str | None] = mapped_column(String(200), default=None)
+    surface_json: Mapped[str | None] = mapped_column(Text, default=None)
+    waypoints_json: Mapped[str] = mapped_column(Text)
+    route_segments_json: Mapped[str | None] = mapped_column(Text, default=None)
+    pacing_strategy: Mapped[str | None] = mapped_column(String(50), default=None)
+    linked_session_template_id: Mapped[int | None] = mapped_column(
+        ForeignKey("session_templates.id", ondelete="SET NULL"), default=None
+    )
+    tags_json: Mapped[str | None] = mapped_column(Text, default=None)
+    is_favorite: Mapped[bool] = mapped_column(default=False, server_default="false")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 class TrainingPlanModel(Base):
     __tablename__ = "training_plans"
 
