@@ -165,3 +165,33 @@ class PacingToWeeklyPlanResponse(BaseModel):
     entry_id: int = Field(description="ID der erstellten/aktualisierten PlannedSession")
     race_date: str = Field(description="Datum des Renntags (ISO)")
     message: str
+
+
+# ---------------------------------------------------------------------------
+# Gespeicherte Pacing-Strategien (#528)
+# ---------------------------------------------------------------------------
+
+
+class SavedPacingStrategyResponse(BaseModel):
+    """Response: Gespeicherte Pacing-Strategie."""
+
+    id: int
+    goal_id: int
+    strategy: str
+    strategy_label: str
+    distance_km: float
+    target_time_seconds: int
+    target_time_formatted: str
+    avg_pace_sec_per_km: float
+    avg_pace_formatted: str
+    splits: list[KmPacingSplit]
+    weather_adjustment: WeatherAdjustment | None = None
+    elevation_preset: str | None = None
+    notes: list[str] = Field(default_factory=list)
+    created_at: str
+
+
+class SavedPacingStrategyListResponse(BaseModel):
+    """Response: Liste gespeicherter Pacing-Strategien fuer ein Ziel."""
+
+    strategies: list[SavedPacingStrategyResponse]
