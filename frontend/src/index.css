@@ -1,5 +1,6 @@
 @import '@nordlig/styles/core';
 @import '@nordlig/styles/tokens/actionbar';
+@import '@nordlig/styles/tokens/chart';
 
 @import 'tailwindcss';
 
