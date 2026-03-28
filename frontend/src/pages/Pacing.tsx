@@ -9,9 +9,10 @@ import {
   CardBody,
   useToast,
 } from '@nordlig/components';
-import { Printer, Info } from 'lucide-react';
+import { Printer, Info, Download, CalendarPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { listGoals } from '@/api/goals';
-import { generatePacing } from '@/api/pacing';
+import { generatePacing, exportPacingFit, transferPacingToWeeklyPlan } from '@/api/pacing';
 import type { PacingRequest, PacingResponse } from '@/api/pacing';
 import { PacingForm } from '@/components/pacing/PacingForm';
 import { PacingTable } from '@/components/pacing/PacingTable';
@@ -25,7 +26,61 @@ const PRINT_STYLES = `
   .print\\:hidden { display: none !important; }
 }`;
 
-function PacingResult({ result }: { result: PacingResponse }) {
+function PacingActions({ params }: { params: PacingRequest }) {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [exporting, setExporting] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+
+  const handleFitExport = async () => {
+    setExporting(true);
+    try {
+      await exportPacingFit(params);
+    } catch {
+      toast({ title: 'Fehler beim FIT-Export', variant: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!params.goal_id) return;
+    setTransferring(true);
+    try {
+      const res = await transferPacingToWeeklyPlan({
+        goal_id: params.goal_id,
+        pacing_request: params,
+      });
+      toast({ title: res.message, variant: 'success' });
+      navigate(`/plan?week=${res.race_date}`);
+    } catch {
+      toast({ title: 'Fehler beim Übernehmen in den Wochenplan', variant: 'error' });
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 print:hidden">
+      {params.goal_id && (
+        <Button variant="secondary" size="sm" onClick={handleTransfer} disabled={transferring}>
+          <CalendarPlus size={16} />
+          {transferring ? 'Übernehme…' : 'In Wochenplan übernehmen'}
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" onClick={handleFitExport} disabled={exporting}>
+        <Download size={16} />
+        {exporting ? 'Exportiere…' : 'FIT exportieren'}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => window.print()}>
+        <Printer size={16} />
+        Drucken
+      </Button>
+    </div>
+  );
+}
+
+function PacingResult({ result, params }: { result: PacingResponse; params: PacingRequest }) {
   return (
     <div className="space-y-4 pacing-result">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -43,10 +98,7 @@ function PacingResult({ result }: { result: PacingResponse }) {
             &#x2300; {result.avg_pace_formatted}/km
           </Badge>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => window.print()} className="print:hidden">
-          <Printer size={16} />
-          Drucken
-        </Button>
+        <PacingActions params={params} />
       </div>
 
       {result.weather_adjustment && (
@@ -88,10 +140,12 @@ export function PacingPage() {
   const goals = goalsData?.goals ?? [];
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PacingResponse | null>(null);
+  const [lastParams, setLastParams] = useState<PacingRequest | null>(null);
 
   const handleGenerate = async (params: PacingRequest) => {
     setLoading(true);
     try {
+      setLastParams(params);
       setResult(await generatePacing(params));
     } catch {
       toast({ title: 'Fehler beim Generieren der Pacing-Strategie', variant: 'error' });
@@ -111,7 +165,7 @@ export function PacingPage() {
         </CardBody>
       </Card>
 
-      {result && <PacingResult result={result} />}
+      {result && lastParams && <PacingResult result={result} params={lastParams} />}
       <style>{PRINT_STYLES}</style>
     </div>
   );

@@ -127,3 +127,50 @@ export async function getWeatherForecast(
   });
   return response.data;
 }
+
+// ---------------------------------------------------------------------------
+// FIT Export (#517)
+// ---------------------------------------------------------------------------
+
+export async function exportPacingFit(params: PacingRequest): Promise<void> {
+  const response = await apiClient.post('/api/v1/pacing/export-fit', params, {
+    responseType: 'blob',
+  });
+  const contentDisposition = String(response.headers['content-disposition'] || '');
+  const match = contentDisposition.match(/filename="?([^"]+)"?/);
+  const filename = match?.[1] || 'pacing-workout.fit';
+
+  const url = URL.createObjectURL(response.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// Wochenplan-Integration (#518)
+// ---------------------------------------------------------------------------
+
+export interface PacingToWeeklyPlanRequest {
+  goal_id: number;
+  pacing_request: PacingRequest;
+}
+
+export interface PacingToWeeklyPlanResponse {
+  entry_id: number;
+  race_date: string;
+  message: string;
+}
+
+export async function transferPacingToWeeklyPlan(
+  params: PacingToWeeklyPlanRequest,
+): Promise<PacingToWeeklyPlanResponse> {
+  const response = await apiClient.post<PacingToWeeklyPlanResponse>(
+    '/api/v1/pacing/to-weekly-plan',
+    params,
+  );
+  return response.data;
+}

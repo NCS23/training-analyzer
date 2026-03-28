@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.infrastructure.database.models import RaceGoalModel
+from app.infrastructure.database.models import (
+    PlannedSessionModel,
+    RaceGoalModel,
+    WeeklyPlanDayModel,
+)
 from app.infrastructure.database.session import get_db
 from app.infrastructure.external.http_client import ExternalAPIClient
 from app.models.enrichment import wmo_to_label
@@ -20,11 +26,14 @@ from app.models.pacing import (
     PacingRecommendationResponse,
     PacingRequest,
     PacingResponse,
+    PacingToWeeklyPlanRequest,
+    PacingToWeeklyPlanResponse,
     RaceDayWeatherResponse,
 )
+from app.services.fit_export import export_template_to_fit
 from app.services.gpx_elevation_parser import parse_gpx_elevation
 from app.services.pacing_recommendation import recommend_pacing
-from app.services.pacing_strategy import generate_pacing_strategy
+from app.services.pacing_strategy import generate_pacing_strategy, pacing_splits_to_segments
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +156,146 @@ async def parse_gpx(file: UploadFile) -> list[ElevationSegment]:
     except Exception as e:
         logger.error("GPX-Parsing fehlgeschlagen: %s", e)
         raise HTTPException(status_code=400, detail="GPX-Datei konnte nicht gelesen werden") from e
+
+
+@router.post("/export-fit")
+async def export_pacing_fit(
+    body: PacingRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Exportiert eine Pacing-Strategie als FIT-Workout-Datei fuer GPS-Uhren."""
+    # Goal-ID Aufloesung (wie bei /generate)
+    if body.goal_id is not None:
+        result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == body.goal_id))
+        goal = result.scalar_one_or_none()
+        if goal is None:
+            raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+        body = body.model_copy(
+            update={
+                "distance_km": goal.distance_km,
+                "target_time_seconds": goal.target_time_seconds,
+            }
+        )
+
+    pacing = generate_pacing_strategy(body)
+    segments = pacing_splits_to_segments(pacing.splits)
+
+    if not segments:
+        raise HTTPException(status_code=422, detail="Keine Segmente fuer FIT-Export")
+
+    workout_name = f"{pacing.strategy_label} {pacing.distance_km}km"
+    fit_bytes = export_template_to_fit(workout_name, segments)
+
+    safe_name = workout_name.replace(" ", "-").lower()
+    filename = f"pacing-{safe_name}.fit"
+
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/to-weekly-plan", response_model=PacingToWeeklyPlanResponse)
+async def transfer_pacing_to_weekly_plan(
+    body: PacingToWeeklyPlanRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PacingToWeeklyPlanResponse:
+    """Uebernimmt eine Pacing-Strategie als Wettkampf-Session in den Wochenplan."""
+    # 1) Goal laden → race_date
+    result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == body.goal_id))
+    goal = result.scalar_one_or_none()
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+
+    race_date: date = goal.race_date
+    pacing_req = body.pacing_request.model_copy(
+        update={
+            "distance_km": goal.distance_km,
+            "target_time_seconds": goal.target_time_seconds,
+        }
+    )
+
+    # 2) Pacing generieren → Segments
+    pacing = generate_pacing_strategy(pacing_req)
+    segments = pacing_splits_to_segments(pacing.splits)
+
+    # 3) week_start (Montag) + day_of_week berechnen
+    # Python: weekday() 0=Mon..6=Sun  →  passt zu unserem Schema
+    day_of_week = race_date.weekday()
+    week_start = race_date - timedelta(days=day_of_week)
+
+    # 4) WeeklyPlanDay finden oder erstellen
+    day_result = await db.execute(
+        select(WeeklyPlanDayModel).where(
+            WeeklyPlanDayModel.week_start == week_start,
+            WeeklyPlanDayModel.day_of_week == day_of_week,
+        )
+    )
+    day_model = day_result.scalar_one_or_none()
+
+    if day_model is None:
+        day_model = WeeklyPlanDayModel(
+            week_start=week_start,
+            day_of_week=day_of_week,
+            is_rest_day=False,
+        )
+        db.add(day_model)
+        await db.flush()  # ID generieren
+
+    # 5) RunDetails JSON bauen
+    run_details = {
+        "run_type": "race",
+        "segments": [seg.model_dump(exclude_none=True) for seg in segments],
+    }
+
+    # 6) Existierende Race-Session suchen (Duplikat-Erkennung)
+    sessions_result = await db.execute(
+        select(PlannedSessionModel).where(PlannedSessionModel.day_id == day_model.id)
+    )
+    existing_sessions = sessions_result.scalars().all()
+
+    race_session: PlannedSessionModel | None = None
+    for sess in existing_sessions:
+        if sess.training_type == "running" and sess.run_details_json:
+            try:
+                details = json.loads(sess.run_details_json)
+                if details.get("run_type") == "race":
+                    race_session = sess
+                    break
+            except json.JSONDecodeError:
+                continue
+
+    run_details_json = json.dumps(run_details, ensure_ascii=False)
+    notes = (
+        f"Pacing: {pacing.strategy_label} {pacing.distance_km}km — {pacing.target_time_formatted}"
+    )
+
+    if race_session:
+        # Update
+        race_session.run_details_json = run_details_json
+        race_session.notes = notes
+    else:
+        # Neu erstellen
+        max_pos = max((s.position for s in existing_sessions), default=-1)
+        race_session = PlannedSessionModel(
+            day_id=day_model.id,
+            position=max_pos + 1,
+            training_type="running",
+            run_details_json=run_details_json,
+            notes=notes,
+            status="active",
+        )
+        db.add(race_session)
+
+    await db.commit()
+    await db.refresh(race_session)
+
+    return PacingToWeeklyPlanResponse(
+        entry_id=race_session.id,
+        race_date=race_date.isoformat(),
+        message=f"Pacing-Strategie für {race_date.strftime('%d.%m.%Y')} übernommen",
+    )
 
 
 def _safe_float(value: object) -> float | None:
