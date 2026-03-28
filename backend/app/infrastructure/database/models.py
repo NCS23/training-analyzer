@@ -202,6 +202,30 @@ class RaceGoalModel(Base):
     )
 
 
+class PacingStrategyModel(Base):
+    """Gespeicherte Pacing-Strategie fuer ein Wettkampf-Ziel (#528)."""
+
+    __tablename__ = "pacing_strategies"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    goal_id: Mapped[int] = mapped_column(ForeignKey("race_goals.id"), index=True)
+    strategy: Mapped[str] = mapped_column(String(30))  # even, negative, effort_based
+    strategy_label: Mapped[str] = mapped_column(String(50))
+    distance_km: Mapped[float] = mapped_column(Float)
+    target_time_seconds: Mapped[int] = mapped_column(Integer)
+    target_time_formatted: Mapped[str] = mapped_column(String(20))
+    avg_pace_sec_per_km: Mapped[float] = mapped_column(Float)
+    avg_pace_formatted: Mapped[str] = mapped_column(String(10))
+    splits_json: Mapped[str] = mapped_column(Text)  # JSON: list[KmPacingSplit]
+    weather_json: Mapped[str | None] = mapped_column(Text, default=None)
+    elevation_preset: Mapped[str | None] = mapped_column(String(20), default=None)
+    notes_json: Mapped[str | None] = mapped_column(Text, default=None)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, server_default=func.now()
+    )
+
+
 class TrainingRouteModel(Base):
     """Trainingsroute mit GPS-Waypoints und Segment-Zielen (#508)."""
 

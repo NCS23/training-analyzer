@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.infrastructure.database.models import (
+    PacingStrategyModel,
     PlannedSessionModel,
     RaceGoalModel,
     WeeklyPlanDayModel,
@@ -22,6 +23,7 @@ from app.infrastructure.external.http_client import ExternalAPIClient
 from app.models.enrichment import wmo_to_label
 from app.models.pacing import (
     ElevationSegment,
+    KmPacingSplit,
     PacingRecommendationRequest,
     PacingRecommendationResponse,
     PacingRequest,
@@ -29,6 +31,9 @@ from app.models.pacing import (
     PacingToWeeklyPlanRequest,
     PacingToWeeklyPlanResponse,
     RaceDayWeatherResponse,
+    SavedPacingStrategyListResponse,
+    SavedPacingStrategyResponse,
+    WeatherAdjustment,
 )
 from app.services.fit_export import export_template_to_fit
 from app.services.gpx_elevation_parser import parse_gpx_elevation
@@ -65,7 +70,13 @@ async def generate_pacing(
             }
         )
 
-    return generate_pacing_strategy(body)
+    pacing = generate_pacing_strategy(body)
+
+    # Auto-Save: Strategie am Ziel speichern wenn goal_id vorhanden
+    if body.goal_id is not None:
+        await _save_pacing_strategy(db, body.goal_id, pacing, body.elevation_preset)
+
+    return pacing
 
 
 @router.get("/weather-forecast", response_model=RaceDayWeatherResponse)
@@ -306,3 +317,123 @@ def _safe_float(value: object) -> float | None:
         return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Gespeicherte Pacing-Strategien (#528)
+# ---------------------------------------------------------------------------
+
+
+async def _save_pacing_strategy(
+    db: AsyncSession,
+    goal_id: int,
+    pacing: PacingResponse,
+    elevation_preset: str | None,
+) -> PacingStrategyModel:
+    """Speichert eine generierte Pacing-Strategie in der DB."""
+    model = PacingStrategyModel(
+        goal_id=goal_id,
+        strategy=pacing.strategy,
+        strategy_label=pacing.strategy_label,
+        distance_km=pacing.distance_km,
+        target_time_seconds=pacing.target_time_seconds,
+        target_time_formatted=pacing.target_time_formatted,
+        avg_pace_sec_per_km=pacing.avg_pace_sec_per_km,
+        avg_pace_formatted=pacing.avg_pace_formatted,
+        splits_json=json.dumps([s.model_dump() for s in pacing.splits], ensure_ascii=False),
+        weather_json=(
+            json.dumps(pacing.weather_adjustment.model_dump(), ensure_ascii=False)
+            if pacing.weather_adjustment
+            else None
+        ),
+        elevation_preset=elevation_preset,
+        notes_json=json.dumps(pacing.notes, ensure_ascii=False) if pacing.notes else None,
+    )
+    db.add(model)
+    await db.commit()
+    await db.refresh(model)
+    return model
+
+
+def _db_to_response(model: PacingStrategyModel) -> SavedPacingStrategyResponse:
+    """Konvertiert ein DB-Modell in ein Response-Schema."""
+    splits = [KmPacingSplit(**s) for s in json.loads(model.splits_json)]
+    weather = WeatherAdjustment(**json.loads(model.weather_json)) if model.weather_json else None
+    notes: list[str] = json.loads(model.notes_json) if model.notes_json else []
+
+    return SavedPacingStrategyResponse(
+        id=model.id,
+        goal_id=model.goal_id,
+        strategy=model.strategy,
+        strategy_label=model.strategy_label,
+        distance_km=model.distance_km,
+        target_time_seconds=model.target_time_seconds,
+        target_time_formatted=model.target_time_formatted,
+        avg_pace_sec_per_km=model.avg_pace_sec_per_km,
+        avg_pace_formatted=model.avg_pace_formatted,
+        splits=splits,
+        weather_adjustment=weather,
+        elevation_preset=model.elevation_preset,
+        notes=notes,
+        created_at=model.created_at.isoformat() if model.created_at else "",
+    )
+
+
+@router.get(
+    "/goals/{goal_id}/strategies",
+    response_model=SavedPacingStrategyListResponse,
+)
+async def list_pacing_strategies(
+    goal_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> SavedPacingStrategyListResponse:
+    """Listet alle gespeicherten Pacing-Strategien fuer ein Ziel."""
+    result = await db.execute(
+        select(PacingStrategyModel)
+        .where(PacingStrategyModel.goal_id == goal_id)
+        .order_by(PacingStrategyModel.created_at.desc())
+    )
+    models = result.scalars().all()
+    return SavedPacingStrategyListResponse(strategies=[_db_to_response(m) for m in models])
+
+
+@router.get(
+    "/goals/{goal_id}/strategies/{strategy_id}",
+    response_model=SavedPacingStrategyResponse,
+)
+async def get_pacing_strategy(
+    goal_id: int,
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> SavedPacingStrategyResponse:
+    """Gibt eine einzelne gespeicherte Pacing-Strategie zurueck."""
+    result = await db.execute(
+        select(PacingStrategyModel).where(
+            PacingStrategyModel.id == strategy_id,
+            PacingStrategyModel.goal_id == goal_id,
+        )
+    )
+    model = result.scalar_one_or_none()
+    if model is None:
+        raise HTTPException(status_code=404, detail="Strategie nicht gefunden")
+    return _db_to_response(model)
+
+
+@router.delete("/goals/{goal_id}/strategies/{strategy_id}", status_code=204)
+async def delete_pacing_strategy(
+    goal_id: int,
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Loescht eine gespeicherte Pacing-Strategie."""
+    result = await db.execute(
+        select(PacingStrategyModel).where(
+            PacingStrategyModel.id == strategy_id,
+            PacingStrategyModel.goal_id == goal_id,
+        )
+    )
+    model = result.scalar_one_or_none()
+    if model is None:
+        raise HTTPException(status_code=404, detail="Strategie nicht gefunden")
+    await db.delete(model)
+    await db.commit()
