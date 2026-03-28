@@ -3,7 +3,7 @@
 import pytest
 
 from app.models.pacing import ElevationSegment, PacingRequest, PacingResponse
-from app.services.pacing_strategy import generate_pacing_strategy
+from app.services.pacing_strategy import generate_pacing_strategy, pacing_splits_to_segments
 
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
@@ -92,7 +92,7 @@ class TestEvenSplit:
 
 
 class TestNegativeSplit:
-    """Tests fuer Negative-Split-Strategie."""
+    """Tests fuer Negative-Split-Strategie (Stufenmodell)."""
 
     def test_second_half_faster(self) -> None:
         """Zweite Haelfte muss schneller sein als erste."""
@@ -111,11 +111,29 @@ class TestNegativeSplit:
         total = _total_time(result)
         assert abs(total - 7199) < 1.0
 
-    def test_first_km_slowest(self) -> None:
-        """Erste km sollte die langsamste sein."""
+    def test_step_model_two_blocks(self) -> None:
+        """Stufenmodell: genau 2 verschiedene Pace-Stufen (ohne partielle km)."""
         result = generate_pacing_strategy(_hm_request(strategy="negative", elevation_preset="flat"))
-        paces = [s.target_pace_sec_per_km for s in result.splits if s.distance_km >= 0.5]
-        assert paces[0] == max(paces)
+        full_km_paces = [
+            round(s.target_pace_sec_per_km, 1) for s in result.splits if s.distance_km >= 1.0
+        ]
+        distinct_paces = set(full_km_paces)
+        assert len(distinct_paces) == 2, f"Erwartet 2 Stufen, bekam {distinct_paces}"
+
+    def test_first_half_constant_pace(self) -> None:
+        """Alle km der ersten Haelfte haben die gleiche Pace."""
+        result = generate_pacing_strategy(_hm_request(strategy="negative", elevation_preset="flat"))
+        mid = len(result.splits) // 2
+        first_half_paces = [round(s.target_pace_sec_per_km, 1) for s in result.splits[:mid]]
+        assert len(set(first_half_paces)) == 1, f"Erste Haelfte nicht konstant: {first_half_paces}"
+
+    def test_first_half_about_3pct_slower(self) -> None:
+        """Erste Haelfte ~3% ueber Durchschnittspace."""
+        result = generate_pacing_strategy(_hm_request(strategy="negative", elevation_preset="flat"))
+        avg = result.avg_pace_sec_per_km
+        first_km_pace = result.splits[0].target_pace_sec_per_km
+        deviation_pct = (first_km_pace - avg) / avg * 100
+        assert 2.5 < deviation_pct < 3.5, f"Abweichung {deviation_pct:.1f}% statt ~3%"
 
 
 # ---------------------------------------------------------------------------
@@ -329,3 +347,52 @@ class TestEdgeCases:
         """Negative-Split Strategie bekommt passenden Hinweis."""
         result = generate_pacing_strategy(_hm_request(strategy="negative"))
         assert any("langsamer" in n for n in result.notes)
+
+
+# ---------------------------------------------------------------------------
+# Splits → Segments Konvertierung
+# ---------------------------------------------------------------------------
+
+
+class TestPacingSplitsToSegments:
+    """Tests fuer pacing_splits_to_segments()."""
+
+    def test_even_split_single_segment(self) -> None:
+        """Even Split (alle Paces gleich) ergibt genau 1 Segment."""
+        result = generate_pacing_strategy(_hm_request(strategy="even", elevation_preset="flat"))
+        segments = pacing_splits_to_segments(result.splits)
+        assert len(segments) == 1
+        assert segments[0].segment_type == "steady"
+        assert segments[0].target_distance_km == pytest.approx(21.1, abs=0.1)
+
+    def test_negative_split_two_segments(self) -> None:
+        """Negative Split (Stufenmodell) ergibt genau 2 Segmente."""
+        result = generate_pacing_strategy(_hm_request(strategy="negative", elevation_preset="flat"))
+        segments = pacing_splits_to_segments(result.splits)
+        assert len(segments) == 2
+        # Erstes Segment langsamer als zweites
+        slow_pace = segments[0].target_pace_min
+        fast_pace = segments[1].target_pace_min
+        assert slow_pace is not None and fast_pace is not None
+        assert slow_pace > fast_pace  # hoehere min:sec = langsamer
+
+    def test_segment_has_pace_fields(self) -> None:
+        """Jedes Segment hat target_pace_min und target_pace_max."""
+        result = generate_pacing_strategy(_hm_request(strategy="even", elevation_preset="flat"))
+        segments = pacing_splits_to_segments(result.splits)
+        for seg in segments:
+            assert seg.target_pace_min is not None
+            assert seg.target_pace_max is not None
+            assert ":" in seg.target_pace_min  # Format "M:SS"
+
+    def test_empty_splits(self) -> None:
+        """Leere Splits ergeben leere Segments."""
+        assert pacing_splits_to_segments([]) == []
+
+    def test_total_distance_preserved(self) -> None:
+        """Gesamtdistanz der Segmente = Gesamtdistanz der Splits."""
+        result = generate_pacing_strategy(_hm_request(strategy="negative", elevation_preset="flat"))
+        segments = pacing_splits_to_segments(result.splits)
+        seg_total = sum(s.target_distance_km or 0 for s in segments)
+        split_total = sum(s.distance_km for s in result.splits)
+        assert seg_total == pytest.approx(split_total, abs=0.01)

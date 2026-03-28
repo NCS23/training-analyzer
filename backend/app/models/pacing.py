@@ -145,3 +145,23 @@ class PacingRecommendationResponse(BaseModel):
     strategy: Literal["even", "negative", "effort_based"]
     elevation_preset: Literal["flat", "rolling", "hilly"] | None
     reasoning: str = Field(description="Evidenzbasierte Begruendung der Empfehlung")
+
+
+# ---------------------------------------------------------------------------
+# Wochenplan-Integration (#518)
+# ---------------------------------------------------------------------------
+
+
+class PacingToWeeklyPlanRequest(BaseModel):
+    """Request: Pacing-Strategie in den Wochenplan uebernehmen."""
+
+    goal_id: int = Field(..., description="Race-Goal-ID (bestimmt das Renndatum)")
+    pacing_request: PacingRequest
+
+
+class PacingToWeeklyPlanResponse(BaseModel):
+    """Response: Bestaetigung der Uebernahme in den Wochenplan."""
+
+    entry_id: int = Field(description="ID der erstellten/aktualisierten PlannedSession")
+    race_date: str = Field(description="Datum des Renntags (ISO)")
+    message: str

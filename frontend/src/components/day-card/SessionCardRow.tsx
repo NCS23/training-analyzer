@@ -1,4 +1,4 @@
-import { Dumbbell, Footprints } from 'lucide-react';
+import { Dumbbell, Footprints, Trophy } from 'lucide-react';
 import type { PlannedSession } from '@/api/weekly-plan';
 import { RUN_TYPE_LABELS } from '@/constants/plan';
 import { TYPE_ICON_COLORS } from './day-card-constants';
@@ -47,7 +47,8 @@ export function SessionCardRow({
     }
   }
 
-  const Icon = session.training_type === 'strength' ? Dumbbell : Footprints;
+  const isRace = rd?.run_type === 'race';
+  const Icon = session.training_type === 'strength' ? Dumbbell : isRace ? Trophy : Footprints;
 
   return (
     // prettier-ignore
