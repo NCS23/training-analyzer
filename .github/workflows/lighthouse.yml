@@ -19,6 +19,7 @@ jobs:
           urls: |
             http://training.89.167.78.223.sslip.io
           runs: 3
+          configPath: .github/.lighthouserc.json
           budgetPath: .github/lighthouse-budget.json
 
       - name: Format Results

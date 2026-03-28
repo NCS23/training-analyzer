@@ -28,6 +28,7 @@ import {
   PopoverContent,
   Breadcrumbs,
   BreadcrumbItem,
+  ActionBar,
   useToast,
 } from '@nordlig/components';
 import {
@@ -505,9 +506,9 @@ export function SessionDetailPage() {
 
       {/* Fixed edit mode bar */}
       {editing.isEditing && (
-        <div
-          role="toolbar"
-          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40 bg-[var(--color-actionbar-bg)] border-t border-[var(--color-actionbar-border)] rounded-t-[var(--radius-actionbar)] [box-shadow:var(--shadow-actionbar-default)] px-[var(--spacing-actionbar-padding-x)] py-[var(--spacing-actionbar-padding-y)] flex items-center justify-between gap-[var(--spacing-actionbar-gap)]"
+        <ActionBar
+          sticky={false}
+          className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40"
         >
           <span className="text-xs text-[var(--color-actionbar-text)] hidden sm:inline">
             Ungespeicherte Änderungen
@@ -540,7 +541,7 @@ export function SessionDetailPage() {
               Fertig
             </Button>
           </div>
-        </div>
+        </ActionBar>
       )}
     </div>
   );

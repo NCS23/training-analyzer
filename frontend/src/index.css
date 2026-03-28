@@ -1,4 +1,5 @@
 @import '@nordlig/styles/core';
+@import '@nordlig/styles/tokens/actionbar';
 
 @import 'tailwindcss';
 
