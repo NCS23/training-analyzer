@@ -11,6 +11,7 @@ const tabs = [
   { to: '/plan/programs', label: 'Programme', end: false },
   { to: '/plan/templates', label: 'Vorlagen', end: false },
   { to: '/plan/exercises', label: 'Übungen', end: false },
+  { to: '/plan/routes', label: 'Routen', end: false },
 ];
 
 /** Hub paths where the shared header + tab bar are visible. */
