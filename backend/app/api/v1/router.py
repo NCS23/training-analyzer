@@ -15,6 +15,7 @@ from app.api.v1 import (
     threshold_tests,
     training_balance,
     training_plans,
+    training_routes,
     trends,
     user_settings,
     weekly_plan,
@@ -43,3 +44,4 @@ api_router.include_router(training_balance.router, tags=["analytics"])
 api_router.include_router(streak.router, tags=["analytics"])
 api_router.include_router(user_settings.router, tags=["user-settings"])
 api_router.include_router(weekly_review.router, tags=["weekly-review"])
+api_router.include_router(training_routes.router, tags=["routes"])
