@@ -52,16 +52,15 @@ OSRM_NEAREST_RESPONSE = {
 
 @pytest.mark.anyio
 async def test_osrm_route() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value=OSRM_ROUTE_RESPONSE)
-
-    result = await client.route(
-        [
-            {"lat": 53.567, "lng": 9.993},
-            {"lat": 53.570, "lng": 9.990},
-            {"lat": 53.567, "lng": 9.993},
-        ]
-    )
+    osrm = OSRMClient()
+    with patch.object(osrm.client, "get", new_callable=AsyncMock, return_value=OSRM_ROUTE_RESPONSE):
+        result = await osrm.route(
+            [
+                {"lat": 53.567, "lng": 9.993},
+                {"lat": 53.570, "lng": 9.990},
+                {"lat": 53.567, "lng": 9.993},
+            ]
+        )
 
     assert result is not None
     assert result["distance_m"] == 1250.5
@@ -73,45 +72,44 @@ async def test_osrm_route() -> None:
 
 @pytest.mark.anyio
 async def test_osrm_route_error() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value={"code": "NoRoute"})
-
-    result = await client.route(
-        [
-            {"lat": 53.567, "lng": 9.993},
-            {"lat": 53.570, "lng": 9.990},
-        ]
-    )
+    osrm = OSRMClient()
+    with patch.object(osrm.client, "get", new_callable=AsyncMock, return_value={"code": "NoRoute"}):
+        result = await osrm.route(
+            [
+                {"lat": 53.567, "lng": 9.993},
+                {"lat": 53.570, "lng": 9.990},
+            ]
+        )
     assert result is None
 
 
 @pytest.mark.anyio
 async def test_osrm_route_none_response() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value=None)
-
-    result = await client.route(
-        [
-            {"lat": 53.567, "lng": 9.993},
-            {"lat": 53.570, "lng": 9.990},
-        ]
-    )
+    osrm = OSRMClient()
+    with patch.object(osrm.client, "get", new_callable=AsyncMock, return_value=None):
+        result = await osrm.route(
+            [
+                {"lat": 53.567, "lng": 9.993},
+                {"lat": 53.570, "lng": 9.990},
+            ]
+        )
     assert result is None
 
 
 @pytest.mark.anyio
 async def test_osrm_route_min_waypoints() -> None:
-    client = OSRMClient()
-    result = await client.route([{"lat": 53.567, "lng": 9.993}])
+    osrm = OSRMClient()
+    result = await osrm.route([{"lat": 53.567, "lng": 9.993}])
     assert result is None
 
 
 @pytest.mark.anyio
 async def test_osrm_nearest() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value=OSRM_NEAREST_RESPONSE)
-
-    result = await client.nearest(53.567, 9.993)
+    osrm = OSRMClient()
+    with patch.object(
+        osrm.client, "get", new_callable=AsyncMock, return_value=OSRM_NEAREST_RESPONSE
+    ):
+        result = await osrm.nearest(53.567, 9.993)
     assert result is not None
     assert result["lat"] == 53.567
     assert result["lng"] == 9.993
@@ -121,24 +119,22 @@ async def test_osrm_nearest() -> None:
 
 @pytest.mark.anyio
 async def test_osrm_nearest_error() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value=None)
-
-    result = await client.nearest(53.567, 9.993)
+    osrm = OSRMClient()
+    with patch.object(osrm.client, "get", new_callable=AsyncMock, return_value=None):
+        result = await osrm.nearest(53.567, 9.993)
     assert result is None
 
 
 @pytest.mark.anyio
 async def test_osrm_round_trip() -> None:
-    client = OSRMClient()
-    client.client.get = AsyncMock(return_value=OSRM_ROUTE_RESPONSE)
-
-    results = await client.generate_round_trip(
-        start_lat=53.567,
-        start_lng=9.993,
-        target_distance_km=5.0,
-        num_alternatives=2,
-    )
+    osrm = OSRMClient()
+    with patch.object(osrm.client, "get", new_callable=AsyncMock, return_value=OSRM_ROUTE_RESPONSE):
+        results = await osrm.generate_round_trip(
+            start_lat=53.567,
+            start_lng=9.993,
+            target_distance_km=5.0,
+            num_alternatives=2,
+        )
 
     assert len(results) == 2
     for r in results:
