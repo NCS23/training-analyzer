@@ -5,6 +5,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -105,7 +106,7 @@ function AggregatedView({ data }: { data: CategoryTonnageTrendResponse }) {
           />
           <Bar dataKey="tonnage" radius={[0, 4, 4, 0]} isAnimationActive={false}>
             {chartData.map((entry, i) => (
-              <rect key={i} fill={entry.fill} />
+              <Cell key={i} fill={entry.fill} />
             ))}
           </Bar>
         </BarChart>
