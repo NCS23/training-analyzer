@@ -396,3 +396,24 @@ class TestPacingSplitsToSegments:
         seg_total = sum(s.target_distance_km or 0 for s in segments)
         split_total = sum(s.distance_km for s in result.splits)
         assert seg_total == pytest.approx(split_total, abs=0.01)
+
+    def test_pace_tolerance_band(self) -> None:
+        """Toleranzband: pace_min ~10s schneller, pace_max ~10s langsamer als Ziel."""
+        result = generate_pacing_strategy(_hm_request(strategy="even", elevation_preset="flat"))
+        segments = pacing_splits_to_segments(result.splits)
+        assert len(segments) == 1
+        seg = segments[0]
+        avg_pace = result.avg_pace_sec_per_km
+
+        def _pace_to_sec(pace_str: str) -> float:
+            parts = pace_str.split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+
+        assert seg.target_pace_min is not None
+        assert seg.target_pace_max is not None
+        min_sec = _pace_to_sec(seg.target_pace_min)
+        max_sec = _pace_to_sec(seg.target_pace_max)
+        # min (schneller) sollte ~10s unter avg liegen
+        assert min_sec == pytest.approx(avg_pace - 10, abs=1.5)
+        # max (langsamer) sollte ~10s ueber avg liegen
+        assert max_sec == pytest.approx(avg_pace + 10, abs=1.5)
