@@ -7,7 +7,8 @@ import type { CategoryTonnageTrendResponse } from '@/api/progression';
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   BarChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Bar: () => <div />,
+  Bar: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  Cell: () => <div />,
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
