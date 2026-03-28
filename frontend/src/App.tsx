@@ -111,9 +111,7 @@ const ChatPage = lazy(() => import('./pages/Chat').then((m) => ({ default: m.Cha
 const RaceReportPage = lazy(() =>
   import('./pages/RaceReport').then((m) => ({ default: m.RaceReportPage })),
 );
-const RoutesPage = lazy(() =>
-  import('./pages/Routes').then((m) => ({ default: m.RoutesPage })),
-);
+const RoutesPage = lazy(() => import('./pages/Routes').then((m) => ({ default: m.RoutesPage })));
 const RouteEditorPage = lazy(() =>
   import('./pages/RouteEditor').then((m) => ({ default: m.RouteEditorPage })),
 );
