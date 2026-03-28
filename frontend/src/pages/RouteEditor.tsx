@@ -1,7 +1,7 @@
 /**
  * Route-Editor Seite — Trainingsrouten auf der Karte erstellen/bearbeiten.
  *
- * Part of Epic #508, Story #527.
+ * Part of Epic #508, Story #527 + #532.
  */
 
 import { useEffect } from 'react';
@@ -16,9 +16,13 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { ChevronRight, Save, Mountain, Ruler, MapPin } from 'lucide-react';
+import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2 } from 'lucide-react';
 import { RouteEditorMap } from '@/features/maps/RouteEditorMap';
 import { useRouteEditor } from '@/hooks/useRouteEditor';
+import { useSegmentEditor } from '@/hooks/useSegmentEditor';
+import type { UseSegmentEditorReturn } from '@/hooks/useSegmentEditor';
+import { SegmentBar } from '@/components/route-editor/SegmentBar';
+import { SegmentTable } from '@/components/route-editor/SegmentTable';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
@@ -36,6 +40,55 @@ function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
         {editor.waypoints.length} Punkte
       </span>
     </div>
+  );
+}
+
+function SegmentSection({
+  segEditor,
+  distanceKm,
+}: {
+  segEditor: UseSegmentEditorReturn;
+  distanceKm: number;
+}) {
+  if (distanceKm <= 0) return null;
+
+  return (
+    <>
+      {segEditor.segments.length > 0 && (
+        <SegmentBar
+          segments={segEditor.segments}
+          totalDistanceKm={distanceKm}
+          onSegmentClick={segEditor.setActiveSegment}
+          activeSegment={segEditor.activeSegment}
+        />
+      )}
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-[var(--color-text-base)]">Segmente</h3>
+            {segEditor.segments.length === 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => segEditor.autoSegment(distanceKm)}
+              >
+                <Wand2 className="w-3.5 h-3.5 mr-1" />
+                Auto-Segmentierung
+              </Button>
+            )}
+          </div>
+          <SegmentTable
+            segments={segEditor.segments}
+            totalDistanceKm={distanceKm}
+            onUpdate={segEditor.updateSegment}
+            onDelete={segEditor.deleteSegment}
+            onAdd={segEditor.addSegment}
+            activeSegment={segEditor.activeSegment}
+            onSegmentClick={segEditor.setActiveSegment}
+          />
+        </CardBody>
+      </Card>
+    </>
   );
 }
 
@@ -77,6 +130,7 @@ export function RouteEditorPage() {
   const { toast } = useToast();
   const isNew = !routeId;
   const editor = useRouteEditor();
+  const segEditor = useSegmentEditor();
 
   useEffect(() => {
     if (routeId) {
@@ -148,18 +202,10 @@ export function RouteEditorPage() {
         onWaypointDelete={editor.deleteWaypoint}
         routing={editor.routing}
         height="55vh"
+        segments={segEditor.segments}
       />
 
-      {editor.routePoints.length > 1 && (
-        <Card>
-          <CardBody>
-            <h3 className="text-sm font-medium text-[var(--color-text-base)] mb-2">Höhenprofil</h3>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              Höhenprofil wird nach Integration mit Elevation API angezeigt.
-            </div>
-          </CardBody>
-        </Card>
-      )}
+      <SegmentSection segEditor={segEditor} distanceKm={editor.distanceKm} />
 
       <EditorActionBar
         editor={editor}
