@@ -141,3 +141,49 @@ class TrainingRouteListResponse(BaseModel):
 
     routes: list[TrainingRouteSummary]
     total: int
+
+
+# ---------------------------------------------------------------------------
+# Routing API Schemas (#520)
+# ---------------------------------------------------------------------------
+
+
+class RouteSnapRequest(BaseModel):
+    """Waypoints auf Wege snappen via OSRM."""
+
+    waypoints: list[Waypoint] = Field(..., min_length=2)
+
+
+class RouteSnapResponse(BaseModel):
+    """Gesnappte Route mit Distanz."""
+
+    points: list[Waypoint]
+    distance_km: float
+    duration_s: float
+    snapped_waypoints: list[Waypoint]
+
+
+class RoundTripRequest(BaseModel):
+    """Rundkurs generieren ab Startpunkt."""
+
+    start_lat: float = Field(..., ge=-90, le=90)
+    start_lng: float = Field(..., ge=-180, le=180)
+    target_distance_km: float = Field(..., gt=0, le=100)
+    num_alternatives: int = Field(default=3, ge=1, le=5)
+
+
+class RoundTripOption(BaseModel):
+    """Ein Rundkurs-Vorschlag."""
+
+    points: list[Waypoint]
+    distance_km: float
+    duration_s: float
+    target_distance_km: float
+    deviation_percent: float
+    direction_deg: float
+
+
+class RoundTripResponse(BaseModel):
+    """Mehrere Rundkurs-Vorschläge."""
+
+    options: list[RoundTripOption]

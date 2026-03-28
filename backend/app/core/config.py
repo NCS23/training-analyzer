@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     nominatim_user_agent: str = "training-analyzer/1.0"
     nominatim_rate_limit_ms: int = 1100
 
+    # Routing (OSRM)
+    osrm_base_url: str = "https://router.project-osrm.org"
+    osrm_timeout: float = 15.0
+
     # CORS
     allowed_origins: list[str] = ["http://localhost:3000"]
 

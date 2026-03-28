@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # PreToolUse hook: blocks `git push` to main without a feature branch.
-# Exit 0 = allow push, Exit 2 = block with error message.
-#
-# NOTE: This hook runs on EVERY Bash tool call. It must exit 0 quickly
-# for non-push commands to avoid blocking normal work.
+# Exit 0 = allow, Exit 2 = block with error message.
 
-# Only act on git push commands — read tool input from stdin
+# --- Read stdin and check if this is a git push command ---
+# PreToolUse hooks receive JSON via stdin with tool_input.command
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"$//' 2>/dev/null || true)
-if ! echo "$COMMAND" | grep -q 'git push'; then
-  exit 0
-fi
+CMD=$(echo "$INPUT" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(data.get('tool_input', {}).get('command', ''))
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+case "$CMD" in
+  *git\ push*) ;; # continue with push checks
+  *) exit 0 ;; # not a push — allow immediately
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
