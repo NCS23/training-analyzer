@@ -17,7 +17,7 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2 } from 'lucide-react';
+import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2, Download } from 'lucide-react';
 import { RouteEditorMap } from '@/features/maps/RouteEditorMap';
 import { useRouteEditor } from '@/hooks/useRouteEditor';
 import { useSegmentEditor } from '@/hooks/useSegmentEditor';
@@ -26,6 +26,7 @@ import { SegmentBar } from '@/components/route-editor/SegmentBar';
 import { SegmentTable } from '@/components/route-editor/SegmentTable';
 import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
+import { exportRouteGpx } from '@/api/routes';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
   return (
@@ -107,13 +108,26 @@ function SegmentSection({
 
 function EditorActionBar({
   editor,
+  routeId,
   onSave,
   onCancel,
 }: {
   editor: UseRouteEditorReturn;
+  routeId: number | null;
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const { toast } = useToast();
+
+  const handleGpxDownload = async () => {
+    if (!routeId) return;
+    try {
+      await exportRouteGpx(routeId, editor.name);
+    } catch {
+      toast({ title: 'GPX-Export fehlgeschlagen', variant: 'error' });
+    }
+  };
+
   return (
     <ActionBar
       sticky={false}
@@ -123,6 +137,12 @@ function EditorActionBar({
         <Button variant="secondary" onClick={onCancel}>
           Abbrechen
         </Button>
+        {routeId && (
+          <Button variant="secondary" onClick={handleGpxDownload}>
+            <Download className="w-4 h-4 mr-1.5" />
+            GPX
+          </Button>
+        )}
         <Button
           variant="primary"
           onClick={onSave}
@@ -231,6 +251,7 @@ export function RouteEditorPage() {
 
       <EditorActionBar
         editor={editor}
+        routeId={routeId ? Number(routeId) : null}
         onSave={handleSave}
         onCancel={() => navigate('/plan/routes')}
       />
