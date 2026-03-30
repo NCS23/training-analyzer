@@ -29,6 +29,8 @@ from app.models.training_route import (
     TrainingRouteUpdate,
     Waypoint,
 )
+from app.services.route_fit_export import generate_fit_course
+from app.services.route_fit_export import safe_filename as fit_safe_filename
 from app.services.route_from_session import session_to_route_data
 from app.services.route_gpx_export import generate_gpx, safe_filename
 from app.services.route_pacing import (
@@ -425,6 +427,41 @@ async def export_route_gpx(
     return Response(
         content=gpx_bytes,
         media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{route_id}/export/fit")
+async def export_route_fit(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Route als FIT Course File exportieren (#577).
+
+    Gibt eine FIT Course Datei zurück mit:
+    - Waypoints (Position, Distanz, Höhe)
+    - Einem Lap für die Gesamtroute
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    if not route.waypoints_json:
+        raise HTTPException(status_code=422, detail="Route hat keine Wegpunkte")
+
+    waypoints = [Waypoint(**wp) for wp in _parse_json_list(str(route.waypoints_json))]
+
+    fit_bytes = generate_fit_course(
+        route_name=str(route.name),
+        waypoints=waypoints,
+        total_distance_km=float(route.distance_km) if route.distance_km else 0.0,
+    )
+
+    filename = fit_safe_filename(str(route.name)) + ".fit"
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
