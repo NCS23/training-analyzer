@@ -19,6 +19,7 @@ export interface UseRouteEditorReturn {
   setName: (name: string) => void;
   save: () => Promise<number | null>;
   loadRoute: (routeId: number) => Promise<void>;
+  loadPreview: (preview: { name: string; distance_km: number; waypoints: Waypoint[] }) => void;
 }
 
 /** Berechne Elevation Gain/Loss aus Höhendaten. */
@@ -223,5 +224,34 @@ export function useRouteEditor(): UseRouteEditorReturn {
     setState((s) => ({ ...s, name: n, dirty: true }));
   }, []);
 
-  return { ...state, addWaypoint, moveWaypoint, deleteWaypoint, setName, save, loadRoute };
+  const loadPreview = useCallback(
+    (preview: { name: string; distance_km: number; waypoints: Waypoint[] }) => {
+      const { gain, loss } = computeElevation(preview.waypoints);
+      setState((s) => ({
+        ...s,
+        waypoints: preview.waypoints,
+        routePoints: preview.waypoints,
+        name: preview.name,
+        distanceKm: preview.distance_km,
+        elevationGainM: gain,
+        elevationLossM: loss,
+        loading: false,
+        routing: false,
+        saving: false,
+        dirty: true,
+      }));
+    },
+    [],
+  );
+
+  return {
+    ...state,
+    addWaypoint,
+    moveWaypoint,
+    deleteWaypoint,
+    setName,
+    save,
+    loadRoute,
+    loadPreview,
+  };
 }
