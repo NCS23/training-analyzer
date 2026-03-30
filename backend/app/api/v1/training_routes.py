@@ -29,6 +29,11 @@ from app.models.training_route import (
     Waypoint,
 )
 from app.services.route_from_session import session_to_route_data
+from app.services.route_pacing import (
+    RoutePacingRequest,
+    RoutePacingResponse,
+    calculate_route_pacing,
+)
 
 router = APIRouter(prefix="/routes")
 
@@ -344,6 +349,41 @@ async def update_route(
     await db.commit()
     await db.refresh(route)
     return _model_to_response(route)
+
+
+@router.post("/{route_id}/pacing", response_model=RoutePacingResponse)
+async def calculate_pacing(
+    route_id: int,
+    data: RoutePacingRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RoutePacingResponse:
+    """Pacing-Ziele für alle Segmente einer Route berechnen (#548).
+
+    Nutzt die bestehende Pacing-Engine mit Elevation-Daten aus den Waypoints.
+    Mappt km-genaue Splits auf die Route-Segmente.
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    waypoints_raw = _parse_json_list(str(route.waypoints_json))
+    waypoints = [Waypoint(**wp) for wp in waypoints_raw]
+
+    segments_raw = _parse_json_list(
+        str(route.route_segments_json) if route.route_segments_json else None
+    )
+    if not segments_raw:
+        raise HTTPException(status_code=400, detail="Route hat keine Segmente")
+
+    segments = [RouteSegment(**seg) for seg in segments_raw]
+
+    return calculate_route_pacing(
+        distance_km=float(route.distance_km),
+        waypoints=waypoints,
+        segments=segments,
+        request=data,
+    )
 
 
 @router.delete("/{route_id}", status_code=204)
