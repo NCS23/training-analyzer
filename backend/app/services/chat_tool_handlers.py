@@ -729,12 +729,21 @@ async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
+async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  # noqa: PLR0915
     """Erstellt einen echten Trainingsplan in der Datenbank.
 
     Die KI liefert phase_templates mit der Trainingsstruktur pro Phase.
     Der Algorithmus berechnet daraus Volumen und Pace-Zonen.
+
+    Integration der trainingswissenschaftlichen Services (#540):
+    - FitnessProfile für VDOT, HR-Daten, Trainingshistorie
+    - Ziel-Validierung mit Warnung bei unrealistischen Zielen
+    - Volumen-Kalibrierung mit Deload-Wochen
+    - 80/20 Intensitätsverteilungs-Check
     """
+    from app.services.athlete_fitness import build_fitness_profile
+    from app.services.goal_validation import validate_goal_for_plan
+
     goal_text = args.get("goal", "Trainingsplan")
     weeks = min(max(args.get("weeks", 12), 4), 52)
     sessions_per_week = min(max(args.get("sessions_per_week", 4), 3), 7)
@@ -747,6 +756,36 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
     today = date.today()
     start_date = _resolve_start_date(start_date_str, today)
     race_date = _parse_date_safe(race_date_str)
+
+    # --- Fitness-Profil laden (S02) ---
+    fitness_profile = None
+    try:
+        fitness_profile = await build_fitness_profile(db)
+        if fitness_profile and fitness_profile.data_quality != "none":
+            logger.info(
+                "FitnessProfile geladen: VDOT=%s, quality=%s, sources=%s",
+                fitness_profile.vdot,
+                fitness_profile.data_quality,
+                fitness_profile.data_sources,
+            )
+            # Trainingshistorie als Fallback für current_km nutzen
+            if fitness_profile.avg_weekly_km and fitness_profile.avg_weekly_km > 0:
+                current_km = fitness_profile.avg_weekly_km
+        else:
+            fitness_profile = None
+    except Exception as e:
+        logger.warning("FitnessProfile konnte nicht geladen werden: %s", e)
+
+    # --- Ziel-Validierung (S05) ---
+    goal_warning = None
+    goal_distance = _parse_goal_distance(goal_text)
+    goal_time = _parse_goal_time(goal_text)
+    if fitness_profile and fitness_profile.vdot:
+        goal_warning = validate_goal_for_plan(
+            fitness_profile.vdot,
+            goal_distance,
+            goal_time,
+        )
 
     # Wenn race_date und start_date gegeben: Wochen aus der Differenz berechnen
     if race_date and start_date < race_date:
@@ -781,6 +820,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
             db,
             plan.id,
             rest_days,
+            fitness_profile=fitness_profile,
         )
     except Exception:
         logger.exception("Wochenpläne-Generierung fehlgeschlagen für Plan %d", plan.id)
@@ -834,10 +874,24 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
         else ""
     )
 
+    # --- Ziel-Warnung in Instruction einbauen (S05) ---
+    goal_hint = ""
+    if goal_warning:
+        goal_hint = f" WICHTIG — Ziel-Bewertung: {goal_warning} Teile diese Bewertung dem User mit."
+
+    # --- Fitness-Profil-Info für KI ---
+    profile_hint = ""
+    if fitness_profile and fitness_profile.vdot:
+        profile_hint = (
+            f" Der Plan wurde individualisiert basierend auf VDOT {fitness_profile.vdot:.1f}"
+            f" (Datenqualität: {fitness_profile.data_quality})."
+        )
+
     return {
         **plan_data,
         "instruction": (
-            f"Der Plan wurde erfolgreich erstellt (Status: {plan_status}).{draft_hint} "
+            f"Der Plan wurde erfolgreich erstellt (Status: {plan_status}).{draft_hint}"
+            f"{profile_hint}{goal_hint} "
             "Fasse den Plan kurz zusammen (Wochen, Phasen, Zeitraum). "
             "Bette dann GENAU diesen Block in deine Antwort ein, damit "
             "der User direkt zum Plan navigieren kann:\n\n"
@@ -1302,12 +1356,17 @@ async def _create_plan_phases(
     return phases_created
 
 
-async def _generate_and_save_weekly_plans(
+async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
     db: AsyncSession,
     plan_id: int,
     rest_days: list[int],
+    fitness_profile: object | None = None,
 ) -> int:
-    """Generiert Wochenpläne und speichert sie in der DB."""
+    """Generiert Wochenpläne und speichert sie in der DB.
+
+    Wenn ein FitnessProfile vorhanden ist, werden VDOT-basierte Paces,
+    HR-Zonen, kalibrierte Volumen und Deload-Wochen integriert.
+    """
     from app.services.plan_generator import generate_weekly_plans
 
     plan = await db.get(TrainingPlanModel, plan_id)
@@ -1326,12 +1385,80 @@ async def _generate_and_save_weekly_plans(
     if plan.goal_id:
         goal = await db.get(RaceGoalModel, plan.goal_id)
 
+    # Fitness-Profil-Daten extrahieren (wenn vorhanden)
+    vdot = getattr(fitness_profile, "vdot", None) if fitness_profile else None
+    lthr = getattr(fitness_profile, "lthr", None) if fitness_profile else None
+    resting_hr = getattr(fitness_profile, "resting_hr", None) if fitness_profile else None
+    max_hr_val = getattr(fitness_profile, "max_hr", None) if fitness_profile else None
+    avg_weekly_km = getattr(fitness_profile, "avg_weekly_km", None) if fitness_profile else None
+
+    # --- Volumen-Kalibrierung (S06) ---
+    volume_targets = None
+    if avg_weekly_km and avg_weekly_km > 0 and db_phases:
+        try:
+            from app.services.deload_pattern import DeloadRatio
+            from app.services.volume_calibration import calibrate_weekly_volumes
+
+            weeks_consistent = (
+                getattr(fitness_profile, "weeks_consistent_training", 0) if fitness_profile else 0
+            )
+            deload_ratio = DeloadRatio.RATIO_2_1 if weeks_consistent < 12 else DeloadRatio.RATIO_3_1
+
+            phase_defs = [
+                {
+                    "phase_type": str(p.phase_type),
+                    "weeks": max(1, p.end_week - p.start_week + 1),
+                }
+                for p in db_phases
+            ]
+            volume_targets = calibrate_weekly_volumes(
+                phase_defs,
+                current_weekly_km=avg_weekly_km,
+                deload_ratio=deload_ratio,
+            )
+            logger.info(
+                "Volumen kalibriert: %d Wochen, Start=%.1f km, Ratio=%s",
+                len(volume_targets),
+                avg_weekly_km,
+                deload_ratio.value,
+            )
+        except Exception as e:
+            logger.warning("Volumen-Kalibrierung fehlgeschlagen: %s", e)
+
     weekly_data = generate_weekly_plans(
         plan=plan,
         phases=db_phases,
         rest_days=rest_days,
         goal=goal,
+        vdot=vdot,
+        lthr=lthr,
+        resting_hr=resting_hr,
+        max_hr=max_hr_val,
+        volume_targets=volume_targets,
     )
+
+    # --- 80/20 Intensitäts-Check (S07) ---
+    try:
+        from app.services.intensity_validation import validate_plan_intensity
+
+        all_weeks_run_types: list[list[str]] = []
+        for _, entries in weekly_data:
+            week_types: list[str] = []
+            for entry in entries:
+                for sess in entry.sessions:
+                    if sess.training_type == "running" and sess.run_details:
+                        week_types.append(sess.run_details.run_type)
+            all_weeks_run_types.append(week_types)
+
+        report = validate_plan_intensity(all_weeks_run_types)
+        if not report.is_plan_valid:
+            logger.warning(
+                "80/20-Regel verletzt in Wochen %s (Easy: %.0f%%)",
+                report.violation_weeks,
+                report.overall.easy_pct,
+            )
+    except Exception as e:
+        logger.warning("80/20-Validierung fehlgeschlagen: %s", e)
 
     # Alte Wochenplandaten löschen die im selben Zeitraum liegen
     # (UniqueConstraint auf week_start + day_of_week)
