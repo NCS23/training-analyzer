@@ -4,6 +4,7 @@ import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,7 @@ from app.models.training_route import (
     Waypoint,
 )
 from app.services.route_from_session import session_to_route_data
+from app.services.route_gpx_export import generate_gpx, safe_filename
 from app.services.route_pacing import (
     RoutePacingRequest,
     RoutePacingResponse,
@@ -383,6 +385,47 @@ async def calculate_pacing(
         waypoints=waypoints,
         segments=segments,
         request=data,
+    )
+
+
+@router.get("/{route_id}/export/gpx")
+async def export_route_gpx(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Route als GPX-Datei mit Training-Extensions exportieren (#553).
+
+    Gibt eine GPX 1.1 Datei zurück mit:
+    - Standard Trackpoints (lat/lng/ele)
+    - <ta:segments> Extension im <trk> (Segment-Übersicht)
+    - <ta:training> Extension pro Trackpoint (aktives Segment)
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    if not route.waypoints_json:
+        raise HTTPException(status_code=422, detail="Route hat keine Wegpunkte")
+
+    waypoints = [Waypoint(**wp) for wp in _parse_json_list(str(route.waypoints_json))]
+    segments_raw = _parse_json_list(
+        str(route.route_segments_json) if route.route_segments_json else None
+    )
+    segments = [RouteSegment(**seg) for seg in segments_raw]
+
+    gpx_bytes = generate_gpx(
+        route_name=str(route.name),
+        waypoints=waypoints,
+        segments=segments,
+        description=str(route.description) if route.description else None,
+    )
+
+    filename = safe_filename(str(route.name)) + ".gpx"
+    return Response(
+        content=gpx_bytes,
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
