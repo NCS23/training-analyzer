@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import {
   Button,
@@ -28,6 +29,7 @@ import {
   Pencil,
   EllipsisVertical,
   Download,
+  MapPin,
 } from 'lucide-react';
 import { trainingTypeOptions } from '@/constants/training';
 import { RunDetailsEditor } from '@/components/RunDetailsEditor';
@@ -38,6 +40,8 @@ import { useExerciseListEditor } from '@/hooks/useExerciseListEditor';
 import { useExerciseSuggestions } from '@/hooks/useExerciseSuggestions';
 import { useSessionTemplateForm } from '@/hooks/useSessionTemplateForm';
 import { downloadTemplateFit } from '@/api/session-templates';
+import { routeFromTemplate } from '@/api/routes';
+import { StartPointModal } from '@/components/route-editor/StartPointModal';
 
 // --- Constants ---
 
@@ -62,7 +66,27 @@ export function SessionTemplateEditorPage() {
     useExerciseListEditor();
 
   const { toast } = useToast();
+  const navigate = useNavigate();
   const form = useSessionTemplateForm({ templateId, exercises, setExercises });
+  const [startPointModalOpen, setStartPointModalOpen] = useState(false);
+  const [routeGenerating, setRouteGenerating] = useState(false);
+
+  const handleGenerateRoute = async (lat: number, lng: number) => {
+    if (!templateId) return;
+    setRouteGenerating(true);
+    try {
+      const preview = await routeFromTemplate(Number(templateId), {
+        start_lat: lat,
+        start_lng: lng,
+      });
+      setStartPointModalOpen(false);
+      navigate('/plan/routes/new', { state: { routePreview: preview } });
+    } catch {
+      toast({ title: 'Route-Generierung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setRouteGenerating(false);
+    }
+  };
 
   const suggestions = useExerciseSuggestions(
     form.sessionType === 'strength' || form.isEdit,
@@ -131,19 +155,27 @@ export function SessionTemplateEditorPage() {
                   Bearbeiten
                 </DropdownMenuItem>
                 {form.sessionType === 'running' && (
-                  <DropdownMenuItem
-                    icon={<Download />}
-                    onSelect={async () => {
-                      try {
-                        await downloadTemplateFit(Number(templateId), form.templateName);
-                        toast({ title: 'FIT-Datei exportiert', variant: 'success' });
-                      } catch {
-                        toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
-                      }
-                    }}
-                  >
-                    Als FIT exportieren
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem
+                      icon={<Download />}
+                      onSelect={async () => {
+                        try {
+                          await downloadTemplateFit(Number(templateId), form.templateName);
+                          toast({ title: 'FIT-Datei exportiert', variant: 'success' });
+                        } catch {
+                          toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
+                        }
+                      }}
+                    >
+                      Als FIT exportieren
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      icon={<MapPin />}
+                      onSelect={() => setStartPointModalOpen(true)}
+                    >
+                      Route erstellen
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -252,6 +284,14 @@ export function SessionTemplateEditorPage() {
           </div>
         </ActionBar>
       )}
+
+      <StartPointModal
+        open={startPointModalOpen}
+        onOpenChange={setStartPointModalOpen}
+        templateName={form.templateName}
+        loading={routeGenerating}
+        onConfirm={handleGenerateRoute}
+      />
     </div>
   );
 }
