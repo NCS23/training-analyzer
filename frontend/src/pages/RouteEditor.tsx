@@ -24,6 +24,7 @@ import { useSegmentEditor } from '@/hooks/useSegmentEditor';
 import type { UseSegmentEditorReturn } from '@/hooks/useSegmentEditor';
 import { SegmentBar } from '@/components/route-editor/SegmentBar';
 import { SegmentTable } from '@/components/route-editor/SegmentTable';
+import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
@@ -47,9 +48,11 @@ function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
 function SegmentSection({
   segEditor,
   distanceKm,
+  routeId,
 }: {
   segEditor: UseSegmentEditorReturn;
   distanceKm: number;
+  routeId: number | null;
 }) {
   if (distanceKm <= 0) return null;
 
@@ -89,6 +92,15 @@ function SegmentSection({
           />
         </CardBody>
       </Card>
+
+      {segEditor.segments.length > 0 && (
+        <PacingPanel
+          routeId={routeId}
+          distanceKm={distanceKm}
+          segments={segEditor.segments}
+          onSegmentsUpdate={segEditor.setSegments}
+        />
+      )}
     </>
   );
 }
@@ -211,7 +223,11 @@ export function RouteEditorPage() {
         segments={segEditor.segments}
       />
 
-      <SegmentSection segEditor={segEditor} distanceKm={editor.distanceKm} />
+      <SegmentSection
+        segEditor={segEditor}
+        distanceKm={editor.distanceKm}
+        routeId={routeId ? Number(routeId) : null}
+      />
 
       <EditorActionBar
         editor={editor}

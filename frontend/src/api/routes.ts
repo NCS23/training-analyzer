@@ -107,6 +107,45 @@ export interface RoundTripResponse {
   options: RoundTripOption[];
 }
 
+// --- Pacing Types (#548) ---
+
+export interface RoutePacingRequest {
+  target_time_seconds: number;
+  strategy: 'even' | 'negative' | 'effort_based';
+  temperature_celsius?: number | null;
+  wind_speed_kmh?: number | null;
+  humidity_percent?: number | null;
+}
+
+export interface SegmentPacing {
+  segment_index: number;
+  segment_type: string;
+  start_km: number;
+  end_km: number;
+  distance_km: number;
+  elevation_gain_m: number;
+  elevation_loss_m: number;
+  target_pace_min: string;
+  target_pace_max: string;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  avg_pace_sec_per_km: number;
+  notes: string | null;
+}
+
+export interface RoutePacingResponse {
+  strategy: string;
+  strategy_label: string;
+  distance_km: number;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  avg_pace_sec_per_km: number;
+  avg_pace_formatted: string;
+  segment_pacing: SegmentPacing[];
+  weather_notes: string | null;
+  general_notes: string[];
+}
+
 // --- API Functions ---
 
 export async function listRoutes(params?: {
@@ -168,6 +207,17 @@ export async function generateRoundTrip(params: {
 }): Promise<RoundTripResponse> {
   const response = await apiClient.post<RoundTripResponse>(
     '/api/v1/routes/generate-round-trip',
+    params,
+  );
+  return response.data;
+}
+
+export async function calculateRoutePacing(
+  routeId: number,
+  params: RoutePacingRequest,
+): Promise<RoutePacingResponse> {
+  const response = await apiClient.post<RoutePacingResponse>(
+    `/api/v1/routes/${routeId}/pacing`,
     params,
   );
   return response.data;
