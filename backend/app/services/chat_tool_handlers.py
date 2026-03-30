@@ -847,19 +847,18 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:
 
 
 def _resolve_start_date(start_date_str: str | None, today: date) -> date:
-    """Berechnet das Startdatum — auf nächsten Montag aufgerundet.
+    """Berechnet das Startdatum — auf Montag derselben Woche normalisiert.
 
-    Wenn kein Startdatum angegeben wird, wird der nächste Montag verwendet.
+    Erlaubt auch vergangene Startdaten und die aktuelle Woche.
+    Ohne Angabe wird der Montag der aktuellen Woche verwendet.
     """
     if start_date_str:
         parsed = _parse_date_safe(start_date_str)
-        if parsed and parsed > today:
-            # Auf nächsten Montag aufrunden
-            days_to_monday = (7 - parsed.weekday()) % 7
-            return parsed + timedelta(days=days_to_monday) if days_to_monday else parsed
-    # Default: nächster Montag
-    days_to_next_monday = (7 - today.weekday()) % 7 or 7
-    return today + timedelta(days=days_to_next_monday)
+        if parsed:
+            # Auf Montag derselben Woche zurückrechnen
+            return parsed - timedelta(days=parsed.weekday())
+    # Default: Montag der aktuellen Woche
+    return today - timedelta(days=today.weekday())
 
 
 def _extract_rest_days(ki_phase_templates: list[dict]) -> list[int]:
