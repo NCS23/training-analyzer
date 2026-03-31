@@ -1443,9 +1443,14 @@ async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
                 }
                 for p in db_phases
             ]
+            # Peak-Volumen aus Wettkampfdistanz schätzen
+            goal_dist = _parse_goal_distance(plan.name) if plan.name else 21.0975
+            peak_vol = _estimate_peak_volume(goal_dist, avg_weekly_km)
+
             volume_targets = calibrate_weekly_volumes(
                 phase_defs,
                 current_weekly_km=avg_weekly_km,
+                peak_volume_km=peak_vol,
                 deload_ratio=deload_ratio,
             )
             logger.info(
