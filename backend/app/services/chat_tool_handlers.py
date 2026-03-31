@@ -1100,23 +1100,31 @@ async def _create_plan_model(
     return plan
 
 
-def _estimate_peak_volume(distance_km: float, current_km: float) -> float:
+def _estimate_peak_volume(distance_km: float, current_km: float, weeks: int = 12) -> float:
     """Schätzt das Peak-Wochenvolumen basierend auf Wettkampfdistanz.
 
-    Faustregel: Peak-Volumen = ca. 2.5x Wettkampfdistanz (min. current + 30%).
+    Referenz: Pfitzinger "Advanced Marathoning" / Daniels "Running Formula".
+    Peak-Volumen hängt von der Wettkampfdistanz UND der verfügbaren
+    Aufbauzeit ab — bei langen Plänen (>16 Wochen) kann höher aufgebaut werden.
     """
+    # Basis-Zielvolumen nach Distanz (Pfitzinger-Empfehlungen für ambitionierte Läufer)
     target_by_distance = {
-        42.195: 65.0,  # Marathon: 55-75 km/Woche Peak
-        21.0975: 45.0,  # HM: 35-55 km/Woche Peak
-        10.0: 35.0,  # 10k: 30-40 km/Woche Peak
-        5.0: 30.0,  # 5k: 25-35 km/Woche Peak
+        42.195: 75.0,  # Marathon: 65-90 km/Woche Peak
+        21.0975: 60.0,  # HM: 50-70 km/Woche Peak
+        10.0: 45.0,  # 10k: 40-55 km/Woche Peak
+        5.0: 35.0,  # 5k: 30-40 km/Woche Peak
     }
-    # Nächste bekannte Distanz finden
     closest = min(target_by_distance.keys(), key=lambda d: abs(d - distance_km))
     target_peak = target_by_distance[closest]
 
-    # Nicht unter dem aktuellen Volumen + 30% starten
-    return max(target_peak, current_km * 1.3)
+    # Bei langen Plänen (>16 Wochen) 10% höher, bei kurzen 10% niedriger
+    if weeks >= 20:
+        target_peak *= 1.10
+    elif weeks <= 10:
+        target_peak *= 0.85
+
+    # Nicht unter dem aktuellen Volumen + 50% (genug Steigerungspotenzial)
+    return max(target_peak, current_km * 1.5)
 
 
 # Mapping: phase_type → (Name, Strength-Sessions, Quality-Sessions, Focus-Primary, Focus-Secondary)
@@ -1330,7 +1338,7 @@ async def _create_plan_phases(
     Phasen-Aufteilung wird aus den KI-Templates abgeleitet (weeks pro Phase).
     Wenn keine KI-Templates vorhanden → Default-Verteilung (40/30/15/15).
     """
-    peak_vol = _estimate_peak_volume(distance_km, current_km)
+    peak_vol = _estimate_peak_volume(distance_km, current_km, weeks)
     phase_defs = _build_phase_defs(
         weeks,
         ki_phase_templates,
@@ -1445,7 +1453,8 @@ async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
             ]
             # Peak-Volumen aus Wettkampfdistanz schätzen
             goal_dist = _parse_goal_distance(plan.name) if plan.name else 21.0975
-            peak_vol = _estimate_peak_volume(goal_dist, avg_weekly_km)
+            total_plan_weeks = sum(max(1, p.end_week - p.start_week + 1) for p in db_phases)
+            peak_vol = _estimate_peak_volume(goal_dist, avg_weekly_km, total_plan_weeks)
 
             volume_targets = calibrate_weekly_volumes(
                 phase_defs,

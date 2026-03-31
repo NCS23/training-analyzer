@@ -56,17 +56,80 @@ def _make_goal(distance_km: float, time_sec: int, race_date: str) -> MagicMock:
     return goal
 
 
+class TestPeakVolumeEstimation:
+    """Die _estimate_peak_volume Funktion erzeugt sinnvolle Werte."""
+
+    def test_hm_peak_at_least_55km(self) -> None:
+        """HM Sub-1:50 mit 28 Wochen → Peak mindestens 55 km."""
+        from app.services.chat_tool_handlers import _estimate_peak_volume
+
+        peak = _estimate_peak_volume(21.0975, 20.0, weeks=28)
+        assert peak >= 55.0, f"HM Peak {peak:.0f} km zu niedrig (soll ≥55)"
+
+    def test_marathon_peak_at_least_65km(self) -> None:
+        """Marathon mit 20 Wochen → Peak mindestens 65 km."""
+        from app.services.chat_tool_handlers import _estimate_peak_volume
+
+        peak = _estimate_peak_volume(42.195, 30.0, weeks=20)
+        assert peak >= 65.0, f"Marathon Peak {peak:.0f} km zu niedrig (soll ≥65)"
+
+    def test_short_plan_lower_peak(self) -> None:
+        """Kurzer Plan (10 Wochen) hat niedrigeres Peak."""
+        from app.services.chat_tool_handlers import _estimate_peak_volume
+
+        short = _estimate_peak_volume(21.0975, 20.0, weeks=10)
+        long = _estimate_peak_volume(21.0975, 20.0, weeks=28)
+        assert short < long
+
+    def test_higher_current_km_higher_peak(self) -> None:
+        """Mehr aktuelles Volumen → höheres Peak."""
+        from app.services.chat_tool_handlers import _estimate_peak_volume
+
+        low = _estimate_peak_volume(21.0975, 15.0, weeks=20)
+        high = _estimate_peak_volume(21.0975, 40.0, weeks=20)
+        assert high >= low
+
+
 class TestGeneratedPlanE2E:
     """End-to-End: Generierter HM Sub-1:50 Plan ist brauchbar."""
 
     def _generate_hm_plan(self) -> list:
+        """Generiert Plan mit realistischen Phasen-Metriken aus _estimate_peak_volume."""
+        from app.services.chat_tool_handlers import _VOLUME_FACTORS, _estimate_peak_volume
+
         plan = _make_plan("2026-04-06", "2026-10-04")  # 26 Wochen
         goal = _make_goal(21.0975, 6600, "2026-10-04")  # 1:50:00
+
+        # Echte Peak-Volumen-Berechnung wie im Produktivcode
+        current_km = 20.0
+        peak_vol = _estimate_peak_volume(21.0975, current_km, weeks=26)
+
         phases: list[Any] = [
-            _make_phase(1, "base", 1, 10, 30, 45),
-            _make_phase(1, "build", 11, 18, 40, 55),
-            _make_phase(1, "peak", 19, 24, 50, 65),
-            _make_phase(1, "taper", 25, 26, 25, 35),
+            _make_phase(
+                1,
+                "base",
+                1,
+                10,
+                peak_vol * _VOLUME_FACTORS["base"] * 0.9,
+                peak_vol * _VOLUME_FACTORS["base"] * 1.1,
+            ),
+            _make_phase(
+                1,
+                "build",
+                11,
+                18,
+                peak_vol * _VOLUME_FACTORS["build"] * 0.9,
+                peak_vol * _VOLUME_FACTORS["build"] * 1.1,
+            ),
+            _make_phase(1, "peak", 19, 24, peak_vol * 0.9, peak_vol * 1.1),
+            _make_phase(
+                1,
+                "taper",
+                25,
+                26,
+                peak_vol * _VOLUME_FACTORS["taper"] * 0.9,
+                peak_vol * _VOLUME_FACTORS["taper"] * 1.1,
+            ),
         ]
         from app.services.vdot_calculator import estimate_vdot
 
