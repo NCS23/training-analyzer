@@ -25,8 +25,9 @@ from app.services.deload_pattern import (
 # Maximale Steigerung pro Woche (10%-Regel, Daniels)
 MAX_WEEKLY_INCREASE_PCT = 0.10
 
-# Maximaler Peak als Vielfaches des Start-Volumens
-MAX_PEAK_MULTIPLIER = 2.0
+# Maximaler Peak als Vielfaches des Start-Volumens.
+# Bei langen Plänen (>16 Wochen) kann der Athlet deutlich über 2× wachsen.
+MAX_PEAK_MULTIPLIER = 3.0
 
 # Minimum-Volumen (km/Woche) — darunter macht Periodisierung keinen Sinn
 MIN_WEEKLY_VOLUME_KM = 10.0
@@ -61,7 +62,9 @@ def calibrate_weekly_volumes(
     if peak_volume_km is None:
         peak_km = _estimate_peak_from_progression(start_km, total_weeks)
     else:
-        peak_km = min(peak_volume_km, start_km * MAX_PEAK_MULTIPLIER)
+        # Cap an die 10%-Regel: ist das Peak mit 10%/Woche erreichbar?
+        max_reachable = start_km * (1 + MAX_WEEKLY_INCREASE_PCT) ** (total_weeks * 0.75)
+        peak_km = min(peak_volume_km, max_reachable, start_km * MAX_PEAK_MULTIPLIER)
 
     peak_km = max(peak_km, start_km)  # Peak nie unter Start
 
@@ -92,7 +95,7 @@ def calibrate_weekly_volumes(
         )
 
     # 10%-Regel validieren
-    _enforce_10_percent_rule(result)
+    _enforce_10_percent_rule(result, start_km=start_km)
 
     return result
 
@@ -172,27 +175,37 @@ def _estimate_peak_from_progression(start_km: float, total_weeks: int) -> float:
     return min(raw_peak, start_km * MAX_PEAK_MULTIPLIER)
 
 
-def _enforce_10_percent_rule(targets: list[WeeklyVolumeTarget]) -> None:
+def _enforce_10_percent_rule(
+    targets: list[WeeklyVolumeTarget],
+    start_km: float = 0,
+) -> None:
     """Stelle sicher dass keine Woche >10% mehr als die Vorwoche hat.
 
     Deload- und Taper-Wochen werden übersprungen (reduziertes Volumen ist ok).
     Nach einem Deload darf das Volumen auf das Niveau vor dem Deload zurückkehren.
+    Nach Recovery/Transition darf das Volumen auf start_km springen (kein Aufbau nötig).
     """
     if len(targets) < 2:
         return
 
-    pre_deload_volume = targets[0].adjusted_volume_km
+    pre_deload_volume = max(targets[0].adjusted_volume_km, start_km)
 
     for i in range(1, len(targets)):
         current = targets[i]
         prev = targets[i - 1]
 
-        # Deload/Taper: Reduzierung ist immer ok, merke Pre-Deload-Volumen
+        # Deload/Taper: Reduzierung ist immer ok
         if current.is_deload or current.is_taper:
             continue
 
-        # Nach Deload: darf auf Pre-Deload-Niveau zurückkehren
-        if prev.is_deload:
+        # Phase-Wechsel aus Recovery/Transition: darf auf start_km springen
+        if prev.phase in ("recovery", "transition") and current.phase not in (
+            "recovery",
+            "transition",
+        ):
+            max_allowed = max(start_km, prev.adjusted_volume_km * (1 + MAX_WEEKLY_INCREASE_PCT))
+        elif prev.is_deload:
+            # Nach Deload: darf auf Pre-Deload-Niveau zurückkehren
             max_allowed = max(
                 pre_deload_volume,
                 prev.adjusted_volume_km * (1 + MAX_WEEKLY_INCREASE_PCT),

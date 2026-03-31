@@ -68,13 +68,13 @@ class TestCalibrateWeeklyVolumes:
         for t in targets:
             assert t.adjusted_volume_km >= 10.0
 
-    def test_peak_capped_at_2x_start(self) -> None:
-        """Peak-Volumen wird auf 2x Start gecappt."""
+    def test_peak_capped_at_3x_start(self) -> None:
+        """Peak-Volumen wird auf 3x Start gecappt."""
         phases = [{"phase_type": "base", "weeks": 20}]
-        targets = calibrate_weekly_volumes(phases, current_weekly_km=20.0, peak_volume_km=100.0)
-        # 100 km wird auf 2x20=40 km gecappt
+        targets = calibrate_weekly_volumes(phases, current_weekly_km=20.0, peak_volume_km=200.0)
+        # 200 km wird auf 3x20=60 km gecappt (oder 10%-Regel, was kleiner ist)
         max_vol = max(t.adjusted_volume_km for t in targets)
-        assert max_vol <= 40.0 * 1.01  # Kleine Rundungstoleranz
+        assert max_vol <= 60.0 * 1.01  # Kleine Rundungstoleranz
 
     def test_custom_peak_volume(self) -> None:
         """Benutzerdefiniertes Peak-Volumen wird respektiert."""
