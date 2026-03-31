@@ -729,7 +729,7 @@ async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  # noqa: PLR0915
+async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  # noqa: C901, PLR0912, PLR0915
     """Erstellt einen echten Trainingsplan in der Datenbank.
 
     Die KI liefert phase_templates mit der Trainingsstruktur pro Phase.
@@ -753,9 +753,28 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  
     start_date_str = args.get("start_date")
     ki_phase_templates = args.get("phase_templates", [])
 
+    personal_records = args.get("personal_records", [])
+
     today = date.today()
     start_date = _resolve_start_date(start_date_str, today)
     race_date = _parse_date_safe(race_date_str)
+
+    # --- VDOT aus personal_records berechnen (S01) ---
+    user_vdot: float | None = None
+    if personal_records:
+        from app.services.vdot_calculator import estimate_vdot
+
+        best_vdot: float | None = None
+        for pr in personal_records:
+            dist = pr.get("distance_km")
+            time_sec = pr.get("time_seconds")
+            if dist and time_sec:
+                v = estimate_vdot(float(dist), float(time_sec))
+                if v is not None and (best_vdot is None or v > best_vdot):
+                    best_vdot = v
+        if best_vdot:
+            user_vdot = best_vdot
+            logger.info("VDOT aus personal_records: %.1f", user_vdot)
 
     # --- Fitness-Profil laden (S02) ---
     fitness_profile = None
@@ -771,10 +790,23 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  
             # Trainingshistorie als Fallback für current_km nutzen
             if fitness_profile.avg_weekly_km and fitness_profile.avg_weekly_km > 0:
                 current_km = fitness_profile.avg_weekly_km
+            # User-VDOT aus personal_records hat Vorrang
+            if user_vdot:
+                fitness_profile.vdot = round(user_vdot, 1)
         else:
             fitness_profile = None
     except Exception as e:
         logger.warning("FitnessProfile konnte nicht geladen werden: %s", e)
+
+    # Wenn kein FitnessProfile aber personal_records → minimales Profil
+    if not fitness_profile and user_vdot:
+        from app.services.athlete_fitness import FitnessProfile as FP
+
+        fitness_profile = FP(
+            vdot=round(user_vdot, 1),
+            data_quality="low",
+            data_sources=["personal_records"],
+        )
 
     # --- Ziel-Validierung (S05) ---
     goal_warning = None
