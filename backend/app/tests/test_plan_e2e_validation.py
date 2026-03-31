@@ -7,9 +7,8 @@ auf Plausibilität — nicht nur isolierte Service-Tests.
 from __future__ import annotations
 
 from datetime import date
-from unittest.mock import MagicMock
-
 from typing import Any
+from unittest.mock import MagicMock
 
 from app.services.plan_generator import generate_weekly_plans
 
