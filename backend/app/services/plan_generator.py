@@ -1177,6 +1177,12 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16
         else:
             weekly_volume = None
 
+        # Kalibriertes Volumen übernehmen (VOR Session-Erstellung, nicht nachträglich)
+        if volume_targets and week_idx < len(volume_targets):
+            calibrated_vol = getattr(volume_targets[week_idx], "adjusted_volume_km", None)
+            if calibrated_vol and calibrated_vol > 0:
+                weekly_volume = calibrated_vol
+
         # Distribute volume across running sessions and set RunDetails
         if weekly_volume is not None and weekly_volume > 0:
             # Collect all running PlannedSession objects with run_details
@@ -1257,27 +1263,6 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16
                         resting_hr=resting_hr,
                         max_hr=max_hr,
                     )
-
-        # Kalibriertes Volumen aus volume_targets anwenden (wenn vorhanden)
-        if volume_targets and week_idx < len(volume_targets):
-            vt = volume_targets[week_idx]
-            calibrated_vol = getattr(vt, "adjusted_volume_km", None)
-            if calibrated_vol and weekly_volume:
-                # Skalierungsfaktor: kalibriertes / berechnetes Volumen
-                scale = calibrated_vol / weekly_volume if weekly_volume > 0 else 1.0
-                if abs(scale - 1.0) > 0.05:  # Nur anpassen wenn >5% Differenz
-                    for e in entries:
-                        for s in e.sessions:
-                            if (
-                                s.training_type == "running"
-                                and s.run_details
-                                and s.run_details.segments
-                            ):
-                                seg = s.run_details.segments[0]
-                                if seg.target_duration_minutes:
-                                    seg.target_duration_minutes = round(
-                                        seg.target_duration_minutes * scale, 0
-                                    )
 
         # Enrich sessions with structured segments (intervals, tempo, strides etc.)
         _enrich_sessions_for_week(
