@@ -215,24 +215,55 @@ def _build_run_details(
     run_type: str,
     distance_km: float,
     race_pace: Optional[float],
+    vdot: Optional[float] = None,
+    lthr: Optional[int] = None,
+    resting_hr: Optional[int] = None,
+    max_hr: Optional[int] = None,
 ) -> RunDetails:
     """Build RunDetails for a single running session.
 
     Populates data via a single 'steady' segment. The RunDetails validators
     will automatically compute top-level fields from this segment.
+
+    Wenn VDOT vorhanden: individuelle Paces aus Daniels-Tabellen.
+    Wenn HR-Daten vorhanden: target_hr_min/max aus Friel/Karvonen.
+    Fallback: hardcodierte PACE_MULTIPLIERS.
     """
-    multipliers = PACE_MULTIPLIERS.get(run_type, PACE_MULTIPLIERS["easy"])
-    pace_min: Optional[str] = None
-    pace_max: Optional[str] = None
+    from app.services.plan_enrichment import enrich_run_details_params
+
+    enriched = enrich_run_details_params(
+        run_type,
+        vdot=vdot,
+        race_pace=race_pace,
+        lthr=lthr,
+        resting_hr=resting_hr,
+        max_hr=max_hr,
+    )
+
+    pace_min: Optional[str] = enriched["pace_min"]
+    pace_max: Optional[str] = enriched["pace_max"]
+    hr_min: Optional[int] = enriched["hr_min"]
+    hr_max: Optional[int] = enriched["hr_max"]
     duration_minutes: Optional[float] = None
 
-    if race_pace:
-        pace_slow = race_pace * multipliers[1]  # slower end
-        pace_fast = race_pace * multipliers[0]  # faster end
+    if pace_min and pace_max:
+        # Parse pace strings to compute duration
+        def _pace_to_sec(p: str) -> float:
+            parts = p.split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+
+        pace_fast_sec = _pace_to_sec(pace_min)
+        pace_slow_sec = _pace_to_sec(pace_max)
+        avg_pace = (pace_fast_sec + pace_slow_sec) / 2.0
+        duration_minutes = float(_round_to_5(distance_km * avg_pace / 60.0))
+    elif race_pace:
+        multipliers = PACE_MULTIPLIERS.get(run_type, PACE_MULTIPLIERS["easy"])
+        pace_slow = race_pace * multipliers[1]
+        pace_fast = race_pace * multipliers[0]
         pace_min = _seconds_to_pace(pace_fast)
         pace_max = _seconds_to_pace(pace_slow)
-        avg_pace = (pace_slow + pace_fast) / 2.0
-        duration_minutes = float(_round_to_5(distance_km * avg_pace / 60.0))
+        avg_pace_sec = (pace_slow + pace_fast) / 2.0
+        duration_minutes = float(_round_to_5(distance_km * avg_pace_sec / 60.0))
     elif distance_km > 0:
         # No goal: estimate ~6:30/km average
         duration_minutes = float(_round_to_5(distance_km * 390.0 / 60.0))
@@ -253,6 +284,8 @@ def _build_run_details(
                 target_duration_minutes=duration_minutes,
                 target_pace_min=pace_min,
                 target_pace_max=pace_max,
+                target_hr_min=hr_min,
+                target_hr_max=hr_max,
             )
         ],
     )
@@ -1000,11 +1033,16 @@ def _insert_race_day(
 # --- Main Generator ---
 
 
-def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
+def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16 Refactoring
     plan: TrainingPlanModel,
     phases: list[TrainingPhaseModel],
     rest_days: list[int],
     goal: Optional[RaceGoalModel],
+    vdot: Optional[float] = None,
+    lthr: Optional[int] = None,
+    resting_hr: Optional[int] = None,
+    max_hr: Optional[int] = None,
+    volume_targets: Optional[list] = None,
 ) -> list[tuple[date, list[WeeklyPlanEntry]]]:
     """Generate (week_start, entries) tuples for all weeks of the plan.
 
@@ -1013,6 +1051,11 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
         phases: List of phases sorted by start_week.
         rest_days: List of rest day indices (0=Mon, 6=Sun).
         goal: Optional goal for pace calculation.
+        vdot: VDOT-Wert für individuelle Daniels-Paces (optional).
+        lthr: Laktatschwellen-HR für HR-Zonen (optional).
+        resting_hr: Ruhe-HR für Karvonen-Zonen (optional).
+        max_hr: Max-HR für Karvonen-Zonen (optional).
+        volume_targets: Kalibrierte Volumen-Ziele pro Woche (optional).
 
     Returns:
         List of (week_start_date, list_of_7_entries) tuples.
@@ -1192,7 +1235,36 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
                     else:
                         dist = easy_km_each
 
-                    sess.run_details = _build_run_details(rt, dist, race_pace)
+                    sess.run_details = _build_run_details(
+                        rt,
+                        dist,
+                        race_pace,
+                        vdot=vdot,
+                        lthr=lthr,
+                        resting_hr=resting_hr,
+                        max_hr=max_hr,
+                    )
+
+        # Kalibriertes Volumen aus volume_targets anwenden (wenn vorhanden)
+        if volume_targets and week_idx < len(volume_targets):
+            vt = volume_targets[week_idx]
+            calibrated_vol = getattr(vt, "adjusted_volume_km", None)
+            if calibrated_vol and weekly_volume:
+                # Skalierungsfaktor: kalibriertes / berechnetes Volumen
+                scale = calibrated_vol / weekly_volume if weekly_volume > 0 else 1.0
+                if abs(scale - 1.0) > 0.05:  # Nur anpassen wenn >5% Differenz
+                    for e in entries:
+                        for s in e.sessions:
+                            if (
+                                s.training_type == "running"
+                                and s.run_details
+                                and s.run_details.segments
+                            ):
+                                seg = s.run_details.segments[0]
+                                if seg.target_duration_minutes:
+                                    seg.target_duration_minutes = round(
+                                        seg.target_duration_minutes * scale, 0
+                                    )
 
         # Enrich sessions with structured segments (intervals, tempo, strides etc.)
         _enrich_sessions_for_week(

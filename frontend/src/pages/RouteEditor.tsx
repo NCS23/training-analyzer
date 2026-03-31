@@ -5,7 +5,8 @@
  */
 
 import { useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import type { RouteFromTemplatePreview } from '@/api/routes';
 import {
   ActionBar,
   Button,
@@ -180,6 +181,7 @@ function EditorActionBar({
 export function RouteEditorPage() {
   const { routeId } = useParams<{ routeId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isNew = !routeId;
   const editor = useRouteEditor();
@@ -191,6 +193,14 @@ export function RouteEditorPage() {
         toast({ title: 'Route konnte nicht geladen werden', variant: 'error' });
         navigate('/plan/routes');
       });
+      return;
+    }
+    // Vorberechnete Route aus Session Template (#571)
+    const preview = (location.state as { routePreview?: RouteFromTemplatePreview } | null)
+      ?.routePreview;
+    if (preview) {
+      editor.loadPreview(preview);
+      segEditor.setSegments(preview.route_segments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId]);

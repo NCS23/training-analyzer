@@ -38,6 +38,12 @@ from app.services.route_pacing import (
     RoutePacingResponse,
     calculate_route_pacing,
 )
+from app.services.template_to_route import (
+    RouteFromTemplatePreview,
+    RouteFromTemplateRequest,
+    build_route_preview,
+    calculate_template_distance,
+)
 
 router = APIRouter(prefix="/routes")
 
@@ -250,6 +256,65 @@ async def create_route_from_session(
     await db.commit()
     await db.refresh(route)
     return _model_to_response(route)
+
+
+@router.post(
+    "/from-template/{template_id}", response_model=RouteFromTemplatePreview, status_code=200
+)
+async def route_from_template(
+    template_id: int,
+    data: RouteFromTemplateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RouteFromTemplatePreview:
+    """Route-Vorschau aus Session Template generieren (#571).
+
+    Berechnet Gesamtdistanz aus Template-Segmenten, generiert via OSRM
+    eine passende Rundstrecke und verteilt Segmente proportional.
+    Die Route wird NICHT gespeichert — der Client zeigt sie im Editor zur
+    Feinanpassung an und speichert ggf. via POST /routes.
+    """
+    result = await db.execute(
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="Session Template nicht gefunden")
+
+    if not template.run_details_json:
+        raise HTTPException(
+            status_code=422,
+            detail="Template hat keine Lauf-Details (run_details)",
+        )
+
+    try:
+        from app.models.weekly_plan import RunDetails
+
+        run_details = RunDetails(**json.loads(str(template.run_details_json)))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Ungültige run_details: {exc}") from exc
+
+    distance_km = calculate_template_distance(run_details)
+
+    osrm = OSRMClient()
+    try:
+        results = await osrm.generate_round_trip(
+            start_lat=data.start_lat,
+            start_lng=data.start_lng,
+            target_distance_km=distance_km,
+            num_alternatives=1,
+        )
+    finally:
+        await osrm.close()
+
+    if not results:
+        raise HTTPException(status_code=502, detail="Routing-Service nicht erreichbar")
+
+    return build_route_preview(
+        template_id=template_id,
+        template_name=str(template.name),
+        run_details=run_details,
+        osrm_result=results[0],
+    )
 
 
 @router.post("/snap", response_model=RouteSnapResponse)
