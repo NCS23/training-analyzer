@@ -1177,11 +1177,21 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16
         else:
             weekly_volume = None
 
-        # Kalibriertes Volumen übernehmen (VOR Session-Erstellung, nicht nachträglich)
+        # Kalibriertes Volumen übernehmen — aber nie unter das Phase-Volumen drücken.
+        # Die Kalibrierung fügt Deloads ein und wendet die 10%-Regel an, darf aber
+        # das von _create_plan_phases() berechnete Zielvolumen nicht unterschreiten.
         if volume_targets and week_idx < len(volume_targets):
-            calibrated_vol = getattr(volume_targets[week_idx], "adjusted_volume_km", None)
+            vt = volume_targets[week_idx]
+            calibrated_vol = getattr(vt, "adjusted_volume_km", None)
+            is_deload = getattr(vt, "is_deload", False)
+            is_taper = getattr(vt, "is_taper", False)
             if calibrated_vol and calibrated_vol > 0:
-                weekly_volume = calibrated_vol
+                if is_deload or is_taper:
+                    # Deload/Taper: kalibriertes Volumen übernehmen (reduziert)
+                    weekly_volume = calibrated_vol
+                elif weekly_volume is not None:
+                    # Aufbau-Wochen: Maximum aus Phase-Volumen und Kalibrierung
+                    weekly_volume = max(weekly_volume, calibrated_vol)
 
         # Distribute volume across running sessions and set RunDetails
         if weekly_volume is not None and weekly_volume > 0:
