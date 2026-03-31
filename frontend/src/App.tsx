@@ -3,6 +3,7 @@ import type { ReactNode, ErrorInfo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Spinner, ToastProvider } from '@nordlig/components';
+import AuthGuard from './components/AuthGuard';
 import { AppLayout } from './layouts/AppLayout';
 import { PlanLayout } from './layouts/PlanLayout';
 
@@ -133,69 +134,71 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <ToastProvider position="bottom-right">
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route element={<AppLayout />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/sessions" element={<SessionsPage />} />
-                  <Route path="/sessions/new" element={<UploadPage />} />
-                  <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
-                  <Route path="/sessions/:id" element={<SessionDetailPage />} />
-                  <Route path="/sessions/:id/race-report" element={<RaceReportPage />} />
-                  <Route path="/analyse" element={<AnalysePage />} />
-                  <Route path="/trends" element={<Navigate to="/analyse" replace />} />
-                  <Route
-                    path="/strength/progression"
-                    element={<Navigate to="/analyse" replace />}
-                  />
-                  <Route path="/balance" element={<Navigate to="/analyse" replace />} />
+            <AuthGuard>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route element={<AppLayout />}>
+                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/sessions" element={<SessionsPage />} />
+                    <Route path="/sessions/new" element={<UploadPage />} />
+                    <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
+                    <Route path="/sessions/:id" element={<SessionDetailPage />} />
+                    <Route path="/sessions/:id/race-report" element={<RaceReportPage />} />
+                    <Route path="/analyse" element={<AnalysePage />} />
+                    <Route path="/trends" element={<Navigate to="/analyse" replace />} />
+                    <Route
+                      path="/strength/progression"
+                      element={<Navigate to="/analyse" replace />}
+                    />
+                    <Route path="/balance" element={<Navigate to="/analyse" replace />} />
 
-                  {/* Plan Hub with tabs */}
-                  <Route path="/plan" element={<PlanLayout />}>
-                    <Route index element={<WeeklyPlanPage />} />
-                    <Route path="goals" element={<GoalsPage />} />
-                    <Route path="pacing" element={<PacingPage />} />
-                    <Route path="programs" element={<TrainingPlansPage />} />
-                    <Route path="programs/new" element={<TrainingPlanEditorPage />} />
-                    <Route path="programs/:planId" element={<TrainingPlanEditorPage />} />
-                    <Route path="templates" element={<SessionTemplatesPage />} />
-                    <Route path="templates/new" element={<SessionTemplateEditorPage />} />
-                    <Route path="templates/:templateId" element={<SessionTemplateEditorPage />} />
-                    <Route path="exercises" element={<ExerciseLibraryPage />} />
-                    <Route path="exercises/:exerciseId" element={<ExerciseDetailPage />} />
-                    <Route path="routes" element={<RoutesPage />} />
-                    <Route path="routes/new" element={<RouteEditorPage />} />
-                    <Route path="routes/:routeId" element={<RouteEditorPage />} />
+                    {/* Plan Hub with tabs */}
+                    <Route path="/plan" element={<PlanLayout />}>
+                      <Route index element={<WeeklyPlanPage />} />
+                      <Route path="goals" element={<GoalsPage />} />
+                      <Route path="pacing" element={<PacingPage />} />
+                      <Route path="programs" element={<TrainingPlansPage />} />
+                      <Route path="programs/new" element={<TrainingPlanEditorPage />} />
+                      <Route path="programs/:planId" element={<TrainingPlanEditorPage />} />
+                      <Route path="templates" element={<SessionTemplatesPage />} />
+                      <Route path="templates/new" element={<SessionTemplateEditorPage />} />
+                      <Route path="templates/:templateId" element={<SessionTemplateEditorPage />} />
+                      <Route path="exercises" element={<ExerciseLibraryPage />} />
+                      <Route path="exercises/:exerciseId" element={<ExerciseDetailPage />} />
+                      <Route path="routes" element={<RoutesPage />} />
+                      <Route path="routes/new" element={<RouteEditorPage />} />
+                      <Route path="routes/:routeId" element={<RouteEditorPage />} />
+                    </Route>
+
+                    {/* Profil (formerly Einstellungen > Athletenprofil) */}
+                    <Route path="/profile" element={<AthleteProfilePage />} />
+                    <Route path="/weekly-review" element={<Navigate to="/plan" replace />} />
+                    <Route path="/chat" element={<ChatPage />} />
+                    <Route path="/ki-log" element={<KiLogPage />} />
+
+                    {/* Redirects for old /settings paths */}
+                    <Route path="/settings" element={<Navigate to="/plan" replace />} />
+                    <Route
+                      path="/settings/plans/*"
+                      element={<Navigate to="/plan/programs" replace />}
+                    />
+                    <Route
+                      path="/settings/templates/*"
+                      element={<Navigate to="/plan/templates" replace />}
+                    />
+                    <Route
+                      path="/settings/exercises/*"
+                      element={<Navigate to="/plan/exercises" replace />}
+                    />
+                    <Route path="/settings/goals" element={<Navigate to="/plan/goals" replace />} />
+                    <Route path="/settings/athlete" element={<Navigate to="/profile" replace />} />
+
+                    <Route path="*" element={<NotFoundPage />} />
                   </Route>
-
-                  {/* Profil (formerly Einstellungen > Athletenprofil) */}
-                  <Route path="/profile" element={<AthleteProfilePage />} />
-                  <Route path="/weekly-review" element={<Navigate to="/plan" replace />} />
-                  <Route path="/chat" element={<ChatPage />} />
-                  <Route path="/ki-log" element={<KiLogPage />} />
-
-                  {/* Redirects for old /settings paths */}
-                  <Route path="/settings" element={<Navigate to="/plan" replace />} />
-                  <Route
-                    path="/settings/plans/*"
-                    element={<Navigate to="/plan/programs" replace />}
-                  />
-                  <Route
-                    path="/settings/templates/*"
-                    element={<Navigate to="/plan/templates" replace />}
-                  />
-                  <Route
-                    path="/settings/exercises/*"
-                    element={<Navigate to="/plan/exercises" replace />}
-                  />
-                  <Route path="/settings/goals" element={<Navigate to="/plan/goals" replace />} />
-                  <Route path="/settings/athlete" element={<Navigate to="/profile" replace />} />
-
-                  <Route path="*" element={<NotFoundPage />} />
-                </Route>
-              </Routes>
-            </Suspense>
+                </Routes>
+              </Suspense>
+            </AuthGuard>
           </ToastProvider>
         </BrowserRouter>
       </QueryClientProvider>
