@@ -9,6 +9,8 @@ from __future__ import annotations
 from datetime import date
 from unittest.mock import MagicMock
 
+from typing import Any
+
 from app.services.plan_generator import generate_weekly_plans
 
 
@@ -61,7 +63,7 @@ class TestGeneratedPlanE2E:
     def _generate_hm_plan(self) -> list:
         plan = _make_plan("2026-04-06", "2026-10-04")  # 26 Wochen
         goal = _make_goal(21.0975, 6600, "2026-10-04")  # 1:50:00
-        phases = [
+        phases: list[Any] = [
             _make_phase(1, "base", 1, 10, 30, 45),
             _make_phase(1, "build", 11, 18, 40, 55),
             _make_phase(1, "peak", 19, 24, 50, 65),
