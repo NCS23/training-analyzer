@@ -54,9 +54,11 @@ PHASE_DEFAULTS: dict[str, dict[str, Any]] = {
     },
     "recovery": {
         # Erholungsphase: nur lockere Läufe, kein Krafttraining
+        # Kurze Easy-Läufe max 35 Min (Erholung, kein Aufbau)
         "run_types": ["easy", "easy", "easy"],
         "strength": 0,
         "long_run_volume_pct": 0.0,
+        "easy_max_duration_min": 35.0,
     },
 }
 
@@ -1168,8 +1170,9 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactor
                     easy_mults = PACE_MULTIPLIERS["easy"]
                     avg_sec_per_km = race_pace * (easy_mults[0] + easy_mults[1]) / 2.0
 
-                # Cap easy run distance so duration stays ≤ 60 min
-                easy_max_km = EASY_MAX_DURATION_MIN * 60.0 / avg_sec_per_km
+                # Cap easy run distance — phase-specific limit wenn vorhanden (z.B. Recovery: 35 Min)
+                easy_cap_min = defaults.get("easy_max_duration_min", EASY_MAX_DURATION_MIN)
+                easy_max_km = easy_cap_min * 60.0 / avg_sec_per_km
                 easy_km_each = min(easy_km_each, easy_max_km)
 
                 # Ensure long run distance gives at least 60 min
