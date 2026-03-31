@@ -11,6 +11,10 @@ from app.services.data_migration_service import assign_orphaned_data
 
 logger = logging.getLogger(__name__)
 
+# E-Mail des automatisch erstellten Fallback-Users (auth_enabled=False).
+# Muss mit DEFAULT_USER_EMAIL in app.core.dependencies uebereinstimmen.
+_FALLBACK_USER_EMAIL = "local@training-analyzer.app"
+
 
 async def find_user_by_apple_sub(db: AsyncSession, apple_sub: str) -> UserModel | None:
     """Sucht einen User anhand seiner Apple Subject-ID."""
@@ -24,6 +28,14 @@ async def find_user_by_email(db: AsyncSession, email: str) -> UserModel | None:
     return result.scalar_one_or_none()
 
 
+async def _count_real_users(db: AsyncSession) -> int:
+    """Zaehlt echte User (ohne den Fallback-User fuer auth_enabled=False)."""
+    result = await db.execute(
+        select(func.count(UserModel.id)).where(UserModel.email != _FALLBACK_USER_EMAIL)
+    )
+    return result.scalar_one()
+
+
 async def find_or_create_user_by_apple(
     db: AsyncSession,
     *,
@@ -33,8 +45,9 @@ async def find_or_create_user_by_apple(
 ) -> UserModel:
     """Findet oder erstellt einen User basierend auf Apple Sign-In Daten.
 
-    Bei der Erstellung des allerersten Users werden verwaiste Daten
-    (user_id=NULL) automatisch dem neuen User zugewiesen.
+    Beim ersten echten User (auch wenn ein Fallback-User existiert) werden
+    verwaiste Daten (user_id=NULL) automatisch dem neuen User zugewiesen.
+    So ist die Reihenfolge von auth_enabled-Aktivierung und S05-Deployment egal.
     """
     # 1. Suche nach apple_sub
     user = await find_user_by_apple_sub(db, apple_sub)
@@ -53,8 +66,9 @@ async def find_or_create_user_by_apple(
         await db.commit()
         return user
 
-    # 3. Pruefen ob dies der erste User ist (fuer Daten-Migration)
-    is_first_user = await get_user_count(db) == 0
+    # 3. Pruefen ob dies der erste echte User ist (fuer Daten-Migration).
+    # Fallback-User (auth_enabled=False) zaehlt nicht als echter User.
+    is_first_real_user = await _count_real_users(db) == 0
 
     # 4. Neuen User erstellen
     user = UserModel(
@@ -69,14 +83,15 @@ async def find_or_create_user_by_apple(
     await db.refresh(user)
     logger.info("Neuer User erstellt via Apple Sign-In: id=%s, email=%s", user.id, email)
 
-    # 5. Bei erstem User: Verwaiste Daten zuweisen
-    if is_first_user:
+    # 5. Beim ersten echten User: Verwaiste Daten (user_id=NULL) zuweisen.
+    # assign_orphaned_data ist idempotent — greift nur Zeilen ohne user_id an.
+    if is_first_real_user:
         await assign_orphaned_data(db, user.id)
 
     return user
 
 
 async def get_user_count(db: AsyncSession) -> int:
-    """Zaehlt alle aktiven User in der Datenbank."""
+    """Zaehlt alle User in der Datenbank."""
     result = await db.execute(select(func.count(UserModel.id)))
     return result.scalar_one()
