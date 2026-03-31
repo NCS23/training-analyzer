@@ -37,9 +37,20 @@ class Settings(BaseSettings):
     # Docling
     docling_server_url: str = Field(default="http://192.168.68.66:5001", alias="DOCLING_BASE_URL")
 
-    # Security
+    # Security / JWT
     secret_key: str = "dev-secret-key-change-in-production"
     algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
+
+    # OAuth
+    apple_client_id: str = ""
+    apple_team_id: str = ""
+    apple_key_id: str = ""
+    apple_private_key: str = ""
+
+    # Auth
+    auth_enabled: bool = False
 
     # External APIs (Enrichment)
     enrichment_enabled: bool = True
