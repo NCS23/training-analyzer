@@ -4,6 +4,7 @@ import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,7 +29,21 @@ from app.models.training_route import (
     TrainingRouteUpdate,
     Waypoint,
 )
+from app.services.route_fit_export import generate_fit_course
+from app.services.route_fit_export import safe_filename as fit_safe_filename
 from app.services.route_from_session import session_to_route_data
+from app.services.route_gpx_export import generate_gpx, safe_filename
+from app.services.route_pacing import (
+    RoutePacingRequest,
+    RoutePacingResponse,
+    calculate_route_pacing,
+)
+from app.services.template_to_route import (
+    RouteFromTemplatePreview,
+    RouteFromTemplateRequest,
+    build_route_preview,
+    calculate_template_distance,
+)
 
 router = APIRouter(prefix="/routes")
 
@@ -243,6 +258,65 @@ async def create_route_from_session(
     return _model_to_response(route)
 
 
+@router.post(
+    "/from-template/{template_id}", response_model=RouteFromTemplatePreview, status_code=200
+)
+async def route_from_template(
+    template_id: int,
+    data: RouteFromTemplateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RouteFromTemplatePreview:
+    """Route-Vorschau aus Session Template generieren (#571).
+
+    Berechnet Gesamtdistanz aus Template-Segmenten, generiert via OSRM
+    eine passende Rundstrecke und verteilt Segmente proportional.
+    Die Route wird NICHT gespeichert — der Client zeigt sie im Editor zur
+    Feinanpassung an und speichert ggf. via POST /routes.
+    """
+    result = await db.execute(
+        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="Session Template nicht gefunden")
+
+    if not template.run_details_json:
+        raise HTTPException(
+            status_code=422,
+            detail="Template hat keine Lauf-Details (run_details)",
+        )
+
+    try:
+        from app.models.weekly_plan import RunDetails
+
+        run_details = RunDetails(**json.loads(str(template.run_details_json)))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Ungültige run_details: {exc}") from exc
+
+    distance_km = calculate_template_distance(run_details)
+
+    osrm = OSRMClient()
+    try:
+        results = await osrm.generate_round_trip(
+            start_lat=data.start_lat,
+            start_lng=data.start_lng,
+            target_distance_km=distance_km,
+            num_alternatives=1,
+        )
+    finally:
+        await osrm.close()
+
+    if not results:
+        raise HTTPException(status_code=502, detail="Routing-Service nicht erreichbar")
+
+    return build_route_preview(
+        template_id=template_id,
+        template_name=str(template.name),
+        run_details=run_details,
+        osrm_result=results[0],
+    )
+
+
 @router.post("/snap", response_model=RouteSnapResponse)
 async def snap_route(data: RouteSnapRequest) -> RouteSnapResponse:
     """Waypoints auf Wege snappen via OSRM."""
@@ -344,6 +418,117 @@ async def update_route(
     await db.commit()
     await db.refresh(route)
     return _model_to_response(route)
+
+
+@router.post("/{route_id}/pacing", response_model=RoutePacingResponse)
+async def calculate_pacing(
+    route_id: int,
+    data: RoutePacingRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RoutePacingResponse:
+    """Pacing-Ziele für alle Segmente einer Route berechnen (#548).
+
+    Nutzt die bestehende Pacing-Engine mit Elevation-Daten aus den Waypoints.
+    Mappt km-genaue Splits auf die Route-Segmente.
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    waypoints_raw = _parse_json_list(str(route.waypoints_json))
+    waypoints = [Waypoint(**wp) for wp in waypoints_raw]
+
+    segments_raw = _parse_json_list(
+        str(route.route_segments_json) if route.route_segments_json else None
+    )
+    if not segments_raw:
+        raise HTTPException(status_code=400, detail="Route hat keine Segmente")
+
+    segments = [RouteSegment(**seg) for seg in segments_raw]
+
+    return calculate_route_pacing(
+        distance_km=float(route.distance_km),
+        waypoints=waypoints,
+        segments=segments,
+        request=data,
+    )
+
+
+@router.get("/{route_id}/export/gpx")
+async def export_route_gpx(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Route als GPX-Datei mit Training-Extensions exportieren (#553).
+
+    Gibt eine GPX 1.1 Datei zurück mit:
+    - Standard Trackpoints (lat/lng/ele)
+    - <ta:segments> Extension im <trk> (Segment-Übersicht)
+    - <ta:training> Extension pro Trackpoint (aktives Segment)
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    if not route.waypoints_json:
+        raise HTTPException(status_code=422, detail="Route hat keine Wegpunkte")
+
+    waypoints = [Waypoint(**wp) for wp in _parse_json_list(str(route.waypoints_json))]
+    segments_raw = _parse_json_list(
+        str(route.route_segments_json) if route.route_segments_json else None
+    )
+    segments = [RouteSegment(**seg) for seg in segments_raw]
+
+    gpx_bytes = generate_gpx(
+        route_name=str(route.name),
+        waypoints=waypoints,
+        segments=segments,
+        description=str(route.description) if route.description else None,
+    )
+
+    filename = safe_filename(str(route.name)) + ".gpx"
+    return Response(
+        content=gpx_bytes,
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{route_id}/export/fit")
+async def export_route_fit(
+    route_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Route als FIT Course File exportieren (#577).
+
+    Gibt eine FIT Course Datei zurück mit:
+    - Waypoints (Position, Distanz, Höhe)
+    - Einem Lap für die Gesamtroute
+    """
+    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    route = result.scalar_one_or_none()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route nicht gefunden")
+
+    if not route.waypoints_json:
+        raise HTTPException(status_code=422, detail="Route hat keine Wegpunkte")
+
+    waypoints = [Waypoint(**wp) for wp in _parse_json_list(str(route.waypoints_json))]
+
+    fit_bytes = generate_fit_course(
+        route_name=str(route.name),
+        waypoints=waypoints,
+        total_distance_km=float(route.distance_km) if route.distance_km else 0.0,
+    )
+
+    filename = fit_safe_filename(str(route.name)) + ".fit"
+    return Response(
+        content=fit_bytes,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/{route_id}", status_code=204)

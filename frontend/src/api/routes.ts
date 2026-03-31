@@ -107,6 +107,45 @@ export interface RoundTripResponse {
   options: RoundTripOption[];
 }
 
+// --- Pacing Types (#548) ---
+
+export interface RoutePacingRequest {
+  target_time_seconds: number;
+  strategy: 'even' | 'negative' | 'effort_based';
+  temperature_celsius?: number | null;
+  wind_speed_kmh?: number | null;
+  humidity_percent?: number | null;
+}
+
+export interface SegmentPacing {
+  segment_index: number;
+  segment_type: string;
+  start_km: number;
+  end_km: number;
+  distance_km: number;
+  elevation_gain_m: number;
+  elevation_loss_m: number;
+  target_pace_min: string;
+  target_pace_max: string;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  avg_pace_sec_per_km: number;
+  notes: string | null;
+}
+
+export interface RoutePacingResponse {
+  strategy: string;
+  strategy_label: string;
+  distance_km: number;
+  target_time_seconds: number;
+  target_time_formatted: string;
+  avg_pace_sec_per_km: number;
+  avg_pace_formatted: string;
+  segment_pacing: SegmentPacing[];
+  weather_notes: string | null;
+  general_notes: string[];
+}
+
 // --- API Functions ---
 
 export async function listRoutes(params?: {
@@ -171,4 +210,73 @@ export async function generateRoundTrip(params: {
     params,
   );
   return response.data;
+}
+
+export async function calculateRoutePacing(
+  routeId: number,
+  params: RoutePacingRequest,
+): Promise<RoutePacingResponse> {
+  const response = await apiClient.post<RoutePacingResponse>(
+    `/api/v1/routes/${routeId}/pacing`,
+    params,
+  );
+  return response.data;
+}
+
+// --- Route from Template ---
+
+export interface RouteFromTemplateRequest {
+  start_lat: number;
+  start_lng: number;
+  num_alternatives?: number;
+}
+
+export interface RouteFromTemplatePreview {
+  name: string;
+  distance_km: number;
+  waypoints: Waypoint[];
+  route_segments: RouteSegment[];
+  linked_session_template_id: number;
+  pacing_strategy: string;
+}
+
+export async function routeFromTemplate(
+  templateId: number,
+  params: RouteFromTemplateRequest,
+): Promise<RouteFromTemplatePreview> {
+  const response = await apiClient.post<RouteFromTemplatePreview>(
+    `/api/v1/routes/from-template/${templateId}`,
+    params,
+  );
+  return response.data;
+}
+
+export async function exportRouteGpx(routeId: number, routeName: string): Promise<void> {
+  const response = await apiClient.get(`/api/v1/routes/${routeId}/export/gpx`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const safeName = routeName.replace(/\s+/g, '_').replace(/[^\w\-äöüÄÖÜß]/g, '') || 'route';
+  link.setAttribute('download', `${safeName}.gpx`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportRouteFit(routeId: number, routeName: string): Promise<void> {
+  const response = await apiClient.get(`/api/v1/routes/${routeId}/export/fit`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const safeName = routeName.replace(/\s+/g, '_').replace(/[^\w\-äöüÄÖÜß]/g, '') || 'route';
+  link.setAttribute('download', `${safeName}.fit`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }

@@ -5,8 +5,10 @@
  */
 
 import { useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import type { RouteFromTemplatePreview } from '@/api/routes';
 import {
+  ActionBar,
   Button,
   Card,
   CardBody,
@@ -16,14 +18,16 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2 } from 'lucide-react';
+import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2, Download } from 'lucide-react';
 import { RouteEditorMap } from '@/features/maps/RouteEditorMap';
 import { useRouteEditor } from '@/hooks/useRouteEditor';
 import { useSegmentEditor } from '@/hooks/useSegmentEditor';
 import type { UseSegmentEditorReturn } from '@/hooks/useSegmentEditor';
 import { SegmentBar } from '@/components/route-editor/SegmentBar';
 import { SegmentTable } from '@/components/route-editor/SegmentTable';
+import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
+import { exportRouteFit, exportRouteGpx } from '@/api/routes';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
   return (
@@ -46,9 +50,11 @@ function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
 function SegmentSection({
   segEditor,
   distanceKm,
+  routeId,
 }: {
   segEditor: UseSegmentEditorReturn;
   distanceKm: number;
+  routeId: number | null;
 }) {
   if (distanceKm <= 0) return null;
 
@@ -88,45 +94,94 @@ function SegmentSection({
           />
         </CardBody>
       </Card>
+
+      {segEditor.segments.length > 0 && (
+        <PacingPanel
+          routeId={routeId}
+          distanceKm={distanceKm}
+          segments={segEditor.segments}
+          onSegmentsUpdate={segEditor.setSegments}
+        />
+      )}
     </>
   );
 }
 
 function EditorActionBar({
   editor,
+  routeId,
   onSave,
   onCancel,
 }: {
   editor: UseRouteEditorReturn;
+  routeId: number | null;
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const { toast } = useToast();
+
+  const handleGpxDownload = async () => {
+    if (!routeId) return;
+    try {
+      await exportRouteGpx(routeId, editor.name);
+    } catch {
+      toast({ title: 'GPX-Export fehlgeschlagen', variant: 'error' });
+    }
+  };
+
+  const handleFitDownload = async () => {
+    if (!routeId) return;
+    try {
+      await exportRouteFit(routeId, editor.name);
+    } catch {
+      toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
+    }
+  };
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 flex items-center justify-end gap-3">
-      <Button variant="secondary" onClick={onCancel}>
-        Abbrechen
-      </Button>
-      <Button
-        variant="primary"
-        onClick={onSave}
-        disabled={editor.saving || editor.waypoints.length < 2 || !editor.name.trim()}
-      >
-        {editor.saving ? (
-          <Spinner size="sm" />
-        ) : (
-          <>
-            <Save className="w-4 h-4 mr-1.5" />
-            Speichern
-          </>
+    <ActionBar
+      sticky={false}
+      className="fixed bottom-[82px] lg:bottom-0 left-0 lg:left-[224px] right-0 z-40"
+    >
+      <div className="flex items-center justify-end gap-3 w-full">
+        <Button variant="secondary" onClick={onCancel}>
+          Abbrechen
+        </Button>
+        {routeId && (
+          <Button variant="secondary" onClick={handleGpxDownload}>
+            <Download className="w-4 h-4 mr-1.5" />
+            GPX
+          </Button>
         )}
-      </Button>
-    </div>
+        {routeId && (
+          <Button variant="secondary" onClick={handleFitDownload}>
+            <Download className="w-4 h-4 mr-1.5" />
+            FIT
+          </Button>
+        )}
+        <Button
+          variant="primary"
+          onClick={onSave}
+          disabled={editor.saving || editor.waypoints.length < 2 || !editor.name.trim()}
+        >
+          {editor.saving ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-1.5" />
+              Speichern
+            </>
+          )}
+        </Button>
+      </div>
+    </ActionBar>
   );
 }
 
 export function RouteEditorPage() {
   const { routeId } = useParams<{ routeId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isNew = !routeId;
   const editor = useRouteEditor();
@@ -138,6 +193,14 @@ export function RouteEditorPage() {
         toast({ title: 'Route konnte nicht geladen werden', variant: 'error' });
         navigate('/plan/routes');
       });
+      return;
+    }
+    // Vorberechnete Route aus Session Template (#571)
+    const preview = (location.state as { routePreview?: RouteFromTemplatePreview } | null)
+      ?.routePreview;
+    if (preview) {
+      editor.loadPreview(preview);
+      segEditor.setSegments(preview.route_segments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeId]);
@@ -205,14 +268,19 @@ export function RouteEditorPage() {
         segments={segEditor.segments}
       />
 
-      <SegmentSection segEditor={segEditor} distanceKm={editor.distanceKm} />
+      <SegmentSection
+        segEditor={segEditor}
+        distanceKm={editor.distanceKm}
+        routeId={routeId ? Number(routeId) : null}
+      />
 
       <EditorActionBar
         editor={editor}
+        routeId={routeId ? Number(routeId) : null}
         onSave={handleSave}
         onCancel={() => navigate('/plan/routes')}
       />
-      <div className="h-16" />
+      <div className="h-24 lg:h-16" />
     </div>
   );
 }
