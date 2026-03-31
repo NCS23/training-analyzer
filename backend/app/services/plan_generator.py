@@ -532,18 +532,41 @@ _STRENGTH_EXERCISES: dict[str, list[tuple[str, str, int, int, str]]] = {
 }
 
 
-def _enrich_sessions_for_week(
+def _get_pace_range(
+    run_type: str,
+    race_pace: Optional[float],
+    vdot: Optional[float] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """Hole Pace-Bereich für einen Run-Typ (VDOT-basiert oder Fallback).
+
+    Returns:
+        (pace_min, pace_max) als 'M:SS' Strings oder (None, None).
+    """
+    if vdot is not None:
+        from app.services.plan_enrichment import get_pace_for_run_type
+
+        return get_pace_for_run_type(run_type, vdot=vdot)
+    if race_pace:
+        mults = PACE_MULTIPLIERS.get(run_type, PACE_MULTIPLIERS["easy"])
+        return (_seconds_to_pace(race_pace * mults[0]), _seconds_to_pace(race_pace * mults[1]))
+    return (None, None)
+
+
+def _enrich_sessions_for_week(  # noqa: PLR0913
     entries: list[WeeklyPlanEntry],
     week_in_phase: int,
     _phase_duration: int,
     phase_type: str,
     weekly_volume: float | None,
     race_pace: float | None,
+    vdot: Optional[float] = None,
+    **_hr_kwargs: object,  # lthr, resting_hr, max_hr — reserved for future HR enrichment
 ) -> None:
     """Ersetzt generische Template-Segmente durch wochenspezifische Strukturen.
 
     Schreibt progressive Intervall-/Tempo-Segmente und Easy-Run-Extras
     direkt in die RunDetails-Segmente (nicht nur Notes).
+    Nutzt VDOT-basierte Paces wenn verfügbar, sonst PACE_MULTIPLIERS.
     """
     easy_idx = 0
     for entry in entries:
@@ -560,7 +583,7 @@ def _enrich_sessions_for_week(
                 continue
             rt = sess.run_details.run_type
             if rt == "easy":
-                _enrich_easy_segments(sess, week_in_phase, easy_idx, race_pace)
+                _enrich_easy_segments(sess, week_in_phase, easy_idx, race_pace, vdot)
                 easy_idx += 1
             elif rt == "long_run":
                 _enrich_long_run_segments(
@@ -569,15 +592,16 @@ def _enrich_sessions_for_week(
                     phase_type,
                     weekly_volume,
                     race_pace,
+                    vdot,
                 )
             elif rt == "intervals":
-                _enrich_interval_segments(sess, week_in_phase, phase_type, race_pace)
+                _enrich_interval_segments(sess, week_in_phase, phase_type, race_pace, vdot)
             elif rt == "tempo":
-                _enrich_tempo_segments(sess, week_in_phase, phase_type, race_pace)
+                _enrich_tempo_segments(sess, week_in_phase, phase_type, race_pace, vdot)
             elif rt == "progression":
-                _enrich_progression_segments(sess, week_in_phase, race_pace)
+                _enrich_progression_segments(sess, week_in_phase, race_pace, vdot)
             elif rt == "fartlek":
-                _enrich_fartlek_segments(sess, week_in_phase, race_pace)
+                _enrich_fartlek_segments(sess, week_in_phase, race_pace, vdot)
 
 
 def _enrich_strength_exercises(sess: PlannedSession, phase_type: str) -> None:
@@ -609,6 +633,7 @@ def _enrich_easy_segments(
     week_in_phase: int,
     easy_idx: int,
     _race_pace: float | None,
+    _vdot: Optional[float] = None,
 ) -> None:
     """Fügt Easy Runs rotierende Extras hinzu (Strides, Drills als Segmente).
 
@@ -662,6 +687,7 @@ def _enrich_long_run_segments(
     phase_type: str,
     weekly_volume: float | None,
     race_pace: float | None,
+    vdot: Optional[float] = None,
 ) -> None:
     """Macht Long Runs progressiv: Warmup + Steady + ggf. Race-Pace + Cooldown."""
     rd = sess.run_details
@@ -671,21 +697,18 @@ def _enrich_long_run_segments(
     total_dur = rd.segments[0].target_duration_minutes or 60.0
     long_dist = round(weekly_volume * 0.30, 1) if weekly_volume else 12.0
 
-    easy_mults = PACE_MULTIPLIERS["long_run"]
-    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0]) if race_pace else None
-    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1]) if race_pace else None
+    easy_pace_min, easy_pace_max = _get_pace_range("long_run", race_pace, vdot)
 
     warmup_dur = 10.0
     cooldown_dur = 5.0
     main_dur = max(20.0, total_dur - warmup_dur - cooldown_dur)
 
-    if phase_type in ("build", "peak") and race_pace:
+    if phase_type in ("build", "peak") and (race_pace or vdot):
         # Race-Pace-Abschnitt am Ende (progressiv länger)
         rp_fraction = min(0.15 + week_in_phase * 0.05, 0.40)
         rp_dur = round(main_dur * rp_fraction / 5) * 5
         steady_dur = main_dur - rp_dur
-        rp_pace_min = _seconds_to_pace(race_pace * 0.98)
-        rp_pace_max = _seconds_to_pace(race_pace * 1.02)
+        rp_pace_min, rp_pace_max = _get_pace_range("race", race_pace, vdot)
 
         rd.segments = [
             Segment(
@@ -753,21 +776,18 @@ def _enrich_interval_segments(
     week_in_phase: int,
     phase_type: str,
     race_pace: float | None,
+    vdot: Optional[float] = None,
 ) -> None:
     """Baut echte Intervall-Segmente: Warmup + N×(Work+Recovery) + Cooldown."""
     offset = 2 if phase_type == "peak" else 0
     idx = min(offset + week_in_phase, len(_INTERVAL_PROGRESSION) - 1)
     repeats, dist_km, recovery_min = _INTERVAL_PROGRESSION[idx]
 
-    if not race_pace:
+    if not race_pace and not vdot:
         return
 
-    mults = PACE_MULTIPLIERS["intervals"]
-    work_pace_min = _seconds_to_pace(race_pace * mults[0])
-    work_pace_max = _seconds_to_pace(race_pace * mults[1])
-    easy_mults = PACE_MULTIPLIERS["easy"]
-    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
-    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+    work_pace_min, work_pace_max = _get_pace_range("intervals", race_pace, vdot)
+    easy_pace_min, easy_pace_max = _get_pace_range("easy", race_pace, vdot)
 
     segments = [
         Segment(
@@ -811,21 +831,18 @@ def _enrich_tempo_segments(
     week_in_phase: int,
     phase_type: str,
     race_pace: float | None,
+    vdot: Optional[float] = None,
 ) -> None:
     """Baut echte Tempo-Segmente: Warmup + Tempo-Block + Cooldown."""
     offset = 2 if phase_type == "peak" else 0
     idx = min(offset + week_in_phase, len(_TEMPO_PROGRESSION) - 1)
     tempo_dur = _TEMPO_PROGRESSION[idx]
 
-    if not race_pace:
+    if not race_pace and not vdot:
         return
 
-    mults = PACE_MULTIPLIERS["tempo"]
-    tempo_pace_min = _seconds_to_pace(race_pace * mults[0])
-    tempo_pace_max = _seconds_to_pace(race_pace * mults[1])
-    easy_mults = PACE_MULTIPLIERS["easy"]
-    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
-    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+    tempo_pace_min, tempo_pace_max = _get_pace_range("tempo", race_pace, vdot)
+    easy_pace_min, easy_pace_max = _get_pace_range("easy", race_pace, vdot)
 
     segments = [
         Segment(
@@ -858,15 +875,16 @@ def _enrich_tempo_segments(
 
 def _enrich_progression_segments(
     sess: PlannedSession,
-    week_in_phase: int,
+    _week_in_phase: int,
     race_pace: float | None,
+    vdot: Optional[float] = None,
 ) -> None:
     """Baut Progression-Segmente: Warmup + 3 Tempostufen + Cooldown.
 
     Jede Stufe wird schneller — die Uhr zeigt klare Pace-Ziele pro Abschnitt.
     """
     rd = sess.run_details
-    if not rd or not rd.segments or not race_pace:
+    if not rd or not rd.segments or (not race_pace and not vdot):
         return
 
     total_dur = rd.segments[0].target_duration_minutes or 40.0
@@ -876,54 +894,52 @@ def _enrich_progression_segments(
 
     # Drei Stufen: locker → moderat → schnell (je 1/3)
     step_dur = round(main_dur / 3 / 5) * 5 or 5.0
-    easy_mults = PACE_MULTIPLIERS["easy"]
-    prog_mults = PACE_MULTIPLIERS["progression"]
+    easy_pace_min, easy_pace_max = _get_pace_range("easy", race_pace, vdot)
+    tempo_pace_min, tempo_pace_max = _get_pace_range("tempo", race_pace, vdot)
+    prog_pace_min, prog_pace_max = _get_pace_range("progression", race_pace, vdot)
 
-    # Stufenweise schneller: 100% easy → 90% → Progression-Tempo
-    mid_factor_fast = easy_mults[0] * 0.95
-    mid_factor_slow = easy_mults[1] * 0.95
-
-    # Progression wird mit Wochen etwas aggressiver
-    fast_factor = max(prog_mults[0] - week_in_phase * 0.01, 0.90)
+    # Mittlere Stufe: zwischen Easy und Progression
+    mid_pace_min = prog_pace_max or easy_pace_min  # Langsames Ende von Progression
+    mid_pace_max = easy_pace_max  # Schnelles Ende von Easy
 
     rd.segments = [
         Segment(
             position=0,
             segment_type="warmup",
             target_duration_minutes=warmup_dur,
-            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
-            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
         ),
         Segment(
             position=1,
             segment_type="steady",
             target_duration_minutes=step_dur,
-            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
-            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
             notes="Locker einlaufen",
         ),
         Segment(
             position=2,
             segment_type="steady",
             target_duration_minutes=step_dur,
-            target_pace_min=_seconds_to_pace(race_pace * mid_factor_fast),
-            target_pace_max=_seconds_to_pace(race_pace * mid_factor_slow),
+            target_pace_min=mid_pace_min,
+            target_pace_max=mid_pace_max,
             notes="Moderate Steigerung",
         ),
         Segment(
             position=3,
             segment_type="work",
             target_duration_minutes=step_dur,
-            target_pace_min=_seconds_to_pace(race_pace * fast_factor),
-            target_pace_max=_seconds_to_pace(race_pace * prog_mults[1]),
+            target_pace_min=prog_pace_min or tempo_pace_min,
+            target_pace_max=prog_pace_max or tempo_pace_max,
             notes="Zügig, nahe HM-Pace",
         ),
         Segment(
             position=4,
             segment_type="cooldown",
             target_duration_minutes=cooldown_dur,
-            target_pace_min=_seconds_to_pace(race_pace * easy_mults[0]),
-            target_pace_max=_seconds_to_pace(race_pace * easy_mults[1]),
+            target_pace_min=easy_pace_min,
+            target_pace_max=easy_pace_max,
         ),
     ]
     sess.notes = f"Progressionslauf: 3 Stufen à {step_dur:.0f} Min."
@@ -933,6 +949,7 @@ def _enrich_fartlek_segments(
     sess: PlannedSession,
     week_in_phase: int,
     race_pace: float | None,
+    vdot: Optional[float] = None,
 ) -> None:
     """Baut Fartlek-Segmente: Warmup + alternierende schnell/locker Abschnitte + Cooldown.
 
@@ -940,18 +957,14 @@ def _enrich_fartlek_segments(
     den Athleten durch jeden Abschnitt führen kann.
     """
     rd = sess.run_details
-    if not rd or not rd.segments or not race_pace:
+    if not rd or not rd.segments or (not race_pace and not vdot):
         return
 
     idx = min(week_in_phase, len(_FARTLEK_PROGRESSION) - 1)
     fast_dur, slow_dur, repeats = _FARTLEK_PROGRESSION[idx]
 
-    easy_mults = PACE_MULTIPLIERS["easy"]
-    # Fartlek-Tempo: zwischen Tempo und Intervall-Pace
-    fast_pace_min = _seconds_to_pace(race_pace * 0.92)
-    fast_pace_max = _seconds_to_pace(race_pace * 1.02)
-    easy_pace_min = _seconds_to_pace(race_pace * easy_mults[0])
-    easy_pace_max = _seconds_to_pace(race_pace * easy_mults[1])
+    fast_pace_min, fast_pace_max = _get_pace_range("fartlek", race_pace, vdot)
+    easy_pace_min, easy_pace_max = _get_pace_range("easy", race_pace, vdot)
 
     segments: list[Segment] = [
         Segment(
@@ -1274,6 +1287,10 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16
             phase_type,
             weekly_volume,
             race_pace,
+            vdot=vdot,
+            lthr=lthr,
+            resting_hr=resting_hr,
+            max_hr=max_hr,
         )
 
         # Add race day if this is the race week
