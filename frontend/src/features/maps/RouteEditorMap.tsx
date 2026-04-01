@@ -19,6 +19,7 @@ export interface RouteEditorMapProps {
   routing?: boolean;
   height?: string;
   segments?: RouteSegment[];
+  readOnly?: boolean;
 }
 
 const DEFAULT_CENTER: L.LatLngTuple = [53.55, 9.99]; // Hamburg
@@ -165,6 +166,7 @@ export function RouteEditorMap({
   routing = false,
   height = '60vh',
   segments = [],
+  readOnly = false,
 }: RouteEditorMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -192,15 +194,18 @@ export function RouteEditorMap({
       map,
     );
 
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      callbacksRef.current.onWaypointAdd(e.latlng.lat, e.latlng.lng);
-    });
+    if (!readOnly) {
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        callbacksRef.current.onWaypointAdd(e.latlng.lat, e.latlng.lng);
+      });
+    }
 
     mapRef.current = map;
     return () => {
       map.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- readOnly captured at mount; map is initialized once
   }, []);
 
   // Update route polyline
