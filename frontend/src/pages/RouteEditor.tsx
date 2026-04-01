@@ -348,21 +348,17 @@ export function RouteEditorPage() {
         </Card>
       )}
 
-      <Card elevation="raised">
-        <CardBody className="p-0 overflow-hidden rounded-[var(--radius-card)]">
-          <RouteEditorMap
-            waypoints={editor.waypoints}
-            routePoints={editor.routePoints}
-            onWaypointAdd={editor.addWaypoint}
-            onWaypointMove={editor.moveWaypoint}
-            onWaypointDelete={editor.deleteWaypoint}
-            routing={editor.routing}
-            height="55vh"
-            segments={segEditor.segments}
-            readOnly={!isEditing}
-          />
-        </CardBody>
-      </Card>
+      <RouteEditorMap
+        waypoints={editor.waypoints}
+        routePoints={editor.routePoints}
+        onWaypointAdd={editor.addWaypoint}
+        onWaypointMove={editor.moveWaypoint}
+        onWaypointDelete={editor.deleteWaypoint}
+        routing={editor.routing}
+        height="55vh"
+        segments={segEditor.segments}
+        readOnly={!isEditing}
+      />
 
       <SegmentSection
         segEditor={segEditor}
