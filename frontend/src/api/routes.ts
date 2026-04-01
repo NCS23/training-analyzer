@@ -251,6 +251,18 @@ export async function routeFromTemplate(
   return response.data;
 }
 
+export async function createRouteFromSession(
+  sessionId: number,
+  name?: string,
+): Promise<TrainingRouteResponse> {
+  const params = name ? { name } : {};
+  const response = await apiClient.post<TrainingRouteResponse>(
+    `/api/v1/routes/from-session/${sessionId}`,
+    params,
+  );
+  return response.data;
+}
+
 export async function exportRouteGpx(routeId: number, routeName: string): Promise<void> {
   const response = await apiClient.get(`/api/v1/routes/${routeId}/export/gpx`, {
     responseType: 'blob',
