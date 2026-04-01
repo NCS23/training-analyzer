@@ -33,6 +33,7 @@ import {
   Ruler,
   MapPin,
   Wand2,
+  Plus,
   Download,
   Pencil,
   Trash2,
@@ -101,14 +102,16 @@ function SegmentSection({
   segEditor,
   distanceKm,
   routeId,
-  readOnly,
+  isEditing,
 }: {
   segEditor: UseSegmentEditorReturn;
   distanceKm: number;
   routeId: number | null;
-  readOnly: boolean;
+  isEditing: boolean;
 }) {
   if (distanceKm <= 0) return null;
+  // Im Read-only ohne Segmente: nichts zeigen
+  if (!isEditing && segEditor.segments.length === 0) return null;
 
   return (
     <>
@@ -120,11 +123,14 @@ function SegmentSection({
           activeSegment={segEditor.activeSegment}
         />
       )}
+
       <Card elevation="raised">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Segmente</h2>
-            {!readOnly && segEditor.segments.length === 0 && (
+            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">
+              Segmente{segEditor.segments.length > 0 ? ` (${segEditor.segments.length})` : ''}
+            </h2>
+            {isEditing && segEditor.segments.length === 0 && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -134,22 +140,34 @@ function SegmentSection({
                 Auto-Segmentierung
               </Button>
             )}
+            {isEditing && segEditor.segments.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={segEditor.addSegment}
+                disabled={distanceKm <= 0}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Segment
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardBody>
           {segEditor.segments.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)] text-center py-4">
-              Noch keine Segmente. Klicke „Segment" um die Route aufzuteilen.
+              Noch keine Segmente. Klicke „Auto-Segmentierung" um die Route aufzuteilen.
             </p>
           ) : (
             <SegmentTable
               segments={segEditor.segments}
               totalDistanceKm={distanceKm}
-              onUpdate={readOnly ? () => {} : segEditor.updateSegment}
-              onDelete={readOnly ? () => {} : segEditor.deleteSegment}
-              onAdd={readOnly ? () => {} : segEditor.addSegment}
+              onUpdate={segEditor.updateSegment}
+              onDelete={segEditor.deleteSegment}
+              onAdd={segEditor.addSegment}
               activeSegment={segEditor.activeSegment}
               onSegmentClick={segEditor.setActiveSegment}
+              readOnly={!isEditing}
             />
           )}
         </CardBody>
@@ -160,7 +178,7 @@ function SegmentSection({
           routeId={routeId}
           distanceKm={distanceKm}
           segments={segEditor.segments}
-          onSegmentsUpdate={readOnly ? () => {} : segEditor.setSegments}
+          onSegmentsUpdate={isEditing ? segEditor.setSegments : () => {}}
         />
       )}
     </>
@@ -369,22 +387,12 @@ export function RouteEditorPage() {
           <BreadcrumbItem isCurrent>{isNew ? 'Neue Route' : routeName}</BreadcrumbItem>
         </Breadcrumbs>
 
+        {/* h1 ist immer statisch — kein Inline-Edit des Titels */}
         <header className="flex items-center justify-between gap-2 pb-2">
-          <div className="min-w-0 flex-1">
-            {isEditing ? (
-              <Input
-                placeholder="Routenname"
-                value={editor.name}
-                onChange={(e) => editor.setName(e.target.value)}
-                className="text-xl font-semibold"
-              />
-            ) : (
-              <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)] truncate">
-                {routeName}
-              </h1>
-            )}
-          </div>
-          {!isNew && routeId && (
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)] truncate">
+            {isNew ? 'Neue Route' : routeName}
+          </h1>
+          {!isNew && routeId && !isEditing && (
             <RouteKebabMenu
               routeId={Number(routeId)}
               routeName={routeName}
@@ -392,14 +400,37 @@ export function RouteEditorPage() {
               onDelete={handleDelete}
             />
           )}
+          {isEditing && !isNew && (
+            <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+              Abbrechen
+            </Button>
+          )}
         </header>
       </div>
 
       {/* Kennzahlen — immer sichtbar */}
       <RouteMetricsGrid editor={editor} />
 
-      {/* Karte — Card-Wrapper ohne inner padding, overflow-hidden für border-radius */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--color-card-border)] bg-[var(--color-card-bg-raised)] [box-shadow:var(--shadow-card-raised)] overflow-hidden">
+      {/* Edit-Modus: Routenname als eigenes Feld */}
+      {isEditing && (
+        <Card elevation="raised">
+          <CardBody>
+            <label className="block">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">
+                Routenname
+              </span>
+              <Input
+                placeholder="z.B. Alsterrunde 21 km"
+                value={editor.name}
+                onChange={(e) => editor.setName(e.target.value)}
+              />
+            </label>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Karte auf Card — overflow-hidden clippt die Map an den border-radius */}
+      <Card elevation="raised" className="!p-0 overflow-hidden">
         <RouteEditorMap
           waypoints={editor.waypoints}
           routePoints={editor.routePoints}
@@ -411,14 +442,14 @@ export function RouteEditorPage() {
           segments={segEditor.segments}
           readOnly={!isEditing}
         />
-      </div>
+      </Card>
 
       {/* Segmente */}
       <SegmentSection
         segEditor={segEditor}
         distanceKm={editor.distanceKm}
         routeId={routeId ? Number(routeId) : null}
-        readOnly={!isEditing}
+        isEditing={isEditing}
       />
 
       {isEditing && (
