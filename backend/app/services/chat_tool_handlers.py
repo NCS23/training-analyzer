@@ -1759,7 +1759,7 @@ async def _ensure_exercises_exist(db: AsyncSession, plan_id: int) -> int:
 
     sessions_result = await db.execute(
         select(PlannedSessionModel)
-        .join(WeeklyPlanDayModel)
+        .join(WeeklyPlanDayModel, PlannedSessionModel.day_id == WeeklyPlanDayModel.id)
         .where(WeeklyPlanDayModel.plan_id == plan_id)
     )
     sessions = sessions_result.scalars().all()
