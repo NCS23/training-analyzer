@@ -277,7 +277,7 @@ export function RouteEditorMap({
       <div
         ref={containerRef}
         style={{ height, minHeight: '250px' }}
-        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] z-0"
+        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] shadow-[var(--shadow-card-raised)] z-0"
       />
       <MapOverlays routing={routing} empty={waypoints.length === 0} />
     </div>
