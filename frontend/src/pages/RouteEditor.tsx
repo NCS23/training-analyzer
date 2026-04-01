@@ -2,7 +2,8 @@
  * Route-Detail/Editor Seite — Trainingsrouten ansehen und bearbeiten.
  *
  * Part of Epic #508, Story #527 + #532.
- * Refactored: Read-only-Ansicht mit Kebab-Menü, Edit-Modus nur auf Anfrage.
+ * Layout folgt dem SessionDetail-Pattern: 3-stufige Breadcrumbs,
+ * h1 + Kebab in flex-Zeile, MetricsGrid, Card-basierte Sektionen.
  */
 
 import { useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import {
   Button,
   Card,
   CardBody,
+  CardHeader,
   Input,
   Breadcrumbs,
   BreadcrumbItem,
@@ -46,23 +48,54 @@ import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
 import { exportRouteFit, exportRouteGpx, deleteRoute } from '@/api/routes';
 
-function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
+// ---------------------------------------------------------------------------
+// Metric tile — wie SessionMetricsGrid
+// ---------------------------------------------------------------------------
+
+type MetricTileProps = { label: string; value: string; icon: React.ElementType };
+
+function MetricTile({ label, value, icon: Icon }: MetricTileProps) {
   return (
-    <div className="flex items-center gap-4 text-sm text-[var(--color-text-muted)]">
-      <span className="inline-flex items-center gap-1">
-        <Ruler className="w-4 h-4" />
-        {editor.distanceKm.toFixed(1)} km
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <Mountain className="w-4 h-4" />↑{editor.elevationGainM}m ↓{editor.elevationLossM}m
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <MapPin className="w-4 h-4" />
-        {editor.waypoints.length} Punkte
-      </span>
+    <div className="rounded-[var(--radius-component-md)] bg-[var(--color-bg-paper)] border border-[var(--color-border-default)] px-2.5 py-2 sm:px-3.5 sm:py-3">
+      <div className="flex items-center gap-1 mb-1 sm:mb-2">
+        <Icon
+          className="w-[10px] h-[10px] sm:w-[11px] sm:h-[11px] text-[var(--color-text-muted)]"
+          aria-hidden="true"
+        />
+        <p className="text-[10px] sm:text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+          {label}
+        </p>
+      </div>
+      <p className="text-base sm:text-[22px] font-semibold text-[var(--color-text-base)] leading-none">
+        {value}
+      </p>
     </div>
   );
 }
+
+function RouteMetricsGrid({ editor }: { editor: UseRouteEditorReturn }) {
+  return (
+    <section aria-label="Routenkennzahlen">
+      <Card elevation="raised">
+        <CardBody>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <MetricTile icon={Ruler} label="Distanz" value={`${editor.distanceKm.toFixed(1)} km`} />
+            <MetricTile
+              icon={Mountain}
+              label="Höhenmeter"
+              value={`↑${editor.elevationGainM}m ↓${editor.elevationLossM}m`}
+            />
+            <MetricTile icon={MapPin} label="Wegpunkte" value={String(editor.waypoints.length)} />
+          </div>
+        </CardBody>
+      </Card>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Segment-Sektion
+// ---------------------------------------------------------------------------
 
 function SegmentSection({
   segEditor,
@@ -88,9 +121,9 @@ function SegmentSection({
         />
       )}
       <Card elevation="raised">
-        <CardBody className="space-y-3">
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-[var(--color-text-base)]">Segmente</h3>
+            <h2 className="text-sm font-semibold text-[var(--color-text-base)]">Segmente</h2>
             {!readOnly && segEditor.segments.length === 0 && (
               <Button
                 variant="secondary"
@@ -102,15 +135,23 @@ function SegmentSection({
               </Button>
             )}
           </div>
-          <SegmentTable
-            segments={segEditor.segments}
-            totalDistanceKm={distanceKm}
-            onUpdate={readOnly ? () => {} : segEditor.updateSegment}
-            onDelete={readOnly ? () => {} : segEditor.deleteSegment}
-            onAdd={readOnly ? () => {} : segEditor.addSegment}
-            activeSegment={segEditor.activeSegment}
-            onSegmentClick={segEditor.setActiveSegment}
-          />
+        </CardHeader>
+        <CardBody>
+          {segEditor.segments.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-muted)] text-center py-4">
+              Noch keine Segmente. Klicke „Segment" um die Route aufzuteilen.
+            </p>
+          ) : (
+            <SegmentTable
+              segments={segEditor.segments}
+              totalDistanceKm={distanceKm}
+              onUpdate={readOnly ? () => {} : segEditor.updateSegment}
+              onDelete={readOnly ? () => {} : segEditor.deleteSegment}
+              onAdd={readOnly ? () => {} : segEditor.addSegment}
+              activeSegment={segEditor.activeSegment}
+              onSegmentClick={segEditor.setActiveSegment}
+            />
+          )}
         </CardBody>
       </Card>
 
@@ -125,6 +166,10 @@ function SegmentSection({
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Kebab-Menü
+// ---------------------------------------------------------------------------
 
 function RouteKebabMenu({
   routeId,
@@ -158,7 +203,7 @@ function RouteKebabMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button variant="ghost" size="sm" aria-label="Aktionen">
+        <Button variant="ghost" size="sm" aria-label="Aktionen" className="shrink-0">
           <EllipsisVertical className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -180,6 +225,10 @@ function RouteKebabMenu({
     </DropdownMenu>
   );
 }
+
+// ---------------------------------------------------------------------------
+// ActionBar (Edit-Modus)
+// ---------------------------------------------------------------------------
 
 function EditActionBar({
   editor,
@@ -217,6 +266,10 @@ function EditActionBar({
     </ActionBar>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Seiten-Komponente
+// ---------------------------------------------------------------------------
 
 // eslint-disable-next-line max-lines-per-function -- Seiten-Orchestrator mit Read/Edit-Modus
 export function RouteEditorPage() {
@@ -298,68 +351,69 @@ export function RouteEditorPage() {
     );
   }
 
+  const routeName = editor.name || 'Route';
+
   return (
-    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-4">
-      <header className="pb-2 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2 flex-1 min-w-0">
-            <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-              <BreadcrumbItem>
-                <Link to="/plan/routes">Routen</Link>
-              </BreadcrumbItem>
-              <BreadcrumbItem isCurrent>
-                {isNew ? 'Neue Route' : editor.name || 'Route'}
-              </BreadcrumbItem>
-            </Breadcrumbs>
-            {!isEditing && (
-              <h1 className="text-xl font-semibold text-[var(--color-text-base)] truncate">
-                {editor.name}
+    <div
+      className={`p-4 pt-6 md:p-6 md:pt-10 max-w-5xl mx-auto space-y-4 md:space-y-6 ${isEditing ? 'pb-20' : ''}`}
+    >
+      {/* Breadcrumbs + Header — gleiche Struktur wie SessionDetail */}
+      <div className="space-y-1">
+        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+          <BreadcrumbItem>
+            <Link to="/plan">Plan</Link>
+          </BreadcrumbItem>
+          <BreadcrumbItem>
+            <Link to="/plan/routes">Routen</Link>
+          </BreadcrumbItem>
+          <BreadcrumbItem isCurrent>{isNew ? 'Neue Route' : routeName}</BreadcrumbItem>
+        </Breadcrumbs>
+
+        <header className="flex items-center justify-between gap-2 pb-2">
+          <div className="min-w-0 flex-1">
+            {isEditing ? (
+              <Input
+                placeholder="Routenname"
+                value={editor.name}
+                onChange={(e) => editor.setName(e.target.value)}
+                className="text-xl font-semibold"
+              />
+            ) : (
+              <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-text-base)] truncate">
+                {routeName}
               </h1>
             )}
           </div>
           {!isNew && routeId && (
             <RouteKebabMenu
               routeId={Number(routeId)}
-              routeName={editor.name}
+              routeName={routeName}
               onEdit={() => setIsEditing(true)}
               onDelete={handleDelete}
             />
           )}
-        </div>
-      </header>
+        </header>
+      </div>
 
-      {isEditing && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <Input
-              placeholder="Routenname"
-              value={editor.name}
-              onChange={(e) => editor.setName(e.target.value)}
-            />
-          </div>
-          <RouteMetrics editor={editor} />
-        </div>
-      )}
-      {!isEditing && (
-        <Card elevation="raised">
-          <CardBody>
-            <RouteMetrics editor={editor} />
-          </CardBody>
-        </Card>
-      )}
+      {/* Kennzahlen — immer sichtbar */}
+      <RouteMetricsGrid editor={editor} />
 
-      <RouteEditorMap
-        waypoints={editor.waypoints}
-        routePoints={editor.routePoints}
-        onWaypointAdd={editor.addWaypoint}
-        onWaypointMove={editor.moveWaypoint}
-        onWaypointDelete={editor.deleteWaypoint}
-        routing={editor.routing}
-        height="55vh"
-        segments={segEditor.segments}
-        readOnly={!isEditing}
-      />
+      {/* Karte — Card-Wrapper ohne inner padding, overflow-hidden für border-radius */}
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-card-border)] bg-[var(--color-card-bg-raised)] [box-shadow:var(--shadow-card-raised)] overflow-hidden">
+        <RouteEditorMap
+          waypoints={editor.waypoints}
+          routePoints={editor.routePoints}
+          onWaypointAdd={editor.addWaypoint}
+          onWaypointMove={editor.moveWaypoint}
+          onWaypointDelete={editor.deleteWaypoint}
+          routing={editor.routing}
+          height="55vh"
+          segments={segEditor.segments}
+          readOnly={!isEditing}
+        />
+      </div>
 
+      {/* Segmente */}
       <SegmentSection
         segEditor={segEditor}
         distanceKm={editor.distanceKm}
