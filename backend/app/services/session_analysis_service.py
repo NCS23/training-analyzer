@@ -335,6 +335,10 @@ def _build_analysis_prompt(workout: WorkoutModel, ctx: AnalysisContext) -> str:
     # Geplante Session (Soll/Ist)
     if ctx.planned_session:
         parts.append(_build_planned_section(ctx.planned_session))
+        # Vorberechneter Soll/Ist-Vergleich — damit die KI nicht selbst rechnen muss
+        comparison = _build_precomputed_comparison(workout, ctx.planned_session)
+        if comparison:
+            parts.append(comparison)
 
     # Anweisungen
     parts.append(_build_instructions())
@@ -581,6 +585,95 @@ def _build_exercises_list(exercises: list[dict]) -> list[str]:
     return lines
 
 
+def _pace_str_to_seconds(pace: str | None) -> int | None:
+    """Konvertiert Pace-String '5:30' zu Sekunden (330)."""
+    if not pace:
+        return None
+    try:
+        parts = pace.strip().split(":")
+        return int(parts[0]) * 60 + int(parts[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _compare_pace(actual_pace: str | None, planned: dict) -> str | None:
+    """Vorberechneter Pace-Vergleich: Ist vs. Soll-Bereich."""
+    actual_sec = _pace_str_to_seconds(actual_pace)
+    lo = _pace_str_to_seconds(planned.get("target_pace_min"))
+    hi = _pace_str_to_seconds(planned.get("target_pace_max"))
+
+    if actual_sec is None or (lo is None and hi is None):
+        return None
+
+    pace_range = planned.get("target_pace_min", "?")
+    if planned.get("target_pace_max"):
+        pace_range += f" – {planned['target_pace_max']}"
+
+    # Bereich-Vergleich (beide Grenzen gesetzt)
+    if lo is not None and hi is not None:
+        if actual_sec < lo:
+            return f"- Pace: {actual_pace} ist {lo - actual_sec}s SCHNELLER als Zielbereich {pace_range} → zu schnell"
+        if actual_sec > hi:
+            return f"- Pace: {actual_pace} ist {actual_sec - hi}s LANGSAMER als Zielbereich {pace_range} → zu langsam"
+        return f"- Pace: {actual_pace} liegt INNERHALB des Zielbereichs {pace_range} ✓"
+
+    # Einzelwert-Vergleich (nur eine Grenze)
+    target = lo if lo is not None else hi
+    delta = actual_sec - target  # type: ignore[operator]
+    if delta == 0:
+        return f"- Pace: {actual_pace} entspricht genau dem Ziel {pace_range} ✓"
+    direction = "langsamer" if delta > 0 else "schneller"
+    return f"- Pace: {actual_pace} ist {abs(delta)}s {direction} als Ziel {pace_range}"
+
+
+def _compare_hr(actual_hr: int | None, planned: dict) -> str | None:
+    """Vorberechneter HF-Vergleich: Ist vs. Soll-Bereich."""
+    target_min = planned.get("target_hr_min")
+    target_max = planned.get("target_hr_max")
+
+    if not actual_hr or (not target_min and not target_max):
+        return None
+    if not (target_min and target_max):
+        return None
+
+    hr_range = f"{target_min} – {target_max}"
+    if actual_hr < target_min:
+        return f"- HF: Ø{actual_hr} liegt UNTER Zielbereich {hr_range} bpm"
+    if actual_hr > target_max:
+        return f"- HF: Ø{actual_hr} liegt ÜBER Zielbereich {hr_range} bpm"
+    return f"- HF: Ø{actual_hr} liegt INNERHALB des Zielbereichs {hr_range} bpm ✓"
+
+
+def _compare_duration(actual_sec: int | None, target_min: int | None) -> str | None:
+    """Vorberechneter Dauer-Vergleich: Ist vs. Soll."""
+    if not actual_sec or not target_min:
+        return None
+    actual_min = round(actual_sec / 60)
+    delta = actual_min - target_min
+    if abs(delta) <= 2:
+        return f"- Dauer: {actual_min} min ≈ Ziel {target_min} min ✓"
+    if delta > 0:
+        return f"- Dauer: {actual_min} min, {delta} min länger als Ziel {target_min} min"
+    return f"- Dauer: {actual_min} min, {abs(delta)} min kürzer als Ziel {target_min} min"
+
+
+def _build_precomputed_comparison(workout: WorkoutModel, planned: dict) -> str | None:
+    """Vorberechneter Soll/Ist-Vergleich fuer Pace, HF und Dauer.
+
+    Gibt dem LLM fertige Fakten statt ihn rechnen zu lassen.
+    """
+    comparisons = [
+        _compare_pace(str(workout.pace) if workout.pace else None, planned),
+        _compare_hr(workout.hr_avg, planned),
+        _compare_duration(workout.duration_sec, planned.get("target_duration_minutes")),
+    ]
+    results = [c for c in comparisons if c is not None]
+
+    if not results:
+        return None
+    return "## Vorberechneter Soll/Ist-Vergleich\n" + "\n".join(results)
+
+
 def _build_instructions() -> str:
     """Anweisungen fuer die KI."""
     return """## Anweisungen
@@ -601,7 +694,9 @@ Regeln:
 - 2-4 Empfehlungen
 - intensity_rating MUSS einer der 4 Werte sein
 - Wenn kein Plan vorhanden: plan_comparison = null
-- Wenn keine Ermuedung erkennbar: fatigue_indicators = null"""
+- Wenn keine Ermuedung erkennbar: fatigue_indicators = null
+- Wenn ein vorberechneter Soll/Ist-Vergleich vorhanden ist, verwende dessen Ergebnisse
+  direkt fuer plan_comparison — rechne NICHT selbst nach"""
 
 
 def _parse_analysis_json(raw: str, session_id: int, provider: str) -> SessionAnalysisResponse:

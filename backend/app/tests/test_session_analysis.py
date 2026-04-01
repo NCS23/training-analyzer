@@ -11,6 +11,7 @@ from app.infrastructure.database.models import WorkoutModel
 from app.models.ai_analysis import SessionAnalysisResponse
 from app.services.session_analysis_service import (
     _build_analysis_prompt,
+    _compare_pace,
     _parse_analysis_json,
 )
 
@@ -220,6 +221,51 @@ class TestPromptBuilding:
 
         assert "Hamburg HM" in prompt
         assert "5:41" in prompt
+
+
+class TestPrecomputedComparison:
+    """Unit-Tests für vorberechneten Soll/Ist-Vergleich."""
+
+    def test_pace_within_range(self) -> None:
+        """7:17 liegt innerhalb von 7:01-7:35."""
+        result = _compare_pace("7:17", {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is not None
+        assert "INNERHALB" in result
+        assert "✓" in result
+
+    def test_pace_too_fast(self) -> None:
+        """6:50 ist schneller als 7:01-7:35."""
+        result = _compare_pace("6:50", {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is not None
+        assert "SCHNELLER" in result
+
+    def test_pace_too_slow(self) -> None:
+        """7:45 ist langsamer als 7:01-7:35."""
+        result = _compare_pace("7:45", {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is not None
+        assert "LANGSAMER" in result
+
+    def test_pace_at_lower_boundary(self) -> None:
+        """7:01 ist genau am schnellen Rand — innerhalb."""
+        result = _compare_pace("7:01", {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is not None
+        assert "INNERHALB" in result
+
+    def test_pace_at_upper_boundary(self) -> None:
+        """7:35 ist genau am langsamen Rand — innerhalb."""
+        result = _compare_pace("7:35", {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is not None
+        assert "INNERHALB" in result
+
+    def test_pace_no_target(self) -> None:
+        """Kein Ziel → None."""
+        result = _compare_pace("7:17", {})
+        assert result is None
+
+    def test_pace_no_actual(self) -> None:
+        """Kein Ist-Wert → None."""
+        result = _compare_pace(None, {"target_pace_min": "7:01", "target_pace_max": "7:35"})
+        assert result is None
 
 
 class TestJsonParsing:
