@@ -429,19 +429,23 @@ export function RouteEditorPage() {
         </Card>
       )}
 
-      {/* Karte auf Card — overflow-hidden clippt die Map an den border-radius */}
-      <Card elevation="raised" className="!p-0 overflow-hidden">
-        <RouteEditorMap
-          waypoints={editor.waypoints}
-          routePoints={editor.routePoints}
-          onWaypointAdd={editor.addWaypoint}
-          onWaypointMove={editor.moveWaypoint}
-          onWaypointDelete={editor.deleteWaypoint}
-          routing={editor.routing}
-          height="55vh"
-          segments={segEditor.segments}
-          readOnly={!isEditing}
-        />
+      {/* Karte in Card — wie SessionDetail: Card mit Padding, Map mit eigenem border-radius */}
+      <Card elevation="raised">
+        <CardBody>
+          <div className="rounded-[var(--radius-component-md)] overflow-hidden">
+            <RouteEditorMap
+              waypoints={editor.waypoints}
+              routePoints={editor.routePoints}
+              onWaypointAdd={editor.addWaypoint}
+              onWaypointMove={editor.moveWaypoint}
+              onWaypointDelete={editor.deleteWaypoint}
+              routing={editor.routing}
+              height="52vh"
+              segments={segEditor.segments}
+              readOnly={!isEditing}
+            />
+          </div>
+        </CardBody>
       </Card>
 
       {/* Segmente */}
