@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -40,6 +40,7 @@ import {
   BookmarkPlus,
   RefreshCw,
   Download,
+  Route,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -50,6 +51,7 @@ import {
 } from '@/constants/training';
 import { createTemplateFromSession } from '@/api/session-templates';
 import { reparseSession, exportSessionFit } from '@/api/training';
+import { createRouteFromSession } from '@/api/routes';
 import type { StrengthExercisesEditorRef } from '@/components/StrengthExercisesEditor';
 import { generateInsights } from '@/utils/insights';
 import type { InsightType } from '@/utils/insights';
@@ -92,6 +94,7 @@ const insightVariantMap: Record<InsightType, 'success' | 'warning' | 'info'> = {
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const sessionId = Number(id);
 
   const exercisesEditorRef = useRef<StrengthExercisesEditorRef>(null);
@@ -310,6 +313,30 @@ export function SessionDetailPage() {
               >
                 Neu analysieren
               </DropdownMenuItem>
+              {gpsTrack && gpsTrack.points.length > 0 && (
+                <DropdownMenuItem
+                  icon={<Route />}
+                  onSelect={async () => {
+                    try {
+                      const route = await createRouteFromSession(sessionId);
+                      toast({
+                        title: 'Route gespeichert',
+                        description: `„${route.name}" wurde als Route angelegt.`,
+                        variant: 'success',
+                      });
+                      navigate(`/plan/routes/${route.id}`);
+                    } catch {
+                      toast({
+                        title: 'Fehler',
+                        description: 'Route konnte nicht erstellt werden.',
+                        variant: 'error',
+                      });
+                    }
+                  }}
+                >
+                  Als Route speichern
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 icon={<Trash2 />}
