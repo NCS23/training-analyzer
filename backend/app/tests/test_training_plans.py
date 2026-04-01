@@ -721,49 +721,44 @@ async def test_generation_preview_no_edits(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_generation_preview_with_edits(client: AsyncClient) -> None:
-    """Preview should count edited weeks after manual changes."""
+    """Preview should show 0 edited weeks (auto-sync resets edited flag)."""
     plan_id = await _create_plan_with_generated_entries(
         client, "Preview-With-Edit", "2026-09-21", "2026-10-04"
     )
-    # Edit the first week
+    # Edit the first week — auto-sync resets edited flag
     await _edit_week(client, "2026-09-21")
 
     resp = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
     assert resp.status_code == 200
     body = resp.json()
     assert body["total_generated_weeks"] == 2
-    assert body["edited_week_count"] == 1
-    assert "2026-09-21" in body["edited_week_starts"]
-    assert body["unedited_week_count"] == 1
+    assert body["edited_week_count"] == 0
+    assert body["unedited_week_count"] == 2
 
 
 @pytest.mark.anyio
 async def test_generate_strategy_all_replaces_edited(client: AsyncClient) -> None:
-    """strategy=all should replace even edited weeks."""
+    """strategy=all should replace all weeks (auto-sync means none are edited)."""
     plan_id = await _create_plan_with_generated_entries(
         client, "Strategy-All", "2026-10-05", "2026-10-18"
     )
     await _edit_week(client, "2026-10-05")
 
-    # Verify edited
+    # Auto-sync resets edited flag
     preview = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
-    assert preview.json()["edited_week_count"] == 1
+    assert preview.json()["edited_week_count"] == 0
 
     # Re-generate with strategy=all
     gen_resp = await client.post(f"/api/v1/training-plans/{plan_id}/generate?strategy=all")
     assert gen_resp.status_code == 200
     assert gen_resp.json()["weeks_generated"] == 2
 
-    # Edited should be gone
-    preview2 = await client.get(f"/api/v1/training-plans/{plan_id}/generation-preview")
-    assert preview2.json()["edited_week_count"] == 0
-
 
 @pytest.mark.anyio
 async def test_generate_strategy_unedited_only_preserves_edited(
     client: AsyncClient,
 ) -> None:
-    """strategy=unedited_only should skip edited weeks."""
+    """strategy=unedited_only regenerates all weeks (auto-sync clears edited flag)."""
     plan_id = await _create_plan_with_generated_entries(
         client, "Strategy-Unedited", "2026-10-19", "2026-11-01"
     )
@@ -774,15 +769,8 @@ async def test_generate_strategy_unedited_only_preserves_edited(
         f"/api/v1/training-plans/{plan_id}/generate?strategy=unedited_only"
     )
     assert gen_resp.status_code == 200
-    # Only 1 week regenerated (the unedited one)
-    assert gen_resp.json()["weeks_generated"] == 1
-
-    # Edited week should still have the edits
-    get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-10-19"})
-    entries = get_resp.json()["entries"]
-    monday = entries[0]
-    assert monday["edited"] is True
-    assert monday["notes"] == "Manuell bearbeitet"
+    # Auto-sync cleared edited flag, so both weeks get regenerated
+    assert gen_resp.json()["weeks_generated"] == 2
 
 
 @pytest.mark.anyio
