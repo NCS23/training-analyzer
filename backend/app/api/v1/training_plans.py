@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import logging
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -51,10 +52,12 @@ from app.models.training_plan import (
     WeeklyStructure,
 )
 from app.models.yaml_validation import ExerciseCheck, YamlValidationIssue, YamlValidationResult
+from app.services.chat_tool_handlers import _ensure_exercises_exist
 from app.services.exercise_enrichment import find_similar_exercises
 from app.services.plan_generator import generate_weekly_plans
 from app.services.yaml_validator import extract_exercise_names, validate_yaml_plan
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/training-plans")
 
 
@@ -1165,6 +1168,13 @@ async def generate_plan_weeks(
     skip_weeks = await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
     weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
 
+    # Fehlende Übungen automatisch anlegen (darf Generierung nicht blockieren)
+    exercises_created = 0
+    try:
+        exercises_created = await _ensure_exercises_exist(db, plan_id)
+    except Exception as e:
+        logger.warning("Übungs-Auto-Erstellung fehlgeschlagen (Plan %d): %s", plan_id, e)
+
     await log_plan_change(
         db,
         plan_id,
@@ -1175,6 +1185,7 @@ async def generate_plan_weeks(
             "source": "system",
             "weeks_generated": weeks_generated,
             "strategy": strategy,
+            "exercises_created": exercises_created,
         },
     )
     await db.commit()
