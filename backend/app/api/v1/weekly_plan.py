@@ -442,8 +442,128 @@ def _diff_day_entry(
     return changes
 
 
+def _build_phase_template_from_days(
+    days_data: dict[int, tuple[WeeklyPlanDayModel, list[PlannedSessionModel]]],
+    template_names: dict[int, str],
+) -> tuple[PhaseWeeklyTemplate, int]:
+    """Build a PhaseWeeklyTemplate from weekly plan days. Returns (template, synced_days)."""
+    template_days: list[PhaseWeeklyTemplateDayEntry] = []
+    synced_days = 0
+    for dow in range(7):
+        if dow in days_data:
+            db_day, db_sessions = days_data[dow]
+            if db_sessions or db_day.is_rest_day:
+                sessions: list[PhaseWeeklyTemplateSessionEntry] = []
+                for s in db_sessions:
+                    rd = _parse_run_details(str(s.run_details_json) if s.run_details_json else None)
+                    ex = _parse_exercises(str(s.exercises_json) if s.exercises_json else None)
+                    s_tid = s.template_id if s.template_id else None
+                    sessions.append(
+                        PhaseWeeklyTemplateSessionEntry(
+                            position=int(s.position),
+                            training_type=str(s.training_type),
+                            run_type=rd.run_type if rd else None,
+                            template_id=s_tid,
+                            template_name=template_names.get(s_tid) if s_tid else None,
+                            run_details=rd,
+                            exercises=ex,
+                        )
+                    )
+                template_days.append(
+                    PhaseWeeklyTemplateDayEntry(
+                        day_of_week=dow,
+                        sessions=sessions,
+                        is_rest_day=bool(db_day.is_rest_day),
+                        notes=str(db_day.notes) if db_day.notes else None,
+                    )
+                )
+                synced_days += 1
+                continue
+        template_days.append(PhaseWeeklyTemplateDayEntry(day_of_week=dow, is_rest_day=False))
+    return PhaseWeeklyTemplate(days=template_days), synced_days
+
+
+async def _auto_sync_week_to_plan(
+    db: AsyncSession,
+    plan_id: int,
+    week_start: date,
+) -> None:
+    """Auto-sync weekly plan changes back to training plan phase template.
+
+    Called automatically after saving a plan-linked weekly plan.
+    Stores changes as week-specific override (not apply-to-all).
+    """
+    plan_result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    plan = plan_result.scalar_one_or_none()
+    if not plan:
+        return  # Plan deleted — nothing to sync
+
+    phases_result = await db.execute(
+        select(TrainingPhaseModel)
+        .where(TrainingPhaseModel.training_plan_id == plan_id)
+        .order_by(TrainingPhaseModel.start_week)
+    )
+    phases = phases_result.scalars().all()
+
+    plan_start = plan.start_date
+    plan_start_monday = plan_start - timedelta(days=plan_start.weekday())
+    week_number = ((week_start - plan_start_monday).days // 7) + 1
+
+    phase: TrainingPhaseModel | None = None
+    for p in phases:
+        if int(p.start_week) <= week_number <= int(p.end_week):
+            phase = p
+            break
+    if not phase:
+        return  # Week outside plan range
+
+    days_data = await _load_days_with_sessions(db, week_start)
+
+    template_ids: list[int] = []
+    for _, (_, db_sessions) in days_data.items():
+        for s in db_sessions:
+            if s.template_id:
+                template_ids.append(s.template_id)
+    template_names = await _get_template_names(db, template_ids)
+
+    template, synced_days = _build_phase_template_from_days(days_data, template_names)
+    week_in_phase = week_number - phase.start_week
+    week_key = str(week_in_phase + 1)
+
+    # Store as week-specific override
+    existing_overrides: dict[str, object] = {}
+    if phase.weekly_templates_json:
+        try:
+            parsed = json.loads(str(phase.weekly_templates_json))
+            existing_overrides = parsed.get("weeks", {})
+        except (json.JSONDecodeError, ValueError):
+            pass
+    existing_overrides[week_key] = template.model_dump()
+    phase.weekly_templates_json = json.dumps({"weeks": existing_overrides})
+
+    # Reset edited flag
+    for _dow, (db_day, _sessions) in days_data.items():
+        if db_day.plan_id and int(db_day.plan_id) == plan_id:
+            db_day.edited = False
+
+    await log_plan_change(
+        db,
+        plan_id,
+        "back_sync",
+        f"Woche {week_start} automatisch in Phase '{phase.name}' synchronisiert",
+        details={
+            "category": "technical",
+            "source": "auto",
+            "week_start": str(week_start),
+            "phase_name": str(phase.name),
+            "week_key": week_key,
+            "synced_days": synced_days,
+        },
+    )
+
+
 @router.put("", response_model=WeeklyPlanResponse)
-async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
+async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: WeeklyPlanSaveRequest,
     db: AsyncSession = Depends(get_db),
 ) -> WeeklyPlanResponse:
@@ -573,6 +693,12 @@ async def save_weekly_plan(  # noqa: C901, PLR0912  # TODO: E16 Refactoring
             f"Wochenplan {week_start}: {count} Eintraege bearbeitet",
             details=details,
         )
+
+    # Auto-sync changed plan-linked entries back to training plan
+    if changed_plan_days:
+        await db.flush()  # Ensure new days/sessions are persisted before sync reads them
+        for pid in changed_plan_days:
+            await _auto_sync_week_to_plan(db, pid, week_start)
 
     await db.commit()
 

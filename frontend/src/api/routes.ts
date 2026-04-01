@@ -265,3 +265,18 @@ export async function exportRouteGpx(routeId: number, routeName: string): Promis
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export async function exportRouteFit(routeId: number, routeName: string): Promise<void> {
+  const response = await apiClient.get(`/api/v1/routes/${routeId}/export/fit`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const safeName = routeName.replace(/\s+/g, '_').replace(/[^\w\-äöüÄÖÜß]/g, '') || 'route';
+  link.setAttribute('download', `${safeName}.fit`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

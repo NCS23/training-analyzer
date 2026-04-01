@@ -38,8 +38,6 @@ import {
 import { formatTonnage } from '@/hooks/useTonnageCalc';
 import { RUN_TYPE_LABELS } from '@/constants/plan';
 import { DayCard } from '@/components/day-card';
-import { SyncToPlanBar } from '@/components/SyncToPlanBar';
-import { SaveWeeklyPlanDialog } from '@/components/SaveWeeklyPlanDialog';
 import { WeeklyReviewSection } from '@/components/WeeklyReviewSection';
 import { useWeeklyPlan } from '@/hooks/useWeeklyPlan';
 import { useWeeklyPlanDragDrop } from '@/hooks/useWeeklyPlanDragDrop';
@@ -387,20 +385,6 @@ export function WeeklyPlanPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sync-to-Plan Bar */}
-      {plan.showSyncBar && plan.linkedPlanId && plan.editedPlanCount > 0 && (
-        <SyncToPlanBar
-          planId={plan.linkedPlanId}
-          weekStart={plan.weekStart}
-          editedCount={plan.editedPlanCount}
-          onSynced={() => {
-            plan.setShowSyncBar(false);
-            plan.loadWeek(plan.weekStart);
-          }}
-          onDismiss={() => plan.setShowSyncBar(false)}
-        />
-      )}
-
       {/* Quick action */}
       <Button
         variant="secondary"
@@ -412,20 +396,12 @@ export function WeeklyPlanPage() {
         Training hochladen
       </Button>
 
-      {/* Save Dialog (plan-linked) */}
-      <SaveWeeklyPlanDialog
-        open={plan.showSaveDialog}
-        onOpenChange={plan.setShowSaveDialog}
-        onSaveWeekOnly={plan.handleSaveWeekOnly}
-        onSaveAndSync={plan.handleSaveAndSync}
-      />
-
       {/* Save button */}
       {plan.dirty && (
         <div className="sticky bottom-4 z-10">
           <Button
             variant="primary"
-            onClick={plan.handleSaveClick}
+            onClick={plan.handleSave}
             disabled={plan.saving}
             className="w-full"
             size="lg"

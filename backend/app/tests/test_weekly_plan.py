@@ -804,10 +804,8 @@ async def test_save_preserves_plan_id(client: AsyncClient, db_session: AsyncSess
 
 
 @pytest.mark.anyio
-async def test_save_sets_edited_on_content_change(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    """PUT /weekly-plan should set edited=True when content changes."""
+async def test_save_auto_syncs_to_plan(client: AsyncClient, db_session: AsyncSession) -> None:
+    """PUT /weekly-plan should auto-sync changes back to training plan (edited reset to False)."""
     await _generate_plan_entries(client, db_session, "2026-08-10")
 
     # Modify one entry (add notes to Monday)
@@ -830,9 +828,8 @@ async def test_save_sets_edited_on_content_change(
 
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-08-10"})
     entries = get_resp.json()["entries"]
-    # Monday should be edited (we added notes)
-    assert entries[0]["edited"] is True
-    # Tuesday should not be edited (content unchanged)
+    # Auto-sync resets edited flag immediately
+    assert entries[0]["edited"] is False
     assert entries[1]["edited"] is False
 
 
@@ -1124,11 +1121,12 @@ async def test_sync_to_plan_preserves_existing_overrides(
 
 
 @pytest.mark.anyio
-async def test_sync_to_plan_resets_edited_flag(
+async def test_save_auto_syncs_resets_edited_flag(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """After sync, edited flag should be reset to False."""
+    """Auto-sync on save should reset edited flag to False immediately."""
     plan_id = await _generate_plan_entries_multi_week(client, db_session, "2026-11-16", num_weeks=1)
+    assert plan_id  # Ensure plan was created
 
     save_data = {
         "week_start": "2026-11-16",
@@ -1142,13 +1140,6 @@ async def test_sync_to_plan_resets_edited_flag(
     }
     await client.put("/api/v1/weekly-plan", json=save_data)
 
+    # Auto-sync should have already reset edited flag
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
-    assert get_resp.json()["entries"][0]["edited"] is True
-
-    await client.post(
-        "/api/v1/weekly-plan/sync-to-plan",
-        json={"week_start": "2026-11-16", "plan_id": plan_id, "apply_to_all_weeks": False},
-    )
-
-    get_resp2 = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
-    assert get_resp2.json()["entries"][0]["edited"] is False
+    assert get_resp.json()["entries"][0]["edited"] is False

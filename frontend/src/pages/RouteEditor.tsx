@@ -27,7 +27,7 @@ import { SegmentBar } from '@/components/route-editor/SegmentBar';
 import { SegmentTable } from '@/components/route-editor/SegmentTable';
 import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
-import { exportRouteGpx } from '@/api/routes';
+import { exportRouteFit, exportRouteGpx } from '@/api/routes';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
   return (
@@ -129,6 +129,15 @@ function EditorActionBar({
     }
   };
 
+  const handleFitDownload = async () => {
+    if (!routeId) return;
+    try {
+      await exportRouteFit(routeId, editor.name);
+    } catch {
+      toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
+    }
+  };
+
   return (
     <ActionBar
       sticky={false}
@@ -142,6 +151,12 @@ function EditorActionBar({
           <Button variant="secondary" onClick={handleGpxDownload}>
             <Download className="w-4 h-4 mr-1.5" />
             GPX
+          </Button>
+        )}
+        {routeId && (
+          <Button variant="secondary" onClick={handleFitDownload}>
+            <Download className="w-4 h-4 mr-1.5" />
+            FIT
           </Button>
         )}
         <Button
