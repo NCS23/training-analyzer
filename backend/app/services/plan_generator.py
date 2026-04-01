@@ -1277,6 +1277,32 @@ def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16
                         max_hr=max_hr,
                     )
 
+        # Phase-spezifischen Duration-Cap nachträglich auf ALLE easy/recovery Sessions
+        # anwenden — auch auf Template-Sessions die von _has_explicit_run_details
+        # übersprungen wurden. Damit wirkt z.B. easy_max_duration_min=35 in der
+        # Recovery-Phase auch wenn Templates Paces (und damit explicit details) haben.
+        easy_cap_dur = defaults.get("easy_max_duration_min")
+        if easy_cap_dur is not None:
+            _easy_run_types = {"easy", "recovery"}
+            for entry in entries:
+                for sess in entry.sessions:
+                    if sess.run_details is None:
+                        continue
+                    if sess.run_details.run_type not in _easy_run_types:
+                        continue
+                    for seg in sess.run_details.segments or []:
+                        if (
+                            seg.target_duration_minutes is not None
+                            and seg.target_duration_minutes > easy_cap_dur
+                        ):
+                            seg.target_duration_minutes = float(easy_cap_dur)
+                    # Aggregat auf RunDetails aktualisieren
+                    if (
+                        sess.run_details.target_duration_minutes is not None
+                        and sess.run_details.target_duration_minutes > easy_cap_dur
+                    ):
+                        sess.run_details.target_duration_minutes = int(easy_cap_dur)
+
         # Enrich sessions with structured segments (intervals, tempo, strides etc.)
         _enrich_sessions_for_week(
             entries,
