@@ -1,10 +1,11 @@
 /**
- * Route-Editor Seite — Trainingsrouten auf der Karte erstellen/bearbeiten.
+ * Route-Detail/Editor Seite — Trainingsrouten ansehen und bearbeiten.
  *
  * Part of Epic #508, Story #527 + #532.
+ * Refactored: Read-only-Ansicht mit Kebab-Menü, Edit-Modus nur auf Anfrage.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type { RouteFromTemplatePreview } from '@/api/routes';
 import {
@@ -17,8 +18,24 @@ import {
   BreadcrumbItem,
   Spinner,
   useToast,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@nordlig/components';
-import { ChevronRight, Save, Mountain, Ruler, MapPin, Wand2, Download } from 'lucide-react';
+import {
+  ChevronRight,
+  Save,
+  Mountain,
+  Ruler,
+  MapPin,
+  Wand2,
+  Download,
+  Pencil,
+  Trash2,
+  EllipsisVertical,
+} from 'lucide-react';
 import { RouteEditorMap } from '@/features/maps/RouteEditorMap';
 import { useRouteEditor } from '@/hooks/useRouteEditor';
 import { useSegmentEditor } from '@/hooks/useSegmentEditor';
@@ -27,7 +44,7 @@ import { SegmentBar } from '@/components/route-editor/SegmentBar';
 import { SegmentTable } from '@/components/route-editor/SegmentTable';
 import { PacingPanel } from '@/components/route-editor/PacingPanel';
 import type { UseRouteEditorReturn } from '@/hooks/useRouteEditor';
-import { exportRouteFit, exportRouteGpx } from '@/api/routes';
+import { exportRouteFit, exportRouteGpx, deleteRoute } from '@/api/routes';
 
 function RouteMetrics({ editor }: { editor: UseRouteEditorReturn }) {
   return (
@@ -51,10 +68,12 @@ function SegmentSection({
   segEditor,
   distanceKm,
   routeId,
+  readOnly,
 }: {
   segEditor: UseSegmentEditorReturn;
   distanceKm: number;
   routeId: number | null;
+  readOnly: boolean;
 }) {
   if (distanceKm <= 0) return null;
 
@@ -72,7 +91,7 @@ function SegmentSection({
         <CardBody className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-[var(--color-text-base)]">Segmente</h3>
-            {segEditor.segments.length === 0 && (
+            {!readOnly && segEditor.segments.length === 0 && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -86,9 +105,9 @@ function SegmentSection({
           <SegmentTable
             segments={segEditor.segments}
             totalDistanceKm={distanceKm}
-            onUpdate={segEditor.updateSegment}
-            onDelete={segEditor.deleteSegment}
-            onAdd={segEditor.addSegment}
+            onUpdate={readOnly ? () => {} : segEditor.updateSegment}
+            onDelete={readOnly ? () => {} : segEditor.deleteSegment}
+            onAdd={readOnly ? () => {} : segEditor.addSegment}
             activeSegment={segEditor.activeSegment}
             onSegmentClick={segEditor.setActiveSegment}
           />
@@ -100,44 +119,77 @@ function SegmentSection({
           routeId={routeId}
           distanceKm={distanceKm}
           segments={segEditor.segments}
-          onSegmentsUpdate={segEditor.setSegments}
+          onSegmentsUpdate={readOnly ? () => {} : segEditor.setSegments}
         />
       )}
     </>
   );
 }
 
-function EditorActionBar({
-  editor,
+function RouteKebabMenu({
   routeId,
-  onSave,
-  onCancel,
+  routeName,
+  onEdit,
+  onDelete,
 }: {
-  editor: UseRouteEditorReturn;
-  routeId: number | null;
-  onSave: () => void;
-  onCancel: () => void;
+  routeId: number;
+  routeName: string;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { toast } = useToast();
 
-  const handleGpxDownload = async () => {
-    if (!routeId) return;
+  const handleGpx = async () => {
     try {
-      await exportRouteGpx(routeId, editor.name);
+      await exportRouteGpx(routeId, routeName);
     } catch {
       toast({ title: 'GPX-Export fehlgeschlagen', variant: 'error' });
     }
   };
 
-  const handleFitDownload = async () => {
-    if (!routeId) return;
+  const handleFit = async () => {
     try {
-      await exportRouteFit(routeId, editor.name);
+      await exportRouteFit(routeId, routeName);
     } catch {
       toast({ title: 'FIT-Export fehlgeschlagen', variant: 'error' });
     }
   };
 
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="ghost" size="sm" aria-label="Aktionen">
+          <EllipsisVertical className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem icon={<Pencil />} onSelect={onEdit}>
+          Bearbeiten
+        </DropdownMenuItem>
+        <DropdownMenuItem icon={<Download />} onSelect={handleGpx}>
+          Als GPX exportieren
+        </DropdownMenuItem>
+        <DropdownMenuItem icon={<Download />} onSelect={handleFit}>
+          Als FIT exportieren
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem icon={<Trash2 />} destructive onSelect={onDelete}>
+          Löschen
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function EditActionBar({
+  editor,
+  onSave,
+  onCancel,
+}: {
+  editor: UseRouteEditorReturn;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
   return (
     <ActionBar
       sticky={false}
@@ -147,18 +199,6 @@ function EditorActionBar({
         <Button variant="secondary" onClick={onCancel}>
           Abbrechen
         </Button>
-        {routeId && (
-          <Button variant="secondary" onClick={handleGpxDownload}>
-            <Download className="w-4 h-4 mr-1.5" />
-            GPX
-          </Button>
-        )}
-        {routeId && (
-          <Button variant="secondary" onClick={handleFitDownload}>
-            <Download className="w-4 h-4 mr-1.5" />
-            FIT
-          </Button>
-        )}
         <Button
           variant="primary"
           onClick={onSave}
@@ -178,12 +218,14 @@ function EditorActionBar({
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- Seiten-Orchestrator mit Read/Edit-Modus
 export function RouteEditorPage() {
   const { routeId } = useParams<{ routeId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const isNew = !routeId;
+  const [isEditing, setIsEditing] = useState(isNew);
   const editor = useRouteEditor();
   const segEditor = useSegmentEditor();
 
@@ -195,7 +237,6 @@ export function RouteEditorPage() {
       });
       return;
     }
-    // Vorberechnete Route aus Session Template (#571)
     const preview = (location.state as { routePreview?: RouteFromTemplatePreview } | null)
       ?.routePreview;
     if (preview) {
@@ -218,10 +259,34 @@ export function RouteEditorPage() {
       const id = await editor.save();
       if (id) {
         toast({ title: 'Route gespeichert', variant: 'success' });
-        navigate(`/plan/routes/${id}`);
+        if (isNew) {
+          navigate(`/plan/routes/${id}`);
+        } else {
+          setIsEditing(false);
+        }
       }
     } catch {
       toast({ title: 'Speichern fehlgeschlagen', variant: 'error' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!routeId) return;
+    try {
+      await deleteRoute(Number(routeId));
+      toast({ title: 'Route gelöscht', variant: 'success' });
+      navigate('/plan/routes');
+    } catch {
+      toast({ title: 'Löschen fehlgeschlagen', variant: 'error' });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (isNew) {
+      navigate('/plan/routes');
+    } else {
+      editor.loadRoute(Number(routeId)).catch(() => {});
+      setIsEditing(false);
     }
   };
 
@@ -236,26 +301,50 @@ export function RouteEditorPage() {
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-4">
       <header className="pb-2 space-y-2">
-        <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
-          <BreadcrumbItem>
-            <Link to="/plan/routes">Routen</Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem isCurrent>
-            {isNew ? 'Neue Route' : editor.name || 'Route bearbeiten'}
-          </BreadcrumbItem>
-        </Breadcrumbs>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2 flex-1 min-w-0">
+            <Breadcrumbs separator={<ChevronRight className="w-3.5 h-3.5" />}>
+              <BreadcrumbItem>
+                <Link to="/plan/routes">Routen</Link>
+              </BreadcrumbItem>
+              <BreadcrumbItem isCurrent>
+                {isNew ? 'Neue Route' : editor.name || 'Route'}
+              </BreadcrumbItem>
+            </Breadcrumbs>
+            {!isEditing && (
+              <h1 className="text-xl font-semibold text-[var(--color-text-base)] truncate">
+                {editor.name}
+              </h1>
+            )}
+          </div>
+          {!isNew && routeId && (
+            <RouteKebabMenu
+              routeId={Number(routeId)}
+              routeName={editor.name}
+              onEdit={() => setIsEditing(true)}
+              onDelete={handleDelete}
+            />
+          )}
+        </div>
       </header>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <Input
-            placeholder="Routenname"
-            value={editor.name}
-            onChange={(e) => editor.setName(e.target.value)}
-          />
+      {isEditing && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <Input
+              placeholder="Routenname"
+              value={editor.name}
+              onChange={(e) => editor.setName(e.target.value)}
+            />
+          </div>
+          <RouteMetrics editor={editor} />
         </div>
-        <RouteMetrics editor={editor} />
-      </div>
+      )}
+      {!isEditing && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <RouteMetrics editor={editor} />
+        </div>
+      )}
 
       <RouteEditorMap
         waypoints={editor.waypoints}
@@ -266,21 +355,22 @@ export function RouteEditorPage() {
         routing={editor.routing}
         height="55vh"
         segments={segEditor.segments}
+        readOnly={!isEditing}
       />
 
       <SegmentSection
         segEditor={segEditor}
         distanceKm={editor.distanceKm}
         routeId={routeId ? Number(routeId) : null}
+        readOnly={!isEditing}
       />
 
-      <EditorActionBar
-        editor={editor}
-        routeId={routeId ? Number(routeId) : null}
-        onSave={handleSave}
-        onCancel={() => navigate('/plan/routes')}
-      />
-      <div className="h-24 lg:h-16" />
+      {isEditing && (
+        <>
+          <EditActionBar editor={editor} onSave={handleSave} onCancel={handleCancelEdit} />
+          <div className="h-24 lg:h-16" />
+        </>
+      )}
     </div>
   );
 }
