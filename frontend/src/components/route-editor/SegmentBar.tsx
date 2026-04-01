@@ -1,6 +1,6 @@
 /**
- * Farbcodierte Segment-Leiste unter der Karte.
- * Zeigt alle Segmente proportional zur Distanz als farbige Balken.
+ * Farbcodierte Segment-Leiste — zeigt Segmente proportional zur Distanz.
+ * Klickbar für Segment-Auswahl.
  */
 
 import { SEGMENT_TYPE_COLORS, SEGMENT_TYPE_LABELS } from '@/constants/segmentColors';
@@ -23,30 +23,40 @@ export function SegmentBar({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex h-6 rounded-[var(--radius-component-sm)] overflow-hidden border border-[var(--color-border-default)]">
+      <div
+        className="flex h-5 rounded-[var(--radius-component-sm)] overflow-hidden"
+        role="group"
+        aria-label="Segment-Übersicht"
+      >
         {segments.map((seg, i) => {
           const width = ((seg.end_km - seg.start_km) / totalDistanceKm) * 100;
           const color = SEGMENT_TYPE_COLORS[seg.segment_type] ?? '#9ca3af';
           const isActive = activeSegment === i;
+          const label = SEGMENT_TYPE_LABELS[seg.segment_type] ?? seg.segment_type;
 
           return (
-            <button
+            <div
               key={i}
+              role="button"
+              tabIndex={0}
               onClick={() => onSegmentClick?.(i)}
-              className="relative transition-opacity motion-reduce:transition-none min-w-[2px]"
+              onKeyDown={(e) => e.key === 'Enter' && onSegmentClick?.(i)}
+              className="relative transition-opacity motion-reduce:transition-none min-w-[2px] cursor-pointer"
               style={{
                 width: `${width}%`,
                 backgroundColor: color,
-                opacity: isActive ? 1 : 0.7,
+                opacity: isActive ? 1 : 0.75,
               }}
-              title={`${SEGMENT_TYPE_LABELS[seg.segment_type] ?? seg.segment_type}: ${seg.start_km}–${seg.end_km} km`}
+              title={`${label}: ${seg.start_km.toFixed(1)}–${seg.end_km.toFixed(1)} km`}
+              aria-label={`${label}: ${seg.start_km.toFixed(1)} bis ${seg.end_km.toFixed(1)} km`}
+              aria-pressed={isActive}
             >
-              {width > 10 && (
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-[var(--color-text-on-primary)]">
-                  {SEGMENT_TYPE_LABELS[seg.segment_type]?.slice(0, 4) ?? ''}
+              {width > 12 && (
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-[var(--color-text-on-primary)] select-none">
+                  {label.slice(0, 4)}
                 </span>
               )}
-            </button>
+            </div>
           );
         })}
       </div>

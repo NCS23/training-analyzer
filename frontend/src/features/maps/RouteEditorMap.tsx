@@ -157,6 +157,7 @@ function createSegmentPolylines(
   });
 }
 
+// eslint-disable-next-line max-lines-per-function -- Karten-Orchestrator mit mehreren unabhängigen useEffect-Blöcken
 export function RouteEditorMap({
   waypoints,
   routePoints,
@@ -175,16 +176,28 @@ export function RouteEditorMap({
   const polylineCasingRef = useRef<L.Polyline | null>(null);
   const segmentLinesRef = useRef<L.Polyline[]>([]);
   const callbacksRef = useRef({ onWaypointAdd, onWaypointMove, onWaypointDelete });
+  // readOnly als Ref damit der Klick-Handler reaktiv ist ohne Map-Neustart
+  const readOnlyRef = useRef(readOnly);
 
   useEffect(() => {
     callbacksRef.current = { onWaypointAdd, onWaypointMove, onWaypointDelete };
   }, [onWaypointAdd, onWaypointMove, onWaypointDelete]);
 
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+    // Cursor-Stil für Edit-Modus anzeigen
+    if (mapRef.current) {
+      const container = mapRef.current.getContainer();
+      container.style.cursor = readOnly ? '' : 'crosshair';
+    }
+  }, [readOnly]);
+
   // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const tile = TILES.outdoor;
+    // Standard OSM: gute Lesbarkeit, Sky-500 Route kontrastiert gut
+    const tile = TILES.streets;
     const map = L.map(containerRef.current, {
       scrollWheelZoom: true,
       maxZoom: tile.maxZoom ?? 19,
@@ -195,18 +208,18 @@ export function RouteEditorMap({
       map,
     );
 
-    if (!readOnly) {
-      map.on('click', (e: L.LeafletMouseEvent) => {
+    // Klick-Handler prüft readOnlyRef — reagiert auf Modus-Wechsel ohne Map-Neustart
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (!readOnlyRef.current) {
         callbacksRef.current.onWaypointAdd(e.latlng.lat, e.latlng.lng);
-      });
-    }
+      }
+    });
 
     mapRef.current = map;
     return () => {
       map.remove();
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- readOnly captured at mount; map is initialized once
   }, []);
 
   // Update route polyline
@@ -222,14 +235,14 @@ export function RouteEditorMap({
     if (points.length < 2) return;
 
     const cs = getComputedStyle(document.documentElement);
-    // Leaflet requires raw CSS values — resolve semantic tokens at runtime
+    // Leaflet benötigt rohe CSS-Werte — semantische Tokens zur Laufzeit auflösen
     const routeColor = cs.getPropertyValue('--color-bg-primary').trim() || '#0ea5e9';
     const casingColor = cs.getPropertyValue('--color-bg-surface').trim() || '#ffffff';
 
     const latlngs = points.map((p) => [p.lat, p.lng] as L.LatLngTuple);
     const opacity = routing ? 0.45 : 1;
 
-    // White casing beneath the route line for visibility on any tile style
+    // Weißes Casing unter der Route für Sichtbarkeit auf jedem Kartenstil
     polylineCasingRef.current = L.polyline(latlngs, {
       color: casingColor,
       weight: 9,
@@ -274,12 +287,8 @@ export function RouteEditorMap({
 
   return (
     <div className="relative">
-      <div
-        ref={containerRef}
-        style={{ height, minHeight: '250px' }}
-        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] shadow-[var(--shadow-card-raised)] z-0"
-      />
-      <MapOverlays routing={routing} empty={waypoints.length === 0} />
+      <div ref={containerRef} style={{ height, minHeight: '250px' }} className="w-full z-0" />
+      <MapOverlays routing={routing} empty={!readOnly && waypoints.length === 0} />
     </div>
   );
 }

@@ -1,11 +1,15 @@
 /**
- * Segment-Tabelle mit Inline-Editing für Route-Segmente.
- * Erlaubt Typ-Auswahl, Pace/HR-Ziele pro Segment.
+ * Segment-Liste mit Inline-Editing für Route-Segmente.
+ * Im readOnly-Modus: statische Darstellung ohne Edit-Controls.
  */
 
 import { Button, Input, Select, Badge } from '@nordlig/components';
-import { Trash2, Plus } from 'lucide-react';
-import { SEGMENT_TYPE_COLORS, SEGMENT_TYPE_OPTIONS } from '@/constants/segmentColors';
+import { Trash2 } from 'lucide-react';
+import {
+  SEGMENT_TYPE_COLORS,
+  SEGMENT_TYPE_LABELS,
+  SEGMENT_TYPE_OPTIONS,
+} from '@/constants/segmentColors';
 import type { RouteSegment } from '@/api/routes';
 
 interface SegmentTableProps {
@@ -16,9 +20,70 @@ interface SegmentTableProps {
   onAdd: () => void;
   activeSegment?: number | null;
   onSegmentClick?: (index: number) => void;
+  readOnly?: boolean;
 }
 
-function SegmentRow({
+// ---------------------------------------------------------------------------
+// Read-only Zeile
+// ---------------------------------------------------------------------------
+
+function SegmentRowReadOnly({
+  segment,
+  isActive,
+  onClick,
+}: {
+  segment: RouteSegment;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const color = SEGMENT_TYPE_COLORS[segment.segment_type] ?? '#9ca3af';
+  const label = SEGMENT_TYPE_LABELS[segment.segment_type] ?? segment.segment_type;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-component-sm)] border cursor-pointer transition-colors motion-reduce:transition-none ${
+        isActive
+          ? 'border-[var(--color-border-focus)] bg-[var(--color-bg-subtle)]'
+          : 'border-[var(--color-border-default)]'
+      }`}
+    >
+      <div
+        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{ backgroundColor: color }}
+        aria-hidden="true"
+      />
+      <span className="text-sm font-medium text-[var(--color-text-base)] min-w-[100px]">
+        {label}
+      </span>
+      <Badge variant="neutral" size="sm" className="flex-shrink-0">
+        {segment.start_km.toFixed(1)}–{segment.end_km.toFixed(1)} km
+      </Badge>
+      {segment.target_pace_min && (
+        <span className="text-xs text-[var(--color-text-muted)] ml-auto">
+          {segment.target_pace_min}
+          {segment.target_pace_max ? `–${segment.target_pace_max}` : ''} /km
+        </span>
+      )}
+      {segment.target_hr_min && (
+        <span className="text-xs text-[var(--color-text-muted)]">
+          {segment.target_hr_min}
+          {segment.target_hr_max ? `–${segment.target_hr_max}` : ''} bpm
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit-Zeile
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line max-lines-per-function -- Segment-Zeile enthält Pace + HR + Typ-Felder
+function SegmentRowEdit({
   segment,
   index,
   onUpdate,
@@ -46,7 +111,10 @@ function SegmentRow({
     >
       {/* Farb-Indikator + Typ */}
       <div className="flex items-center gap-2 min-w-[140px]">
-        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+        <div
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: color }}
+        />
         <Select
           options={SEGMENT_TYPE_OPTIONS}
           value={segment.segment_type}
@@ -110,19 +178,26 @@ function SegmentRow({
         <span className="text-xs text-[var(--color-text-muted)]">bpm</span>
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={(e) => {
+      {/* Löschen */}
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Segment löschen"
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           onDelete(index);
         }}
-        className="p-1.5 rounded-[var(--radius-component-sm)] hover:bg-[var(--color-bg-subtle)] min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0"
+        className="flex-shrink-0"
       >
         <Trash2 className="w-4 h-4 text-[var(--color-text-muted)]" />
-      </button>
+      </Button>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Tabelle
+// ---------------------------------------------------------------------------
 
 export function SegmentTable({
   segments,
@@ -132,28 +207,23 @@ export function SegmentTable({
   onAdd,
   activeSegment,
   onSegmentClick,
+  readOnly = false,
 }: SegmentTableProps) {
+  void totalDistanceKm; // wird vom Parent für Distanz-Berechnung genutzt
+  void onAdd; // wird vom Parent (CardHeader) ausgelöst
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-[var(--color-text-base)]">
-          Segmente ({segments.length})
-        </h3>
-        <Button variant="secondary" size="sm" onClick={onAdd} disabled={totalDistanceKm <= 0}>
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          Segment
-        </Button>
-      </div>
-
-      {segments.length === 0 && (
-        <p className="text-xs text-[var(--color-text-muted)] py-4 text-center">
-          Noch keine Segmente. Klicke „Segment" um die Route aufzuteilen.
-        </p>
-      )}
-
-      <div className="space-y-1.5">
-        {segments.map((seg, i) => (
-          <SegmentRow
+    <div className="space-y-1.5">
+      {segments.map((seg, i) =>
+        readOnly ? (
+          <SegmentRowReadOnly
+            key={i}
+            segment={seg}
+            isActive={activeSegment === i}
+            onClick={() => onSegmentClick?.(i)}
+          />
+        ) : (
+          <SegmentRowEdit
             key={i}
             segment={seg}
             index={i}
@@ -162,8 +232,8 @@ export function SegmentTable({
             isActive={activeSegment === i}
             onClick={() => onSegmentClick?.(i)}
           />
-        ))}
-      </div>
+        ),
+      )}
     </div>
   );
 }
