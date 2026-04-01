@@ -87,7 +87,7 @@ function SegmentSection({
           activeSegment={segEditor.activeSegment}
         />
       )}
-      <Card>
+      <Card elevation="raised">
         <CardBody className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-[var(--color-text-base)]">Segmente</h3>
@@ -341,22 +341,28 @@ export function RouteEditorPage() {
         </div>
       )}
       {!isEditing && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          <RouteMetrics editor={editor} />
-        </div>
+        <Card elevation="raised">
+          <CardBody>
+            <RouteMetrics editor={editor} />
+          </CardBody>
+        </Card>
       )}
 
-      <RouteEditorMap
-        waypoints={editor.waypoints}
-        routePoints={editor.routePoints}
-        onWaypointAdd={editor.addWaypoint}
-        onWaypointMove={editor.moveWaypoint}
-        onWaypointDelete={editor.deleteWaypoint}
-        routing={editor.routing}
-        height="55vh"
-        segments={segEditor.segments}
-        readOnly={!isEditing}
-      />
+      <Card elevation="raised">
+        <CardBody className="p-0 overflow-hidden rounded-[var(--radius-card)]">
+          <RouteEditorMap
+            waypoints={editor.waypoints}
+            routePoints={editor.routePoints}
+            onWaypointAdd={editor.addWaypoint}
+            onWaypointMove={editor.moveWaypoint}
+            onWaypointDelete={editor.deleteWaypoint}
+            routing={editor.routing}
+            height="55vh"
+            segments={segEditor.segments}
+            readOnly={!isEditing}
+          />
+        </CardBody>
+      </Card>
 
       <SegmentSection
         segEditor={segEditor}
