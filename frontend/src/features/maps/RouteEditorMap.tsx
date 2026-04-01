@@ -172,6 +172,7 @@ export function RouteEditorMap({
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const polylineCasingRef = useRef<L.Polyline | null>(null);
   const segmentLinesRef = useRef<L.Polyline[]>([]);
   const callbacksRef = useRef({ onWaypointAdd, onWaypointMove, onWaypointDelete });
 
@@ -212,21 +213,36 @@ export function RouteEditorMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    polylineCasingRef.current?.remove();
+    polylineCasingRef.current = null;
     polylineRef.current?.remove();
     polylineRef.current = null;
 
     const points = routePoints.length > 0 ? routePoints : waypoints;
     if (points.length < 2) return;
 
-    polylineRef.current = L.polyline(
-      points.map((p) => [p.lat, p.lng] as L.LatLngTuple),
-      {
-        color: '#3b82f6',
-        weight: 4,
-        opacity: routing ? 0.4 : 0.8,
-        dashArray: routing ? '8 8' : undefined,
-      },
-    ).addTo(map);
+    const cs = getComputedStyle(document.documentElement);
+    // Leaflet requires raw CSS values — resolve semantic tokens at runtime
+    const routeColor = cs.getPropertyValue('--color-bg-primary').trim() || '#0ea5e9';
+    const casingColor = cs.getPropertyValue('--color-bg-surface').trim() || '#ffffff';
+
+    const latlngs = points.map((p) => [p.lat, p.lng] as L.LatLngTuple);
+    const opacity = routing ? 0.45 : 1;
+
+    // White casing beneath the route line for visibility on any tile style
+    polylineCasingRef.current = L.polyline(latlngs, {
+      color: casingColor,
+      weight: 9,
+      opacity,
+      dashArray: routing ? '8 8' : undefined,
+    }).addTo(map);
+
+    polylineRef.current = L.polyline(latlngs, {
+      color: routeColor,
+      weight: 5,
+      opacity,
+      dashArray: routing ? '8 8' : undefined,
+    }).addTo(map);
   }, [routePoints, waypoints, routing]);
 
   // Update segment color overlays
@@ -261,7 +277,7 @@ export function RouteEditorMap({
       <div
         ref={containerRef}
         style={{ height, minHeight: '250px' }}
-        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] z-0"
+        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] shadow-[var(--shadow-card-raised)] z-0"
       />
       <MapOverlays routing={routing} empty={waypoints.length === 0} />
     </div>

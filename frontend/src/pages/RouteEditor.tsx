@@ -87,7 +87,7 @@ function SegmentSection({
           activeSegment={segEditor.activeSegment}
         />
       )}
-      <Card>
+      <Card elevation="raised">
         <CardBody className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-[var(--color-text-base)]">Segmente</h3>
@@ -341,9 +341,11 @@ export function RouteEditorPage() {
         </div>
       )}
       {!isEditing && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          <RouteMetrics editor={editor} />
-        </div>
+        <Card elevation="raised">
+          <CardBody>
+            <RouteMetrics editor={editor} />
+          </CardBody>
+        </Card>
       )}
 
       <RouteEditorMap
