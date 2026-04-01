@@ -31,8 +31,10 @@ import {
   EllipsisVertical,
   LayoutTemplate,
   Pencil,
+  Route,
   Trash2,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { PlannedSession, RunDetails } from '@/api/weekly-plan';
 import { exportPlannedSessionFit } from '@/api/weekly-plan';
 import { createEmptySegment } from '@/api/segment';
@@ -45,6 +47,20 @@ import { SaveAsTemplateDialog } from '../SaveAsTemplateDialog';
 import { StrengthExerciseEditor } from '../StrengthExerciseEditor';
 import { TemplatePickerDialog } from '../TemplatePickerDialog';
 import { SessionReadOnlyView } from './SessionReadOnlyView';
+import { RoundTripModal } from '../route-editor/RoundTripModal';
+
+/** Schätzt die Zieldistanz aus RunDetails — Summe der Segment-Distanzen,
+ *  Fallback auf Dauer × mittlere Pace, Fallback auf 10 km. */
+function estimateDistanceKm(rd: import('@/api/weekly-plan').RunDetails | null): number {
+  if (!rd) return 10;
+  const segTotal = (rd.segments ?? []).reduce((sum, s) => sum + (s.target_distance_km ?? 0), 0);
+  if (segTotal > 0) return Math.round(segTotal * 2) / 2;
+  if (rd.target_duration_minutes) {
+    // Annahme 6 min/km als mittlere Pace
+    return Math.round((rd.target_duration_minutes / 6) * 2) / 2;
+  }
+  return 10;
+}
 
 export interface SessionDetailDialogProps {
   open: boolean;
@@ -70,11 +86,13 @@ export function SessionDetailDialog({
   onRemove,
   onMoveSession,
 }: SessionDetailDialogProps) {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [local, setLocal] = useState<PlannedSession>(session);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showAssignTemplate, setShowAssignTemplate] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [showRoundTripModal, setShowRoundTripModal] = useState(false);
   const [pendingRunType, setPendingRunType] = useState<string | null>(null);
   const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>([]);
 
@@ -285,6 +303,11 @@ export function SessionDetailDialog({
                         Als FIT exportieren
                       </DropdownMenuItem>
                     )}
+                  {session.training_type === 'running' && (
+                    <DropdownMenuItem icon={<Route />} onSelect={() => setShowRoundTripModal(true)}>
+                      Route erstellen
+                    </DropdownMenuItem>
+                  )}
                   {canRemove && (
                     <DropdownMenuItem icon={<Trash2 />} onSelect={handleRemove}>
                       Entfernen
@@ -420,6 +443,28 @@ export function SessionDetailDialog({
           }}
         />
       )}
+
+      <RoundTripModal
+        open={showRoundTripModal}
+        onOpenChange={setShowRoundTripModal}
+        defaultDistanceKm={estimateDistanceKm(session.run_details ?? null)}
+        onSelect={(option) => {
+          setShowRoundTripModal(false);
+          onOpenChange(false);
+          navigate('/plan/routes/new', {
+            state: {
+              routePreview: {
+                name: `${RUN_TYPE_LABELS[session.run_details?.run_type ?? ''] ?? 'Lauf'} ${option.distance_km.toFixed(1)} km`,
+                distance_km: option.distance_km,
+                waypoints: option.points,
+                route_segments: [],
+                linked_session_template_id: 0,
+                pacing_strategy: 'even',
+              },
+            },
+          });
+        }}
+      />
 
       <AlertDialog
         open={pendingRunType !== null}

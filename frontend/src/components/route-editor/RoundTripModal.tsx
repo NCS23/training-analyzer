@@ -26,6 +26,7 @@ interface RoundTripModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (option: RoundTripOption) => void;
+  defaultDistanceKm?: number;
 }
 
 const DEFAULT_CENTER: L.LatLngTuple = [53.55, 9.99];
@@ -224,10 +225,15 @@ function Step2({
   );
 }
 
-export function RoundTripModal({ open, onOpenChange, onSelect }: RoundTripModalProps) {
+export function RoundTripModal({
+  open,
+  onOpenChange,
+  onSelect,
+  defaultDistanceKm,
+}: RoundTripModalProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { mapRef, selectedPos, setPoint } = useRoundTripMap(open, containerRef);
-  const [distanceKm, setDistanceKm] = useState('10');
+  const [distanceKm, setDistanceKm] = useState(String(defaultDistanceKm ?? 10));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [options, setOptions] = useState<RoundTripOption[]>([]);
