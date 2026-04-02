@@ -1,6 +1,7 @@
 """Exercise Library API Endpoints."""
 
 import json
+import logging
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -28,6 +29,7 @@ from app.services.exercise_enrichment import (
     translate_search_query,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
 # Valid exercise categories (matching strength.ExerciseCategory)
@@ -797,6 +799,63 @@ async def delete_exercise(
     else:
         exercise.is_hidden = True
     await db.commit()
+
+
+@router.post("/enrich-all")
+async def enrich_all_exercises(
+    force: bool = False,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Reichert alle unangereicherten Übungen per KI an.
+
+    force=False (Standard): nur Übungen ohne instructions_json.
+    force=True: alle Übungen, auch bereits angereicherte (Re-Enrich).
+    """
+    from app.core.api_key_resolver import resolve_claude_api_key
+    from app.services.exercise_ai_enrichment import generate_exercise_enrichment
+
+    api_key = await resolve_claude_api_key(db)
+
+    if force:
+        result = await db.execute(select(ExerciseModel).where(ExerciseModel.is_hidden.is_not(True)))
+    else:
+        result = await db.execute(
+            select(ExerciseModel).where(
+                ExerciseModel.instructions_json.is_(None),
+                ExerciseModel.is_hidden.is_not(True),
+            )
+        )
+    exercises = result.scalars().all()
+
+    enriched = 0
+    failed = 0
+    for exercise in exercises:
+        try:
+            enrichment = (
+                (
+                    enrich_exercise_model_by_id(str(exercise.exercise_db_id))
+                    if exercise.exercise_db_id
+                    else None
+                )
+                or enrich_exercise_model(str(exercise.name))
+                or _DRILL_ENRICHMENT.get(str(exercise.name))
+                or await generate_exercise_enrichment(
+                    str(exercise.name), str(exercise.category), api_key=api_key, db=db
+                )
+            )
+            if enrichment:
+                _apply_enrichment(exercise, enrichment)
+                enriched += 1
+            else:
+                failed += 1
+        except Exception as e:
+            logger.warning("Bulk-Enrich fehlgeschlagen für '%s': %s", exercise.name, e)
+            failed += 1
+
+    if enriched:
+        await db.commit()
+
+    return {"enriched": enriched, "failed": failed, "total": len(exercises)}
 
 
 @router.post("/{exercise_id}/enrich", response_model=ExerciseResponse)
