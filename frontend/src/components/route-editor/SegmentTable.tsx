@@ -148,31 +148,29 @@ function SegmentRowEdit({
         <span className="text-xs text-[var(--color-text-muted)]">/km</span>
       </div>
 
-      {/* HR */}
+      {/* HR — type="text" mit inputMode="numeric" vermeidet native Browser-Spinner */}
       <div className="flex items-center gap-1">
         <Input
-          placeholder="HR"
-          type="number"
+          placeholder="140"
+          type="text"
+          inputMode="numeric"
           value={segment.target_hr_min ?? ''}
-          onChange={(e) =>
-            onUpdate(index, {
-              ...segment,
-              target_hr_min: e.target.value ? Number(e.target.value) : null,
-            })
-          }
+          onChange={(e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            onUpdate(index, { ...segment, target_hr_min: val ? Number(val) : null });
+          }}
           className="w-14 text-xs"
         />
         <span className="text-xs text-[var(--color-text-muted)]">–</span>
         <Input
-          placeholder="HR"
-          type="number"
+          placeholder="160"
+          type="text"
+          inputMode="numeric"
           value={segment.target_hr_max ?? ''}
-          onChange={(e) =>
-            onUpdate(index, {
-              ...segment,
-              target_hr_max: e.target.value ? Number(e.target.value) : null,
-            })
-          }
+          onChange={(e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            onUpdate(index, { ...segment, target_hr_max: val ? Number(val) : null });
+          }}
           className="w-14 text-xs"
         />
         <span className="text-xs text-[var(--color-text-muted)]">bpm</span>

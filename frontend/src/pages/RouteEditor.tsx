@@ -115,15 +115,6 @@ function SegmentSection({
 
   return (
     <>
-      {segEditor.segments.length > 0 && (
-        <SegmentBar
-          segments={segEditor.segments}
-          totalDistanceKm={distanceKm}
-          onSegmentClick={segEditor.setActiveSegment}
-          activeSegment={segEditor.activeSegment}
-        />
-      )}
-
       <Card elevation="raised">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -153,6 +144,15 @@ function SegmentSection({
             )}
           </div>
         </CardHeader>
+        {/* SegmentBar innerhalb der Card — kein floatendes Element auf dem Hintergrund */}
+        {segEditor.segments.length > 0 && (
+          <SegmentBar
+            segments={segEditor.segments}
+            totalDistanceKm={distanceKm}
+            onSegmentClick={segEditor.setActiveSegment}
+            activeSegment={segEditor.activeSegment}
+          />
+        )}
         <CardBody>
           {segEditor.segments.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)] text-center py-4">
