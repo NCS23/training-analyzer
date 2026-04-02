@@ -107,6 +107,19 @@ export async function enrichExercise(exerciseId: number, exerciseDbId?: string):
   return response.data;
 }
 
+export interface EnrichAllResult {
+  enriched: number;
+  failed: number;
+  total: number;
+}
+
+export async function enrichAllExercises(force = false): Promise<EnrichAllResult> {
+  const response = await apiClient.post<EnrichAllResult>(
+    `/api/v1/exercises/enrich-all?force=${force}`,
+  );
+  return response.data;
+}
+
 // --- Exercise DB Search (free-exercise-db, 873 exercises) ---
 
 export interface ExerciseDbEntry {
