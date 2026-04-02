@@ -400,11 +400,6 @@ export function RouteEditorPage() {
               onDelete={handleDelete}
             />
           )}
-          {isEditing && !isNew && (
-            <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-              Abbrechen
-            </Button>
-          )}
         </header>
       </div>
 
