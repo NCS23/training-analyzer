@@ -15,7 +15,12 @@ router = APIRouter(prefix="/athlete", tags=["athlete"])
 
 async def _get_or_create_athlete(db: AsyncSession, user_id: int) -> AthleteModel:
     """Holt den Athleten oder erstellt einen neuen (Singleton pro User)."""
-    result = await db.execute(select(AthleteModel).where(AthleteModel.user_id == user_id).limit(1))
+    result = await db.execute(
+        select(AthleteModel)
+        .where(AthleteModel.user_id == user_id)
+        .order_by(AthleteModel.id.asc())
+        .limit(1)
+    )
     athlete = result.scalar_one_or_none()
     if not athlete:
         athlete = AthleteModel(user_id=user_id)
