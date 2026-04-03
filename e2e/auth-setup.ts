@@ -5,9 +5,10 @@
 import { chromium } from "@playwright/test";
 import path from "path";
 
+// __dirname-Equivalent: Pfad relativ zu dieser Datei, nicht zu cwd
+// (cwd kann "e2e/" sein wenn working-directory gesetzt ist)
 export const AUTH_STATE_PATH = path.resolve(
-  process.cwd(),
-  "e2e",
+  path.dirname(new URL(import.meta.url).pathname),
   ".auth-state.json",
 );
 
