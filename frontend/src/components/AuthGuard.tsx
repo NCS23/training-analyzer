@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Spinner } from '@nordlig/components';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,18 +10,13 @@ interface AuthGuardProps {
   children: ReactNode;
 }
 
-/**
- * AuthGuard prueft den Auth-Status und zeigt die Login-Seite
- * wenn Auth aktiviert und der User nicht eingeloggt ist.
- *
- * checkStatus() wird automatisch nach Zustand-Rehydrierung
- * aufgerufen (onRehydrateStorage in useAuth).
- *
- * Bei auth_enabled=false wird der Content direkt gerendert.
- */
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { authEnabled, isAuthenticated, isLoading, isPending } = useAuth();
+  const { authEnabled, isAuthenticated, isLoading, isPending, checkStatus } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
 
   if (isLoading) {
     return (
