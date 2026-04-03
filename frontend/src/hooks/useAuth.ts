@@ -79,6 +79,7 @@ async function loadUserAndSetState(set: (state: Partial<AuthState>) => void) {
 function clearAuthState(set: (state: Partial<AuthState>) => void) {
   set({
     isAuthenticated: false,
+    isLoading: false,
     user: null,
     accessToken: null,
     refreshToken: null,
