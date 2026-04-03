@@ -8,7 +8,6 @@ import {
   Breadcrumbs,
   BreadcrumbItem,
   EmptyState,
-  Heading,
 } from '@nordlig/components';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
@@ -179,7 +178,9 @@ export function AdminUsersPage() {
           <BreadcrumbItem isCurrent>Nutzerverwaltung</BreadcrumbItem>
         </Breadcrumbs>
 
-        <Heading level={1}>Nutzerverwaltung</Heading>
+        <h1 className="text-2xl font-semibold text-[var(--color-text-base)] md:text-3xl">
+          Nutzerverwaltung
+        </h1>
       </div>
 
       {isLoading && (
@@ -198,7 +199,7 @@ export function AdminUsersPage() {
       )}
 
       {sortedUsers && sortedUsers.length > 0 && (
-        <Card>
+        <Card elevation="raised">
           <CardBody className="p-0">
             {sortedUsers.map((u) => (
               <UserRow key={u.id} adminUser={u} currentUserId={user?.id ?? -1} />
@@ -208,7 +209,7 @@ export function AdminUsersPage() {
       )}
 
       {sortedUsers && sortedUsers.length === 0 && (
-        <Card>
+        <Card elevation="raised">
           <CardBody>
             <EmptyState title="Keine Nutzer" description="Es sind noch keine Nutzer vorhanden." />
           </CardBody>
