@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   AuthLayout,
   Heading,
+  Text,
   Button,
   InputField,
   PasswordInput,
@@ -119,17 +120,18 @@ export default function Register() {
 
   return (
     <AuthLayout
-      logo={
-        <div className="flex items-center gap-3">
-          <Heading level={3}>Training Analyzer</Heading>
-        </div>
-      }
       footer={
         <div className="flex items-center justify-center gap-4">
           <Link href="/login">Bereits ein Konto? Anmelden</Link>
         </div>
       }
     >
+      <div className="mb-6 flex items-center gap-3">
+        <img src="/logo.svg" alt="" className="h-8 w-auto" />
+        <Text variant="body" as="span" className="text-xl font-bold">
+          Training Analyzer
+        </Text>
+      </div>
       <Heading level={2} className="mb-6">
         Konto erstellen
       </Heading>

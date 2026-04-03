@@ -6,6 +6,7 @@ import {
   Button,
   InputField,
   PasswordInput,
+  Label,
   Separator,
   Spinner,
   Link,
@@ -82,13 +83,16 @@ function EmailLoginForm({
         autoComplete="email"
       />
 
-      <PasswordInput
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Passwort"
-        required
-        autoComplete="current-password"
-      />
+      <div>
+        <Label className="mb-1">Passwort</Label>
+        <PasswordInput
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Passwort"
+          required
+          autoComplete="current-password"
+        />
+      </div>
 
       <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isLoading}>
         {isLoading ? <Spinner size="sm" /> : 'Anmelden'}
@@ -138,17 +142,18 @@ export default function Login() {
 
   return (
     <AuthLayout
-      logo={
-        <div className="flex items-center gap-3">
-          <Heading level={3}>Training Analyzer</Heading>
-        </div>
-      }
       footer={
         <div className="flex items-center justify-center gap-4">
           <Link href="/register">Registrieren</Link>
         </div>
       }
     >
+      <div className="mb-6 flex items-center gap-3">
+        <img src="/logo.svg" alt="" className="h-8 w-auto" />
+        <Text variant="body" as="span" className="text-xl font-bold">
+          Training Analyzer
+        </Text>
+      </div>
       <Heading level={2} className="mb-6">
         Anmelden
       </Heading>

@@ -15,6 +15,7 @@ import {
   Library,
   Bot,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getChatNotifications } from '@/api/chat';
@@ -52,7 +53,7 @@ const navItems: NavItem[] = [
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, logout } = useAuth();
   const [planExpanded, setPlanExpanded] = useState(location.pathname.startsWith('/plan'));
   const [notificationCount, setNotificationCount] = useState(0);
 
@@ -189,18 +190,28 @@ function Sidebar() {
         </>
       )}
 
-      {/* User chip at bottom */}
+      {/* User chip + logout at bottom */}
       <div className="mt-auto border-t border-[var(--color-border-muted)] px-5 py-[var(--spacing-sm)]">
-        <div className="flex items-center gap-[var(--spacing-xs)]">
-          <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-primary)] text-[11.5px] font-semibold text-[var(--color-text-on-primary)]">
-            NC
-          </div>
-          <div>
-            <div className="text-[13px] font-medium text-[var(--color-text-base)]">
-              Nils-Christian
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-[var(--spacing-xs)]">
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-primary)] text-[11.5px] font-semibold text-[var(--color-text-on-primary)]">
+              NC
             </div>
-            <div className="text-[11px] text-[var(--color-text-muted)]">Sub-2h</div>
+            <div>
+              <div className="text-[13px] font-medium text-[var(--color-text-base)]">
+                Nils-Christian
+              </div>
+              <div className="text-[11px] text-[var(--color-text-muted)]">Sub-2h</div>
+            </div>
           </div>
+          <button
+            onClick={() => void logout()}
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-base)] motion-reduce:transition-none"
+            title="Abmelden"
+            aria-label="Abmelden"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </nav>
