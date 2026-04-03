@@ -14,7 +14,9 @@ import {
   ClipboardList,
   Library,
   Bot,
+  ShieldCheck,
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { getChatNotifications } from '@/api/chat';
 import { ChatFAB } from '@/components/ChatFAB';
 import { BottomNav } from './BottomNav';
@@ -50,6 +52,7 @@ const navItems: NavItem[] = [
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useAuth();
   const [planExpanded, setPlanExpanded] = useState(location.pathname.startsWith('/plan'));
   const [notificationCount, setNotificationCount] = useState(0);
 
@@ -162,6 +165,29 @@ function Sidebar() {
           </button>
         );
       })}
+
+      {/* Admin section */}
+      {isAdmin && (
+        <>
+          <div className="px-5 pt-4 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.9px] text-[var(--color-text-disabled)]">
+            Admin
+          </div>
+          <button
+            onClick={() => navigate('/admin/users')}
+            className={`relative flex items-center gap-[var(--spacing-xs)] px-5 py-[9px] text-[13.5px] select-none transition-colors duration-150 motion-reduce:transition-none ${
+              location.pathname.startsWith('/admin/users')
+                ? 'bg-[var(--color-bg-primary-subtle)] font-medium text-[var(--color-text-primary)]'
+                : 'font-normal text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-base)]'
+            }`}
+          >
+            <Icon icon={ShieldCheck} size="sm" />
+            Nutzerverwaltung
+            {location.pathname.startsWith('/admin/users') && (
+              <span className="absolute right-0 top-1 bottom-1 w-[3px] rounded-l-sm bg-[var(--color-interactive-primary)]" />
+            )}
+          </button>
+        </>
+      )}
 
       {/* User chip at bottom */}
       <div className="mt-auto border-t border-[var(--color-border-muted)] px-5 py-[var(--spacing-sm)]">

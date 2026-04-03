@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api_key_resolver import resolve_claude_api_key
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
@@ -24,7 +24,7 @@ router = APIRouter()
 async def upload_workout(
     csv_file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """
     Upload and analyze workout from CSV file
@@ -96,7 +96,7 @@ async def get_workouts(
     limit: int = 20,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """Get list of workouts"""
     from sqlalchemy import select
@@ -133,7 +133,7 @@ async def get_workouts(
 async def get_workout(
     workout_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """Get single workout with AI analysis"""
     from sqlalchemy import select

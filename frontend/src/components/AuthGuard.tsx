@@ -1,7 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Spinner } from '@nordlig/components';
 import { useAuth } from '@/hooks/useAuth';
 import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import PendingApproval from '@/pages/PendingApproval';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -14,7 +17,8 @@ interface AuthGuardProps {
  * Bei auth_enabled=false wird der Content direkt gerendert.
  */
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { authEnabled, isAuthenticated, isLoading, checkStatus } = useAuth();
+  const { authEnabled, isAuthenticated, isLoading, isPending, checkStatus } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     checkStatus();
@@ -28,11 +32,19 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Auth nicht aktiviert oder User eingeloggt → Content anzeigen
-  if (!authEnabled || isAuthenticated) {
-    return <>{children}</>;
+  // Auth aktiviert aber nicht eingeloggt
+  if (authEnabled && !isAuthenticated) {
+    if (location.pathname === '/register') {
+      return <Register />;
+    }
+    return <Login />;
   }
 
-  // Auth aktiviert aber nicht eingeloggt → Login anzeigen
-  return <Login />;
+  // Pending user → Freischaltungs-Bildschirm
+  if (authEnabled && isAuthenticated && isPending) {
+    return <PendingApproval />;
+  }
+
+  // Auth nicht aktiviert oder User eingeloggt → Content anzeigen
+  return <>{children}</>;
 }

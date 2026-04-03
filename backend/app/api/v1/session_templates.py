@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import SessionTemplateModel, UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.session_template import (
@@ -85,7 +85,7 @@ def _model_to_summary(tmpl: SessionTemplateModel) -> SessionTemplateSummary:
 async def list_templates(
     session_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateListResponse:
     """List all session templates."""
     query = (
@@ -116,7 +116,7 @@ async def list_templates(
 async def get_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Get a session template with exercises."""
     result = await db.execute(
@@ -135,7 +135,7 @@ async def get_template(
 async def create_template(
     data: SessionTemplateCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Create a new session template."""
     if data.session_type == "strength" and not data.exercises:
@@ -177,7 +177,7 @@ async def update_template(
     template_id: int,
     data: SessionTemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Update a session template."""
     result = await db.execute(
@@ -208,7 +208,7 @@ async def update_template(
 async def delete_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a session template."""
     result = await db.execute(
@@ -229,7 +229,7 @@ async def delete_template(
 async def duplicate_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Duplicate a session template."""
     result = await db.execute(
@@ -261,7 +261,7 @@ async def duplicate_template(
 async def export_template_fit(
     template_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Export eines Lauf-Templates als FIT-Workout-Datei fuer HealthFit/Garmin."""
     result = await db.execute(
@@ -340,7 +340,7 @@ def _classify_run_type(
 async def create_from_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Create a template from an existing session."""
     result = await db.execute(

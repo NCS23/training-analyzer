@@ -13,6 +13,21 @@ class AppleAuthRequest(BaseModel):
     name: str | None = Field(default=None, description="Name des Users (nur beim ersten Login)")
 
 
+class RegisterRequest(BaseModel):
+    """Request-Body fuer E-Mail/Passwort-Registrierung."""
+
+    email: str
+    password: str = Field(..., min_length=8)
+    name: str | None = None
+
+
+class LoginRequest(BaseModel):
+    """Request-Body fuer E-Mail/Passwort-Login."""
+
+    email: str
+    password: str
+
+
 class TokenResponse(BaseModel):
     """Response mit Access- und Refresh-Token."""
 
@@ -35,6 +50,7 @@ class UserResponse(BaseModel):
     email: str
     name: str | None = None
     avatar_url: str | None = None
+    role: str = "user"
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -48,3 +64,4 @@ class AuthStatusResponse(BaseModel):
     user: UserResponse | None = None
     apple_client_id: str | None = None
     redirect_uri: str | None = None
+    email_auth_enabled: bool = True

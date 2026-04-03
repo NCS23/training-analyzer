@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     SessionTemplateModel,
     TrainingRouteModel,
@@ -137,7 +137,7 @@ def _model_to_summary(route: TrainingRouteModel) -> TrainingRouteSummary:
 async def create_route(
     data: TrainingRouteCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingRouteResponse:
     """Neue Trainingsroute erstellen."""
     # FK-Validierung
@@ -185,7 +185,7 @@ async def list_routes(
     tag: Optional[str] = None,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingRouteListResponse:
     """Alle Trainingsrouten auflisten (ohne Waypoints)."""
     query = (
@@ -236,7 +236,7 @@ async def create_route_from_session(
     session_id: int,
     name: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingRouteResponse:
     """Route aus einer bestehenden Session mit GPS-Daten erstellen."""
     result = await db.execute(
@@ -283,7 +283,7 @@ async def route_from_template(
     template_id: int,
     data: RouteFromTemplateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RouteFromTemplatePreview:
     """Route-Vorschau aus Session Template generieren (#571).
 
@@ -342,7 +342,7 @@ async def route_from_template(
 @router.post("/snap", response_model=RouteSnapResponse)
 async def snap_route(
     data: RouteSnapRequest,
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> RouteSnapResponse:
     """Waypoints auf Wege snappen via OSRM."""
     osrm = OSRMClient()
@@ -368,7 +368,7 @@ async def snap_route(
 @router.post("/generate-round-trip", response_model=RoundTripResponse)
 async def generate_round_trip(
     data: RoundTripRequest,
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> RoundTripResponse:
     """Rundkurs-Vorschläge generieren ab Startpunkt."""
     osrm = OSRMClient()
@@ -404,7 +404,7 @@ async def generate_round_trip(
 async def get_route(
     route_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingRouteResponse:
     """Einzelne Route mit allen Details abrufen."""
     result = await db.execute(
@@ -424,7 +424,7 @@ async def update_route(
     route_id: int,
     data: TrainingRouteUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingRouteResponse:
     """Route teilweise aktualisieren."""
     result = await db.execute(
@@ -465,7 +465,7 @@ async def calculate_pacing(
     route_id: int,
     data: RoutePacingRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RoutePacingResponse:
     """Pacing-Ziele für alle Segmente einer Route berechnen (#548).
 
@@ -505,7 +505,7 @@ async def calculate_pacing(
 async def export_route_gpx(
     route_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Route als GPX-Datei mit Training-Extensions exportieren (#553).
 
@@ -552,7 +552,7 @@ async def export_route_gpx(
 async def export_route_fit(
     route_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Route als FIT Course File exportieren (#577).
 
@@ -593,7 +593,7 @@ async def export_route_fit(
 async def delete_route(
     route_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Route löschen."""
     result = await db.execute(

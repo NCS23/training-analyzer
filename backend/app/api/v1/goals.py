@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     RaceGoalModel,
     TrainingPlanModel,
@@ -63,7 +63,7 @@ async def _goal_to_response(
 @router.get("", response_model=RaceGoalListResponse)
 async def list_goals(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RaceGoalListResponse:
     """Liste aller Wettkampf-Ziele (aktive zuerst, dann nach Datum)."""
     query = (
@@ -85,7 +85,7 @@ async def list_goals(
 async def create_goal(
     body: RaceGoalCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RaceGoalResponse:
     """Erstellt ein neues Wettkampf-Ziel."""
     goal = RaceGoalModel(
@@ -106,7 +106,7 @@ async def create_goal(
 async def get_goal(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RaceGoalResponse:
     """Einzelnes Wettkampf-Ziel."""
     query = select(RaceGoalModel).where(
@@ -124,7 +124,7 @@ async def update_goal(
     goal_id: int,
     body: RaceGoalUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RaceGoalResponse:
     """Aktualisiert ein Wettkampf-Ziel."""
     query = select(RaceGoalModel).where(
@@ -155,7 +155,7 @@ async def update_goal(
 async def delete_goal(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Loescht ein Wettkampf-Ziel."""
     query = select(RaceGoalModel).where(
@@ -198,7 +198,7 @@ def _format_time_seconds(total_sec: int) -> str:
 async def get_goal_progress(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     goal_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> GoalProgressResponse:
     """Berechnet den Fortschritt in Richtung eines Wettkampf-Ziels.
 

@@ -76,6 +76,7 @@ async def find_or_create_user_by_apple(
         name=name,
         apple_sub=apple_sub,
         is_active=True,
+        role="admin" if is_first_real_user else "pending",
         last_login_at=datetime.utcnow(),
     )
     db.add(user)
@@ -96,6 +97,29 @@ async def find_or_create_user_by_apple(
         if fallback_user is not None and fallback_user.id != user.id:
             await reassign_user_data(db, fallback_user.id, user.id)
 
+    return user
+
+
+async def create_user_with_password(
+    db: AsyncSession,
+    *,
+    email: str,
+    password_hash: str,
+    name: str | None = None,
+    role: str = "pending",
+) -> UserModel:
+    """Erstellt einen neuen User mit E-Mail/Passwort-Authentifizierung."""
+    user = UserModel(
+        email=email,
+        password_hash=password_hash,
+        name=name,
+        role=role,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    logger.info("Neuer User erstellt via E-Mail: id=%s, email=%s, role=%s", user.id, email, role)
     return user
 
 

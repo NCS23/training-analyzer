@@ -29,6 +29,8 @@ class UserModel(Base):
     apple_sub: Mapped[str | None] = mapped_column(String(255), unique=True, default=None)
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, default=None)
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    role: Mapped[str] = mapped_column(String(20), server_default="pending", default="pending")
+    password_hash: Mapped[str | None] = mapped_column(String(255), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
