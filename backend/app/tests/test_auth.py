@@ -1,6 +1,6 @@
 """Tests fuer Auth: Security Utils, User Service, Auth Endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -57,7 +57,7 @@ class TestSecurityUtils:
 
     def test_refresh_token_expires_at_in_future(self) -> None:
         expires = refresh_token_expires_at()
-        assert expires > datetime.now(timezone.utc)
+        assert expires > datetime.utcnow()
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +203,7 @@ class TestAuthEndpoints:
         refresh_entry = RefreshTokenModel(
             user_id=user.id,
             token_hash=hash_token(raw_token),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.utcnow() + timedelta(days=30),
         )
         db_session.add(refresh_entry)
         await db_session.commit()

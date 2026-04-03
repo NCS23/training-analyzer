@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from jose import JWTError, jwt  # type: ignore[import-untyped]
 
@@ -11,7 +11,7 @@ from app.core.config import settings
 
 def create_access_token(user_id: int) -> str:
     """Erstellt ein kurzlebiges Access-Token (JWT) fuer den gegebenen User."""
-    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    expires = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {"sub": str(user_id), "exp": expires, "type": "access"}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
@@ -42,4 +42,4 @@ def decode_access_token(token: str) -> int | None:
 
 def refresh_token_expires_at() -> datetime:
     """Berechnet den Ablaufzeitpunkt fuer ein neues Refresh-Token."""
-    return datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    return datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
