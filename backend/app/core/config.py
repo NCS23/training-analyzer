@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     apple_team_id: str = ""
     apple_key_id: str = ""
     apple_private_key: str = ""
+    apple_private_key_b64: str = ""  # Base64-kodiert (fuer .env Kompatibilitaet)
+
+    @property
+    def apple_private_key_resolved(self) -> str:
+        """Gibt den Apple Private Key zurueck (direkt oder Base64-dekodiert)."""
+        if self.apple_private_key:
+            return self.apple_private_key
+        if self.apple_private_key_b64:
+            import base64
+
+            return base64.b64decode(self.apple_private_key_b64).decode("utf-8")
+        return ""
 
     # Auth
     auth_enabled: bool = False
