@@ -279,18 +279,17 @@ async def get_me(
 async def debug_users(db: AsyncSession = Depends(get_db)) -> list[dict]:
     """TEMPORARY: Debug endpoint to check user roles. Remove after fixing."""
     from sqlalchemy import select
+
     result = await db.execute(select(UserModel).order_by(UserModel.id))
     users = result.scalars().all()
-    return [
-        {"id": u.id, "email": u.email, "role": u.role, "is_active": u.is_active}
-        for u in users
-    ]
+    return [{"id": u.id, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
 
 
 @router.post("/debug/promote/{user_id}")
 async def debug_promote(user_id: int, db: AsyncSession = Depends(get_db)) -> dict:
     """TEMPORARY: Promote user to admin. Remove after fixing."""
     from sqlalchemy import select
+
     result = await db.execute(select(UserModel).where(UserModel.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
