@@ -170,14 +170,29 @@ async def register(
     else:
         role = "pending"
 
-    user = await create_user_with_password(
-        db,
-        email=body.email,
-        password_hash=hash_password(body.password),
-        name=body.name,
-        role=role,
-    )
-    return await _create_token_pair(db, user.id)
+    import logging
+
+    logger = logging.getLogger(__name__)
+    try:
+        pw_hash = hash_password(body.password)
+    except Exception as e:
+        logger.exception("Passwort-Hashing fehlgeschlagen: %s", e)
+        raise HTTPException(status_code=500, detail=f"Registrierung fehlgeschlagen: {e}") from e
+
+    try:
+        user = await create_user_with_password(
+            db,
+            email=body.email,
+            password_hash=pw_hash,
+            name=body.name,
+            role=role,
+        )
+        return await _create_token_pair(db, user.id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("User-Erstellung fehlgeschlagen: %s", e)
+        raise HTTPException(status_code=500, detail=f"Registrierung fehlgeschlagen: {e}") from e
 
 
 @router.post("/login", response_model=TokenResponse)
