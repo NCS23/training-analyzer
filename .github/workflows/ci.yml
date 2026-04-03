@@ -379,7 +379,7 @@ jobs:
         id: e2e
         working-directory: e2e
         env:
-          BASE_URL: http://training.89.167.78.223.sslip.io
+          BASE_URL: https://training.nordliggrad.com
         run: npx playwright test
 
       - name: Upload Test Report
