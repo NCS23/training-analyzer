@@ -1,7 +1,7 @@
 """User CRUD-Operationen und Apple-Login-Integration."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +52,7 @@ async def find_or_create_user_by_apple(
     # 1. Suche nach apple_sub
     user = await find_user_by_apple_sub(db, apple_sub)
     if user is not None:
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.utcnow()
         await db.commit()
         return user
 
@@ -60,7 +60,7 @@ async def find_or_create_user_by_apple(
     user = await find_user_by_email(db, email)
     if user is not None:
         user.apple_sub = apple_sub
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.utcnow()
         if name and not user.name:
             user.name = name
         await db.commit()
@@ -76,7 +76,7 @@ async def find_or_create_user_by_apple(
         name=name,
         apple_sub=apple_sub,
         is_active=True,
-        last_login_at=datetime.now(timezone.utc),
+        last_login_at=datetime.utcnow(),
     )
     db.add(user)
     await db.commit()
