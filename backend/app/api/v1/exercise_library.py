@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import ExerciseModel, UserModel
 from app.infrastructure.database.session import get_db
 from app.models.exercise_library import (
@@ -546,7 +546,7 @@ async def list_exercises(
     search: Optional[str] = Query(None, description="Suche nach Name"),
     favorites_only: bool = Query(False, description="Nur Favoriten"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ExerciseListResponse:
     """Liste aller Übungen mit Filtern."""
     await _ensure_seed_data(db)
@@ -587,7 +587,7 @@ async def search_exercise_db(
     equipment: Optional[str] = Query(None, description="Filter nach Equipment"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ExerciseDbSearchResponse:
     """Durchsucht die free-exercise-db (873 Übungen).
 
@@ -652,7 +652,7 @@ async def search_exercise_db(
 async def get_exercise(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ExerciseResponse:
     """Einzelne Übung mit allen Details."""
     result = await db.execute(
@@ -672,7 +672,7 @@ async def get_exercise(
 async def create_exercise(
     body: ExerciseCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ExerciseResponse:
     """Erstellt eine neue benutzerdefinierte Übung."""
     if body.category not in VALID_CATEGORIES:
@@ -717,7 +717,7 @@ async def update_exercise(
     exercise_id: int,
     body: ExerciseUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ExerciseResponse:
     """Aktualisiert eine Übung (Name, Kategorie, Favorit, Anleitung, Muskeln)."""
     result = await db.execute(
@@ -781,7 +781,7 @@ async def update_exercise(
 async def toggle_favorite(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ExerciseResponse:
     """Togglet den Favoriten-Status einer Übung."""
     result = await db.execute(
@@ -805,7 +805,7 @@ async def toggle_favorite(
 async def delete_exercise(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> None:
     """Löscht eine Übung aus der Bibliothek.
 
@@ -834,7 +834,7 @@ async def delete_exercise(
 async def enrich_all_exercises(
     force: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> dict:
     """Reichert alle unangereicherten Übungen per KI an.
 
@@ -893,7 +893,7 @@ async def enrich_exercise(
     exercise_id: int,
     body: Optional[EnrichRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ExerciseResponse:
     """Reichert eine Übung mit free-exercise-db Daten an.
 
@@ -948,7 +948,7 @@ async def upload_exercise_images(
     image_0: UploadFile = File(..., description="Startposition (Pflicht)"),
     image_1: UploadFile | None = File(None, description="Endposition (Optional)"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ExerciseResponse:
     """Lädt Bilder für eine Custom-Übung hoch (Start- und optional Endposition)."""
     result = await db.execute(
@@ -997,7 +997,7 @@ async def upload_exercise_images(
 async def delete_exercise_images(
     exercise_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> None:
     """Löscht alle hochgeladenen Bilder einer Custom-Übung."""
     result = await db.execute(

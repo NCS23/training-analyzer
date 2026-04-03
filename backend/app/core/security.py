@@ -1,12 +1,25 @@
-"""JWT-Utilities fuer Access- und Refresh-Tokens."""
+"""JWT-Utilities fuer Access- und Refresh-Tokens, Passwort-Hashing."""
 
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 
 from jose import JWTError, jwt  # type: ignore[import-untyped]
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 from app.core.config import settings
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    """Hasht ein Passwort mit bcrypt."""
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifiziert ein Passwort gegen einen bcrypt-Hash."""
+    return pwd_context.verify(plain_password, hashed_password)  # type: ignore[no-any-return]
 
 
 def create_access_token(user_id: int) -> str:

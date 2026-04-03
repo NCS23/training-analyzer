@@ -36,7 +36,12 @@ function processQueue(error: unknown, token: string | null) {
 
 function isAuthEndpoint(url?: string): boolean {
   if (!url) return false;
-  return url.includes('/auth/refresh') || url.includes('/auth/apple');
+  return (
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/apple') ||
+    url.includes('/auth/login') ||
+    url.includes('/auth/register')
+  );
 }
 
 function shouldAttemptRefresh(error: AxiosError): boolean {

@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.athlete import _get_or_create_athlete
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import ThresholdTestModel, UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.threshold_test import (
@@ -39,7 +39,7 @@ def _build_response(test: ThresholdTestModel) -> ThresholdTestResponse:
 @router.get("", response_model=ThresholdTestListResponse)
 async def list_tests(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ThresholdTestListResponse:
     """Gibt alle Schwellentests zurück (neueste zuerst)."""
     result = await db.execute(
@@ -57,7 +57,7 @@ async def list_tests(
 @router.get("/latest", response_model=ThresholdTestResponse)
 async def get_latest_test(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ThresholdTestResponse:
     """Gibt den neuesten Schwellentest zurück."""
     result = await db.execute(
@@ -76,7 +76,7 @@ async def get_latest_test(
 async def create_test(
     body: ThresholdTestCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ThresholdTestResponse:
     """Erstellt einen neuen Schwellentest und aktualisiert das Athletenprofil."""
     test = ThresholdTestModel(
@@ -105,7 +105,7 @@ async def create_test(
 async def analyze_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ThresholdAnalysisResponse:
     """Berechnet LTHR aus einer Session (Ø HR der letzten 20 Min).
 
@@ -191,7 +191,7 @@ def _extract_avg_pace(workout: WorkoutModel) -> float | None:
 async def delete_test(
     test_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Löscht einen Schwellentest."""
     result = await db.execute(

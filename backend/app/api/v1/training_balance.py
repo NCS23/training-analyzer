@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.training_balance import (
@@ -43,7 +43,7 @@ CATEGORY_TO_MUSCLE = {
 async def get_training_balance(
     days: int = Query(default=28, ge=7, le=365),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingBalanceResponse:
     """Analyse the training balance over a given period."""
     cutoff = datetime.utcnow() - timedelta(days=days)

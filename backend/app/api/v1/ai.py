@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api_key_resolver import resolve_claude_api_key
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
@@ -81,7 +81,7 @@ async def get_providers():
 async def chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ):
     """Chat with AI trainer (User-Key → .env Fallback)."""
     try:

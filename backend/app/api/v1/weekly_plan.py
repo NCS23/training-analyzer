@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.training_plans import log_plan_change
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
     PlannedSessionModel,
@@ -285,7 +285,7 @@ def _build_entry_from_db(
 async def get_weekly_plan(
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyPlanResponse:
     """Get the weekly plan for a given week (defaults to current week)."""
     if week_start is None:
@@ -570,7 +570,7 @@ async def _auto_sync_week_to_plan(
 async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: WeeklyPlanSaveRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyPlanResponse:
     """Save/update the weekly plan. Upserts all provided day entries."""
     week_start = _monday_of_week(data.week_start)
@@ -717,7 +717,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refacto
 async def clear_weekly_plan(
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict[str, bool]:
     """Clear all entries for a given week."""
     if week_start is None:
@@ -804,7 +804,7 @@ def _determine_status(  # noqa: PLR0911  # TODO: E16 Refactoring
 async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ComplianceResponse:
     """Get compliance tracking for a given week (plan vs. actual sessions)."""
     if week_start is None:
@@ -1025,7 +1025,7 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
 async def get_sessions_for_date(
     target_date: date = Query(..., alias="date"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> list[PlannedSessionOption]:
     """Get planned sessions for a specific date (for upload linking)."""
     week_start = _monday_of_week(target_date)
@@ -1078,7 +1078,7 @@ async def get_sessions_for_date(
 async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: SyncToPlanRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SyncToPlanResponse:
     """Sync edited weekly plan entries back to training plan phase template."""
     week_start = _monday_of_week(data.week_start)
@@ -1279,7 +1279,7 @@ async def _find_undoable_entry(
 async def get_undo_status(
     week_start: date = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> UndoStatusResponse:
     """Check if undo is available for a given week."""
     week_start = _monday_of_week(week_start)
@@ -1302,7 +1302,7 @@ async def get_undo_status(
 async def undo_weekly_plan(
     week_start: date = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> UndoResponse:
     """Undo the most recent change to a weekly plan (within 24h window)."""
     week_start = _monday_of_week(week_start)
@@ -1415,7 +1415,7 @@ async def undo_weekly_plan(
 async def apply_recommendations(
     data: ApplyRecommendationsRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> ApplyRecommendationsResponse:
     """Konvertiert KI-Review-Empfehlungen in Plan-Sessions für die Folgewoche."""
     from app.services.recommendation_to_plan_service import (
@@ -1440,7 +1440,7 @@ async def apply_recommendations(
 async def export_planned_session_fit(
     entry_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Export eines geplanten Lauftrainings als FIT-Workout-Datei.
 

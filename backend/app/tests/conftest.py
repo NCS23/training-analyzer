@@ -32,7 +32,9 @@ async def setup_db():
     # Pre-create the fallback user (same as get_current_user with auth_enabled=False).
     # Tests that create data directly in the DB brauchen diesen user_id.
     async with TestSessionLocal() as session:
-        user = UserModel(email="local@training-analyzer.app", name="Test User", is_active=True)
+        user = UserModel(
+            email="local@training-analyzer.app", name="Test User", is_active=True, role="user"
+        )
         session.add(user)
         await session.commit()
 

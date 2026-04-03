@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     PacingStrategyModel,
     PlannedSessionModel,
@@ -57,7 +57,7 @@ _weather_client = ExternalAPIClient(
 async def generate_pacing(
     body: PacingRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PacingResponse:
     """Generiert eine Pacing-Strategie basierend auf Zielzeit, Hoehenprofil und Wetter."""
     # Wenn goal_id angegeben: Distanz und Zielzeit aus dem Goal laden
@@ -183,7 +183,7 @@ async def parse_gpx(file: UploadFile) -> list[ElevationSegment]:
 async def export_pacing_fit(
     body: PacingRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Exportiert eine Pacing-Strategie als FIT-Workout-Datei fuer GPS-Uhren."""
     # Goal-ID Aufloesung (wie bei /generate)
@@ -227,7 +227,7 @@ async def export_pacing_fit(
 async def transfer_pacing_to_weekly_plan(
     body: PacingToWeeklyPlanRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PacingToWeeklyPlanResponse:
     """Uebernimmt eine Pacing-Strategie als Wettkampf-Session in den Wochenplan."""
     # 1) Goal laden → race_date
@@ -412,7 +412,7 @@ def _db_to_response(model: PacingStrategyModel) -> SavedPacingStrategyResponse:
 async def list_pacing_strategies(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SavedPacingStrategyListResponse:
     """Listet alle gespeicherten Pacing-Strategien fuer ein Ziel."""
     result = await db.execute(
@@ -435,7 +435,7 @@ async def get_pacing_strategy(
     goal_id: int,
     strategy_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SavedPacingStrategyResponse:
     """Gibt eine einzelne gespeicherte Pacing-Strategie zurueck."""
     result = await db.execute(
@@ -456,7 +456,7 @@ async def delete_pacing_strategy(
     goal_id: int,
     strategy_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Loescht eine gespeicherte Pacing-Strategie."""
     result = await db.execute(

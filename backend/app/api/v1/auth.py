@@ -1,4 +1,4 @@
-"""Auth-Router: Apple Sign-In, Token-Refresh, Status, Logout."""
+"""Auth-Router: Apple Sign-In, E-Mail/Passwort, Token-Refresh, Status, Logout."""
 
 import logging
 from datetime import datetime, timezone
@@ -13,20 +13,29 @@ from app.core.dependencies import get_current_user
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    hash_password,
     hash_token,
     refresh_token_expires_at,
+    verify_password,
 )
 from app.infrastructure.database.models import RefreshTokenModel, UserModel
 from app.infrastructure.database.session import get_db
 from app.models.auth import (
     AppleAuthRequest,
     AuthStatusResponse,
+    LoginRequest,
     RefreshRequest,
+    RegisterRequest,
     TokenResponse,
     UserResponse,
 )
 from app.services.apple_auth_service import validate_apple_id_token
-from app.services.user_service import find_or_create_user_by_apple
+from app.services.user_service import (
+    _count_real_users,
+    create_user_with_password,
+    find_or_create_user_by_apple,
+    find_user_by_email,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +145,63 @@ async def apple_callback(
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
+@router.post("/register", response_model=TokenResponse)
+async def register(
+    body: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Registriert einen neuen User mit E-Mail und Passwort."""
+    existing = await find_user_by_email(db, body.email)
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="E-Mail-Adresse bereits registriert",
+        )
+
+    is_first = await _count_real_users(db) == 0
+    role = "admin" if is_first else "pending"
+
+    user = await create_user_with_password(
+        db,
+        email=body.email,
+        password_hash=hash_password(body.password),
+        name=body.name,
+        role=role,
+    )
+    return await _create_token_pair(db, user.id)
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    body: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Authentifiziert einen User mit E-Mail und Passwort."""
+    user = await find_user_by_email(db, body.email)
+    if user is None or user.password_hash is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ungültige E-Mail oder Passwort",
+        )
+
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ungültige E-Mail oder Passwort",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Konto deaktiviert",
+        )
+
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
+
+    return await _create_token_pair(db, user.id)
+
+
 @router.get("/status", response_model=AuthStatusResponse)
 async def auth_status(request: Request) -> AuthStatusResponse:
     """Gibt den Auth-Status zurueck (fuer App-Initialisierung)."""
@@ -149,6 +215,7 @@ async def auth_status(request: Request) -> AuthStatusResponse:
         redirect_uri=f"{scheme}://{host}/api/v1/auth/apple/callback"
         if settings.auth_enabled
         else None,
+        email_auth_enabled=True,
     )
 
 

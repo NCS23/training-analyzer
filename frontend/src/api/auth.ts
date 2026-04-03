@@ -12,6 +12,7 @@ export interface UserResponse {
   email: string;
   name: string | null;
   avatar_url: string | null;
+  role: string;
   created_at: string;
 }
 
@@ -21,6 +22,7 @@ export interface AuthStatusResponse {
   user: UserResponse | null;
   apple_client_id: string | null;
   redirect_uri: string | null;
+  email_auth_enabled?: boolean;
 }
 
 /** Apple Sign-In: ID-Token gegen Access/Refresh-Token tauschen. */
@@ -61,5 +63,28 @@ export async function logout(refreshToken: string): Promise<void> {
 /** Eigene User-Daten abrufen. */
 export async function getMe(): Promise<UserResponse> {
   const { data } = await apiClient.get<UserResponse>('/api/v1/auth/me');
+  return data;
+}
+
+/** Mit E-Mail und Passwort registrieren. */
+export async function registerWithEmail(
+  email: string,
+  password: string,
+  name?: string,
+): Promise<TokenResponse> {
+  const { data } = await apiClient.post<TokenResponse>('/api/v1/auth/register', {
+    email,
+    password,
+    name,
+  });
+  return data;
+}
+
+/** Mit E-Mail und Passwort einloggen. */
+export async function loginWithEmail(email: string, password: string): Promise<TokenResponse> {
+  const { data } = await apiClient.post<TokenResponse>('/api/v1/auth/login', {
+    email,
+    password,
+  });
   return data;
 }

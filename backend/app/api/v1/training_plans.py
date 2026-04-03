@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     ExerciseModel,
     PlanChangeLogModel,
@@ -352,7 +352,7 @@ def _changelog_to_response(entry: PlanChangeLogModel) -> PlanChangeLogEntry:
 async def list_plans(
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanListResponse:
     """List all training plans, optionally filtered by status."""
     query = (
@@ -381,7 +381,7 @@ async def list_plans(
 async def create_plan(
     data: TrainingPlanCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Create a new training plan with optional phases and auto-create goal."""
     if data.end_date <= data.start_date:
@@ -813,7 +813,7 @@ async def get_template_yaml() -> FileResponse:
 async def validate_yaml_endpoint(
     yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> YamlValidationResult:
     """Validate a YAML training plan file and return structured errors/warnings."""
     if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
@@ -888,7 +888,7 @@ async def import_plan_from_yaml(
         description='JSON mapping {"OldName": "ExistingName"} for exercise name substitutions',
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Import a training plan from a YAML file."""
     if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
@@ -987,7 +987,7 @@ async def import_plan_from_yaml(
 async def get_generation_preview(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> GenerationPreviewResponse:
     """Preview what re-generation would affect: count edited vs unedited weeks."""
     result = await db.execute(
@@ -1183,7 +1183,7 @@ async def generate_plan_weeks(
     plan_id: int,
     strategy: str = "all",
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> GenerateWeeklyPlansResponse:
     """Generate weekly plans from a training plan's phases.
 
@@ -1238,7 +1238,7 @@ async def generate_plan_weeks(
 async def get_plan(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Get a training plan with its phases and goal summary."""
     result = await db.execute(
@@ -1258,7 +1258,7 @@ async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     plan_id: int,
     data: TrainingPlanUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Update a training plan."""
     result = await db.execute(
@@ -1435,7 +1435,7 @@ async def delete_plan(
     plan_id: int,
     include_weekly_plans: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a training plan and cascade-delete its phases.
 
@@ -1516,7 +1516,7 @@ async def delete_plan(
 async def list_phases(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> list[TrainingPhaseResponse]:
     """List all phases of a training plan."""
     # Verify plan exists and belongs to user
@@ -1546,7 +1546,7 @@ async def create_phase(
     plan_id: int,
     data: TrainingPhaseCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPhaseResponse:
     """Add a phase to a training plan."""
     plan_result = await db.execute(
@@ -1594,7 +1594,7 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     phase_id: int,
     data: TrainingPhaseUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPhaseResponse:
     """Update a phase in a training plan."""
     # Verify plan belongs to user
@@ -1798,7 +1798,7 @@ async def delete_phase(
     plan_id: int,
     phase_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a phase from a training plan."""
     # Verify plan belongs to user
@@ -1847,7 +1847,7 @@ async def get_changelog(
     offset: int = 0,
     category: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PlanChangeLogResponse:
     """Get the change log for a training plan (paginated, newest first)."""
     # Verify plan exists and belongs to user
@@ -1891,7 +1891,7 @@ async def update_changelog_reason(
     log_id: int,
     data: PlanChangeLogReasonUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PlanChangeLogEntry:
     """Set or update the reason on a changelog entry."""
     # Verify plan belongs to user

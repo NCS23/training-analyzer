@@ -9,7 +9,7 @@ from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.strength import (
@@ -103,7 +103,7 @@ async def create_strength_session(  # noqa: PLR0913
         None, description="Manuelle Zuordnung zu geplanter Session"
     ),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Erstellt eine neue Krafttraining-Session.
 
@@ -215,7 +215,7 @@ async def update_strength_exercises(
     session_id: int,
     exercises_json: str = Form(..., description="JSON-Array der Übungen"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Aktualisiert die Übungen einer bestehenden Krafttraining-Session."""
     from pydantic import ValidationError
@@ -276,7 +276,7 @@ async def update_strength_exercises(
 @router.get("/last-complete")
 async def get_last_complete_session(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Gibt die letzte vollstaendige Strength-Session zurueck (fuer Clone + Tonnage-Delta)."""
     query = (
@@ -316,7 +316,7 @@ async def get_last_complete_session(
 async def get_last_exercises(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Gibt die letzten Sätze einer Übung zurück (Quick-Add)."""
     query = (
@@ -390,7 +390,7 @@ async def _load_strength_sessions(db: AsyncSession, user_id: int | None = None) 
 @router.get("/exercises")
 async def list_exercises(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Liste aller verwendeten Übungen mit Metadaten."""
     from app.services.progression_tracker import get_all_exercise_names
@@ -404,7 +404,7 @@ async def list_exercises(
 async def get_exercise_progression(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Progressionsverlauf einer Übung über die Zeit (typ-differenziert)."""
     from app.services.progression_tracker import get_exercise_history
@@ -476,7 +476,7 @@ async def get_exercise_progression(
 async def get_personal_records(
     session_id: Optional[int] = Query(None, description="Nur PRs dieser Session"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Persönliche Bestleistungen (PRs) pro Übung."""
     from app.services.progression_tracker import detect_personal_records
@@ -495,7 +495,7 @@ async def get_personal_records(
 async def get_tonnage_trend(
     days: int = Query(default=90, ge=7, le=365, description="Zeitraum in Tagen"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Woechentlicher Tonnage-Trend fuer Krafttraining."""
     from app.services.progression_tracker import calculate_weekly_tonnage
@@ -559,7 +559,7 @@ async def get_tonnage_trend(
 async def get_category_tonnage_trend(
     days: int = Query(default=90, ge=7, le=365, description="Zeitraum in Tagen"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Woechentliche Tonnage nach Kategorie (push/pull/legs/core/...)."""
     from app.services.progression_tracker import calculate_weekly_category_tonnage

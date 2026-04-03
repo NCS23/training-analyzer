@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.streak import StreakResponse
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/streak", tags=["analytics"])
 @router.get("", response_model=StreakResponse)
 async def get_streak(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> StreakResponse:
     """Get training streak statistics with 90-day calendar heatmap."""
     today = date.today()

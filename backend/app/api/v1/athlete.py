@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import AthleteModel, ThresholdTestModel, UserModel
 from app.infrastructure.database.session import get_db
 from app.models.athlete import AthleteSettingsRequest, AthleteSettingsResponse
@@ -63,7 +63,7 @@ async def _build_settings_response(
 @router.get("/settings", response_model=AthleteSettingsResponse)
 async def get_settings(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> AthleteSettingsResponse:
     """Gibt aktuelle Athleten-Einstellungen zurück."""
     athlete = await _get_or_create_athlete(db, current_user.id)
@@ -74,7 +74,7 @@ async def get_settings(
 async def update_settings(
     body: AthleteSettingsRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> AthleteSettingsResponse:
     """Aktualisiert Athleten-Einstellungen (Ruhe-HR, Max-HR)."""
     athlete = await _get_or_create_athlete(db, current_user.id)

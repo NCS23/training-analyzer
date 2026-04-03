@@ -116,6 +116,9 @@ const RoutesPage = lazy(() => import('./pages/Routes').then((m) => ({ default: m
 const RouteEditorPage = lazy(() =>
   import('./pages/RouteEditor').then((m) => ({ default: m.RouteEditorPage })),
 );
+const AdminUsersPage = lazy(() =>
+  import('./pages/AdminUsers').then((m) => ({ default: m.AdminUsersPage })),
+);
 const NotFoundPage = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -170,6 +173,9 @@ function App() {
                       <Route path="routes/new" element={<RouteEditorPage />} />
                       <Route path="routes/:routeId" element={<RouteEditorPage />} />
                     </Route>
+
+                    {/* Admin */}
+                    <Route path="/admin/users" element={<AdminUsersPage />} />
 
                     {/* Profil (formerly Einstellungen > Athletenprofil) */}
                     <Route path="/profile" element={<AthleteProfilePage />} />

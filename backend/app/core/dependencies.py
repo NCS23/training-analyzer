@@ -31,7 +31,9 @@ async def _ensure_default_user(db: AsyncSession) -> UserModel:
     result = await db.execute(select(UserModel).where(UserModel.email == DEFAULT_USER_EMAIL))
     user = result.scalar_one_or_none()
     if user is None:
-        user = UserModel(email=DEFAULT_USER_EMAIL, name="Lokaler Benutzer", is_active=True)
+        user = UserModel(
+            email=DEFAULT_USER_EMAIL, name="Lokaler Benutzer", is_active=True, role="user"
+        )
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -80,6 +82,34 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Benutzer nicht gefunden oder deaktiviert",
+        )
+    return user
+
+
+async def get_current_active_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> UserModel:
+    """Wie get_current_user, aber lehnt pending-User mit 403 ab."""
+    user = await get_current_user(credentials, db)
+    if user.role == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Konto wartet auf Freischaltung",
+        )
+    return user
+
+
+async def get_current_admin(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> UserModel:
+    """Erfordert Admin-Rolle."""
+    user = await get_current_user(credentials, db)
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin-Berechtigung erforderlich",
         )
     return user
 

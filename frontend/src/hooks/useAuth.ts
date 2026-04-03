@@ -1,7 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UserResponse } from '@/api/auth';
-import { appleSignIn, getAuthStatus, getMe, logout as apiLogout, refreshTokens } from '@/api/auth';
+import {
+  appleSignIn,
+  getAuthStatus,
+  getMe,
+  loginWithEmail,
+  logout as apiLogout,
+  refreshTokens,
+  registerWithEmail,
+} from '@/api/auth';
 import { apiClient } from '@/api/client';
 
 interface AuthState {
@@ -23,17 +31,61 @@ interface AuthState {
   appleClientId: string | null;
   /** Apple Redirect URI vom Backend (fuer SDK-Init). */
   appleRedirectUri: string | null;
+  /** Ob E-Mail-Auth im Backend aktiviert ist. */
+  emailAuthEnabled: boolean;
 
   /** Auth-Status vom Backend laden. */
   checkStatus: () => Promise<void>;
   /** Apple Sign-In durchfuehren. */
   signInWithApple: (idToken: string, authCode: string, name?: string) => Promise<void>;
+  /** Mit E-Mail und Passwort einloggen. */
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Registrierung mit E-Mail und Passwort. */
+  register: (email: string, password: string, name?: string) => Promise<void>;
   /** Ausloggen. */
   logout: () => Promise<void>;
   /** Access-Token erneuern. */
   refresh: () => Promise<boolean>;
   /** Fehler zuruecksetzen. */
   clearError: () => void;
+  /** Ob der User die Rolle 'pending' hat. */
+  isPending: boolean;
+  /** Ob der User die Rolle 'admin' hat. */
+  isAdmin: boolean;
+}
+
+/** Setzt Tokens im Store und im API-Client. */
+function applyTokens(
+  set: (state: Partial<AuthState>) => void,
+  tokens: { access_token: string; refresh_token: string },
+) {
+  set({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+  apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokens.access_token}`;
+}
+
+/** Laedt den User und setzt den authentifizierten Zustand. */
+async function loadUserAndSetState(set: (state: Partial<AuthState>) => void) {
+  const user = await getMe();
+  set({
+    isAuthenticated: true,
+    user,
+    isPending: user.role === 'pending',
+    isAdmin: user.role === 'admin',
+    isLoading: false,
+  });
+}
+
+/** Setzt den abgemeldeten Zustand. */
+function clearAuthState(set: (state: Partial<AuthState>) => void) {
+  set({
+    isAuthenticated: false,
+    user: null,
+    accessToken: null,
+    refreshToken: null,
+    isPending: false,
+    isAdmin: false,
+  });
+  delete apiClient.defaults.headers.common['Authorization'];
 }
 
 export const useAuth = create<AuthState>()(
@@ -48,6 +100,9 @@ export const useAuth = create<AuthState>()(
       error: null,
       appleClientId: null,
       appleRedirectUri: null,
+      emailAuthEnabled: false,
+      isPending: false,
+      isAdmin: false,
 
       checkStatus: async () => {
         set({ isLoading: true, error: null });
@@ -57,12 +112,11 @@ export const useAuth = create<AuthState>()(
             authEnabled: status.auth_enabled,
             appleClientId: status.apple_client_id ?? null,
             appleRedirectUri: status.redirect_uri ?? null,
+            emailAuthEnabled: status.email_auth_enabled ?? false,
           });
 
           if (!status.auth_enabled) {
-            // Kein Auth → Default-User laden
-            const user = await getMe();
-            set({ isAuthenticated: true, user, isLoading: false });
+            await loadUserAndSetState(set);
             return;
           }
 
@@ -71,8 +125,7 @@ export const useAuth = create<AuthState>()(
           if (refreshToken) {
             const success = await get().refresh();
             if (success) {
-              const user = await getMe();
-              set({ isAuthenticated: true, user, isLoading: false });
+              await loadUserAndSetState(set);
               return;
             }
           }
@@ -87,15 +140,32 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const tokens = await appleSignIn(idToken, authCode, name);
-          set({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-
-          // Auth-Header setzen
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokens.access_token}`;
-
-          const user = await getMe();
-          set({ isAuthenticated: true, user, isLoading: false });
+          applyTokens(set, tokens);
+          await loadUserAndSetState(set);
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Login fehlgeschlagen';
+          set({ error: message, isLoading: false });
+        }
+      },
+
+      signInWithEmail: async (email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          applyTokens(set, await loginWithEmail(email, password));
+          await loadUserAndSetState(set);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen';
+          set({ error: message, isLoading: false });
+        }
+      },
+
+      register: async (email, password, name) => {
+        set({ isLoading: true, error: null });
+        try {
+          applyTokens(set, await registerWithEmail(email, password, name));
+          await loadUserAndSetState(set);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Registrierung fehlgeschlagen';
           set({ error: message, isLoading: false });
         }
       },
@@ -109,13 +179,7 @@ export const useAuth = create<AuthState>()(
             // Ignorieren — Token wird lokal geloescht
           }
         }
-        delete apiClient.defaults.headers.common['Authorization'];
-        set({
-          isAuthenticated: false,
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-        });
+        clearAuthState(set);
       },
 
       refresh: async () => {
@@ -124,18 +188,10 @@ export const useAuth = create<AuthState>()(
 
         try {
           const tokens = await refreshTokens(refreshToken);
-          set({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokens.access_token}`;
+          applyTokens(set, tokens);
           return true;
         } catch {
-          // Refresh fehlgeschlagen → ausloggen
-          set({
-            isAuthenticated: false,
-            user: null,
-            accessToken: null,
-            refreshToken: null,
-          });
-          delete apiClient.defaults.headers.common['Authorization'];
+          clearAuthState(set);
           return false;
         }
       },
