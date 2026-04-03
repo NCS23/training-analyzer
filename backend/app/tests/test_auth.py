@@ -79,9 +79,10 @@ class TestUserService:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_user_count_empty(self, db_session: AsyncSession) -> None:
+    async def test_get_user_count_with_fallback(self, db_session: AsyncSession) -> None:
+        # conftest pre-creates the fallback user
         count = await get_user_count(db_session)
-        assert count == 0
+        assert count == 1
 
     @pytest.mark.asyncio
     async def test_find_or_create_user_creates_new(self, db_session: AsyncSession) -> None:

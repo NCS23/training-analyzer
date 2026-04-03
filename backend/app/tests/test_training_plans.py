@@ -313,6 +313,7 @@ async def test_create_plan_with_goal(
         race_date=datetime(2026, 7, 5),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()
@@ -343,6 +344,7 @@ async def test_delete_plan_clears_goal_link(
         race_date=datetime(2026, 7, 5),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()
@@ -424,6 +426,7 @@ async def test_import_yaml_with_goal_title(
         race_date=datetime(2026, 7, 26),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()
@@ -794,6 +797,7 @@ async def test_create_plan_auto_create_uses_existing_goal(
         race_date=datetime(2026, 7, 5),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()
@@ -849,6 +853,7 @@ async def test_create_plan_goal_id_takes_precedence(
         race_date=datetime(2026, 7, 5),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()
@@ -914,6 +919,7 @@ async def test_import_yaml_goal_uses_existing(
         race_date=datetime(2026, 7, 26),
         distance_km=21.1,
         target_time_seconds=7200,
+        user_id=1,
     )
     db_session.add(goal)
     await db_session.commit()

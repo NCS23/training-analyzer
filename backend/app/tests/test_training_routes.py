@@ -391,6 +391,7 @@ async def _create_session_with_gps(
         laps_json=json.dumps(LAPS_DATA) if with_laps else None,
         location_name=location,
         surface_json=json.dumps(surface) if surface else None,
+        user_id=1,
     )
     db.add(workout)
     await db.commit()

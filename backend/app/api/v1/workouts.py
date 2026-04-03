@@ -12,15 +12,20 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.dependencies import get_current_user
 from app.infrastructure.ai.ai_service import ai_service
-from app.infrastructure.database.models import WorkoutModel
+from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 
 router = APIRouter()
 
 
 @router.post("/workouts/upload")
-async def upload_workout(csv_file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+async def upload_workout(
+    csv_file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """
     Upload and analyze workout from CSV file
 
@@ -61,6 +66,7 @@ async def upload_workout(csv_file: UploadFile = File(...), db: AsyncSession = De
             hr_min=workout_data.get("hr_min"),
             csv_data=csv_text,
             ai_analysis=ai_analysis,
+            user_id=current_user.id,
         )
 
         db.add(workout)
@@ -86,11 +92,22 @@ async def upload_workout(csv_file: UploadFile = File(...), db: AsyncSession = De
 
 
 @router.get("/workouts")
-async def get_workouts(limit: int = 20, offset: int = 0, db: AsyncSession = Depends(get_db)):
+async def get_workouts(
+    limit: int = 20,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """Get list of workouts"""
     from sqlalchemy import select
 
-    query = select(WorkoutModel).order_by(WorkoutModel.date.desc()).limit(limit).offset(offset)
+    query = (
+        select(WorkoutModel)
+        .where(WorkoutModel.user_id == current_user.id)
+        .order_by(WorkoutModel.date.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     result = await db.execute(query)
     workouts = result.scalars().all()
 
@@ -113,11 +130,17 @@ async def get_workouts(limit: int = 20, offset: int = 0, db: AsyncSession = Depe
 
 
 @router.get("/workouts/{workout_id}")
-async def get_workout(workout_id: int, db: AsyncSession = Depends(get_db)):
+async def get_workout(
+    workout_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """Get single workout with AI analysis"""
     from sqlalchemy import select
 
-    query = select(WorkoutModel).where(WorkoutModel.id == workout_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == workout_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 

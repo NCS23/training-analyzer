@@ -7,9 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_user
 from app.infrastructure.database.models import (
     RaceGoalModel,
     TrainingPlanModel,
+    UserModel,
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
@@ -61,11 +63,16 @@ async def _goal_to_response(
 @router.get("", response_model=RaceGoalListResponse)
 async def list_goals(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RaceGoalListResponse:
     """Liste aller Wettkampf-Ziele (aktive zuerst, dann nach Datum)."""
-    query = select(RaceGoalModel).order_by(
-        RaceGoalModel.is_active.desc(),
-        RaceGoalModel.race_date.asc(),
+    query = (
+        select(RaceGoalModel)
+        .where(RaceGoalModel.user_id == current_user.id)
+        .order_by(
+            RaceGoalModel.is_active.desc(),
+            RaceGoalModel.race_date.asc(),
+        )
     )
     result = await db.execute(query)
     goals = result.scalars().all()
@@ -78,6 +85,7 @@ async def list_goals(
 async def create_goal(
     body: RaceGoalCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RaceGoalResponse:
     """Erstellt ein neues Wettkampf-Ziel."""
     goal = RaceGoalModel(
@@ -86,6 +94,7 @@ async def create_goal(
         distance_km=body.distance_km,
         target_time_seconds=body.target_time_seconds,
         is_active=True,
+        user_id=current_user.id,
     )
     db.add(goal)
     await db.commit()
@@ -97,9 +106,12 @@ async def create_goal(
 async def get_goal(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RaceGoalResponse:
     """Einzelnes Wettkampf-Ziel."""
-    query = select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
+    query = select(RaceGoalModel).where(
+        RaceGoalModel.id == goal_id, RaceGoalModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     goal = result.scalar_one_or_none()
     if not goal:
@@ -112,9 +124,12 @@ async def update_goal(
     goal_id: int,
     body: RaceGoalUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RaceGoalResponse:
     """Aktualisiert ein Wettkampf-Ziel."""
-    query = select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
+    query = select(RaceGoalModel).where(
+        RaceGoalModel.id == goal_id, RaceGoalModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     goal = result.scalar_one_or_none()
     if not goal:
@@ -140,9 +155,12 @@ async def update_goal(
 async def delete_goal(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> None:
     """Loescht ein Wettkampf-Ziel."""
-    query = select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
+    query = select(RaceGoalModel).where(
+        RaceGoalModel.id == goal_id, RaceGoalModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     goal = result.scalar_one_or_none()
     if not goal:
@@ -180,13 +198,16 @@ def _format_time_seconds(total_sec: int) -> str:
 async def get_goal_progress(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     goal_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> GoalProgressResponse:
     """Berechnet den Fortschritt in Richtung eines Wettkampf-Ziels.
 
     Nutzt die letzten 4 Wochen an Lauf-Sessions (Tempo, Intervals, Long Run)
     um den aktuellen Pace-Stand zu ermitteln.
     """
-    query = select(RaceGoalModel).where(RaceGoalModel.id == goal_id)
+    query = select(RaceGoalModel).where(
+        RaceGoalModel.id == goal_id, RaceGoalModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     goal = result.scalar_one_or_none()
     if not goal:
@@ -211,6 +232,7 @@ async def get_goal_progress(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refact
             WorkoutModel.date,
         )
         .where(
+            WorkoutModel.user_id == current_user.id,
             WorkoutModel.workout_type == "running",
             WorkoutModel.date >= eight_weeks_ago,
             WorkoutModel.pace.isnot(None),

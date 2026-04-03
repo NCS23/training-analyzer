@@ -305,6 +305,7 @@ async def test_from_session_strength(
         workout_type="strength",
         duration_sec=3600,
         exercises_json=json.dumps(exercises),
+        user_id=1,
     )
     db_session.add(workout)
     await db_session.commit()
@@ -333,6 +334,7 @@ async def test_from_session_running(
         distance_km=8.5,
         pace="5:18",
         training_type_auto="easy",
+        user_id=1,
     )
     db_session.add(workout)
     await db_session.commit()
@@ -358,6 +360,7 @@ async def test_from_session_long_run(
         duration_sec=5400,
         distance_km=18.0,
         pace="5:00",
+        user_id=1,
     )
     db_session.add(workout)
     await db_session.commit()

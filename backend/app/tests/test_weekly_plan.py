@@ -435,6 +435,14 @@ async def _create_workout(
     training_type_auto: str = "easy",
 ) -> int:
     """Helper to create a workout directly in DB."""
+    # Fallback-User (id=1, pre-created in conftest) nutzen
+    from sqlalchemy import select
+
+    from app.infrastructure.database.models import UserModel
+
+    result = await db.execute(select(UserModel).limit(1))
+    user = result.scalar_one()
+
     workout = WorkoutModel(
         date=datetime.fromisoformat(date_str),
         workout_type=workout_type,
@@ -442,6 +450,7 @@ async def _create_workout(
         duration_sec=2700,
         distance_km=5.0 if workout_type == "running" else None,
         pace="5:30" if workout_type == "running" else None,
+        user_id=user.id,
     )
     db.add(workout)
     await db.commit()

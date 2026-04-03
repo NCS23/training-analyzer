@@ -8,9 +8,11 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_user
 from app.infrastructure.database.models import (
     SessionTemplateModel,
     TrainingRouteModel,
+    UserModel,
     WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
@@ -135,6 +137,7 @@ def _model_to_summary(route: TrainingRouteModel) -> TrainingRouteSummary:
 async def create_route(
     data: TrainingRouteCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrainingRouteResponse:
     """Neue Trainingsroute erstellen."""
     # FK-Validierung
@@ -168,6 +171,7 @@ async def create_route(
         linked_session_template_id=data.linked_session_template_id,
         tags_json=json.dumps(data.tags) if data.tags else None,
         is_favorite=data.is_favorite,
+        user_id=current_user.id,
     )
     db.add(route)
     await db.commit()
@@ -181,9 +185,14 @@ async def list_routes(
     tag: Optional[str] = None,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrainingRouteListResponse:
     """Alle Trainingsrouten auflisten (ohne Waypoints)."""
-    query = select(TrainingRouteModel).order_by(TrainingRouteModel.updated_at.desc())
+    query = (
+        select(TrainingRouteModel)
+        .where(TrainingRouteModel.user_id == current_user.id)
+        .order_by(TrainingRouteModel.updated_at.desc())
+    )
 
     if is_favorite is not None:
         query = query.where(TrainingRouteModel.is_favorite == is_favorite)
@@ -201,7 +210,9 @@ async def list_routes(
     routes = list(result.scalars().all())
 
     # Total count (same filters)
-    count_q = select(func.count(TrainingRouteModel.id))
+    count_q = select(func.count(TrainingRouteModel.id)).where(
+        TrainingRouteModel.user_id == current_user.id
+    )
     if is_favorite is not None:
         count_q = count_q.where(TrainingRouteModel.is_favorite == is_favorite)
     if tag:
@@ -225,9 +236,15 @@ async def create_route_from_session(
     session_id: int,
     name: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrainingRouteResponse:
     """Route aus einer bestehenden Session mit GPS-Daten erstellen."""
-    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    result = await db.execute(
+        select(WorkoutModel).where(
+            WorkoutModel.id == session_id,
+            WorkoutModel.user_id == current_user.id,
+        )
+    )
     workout = result.scalar_one_or_none()
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
@@ -251,6 +268,7 @@ async def create_route_from_session(
         route_segments_json=(
             json.dumps(route_data["route_segments"]) if route_data["route_segments"] else None
         ),
+        user_id=current_user.id,
     )
     db.add(route)
     await db.commit()
@@ -265,6 +283,7 @@ async def route_from_template(
     template_id: int,
     data: RouteFromTemplateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RouteFromTemplatePreview:
     """Route-Vorschau aus Session Template generieren (#571).
 
@@ -274,7 +293,10 @@ async def route_from_template(
     Feinanpassung an und speichert ggf. via POST /routes.
     """
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     template = result.scalar_one_or_none()
     if not template:
@@ -318,7 +340,10 @@ async def route_from_template(
 
 
 @router.post("/snap", response_model=RouteSnapResponse)
-async def snap_route(data: RouteSnapRequest) -> RouteSnapResponse:
+async def snap_route(
+    data: RouteSnapRequest,
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+) -> RouteSnapResponse:
     """Waypoints auf Wege snappen via OSRM."""
     osrm = OSRMClient()
     try:
@@ -341,7 +366,10 @@ async def snap_route(data: RouteSnapRequest) -> RouteSnapResponse:
 
 
 @router.post("/generate-round-trip", response_model=RoundTripResponse)
-async def generate_round_trip(data: RoundTripRequest) -> RoundTripResponse:
+async def generate_round_trip(
+    data: RoundTripRequest,
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+) -> RoundTripResponse:
     """Rundkurs-Vorschläge generieren ab Startpunkt."""
     osrm = OSRMClient()
     try:
@@ -376,9 +404,15 @@ async def generate_round_trip(data: RoundTripRequest) -> RoundTripResponse:
 async def get_route(
     route_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrainingRouteResponse:
     """Einzelne Route mit allen Details abrufen."""
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")
@@ -390,9 +424,15 @@ async def update_route(
     route_id: int,
     data: TrainingRouteUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrainingRouteResponse:
     """Route teilweise aktualisieren."""
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")
@@ -425,13 +465,19 @@ async def calculate_pacing(
     route_id: int,
     data: RoutePacingRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> RoutePacingResponse:
     """Pacing-Ziele für alle Segmente einer Route berechnen (#548).
 
     Nutzt die bestehende Pacing-Engine mit Elevation-Daten aus den Waypoints.
     Mappt km-genaue Splits auf die Route-Segmente.
     """
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")
@@ -459,6 +505,7 @@ async def calculate_pacing(
 async def export_route_gpx(
     route_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> Response:
     """Route als GPX-Datei mit Training-Extensions exportieren (#553).
 
@@ -467,7 +514,12 @@ async def export_route_gpx(
     - <ta:segments> Extension im <trk> (Segment-Übersicht)
     - <ta:training> Extension pro Trackpoint (aktives Segment)
     """
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")
@@ -500,6 +552,7 @@ async def export_route_gpx(
 async def export_route_fit(
     route_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> Response:
     """Route als FIT Course File exportieren (#577).
 
@@ -507,7 +560,12 @@ async def export_route_fit(
     - Waypoints (Position, Distanz, Höhe)
     - Einem Lap für die Gesamtroute
     """
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")
@@ -535,9 +593,15 @@ async def export_route_fit(
 async def delete_route(
     route_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> None:
     """Route löschen."""
-    result = await db.execute(select(TrainingRouteModel).where(TrainingRouteModel.id == route_id))
+    result = await db.execute(
+        select(TrainingRouteModel).where(
+            TrainingRouteModel.id == route_id,
+            TrainingRouteModel.user_id == current_user.id,
+        )
+    )
     route = result.scalar_one_or_none()
     if not route:
         raise HTTPException(status_code=404, detail="Route nicht gefunden")

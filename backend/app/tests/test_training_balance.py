@@ -25,6 +25,7 @@ async def _add_running(
         distance_km=distance_km,
         duration_sec=duration_sec,
         pace="5:30",
+        user_id=1,
     )
     db.add(workout)
     await db.commit()
@@ -41,6 +42,7 @@ async def _add_strength(
         workout_type="strength",
         duration_sec=3600,
         exercises_json=json.dumps(exercises),
+        user_id=1,
     )
     db.add(workout)
     await db.commit()

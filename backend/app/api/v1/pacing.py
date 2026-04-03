@@ -12,10 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.dependencies import get_current_user
 from app.infrastructure.database.models import (
     PacingStrategyModel,
     PlannedSessionModel,
     RaceGoalModel,
+    UserModel,
     WeeklyPlanDayModel,
 )
 from app.infrastructure.database.session import get_db
@@ -55,11 +57,17 @@ _weather_client = ExternalAPIClient(
 async def generate_pacing(
     body: PacingRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> PacingResponse:
     """Generiert eine Pacing-Strategie basierend auf Zielzeit, Hoehenprofil und Wetter."""
     # Wenn goal_id angegeben: Distanz und Zielzeit aus dem Goal laden
     if body.goal_id is not None:
-        result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == body.goal_id))
+        result = await db.execute(
+            select(RaceGoalModel).where(
+                RaceGoalModel.id == body.goal_id,
+                RaceGoalModel.user_id == current_user.id,
+            )
+        )
         goal = result.scalar_one_or_none()
         if goal is None:
             raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
@@ -74,7 +82,9 @@ async def generate_pacing(
 
     # Auto-Save: Strategie am Ziel speichern wenn goal_id vorhanden
     if body.goal_id is not None:
-        await _save_pacing_strategy(db, body.goal_id, pacing, body.elevation_preset)
+        await _save_pacing_strategy(
+            db, body.goal_id, pacing, body.elevation_preset, current_user.id
+        )
 
     return pacing
 
@@ -173,11 +183,17 @@ async def parse_gpx(file: UploadFile) -> list[ElevationSegment]:
 async def export_pacing_fit(
     body: PacingRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> Response:
     """Exportiert eine Pacing-Strategie als FIT-Workout-Datei fuer GPS-Uhren."""
     # Goal-ID Aufloesung (wie bei /generate)
     if body.goal_id is not None:
-        result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == body.goal_id))
+        result = await db.execute(
+            select(RaceGoalModel).where(
+                RaceGoalModel.id == body.goal_id,
+                RaceGoalModel.user_id == current_user.id,
+            )
+        )
         goal = result.scalar_one_or_none()
         if goal is None:
             raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
@@ -211,10 +227,16 @@ async def export_pacing_fit(
 async def transfer_pacing_to_weekly_plan(
     body: PacingToWeeklyPlanRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> PacingToWeeklyPlanResponse:
     """Uebernimmt eine Pacing-Strategie als Wettkampf-Session in den Wochenplan."""
     # 1) Goal laden → race_date
-    result = await db.execute(select(RaceGoalModel).where(RaceGoalModel.id == body.goal_id))
+    result = await db.execute(
+        select(RaceGoalModel).where(
+            RaceGoalModel.id == body.goal_id,
+            RaceGoalModel.user_id == current_user.id,
+        )
+    )
     goal = result.scalar_one_or_none()
     if goal is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
@@ -250,6 +272,7 @@ async def transfer_pacing_to_weekly_plan(
             week_start=week_start,
             day_of_week=day_of_week,
             is_rest_day=False,
+            user_id=current_user.id,
         )
         db.add(day_model)
         await db.flush()  # ID generieren
@@ -296,6 +319,7 @@ async def transfer_pacing_to_weekly_plan(
             run_details_json=run_details_json,
             notes=notes,
             status="active",
+            user_id=current_user.id,
         )
         db.add(race_session)
 
@@ -329,10 +353,12 @@ async def _save_pacing_strategy(
     goal_id: int,
     pacing: PacingResponse,
     elevation_preset: str | None,
+    user_id: int | None = None,
 ) -> PacingStrategyModel:
     """Speichert eine generierte Pacing-Strategie in der DB."""
     model = PacingStrategyModel(
         goal_id=goal_id,
+        user_id=user_id,
         strategy=pacing.strategy,
         strategy_label=pacing.strategy_label,
         distance_km=pacing.distance_km,
@@ -386,11 +412,15 @@ def _db_to_response(model: PacingStrategyModel) -> SavedPacingStrategyResponse:
 async def list_pacing_strategies(
     goal_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SavedPacingStrategyListResponse:
     """Listet alle gespeicherten Pacing-Strategien fuer ein Ziel."""
     result = await db.execute(
         select(PacingStrategyModel)
-        .where(PacingStrategyModel.goal_id == goal_id)
+        .where(
+            PacingStrategyModel.goal_id == goal_id,
+            PacingStrategyModel.user_id == current_user.id,
+        )
         .order_by(PacingStrategyModel.created_at.desc())
     )
     models = result.scalars().all()
@@ -405,12 +435,14 @@ async def get_pacing_strategy(
     goal_id: int,
     strategy_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SavedPacingStrategyResponse:
     """Gibt eine einzelne gespeicherte Pacing-Strategie zurueck."""
     result = await db.execute(
         select(PacingStrategyModel).where(
             PacingStrategyModel.id == strategy_id,
             PacingStrategyModel.goal_id == goal_id,
+            PacingStrategyModel.user_id == current_user.id,
         )
     )
     model = result.scalar_one_or_none()
@@ -424,12 +456,14 @@ async def delete_pacing_strategy(
     goal_id: int,
     strategy_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> None:
     """Loescht eine gespeicherte Pacing-Strategie."""
     result = await db.execute(
         select(PacingStrategyModel).where(
             PacingStrategyModel.id == strategy_id,
             PacingStrategyModel.goal_id == goal_id,
+            PacingStrategyModel.user_id == current_user.id,
         )
     )
     model = result.scalar_one_or_none()

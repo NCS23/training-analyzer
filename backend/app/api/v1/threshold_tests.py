@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.athlete import _get_or_create_athlete
-from app.infrastructure.database.models import ThresholdTestModel, WorkoutModel
+from app.core.dependencies import get_current_user
+from app.infrastructure.database.models import ThresholdTestModel, UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.threshold_test import (
     ThresholdAnalysisResponse,
@@ -38,10 +39,13 @@ def _build_response(test: ThresholdTestModel) -> ThresholdTestResponse:
 @router.get("", response_model=ThresholdTestListResponse)
 async def list_tests(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ThresholdTestListResponse:
     """Gibt alle Schwellentests zurück (neueste zuerst)."""
     result = await db.execute(
-        select(ThresholdTestModel).order_by(ThresholdTestModel.test_date.desc())
+        select(ThresholdTestModel)
+        .where(ThresholdTestModel.user_id == current_user.id)
+        .order_by(ThresholdTestModel.test_date.desc())
     )
     tests = result.scalars().all()
     return ThresholdTestListResponse(
@@ -53,10 +57,14 @@ async def list_tests(
 @router.get("/latest", response_model=ThresholdTestResponse)
 async def get_latest_test(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ThresholdTestResponse:
     """Gibt den neuesten Schwellentest zurück."""
     result = await db.execute(
-        select(ThresholdTestModel).order_by(ThresholdTestModel.test_date.desc()).limit(1)
+        select(ThresholdTestModel)
+        .where(ThresholdTestModel.user_id == current_user.id)
+        .order_by(ThresholdTestModel.test_date.desc())
+        .limit(1)
     )
     test = result.scalar_one_or_none()
     if not test:
@@ -68,6 +76,7 @@ async def get_latest_test(
 async def create_test(
     body: ThresholdTestCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ThresholdTestResponse:
     """Erstellt einen neuen Schwellentest und aktualisiert das Athletenprofil."""
     test = ThresholdTestModel(
@@ -77,12 +86,13 @@ async def create_test(
         avg_pace_sec=body.avg_pace_sec,
         session_id=body.session_id,
         notes=body.notes,
+        user_id=current_user.id,
     )
     db.add(test)
 
     # Max-HR im Athletenprofil aktualisieren wenn höher als bisheriger Wert
     if body.max_hr_measured:
-        athlete = await _get_or_create_athlete(db)
+        athlete = await _get_or_create_athlete(db, current_user.id)
         if athlete.max_hr is None or body.max_hr_measured > athlete.max_hr:
             athlete.max_hr = body.max_hr_measured
 
@@ -95,13 +105,18 @@ async def create_test(
 async def analyze_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ThresholdAnalysisResponse:
     """Berechnet LTHR aus einer Session (Ø HR der letzten 20 Min).
 
     Basiert auf dem 30-Min-Friel-Test: Der Athlet läuft 30 Min maximal,
     die Durchschnitts-HR der letzten 20 Min entspricht der LTHR.
     """
-    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    result = await db.execute(
+        select(WorkoutModel).where(
+            WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+        )
+    )
     workout = result.scalar_one_or_none()
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
@@ -176,9 +191,14 @@ def _extract_avg_pace(workout: WorkoutModel) -> float | None:
 async def delete_test(
     test_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> None:
     """Löscht einen Schwellentest."""
-    result = await db.execute(select(ThresholdTestModel).where(ThresholdTestModel.id == test_id))
+    result = await db.execute(
+        select(ThresholdTestModel).where(
+            ThresholdTestModel.id == test_id, ThresholdTestModel.user_id == current_user.id
+        )
+    )
     test = result.scalar_one_or_none()
     if not test:
         raise HTTPException(status_code=404, detail="Schwellentest nicht gefunden")

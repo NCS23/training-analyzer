@@ -21,9 +21,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.dependencies import get_current_user
 from app.infrastructure.database.models import (
     AthleteModel,
     PlannedSessionModel,
+    UserModel,
     WeeklyPlanDayModel,
     WorkoutModel,
 )
@@ -258,6 +260,7 @@ def _build_workout_model(
     form: SessionUploadForm,
     parsed: dict,
     csv_data: str | None,
+    user_id: int | None = None,
 ) -> WorkoutModel:
     """Erstellt WorkoutModel aus Form-Daten und Parse-Ergebnis."""
     summary = parsed["summary"]
@@ -290,6 +293,7 @@ def _build_workout_model(
         athlete_max_hr=parsed["max_hr"],
         notes=form.notes,
         rpe=form.rpe,
+        user_id=user_id,
     )
 
 
@@ -351,7 +355,7 @@ async def _save_and_respond(
     )
 
 
-async def _upload_session(
+async def _upload_session(  # noqa: PLR0913
     content: bytes,
     parser: TrainingCSVParser | TrainingFITParser,
     form: SessionUploadForm,
@@ -360,6 +364,7 @@ async def _upload_session(
     file_name: str | None = None,
     file_format: str | None = None,
     background_tasks: BackgroundTasks | None = None,
+    user_id: int | None = None,
 ) -> SessionUploadResponse:
     """Gemeinsame Upload-Logik für CSV und FIT."""
     parsed = await _parse_and_classify(
@@ -369,7 +374,7 @@ async def _upload_session(
         return SessionUploadResponse(success=False, errors=parsed["errors"])
 
     _apply_lap_overrides(parsed["laps"], form.lap_overrides_json)
-    workout = _build_workout_model(form, parsed, csv_data)
+    workout = _build_workout_model(form, parsed, csv_data, user_id=user_id)
 
     # Originaldatei mitspeichern fuer Reparse (#349)
     workout.original_file_content = content
@@ -411,6 +416,7 @@ async def parse_csv(
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
     notes: Optional[str] = Form(None, description="Notizen"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> SessionParseResponse:
     """Parse CSV und klassifiziere — ohne Session zu erstellen."""
     content = await _validate_upload_file(csv_file, ".csv", "CSV")
@@ -425,6 +431,7 @@ async def parse_fit(
     training_subtype: Optional[TrainingSubType] = Form(None, description="Unter-Typ"),
     notes: Optional[str] = Form(None, description="Notizen"),  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> SessionParseResponse:
     """Parse FIT file und klassifiziere — ohne Session zu erstellen."""
     content = await _validate_upload_file(fit_file, ".fit", "FIT")
@@ -437,6 +444,7 @@ async def upload_csv(
     form: SessionUploadForm = Depends(),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionUploadResponse:
     """Upload Apple Watch CSV und speichere als Session."""
     content = await _validate_upload_file(csv_file, ".csv", "CSV")
@@ -449,6 +457,7 @@ async def upload_csv(
         file_name=csv_file.filename,
         file_format="csv",
         background_tasks=background_tasks,
+        user_id=current_user.id,
     )
 
 
@@ -458,6 +467,7 @@ async def upload_fit(
     form: SessionUploadForm = Depends(),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionUploadResponse:
     """Upload FIT file und speichere als Session."""
     content = await _validate_upload_file(fit_file, ".fit", "FIT")
@@ -469,11 +479,12 @@ async def upload_fit(
         file_name=fit_file.filename,
         file_format="fit",
         background_tasks=background_tasks,
+        user_id=current_user.id,
     )
 
 
 @router.get("", response_model=SessionListResponse)
-async def list_sessions(
+async def list_sessions(  # noqa: PLR0913
     page: int = Query(1, ge=1, description="Seitennummer"),
     page_size: int = Query(20, ge=1, le=100, description="Eintraege pro Seite"),
     workout_type: Optional[TrainingType] = Query(None, description="Filter nach Workout-Typ"),
@@ -482,12 +493,13 @@ async def list_sessions(
     date_to: Optional[date] = Query(None, description="Datum bis (inklusiv)"),
     search: Optional[str] = Query(None, description="Freitext-Suche (Notizen)"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionListResponse:
     """Liste aller Sessions mit Paginierung und Filtern."""
     from app.models.session import SessionListItem
 
     # Build shared filter conditions
-    conditions = []
+    conditions = [WorkoutModel.user_id == current_user.id]
     if workout_type:
         conditions.append(WorkoutModel.workout_type == workout_type.value)
     if date_from:
@@ -533,9 +545,12 @@ async def list_sessions(
 async def get_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Einzelne Session mit allen Details."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -549,9 +564,12 @@ async def get_session(
 async def get_session_track(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """GPS Track einer Session (separater Endpoint fuer Performance)."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -582,9 +600,12 @@ async def _get_athlete_elevation_factors(
 async def get_km_splits(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Per-Kilometer Splits berechnet aus GPS Track."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -615,9 +636,12 @@ async def get_km_splits(
 async def get_working_zones(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Berechnet Working-Laps HR-Zonen (ohne DB-Schreibzugriff)."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -645,9 +669,12 @@ async def get_working_zones(
 async def get_session_comparison(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> ComparisonResponse:
     """Soll/Ist-Vergleich: matcht geplante Segmente mit tatsächlichen Laps."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -705,9 +732,12 @@ async def update_lap_overrides(
     session_id: int,
     body: LapOverrideRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> LapOverrideResponse:
     """Aktualisiert Lap-Type Overrides und berechnet Working-Laps Metriken."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -759,6 +789,7 @@ async def update_training_type(
     session_id: int,
     body: TrainingTypeOverrideRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Setzt manuellen Training Type Override."""
     if body.training_type not in VALID_TRAINING_TYPES:
@@ -767,7 +798,9 @@ async def update_training_type(
             detail=f"Ungültiger Training Type. Erlaubt: {', '.join(sorted(VALID_TRAINING_TYPES))}",
         )
 
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -786,9 +819,12 @@ async def update_notes(
     session_id: int,
     body: NotesUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Aktualisiert die Notizen einer Session."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -807,9 +843,12 @@ async def update_rpe(
     session_id: int,
     body: RpeUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Aktualisiert die RPE einer Session."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -828,9 +867,12 @@ async def update_date(
     session_id: int,
     body: DateUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Aktualisiert das Datum einer Session."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -849,9 +891,12 @@ async def update_planned_entry(
     session_id: int,
     body: PlannedEntryUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> SessionResponse:
     """Aktualisiert die Zuordnung zu einer geplanten Session."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -878,9 +923,12 @@ async def update_planned_entry(
 async def delete_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> None:
     """Loescht eine Session."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -896,6 +944,7 @@ async def analyze_session(
     session_id: int,
     body: Optional[AnalyzeRequest] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> SessionAnalysisResponse:
     """KI-gestützte Analyse einer Session (Cache-First)."""
     from app.services.session_analysis_service import (
@@ -919,6 +968,7 @@ async def generate_recommendations(
     session_id: int,
     body: Optional[AnalyzeRequest] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> RecommendationsListResponse:
     """Generiert KI-gestuetzte Trainingsempfehlungen basierend auf Session-Analyse."""
     from app.services.recommendation_service import (
@@ -940,6 +990,7 @@ async def generate_recommendations(
 async def get_session_recommendations(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> RecommendationsListResponse:
     """Laedt gespeicherte Empfehlungen fuer eine Session."""
     from app.services.recommendation_service import get_recommendations
@@ -952,6 +1003,7 @@ async def update_recommendation_status(
     recommendation_id: int,
     body: RecommendationStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> RecommendationResponse:
     """Aktualisiert den Status einer Empfehlung (applied/dismissed)."""
     from app.services.recommendation_service import (
@@ -969,12 +1021,15 @@ async def recalculate_session_zones(
     session_id: int,
     body: Optional[RecalculateZonesRequest] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Berechnet HR-Zonen einer einzelnen Session neu.
 
     Optionale HR-Werte im Body; ohne Body werden aktuelle Athleten-Einstellungen verwendet.
     """
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
 
@@ -1285,13 +1340,16 @@ def _extract_working_hr_from_timeseries(
 async def reparse_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Parst eine Session neu aus der gespeicherten Originaldatei.
 
     Aktualisiert Laps, HR-Daten, HR-Zonen, GPS. Behaelt User-Overrides
     (Segment-Types, Training-Type-Override, Notes, RPE, geplanter Eintrag).
     """
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
     if not workout:
@@ -1309,12 +1367,14 @@ async def reparse_session(
 @router.post("/reparse-all")
 async def reparse_all_sessions(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Parst alle Sessions mit gespeicherter Originaldatei neu.
 
     Nuetzlich nach Parser-Fixes um alle bestehenden Sessions zu aktualisieren.
     """
     query = select(WorkoutModel).where(
+        WorkoutModel.user_id == current_user.id,
         WorkoutModel.original_file_content.isnot(None),
         WorkoutModel.original_file_format.isnot(None),
     )
@@ -1464,6 +1524,7 @@ async def _reparse_workout(
 async def export_session_fit(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> Response:
     """Export einer Lauf-Session als FIT-Workout-Datei.
 
@@ -1475,7 +1536,9 @@ async def export_session_fit(
     from app.models.segment import laps_to_template_segments
     from app.services.fit_export import export_template_to_fit
 
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
     if not workout:
@@ -1533,9 +1596,12 @@ async def enrich_session(
     session_id: int,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Enrichment fuer eine einzelne Session triggern."""
-    query = select(WorkoutModel).where(WorkoutModel.id == session_id)
+    query = select(WorkoutModel).where(
+        WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+    )
     result = await db.execute(query)
     workout = result.scalar_one_or_none()
     if not workout:
@@ -1556,10 +1622,12 @@ async def enrich_session(
 async def enrich_batch(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Batch-Enrichment fuer alle pending Sessions triggern."""
     count_result = await db.execute(
         select(func.count(WorkoutModel.id)).where(
+            WorkoutModel.user_id == current_user.id,
             WorkoutModel.enrichment_status == "pending",
             WorkoutModel.has_gps.is_(True),
         )
@@ -1584,6 +1652,7 @@ async def enrich_batch(
 async def get_race_report(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> dict:
     """Generiert Post-Race Analyse fuer eine Wettkampf-Session."""
     from app.services.race_report_service import generate_race_report
@@ -1597,9 +1666,14 @@ async def update_race_goal(
     session_id: int,
     body: dict,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> dict:
     """Verknuepft oder entknuepft eine Session mit einem Race Goal."""
-    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    result = await db.execute(
+        select(WorkoutModel).where(
+            WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+        )
+    )
     workout = result.scalar_one_or_none()
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
@@ -1615,6 +1689,7 @@ async def update_race_goal(
 async def analyze_race(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
 ) -> dict:
     """KI-Analyse speziell fuer Wettkampf-Sessions."""
     from app.services.race_report_service import generate_race_report

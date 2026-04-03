@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.security import decode_access_token
 from app.infrastructure.database.models import UserModel
 from app.infrastructure.database.session import get_db
+from app.services.data_migration_service import assign_orphaned_data
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,10 @@ async def _ensure_default_user(db: AsyncSession) -> UserModel:
     await db.commit()
     await db.refresh(user)
     logger.info("Default-User erstellt (auth_enabled=False): id=%s", user.id)
+
+    # Verwaiste Daten (user_id=NULL) dem Fallback-User zuweisen
+    await assign_orphaned_data(db, user.id)
+
     return user
 
 
