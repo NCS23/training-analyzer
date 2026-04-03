@@ -22,7 +22,12 @@ services:
       - DATABASE_URL=postgresql+asyncpg://training_user:${POSTGRES_PASSWORD}@postgres:5432/training_analyzer
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=production
-      - ALLOWED_ORIGINS=["http://training.89.167.78.223.sslip.io","https://training.89.167.78.223.sslip.io"]
+      - ALLOWED_ORIGINS=["https://training.nordliggrad.com","http://training.89.167.78.223.sslip.io"]
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-}
+      - APPLE_TEAM_ID=${APPLE_TEAM_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_B64=${APPLE_PRIVATE_KEY_B64:-}
     volumes:
       - exercise_uploads:/app/static/uploads
     depends_on:
