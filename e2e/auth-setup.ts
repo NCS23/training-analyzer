@@ -5,12 +5,8 @@
 import { chromium } from "@playwright/test";
 import path from "path";
 
-// __dirname-Equivalent: Pfad relativ zu dieser Datei, nicht zu cwd
-// (cwd kann "e2e/" sein wenn working-directory gesetzt ist)
-export const AUTH_STATE_PATH = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  ".auth-state.json",
-);
+// Playwright's tsx-Loader stellt __dirname bereit (CJS-Kompatibilitaet)
+export const AUTH_STATE_PATH = path.join(__dirname, ".auth-state.json");
 
 const E2E_EMAIL = "e2e-smoke@training-analyzer.app";
 const E2E_PASSWORD = "e2e-smoke-test-2026!";
