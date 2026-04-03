@@ -20,22 +20,29 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 DEFAULT_USER_EMAIL = "local@training-analyzer.app"
 
+# Einmal-Flag: verhindert 17 UPDATE-Queries bei jedem Request nach dem ersten
+_orphan_migration_done = False
+
 
 async def _ensure_default_user(db: AsyncSession) -> UserModel:
     """Erstellt oder findet den Default-User fuer auth_enabled=False Betrieb."""
+    global _orphan_migration_done  # noqa: PLW0603
+
     result = await db.execute(select(UserModel).where(UserModel.email == DEFAULT_USER_EMAIL))
     user = result.scalar_one_or_none()
-    if user is not None:
-        return user
+    if user is None:
+        user = UserModel(email=DEFAULT_USER_EMAIL, name="Lokaler Benutzer", is_active=True)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        logger.info("Default-User erstellt (auth_enabled=False): id=%s", user.id)
 
-    user = UserModel(email=DEFAULT_USER_EMAIL, name="Lokaler Benutzer", is_active=True)
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    logger.info("Default-User erstellt (auth_enabled=False): id=%s", user.id)
-
-    # Verwaiste Daten (user_id=NULL) dem Fallback-User zuweisen
-    await assign_orphaned_data(db, user.id)
+    # Einmalig pro App-Start: Verwaiste Daten (user_id=NULL) dem Fallback-User zuweisen.
+    # Idempotent — greift nur Zeilen ohne user_id an. Löst das Problem wenn
+    # der Fallback-User schon existiert aber die Daten noch NULL sind.
+    if not _orphan_migration_done:
+        await assign_orphaned_data(db, user.id)
+        _orphan_migration_done = True
 
     return user
 
