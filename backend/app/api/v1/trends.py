@@ -9,7 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import WorkoutModel
+from app.core.dependencies import get_current_user
+from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.trend import TrendInsight, TrendResponse, WeeklyDataPoint
 
@@ -28,6 +29,7 @@ def _parse_pace_to_seconds(pace_str: str) -> float:
 async def get_trends(
     days: int = Query(default=28, ge=7, le=365),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> TrendResponse:
     """Aggregierte Trainingsdaten fuer Trend-Analyse.
 
@@ -51,6 +53,7 @@ async def get_trends(
             ).label("effective_type"),
         )
         .where(
+            WorkoutModel.user_id == current_user.id,
             WorkoutModel.date >= cutoff,
             WorkoutModel.workout_type == "running",
         )
@@ -224,12 +227,14 @@ class WeatherCorrelationResponse(BaseModel):
 async def get_weather_correlation(
     days: int = Query(default=90, ge=14, le=365),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> WeatherCorrelationResponse:
     """Korrelation zwischen Wetter und Laufleistung."""
     cutoff = datetime.utcnow() - timedelta(days=days)
     query = (
         select(WorkoutModel)
         .where(
+            WorkoutModel.user_id == current_user.id,
             WorkoutModel.date >= cutoff,
             WorkoutModel.workout_type == "running",
             WorkoutModel.weather_json.isnot(None),

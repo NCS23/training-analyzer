@@ -54,18 +54,19 @@ async def generate_weekly_review(
     db: AsyncSession,
     *,
     force_refresh: bool = False,
+    user_id: int | None = None,
 ) -> WeeklyReviewResponse:
     """Generiert ein wöchentliches KI-Trainingsreview."""
     _validate_week_start(week_start)
 
     # Cache prüfen
     if not force_refresh:
-        cached = await _load_cached_review(week_start, db)
+        cached = await _load_cached_review(week_start, db, user_id=user_id)
         if cached:
             return _model_to_response(cached, is_cached=True)
 
     # Kontext laden
-    context = await _load_weekly_context(week_start, db)
+    context = await _load_weekly_context(week_start, db, user_id=user_id)
 
     # Prompt bauen und AI aufrufen
     prompt = _build_review_prompt(context)
@@ -81,8 +82,8 @@ async def generate_weekly_review(
     parsed = _parse_review_json(raw, context)
 
     # Altes Review löschen, neues speichern
-    await _delete_existing_review(week_start, db)
-    model = await _save_review(week_start, parsed, provider, context, db)
+    await _delete_existing_review(week_start, db, user_id=user_id)
+    model = await _save_review(week_start, parsed, provider, context, db, user_id=user_id)
 
     # Log
     await log_ai_call(
@@ -105,10 +106,12 @@ async def generate_weekly_review(
 async def get_weekly_review(
     week_start: date,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> WeeklyReviewResponse | None:
     """Lädt ein gespeichertes Wochen-Review."""
     _validate_week_start(week_start)
-    model = await _load_cached_review(week_start, db)
+    model = await _load_cached_review(week_start, db, user_id=user_id)
     if not model:
         return None
     return _model_to_response(model, is_cached=True)
@@ -144,12 +147,16 @@ def _validate_week_start(week_start: date) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def _load_weekly_context(week_start: date, db: AsyncSession) -> WeeklyContext:
+async def _load_weekly_context(
+    week_start: date,
+    db: AsyncSession,
+    user_id: int | None = None,
+) -> WeeklyContext:
     """Lädt den vollständigen Kontext für eine Trainingswoche."""
     week_end = week_start + timedelta(days=6)
 
     # Alle Sessions der Woche
-    sessions = await _load_week_sessions(week_start, week_end, db)
+    sessions = await _load_week_sessions(week_start, week_end, db, user_id=user_id)
 
     # Volumen berechnen
     volume = _calculate_volume(sessions)
@@ -177,16 +184,16 @@ async def _load_week_sessions(
     week_start: date,
     week_end: date,
     db: AsyncSession,
+    user_id: int | None = None,
 ) -> list[WorkoutModel]:
     """Lädt alle Sessions einer Woche."""
-    result = await db.execute(
-        select(WorkoutModel)
-        .where(
-            WorkoutModel.date >= datetime.combine(week_start, datetime.min.time()),
-            WorkoutModel.date <= datetime.combine(week_end, datetime.max.time()),
-        )
-        .order_by(WorkoutModel.date)
-    )
+    conditions = [
+        WorkoutModel.date >= datetime.combine(week_start, datetime.min.time()),
+        WorkoutModel.date <= datetime.combine(week_end, datetime.max.time()),
+    ]
+    if user_id is not None:
+        conditions.append(WorkoutModel.user_id == user_id)
+    result = await db.execute(select(WorkoutModel).where(*conditions).order_by(WorkoutModel.date))
     return list(result.scalars().all())
 
 
@@ -341,19 +348,28 @@ async def _load_current_phase(ref_date: date, db: AsyncSession) -> dict | None:
 async def _load_cached_review(
     week_start: date,
     db: AsyncSession,
+    user_id: int | None = None,
 ) -> WeeklyReviewModel | None:
     """Lädt ein gecachtes Review für eine Woche."""
-    result = await db.execute(
-        select(WeeklyReviewModel).where(WeeklyReviewModel.week_start == week_start)
-    )
+    conditions = [WeeklyReviewModel.week_start == week_start]
+    if user_id is not None:
+        conditions.append(WeeklyReviewModel.user_id == user_id)
+    result = await db.execute(select(WeeklyReviewModel).where(*conditions))
     return result.scalar_one_or_none()
 
 
-async def _delete_existing_review(week_start: date, db: AsyncSession) -> None:
+async def _delete_existing_review(
+    week_start: date,
+    db: AsyncSession,
+    user_id: int | None = None,
+) -> None:
     """Löscht ein bestehendes Review für eine Woche."""
     from sqlalchemy import delete
 
-    await db.execute(delete(WeeklyReviewModel).where(WeeklyReviewModel.week_start == week_start))
+    conditions = [WeeklyReviewModel.week_start == week_start]
+    if user_id is not None:
+        conditions.append(WeeklyReviewModel.user_id == user_id)
+    await db.execute(delete(WeeklyReviewModel).where(*conditions))
 
 
 async def _save_review(
@@ -362,6 +378,7 @@ async def _save_review(
     provider: str,
     context: WeeklyContext,
     db: AsyncSession,
+    user_id: int | None = None,
 ) -> WeeklyReviewModel:
     """Speichert ein geparstes Review in der DB."""
     model = WeeklyReviewModel(
@@ -375,6 +392,7 @@ async def _save_review(
         fatigue_assessment=parsed["fatigue_assessment"],
         session_count=context.volume["session_count"],
         provider=provider,
+        user_id=user_id,
     )
     db.add(model)
     await db.flush()

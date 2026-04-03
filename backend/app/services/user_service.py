@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import UserModel
-from app.services.data_migration_service import assign_orphaned_data
+from app.services.data_migration_service import assign_orphaned_data, reassign_user_data
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,14 @@ async def find_or_create_user_by_apple(
     # assign_orphaned_data ist idempotent — greift nur Zeilen ohne user_id an.
     if is_first_real_user:
         await assign_orphaned_data(db, user.id)
+
+        # Fallback-User-Daten übernehmen (falls Fallback bereits existierte)
+        fallback_result = await db.execute(
+            select(UserModel).where(UserModel.email == _FALLBACK_USER_EMAIL)
+        )
+        fallback_user = fallback_result.scalar_one_or_none()
+        if fallback_user is not None and fallback_user.id != user.id:
+            await reassign_user_data(db, fallback_user.id, user.id)
 
     return user
 

@@ -61,6 +61,7 @@ def _make_plan(
         status="draft",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
+        user_id=1,
     )
     db.add(plan)
     return plan
@@ -102,6 +103,7 @@ def _make_goal(
         is_active=True,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
+        user_id=1,
     )
     db.add(goal)
     return goal
@@ -125,6 +127,7 @@ class TestHelpers:
             is_active=True,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
+            user_id=1,
         )
         pace = _compute_race_pace(goal)
         assert pace is not None

@@ -75,6 +75,7 @@ async def _create_test_workout(
         hr_avg=145,
         hr_max=162,
         hr_min=120,
+        user_id=1,
     )
     if with_analysis:
         workout.ai_analysis = json.dumps(MOCK_ANALYSIS)

@@ -49,6 +49,28 @@ _TABLES_WITH_USER_ID = [
 ]
 
 
+async def reassign_user_data(
+    db: AsyncSession, from_user_id: int, to_user_id: int
+) -> dict[str, int]:
+    """Weist alle Daten eines Users einem anderen zu (z.B. Fallback → echter User)."""
+    from sqlalchemy import update as sql_update
+
+    counts: dict[str, int] = {}
+    for model in _TABLES_WITH_USER_ID:
+        result = await db.execute(
+            sql_update(model)
+            .where(model.user_id == from_user_id)  # type: ignore[attr-defined]
+            .values(user_id=to_user_id)
+        )
+        count = getattr(result, "rowcount", 0) or 0
+        if count > 0:
+            counts[model.__tablename__] = count
+
+    await db.commit()
+    logger.info("Datentransfer: user_id=%s → user_id=%s: %s", from_user_id, to_user_id, counts)
+    return counts
+
+
 async def assign_orphaned_data(db: AsyncSession, user_id: int) -> dict[str, int]:
     """Weist alle Datensaetze mit user_id=NULL dem gegebenen User zu.
 

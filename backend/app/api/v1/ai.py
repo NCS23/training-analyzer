@@ -16,11 +16,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.dependencies import get_current_user
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
     PlannedSessionModel,
     TrainingPlanModel,
+    UserModel,
     WeeklyPlanDayModel,
 )
 from app.infrastructure.database.session import get_db
@@ -76,7 +78,11 @@ async def get_providers():
 
 
 @router.post("/ai/chat")
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat(
+    request: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),  # noqa: ARG001 — ensures auth
+):
     """Chat with AI trainer (User-Key → .env Fallback)."""
     try:
         claude_key = await resolve_claude_api_key(db)

@@ -19,6 +19,7 @@ async def _create_goal(db: AsyncSession) -> RaceGoalModel:
         distance_km=21.0975,
         target_time_seconds=6600,  # 1:50:00
         is_active=True,
+        user_id=1,
     )
     db.add(goal)
     await db.commit()

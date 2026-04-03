@@ -19,6 +19,7 @@ class TestExerciseLibraryUnit:
             category="push",
             is_custom=True,
             is_favorite=False,
+            user_id=1,
         )
         db_session.add(exercise)
         await db_session.commit()
