@@ -203,6 +203,12 @@ export const useAuth = create<AuthState>()(
       partialize: (state) => ({
         refreshToken: state.refreshToken,
       }),
+      onRehydrateStorage: () => {
+        return () => {
+          // Nach Rehydrierung: checkStatus automatisch auslösen
+          void useAuth.getState().checkStatus();
+        };
+      },
     },
   ),
 );

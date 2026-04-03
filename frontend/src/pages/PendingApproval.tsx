@@ -6,6 +6,13 @@ export default function PendingApproval() {
 
   return (
     <AuthLayout>
+      <div className="mb-6 flex items-center gap-3">
+        <img src="/logo.svg" alt="" className="h-8 w-auto" />
+        <Text variant="body" as="span" className="text-xl font-bold">
+          Training Analyzer
+        </Text>
+      </div>
+
       {/* Hourglass icon */}
       <div className="mb-4 flex justify-center">
         <svg
