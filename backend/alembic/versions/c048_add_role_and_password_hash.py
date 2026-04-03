@@ -17,12 +17,15 @@ down_revision = "c047_cleanup_duplicate_athletes"
 def upgrade() -> None:
     op.add_column(
         "users",
-        sa.Column("role", sa.String(20), server_default="user", nullable=False),
+        sa.Column("role", sa.String(20), server_default="pending", nullable=False),
     )
     op.add_column(
         "users",
         sa.Column("password_hash", sa.String(255), nullable=True),
     )
+
+    # Bestehende User explizit auf "user" setzen (server_default greift nur bei INSERT)
+    op.execute("UPDATE users SET role = 'user'")
 
     # Ersten echten User (nicht den Fallback) zum Admin machen
     op.execute(
