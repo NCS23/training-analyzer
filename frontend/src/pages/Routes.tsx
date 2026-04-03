@@ -30,9 +30,11 @@ import {
   MapPin,
   Mountain,
   Ruler,
+  RefreshCw,
 } from 'lucide-react';
 import { listRoutes, deleteRoute } from '@/api/routes';
-import type { TrainingRouteSummary } from '@/api/routes';
+import type { RoundTripOption, TrainingRouteSummary } from '@/api/routes';
+import { RoundTripModal } from '@/components/route-editor/RoundTripModal';
 
 function RouteCard({
   route,
@@ -121,12 +123,50 @@ function RouteCard({
   );
 }
 
+function RoutesToolbar({
+  search,
+  onSearch,
+  onKeyDown,
+  onNewRoute,
+  onRoundTrip,
+}: {
+  search: string;
+  onSearch: (v: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onNewRoute: () => void;
+  onRoundTrip: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex-1 max-w-xs">
+        <Input
+          placeholder="Route suchen…"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" onClick={onRoundTrip}>
+          <RefreshCw className="w-4 h-4 mr-1.5" />
+          Rundkurs
+        </Button>
+        <Button variant="primary" onClick={onNewRoute}>
+          <Plus className="w-4 h-4 mr-1.5" />
+          Neue Route
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function RoutesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [routes, setRoutes] = useState<TrainingRouteSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [roundTripOpen, setRoundTripOpen] = useState(false);
 
   const loadRoutes = useCallback(
     async (q?: string) => {
@@ -157,22 +197,37 @@ export function RoutesPage() {
     }
   };
 
+  const handleRoundTripSelect = (option: RoundTripOption) => {
+    setRoundTripOpen(false);
+    navigate('/plan/routes/new', {
+      state: {
+        routePreview: {
+          name: `Rundkurs ${option.distance_km.toFixed(1)} km`,
+          distance_km: option.distance_km,
+          waypoints: option.points,
+          route_segments: [],
+          linked_session_template_id: 0,
+          pacing_strategy: 'even',
+        },
+      },
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex-1 max-w-xs">
-          <Input
-            placeholder="Route suchen…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadRoutes(search || undefined)}
-          />
-        </div>
-        <Button variant="primary" onClick={() => navigate('/plan/routes/new')}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Neue Route
-        </Button>
-      </div>
+      <RoutesToolbar
+        search={search}
+        onSearch={setSearch}
+        onKeyDown={(e) => e.key === 'Enter' && loadRoutes(search || undefined)}
+        onNewRoute={() => navigate('/plan/routes/new')}
+        onRoundTrip={() => setRoundTripOpen(true)}
+      />
+
+      <RoundTripModal
+        open={roundTripOpen}
+        onOpenChange={setRoundTripOpen}
+        onSelect={handleRoundTripSelect}
+      />
 
       {loading && (
         <div className="flex items-center justify-center py-12">

@@ -6,7 +6,6 @@ import { useToast } from '@nordlig/components';
 import {
   getWeeklyPlan,
   saveWeeklyPlan,
-  syncToPlan,
   getCompliance,
   clearWeeklyPlan,
   getUndoStatus,
@@ -28,8 +27,6 @@ export function useWeeklyPlan() {
   const [compliance, setCompliance] = useState<ComplianceResponse | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showSyncBar, setShowSyncBar] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [undoStatus, setUndoStatus] = useState<UndoStatusResponse | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
@@ -40,7 +37,6 @@ export function useWeeklyPlan() {
     async (ws: string) => {
       setLoading(true);
       setError(null);
-      setShowSyncBar(false);
       try {
         const [planResult, complianceResult, undoResult] = await Promise.all([
           getWeeklyPlan(ws),
@@ -153,56 +149,12 @@ export function useWeeklyPlan() {
     }
   }, [entries, weekStart, toast]);
 
-  const handleSaveWeekOnly = useCallback(async () => {
+  const handleSave = useCallback(async () => {
     const result = await doSave();
     if (result) {
       toast({ title: 'Wochenplan gespeichert', variant: 'success' });
-      const hasEditedPlanEntries = result.entries.some((e) => e.plan_id != null && e.edited);
-      setShowSyncBar(hasEditedPlanEntries);
     }
   }, [doSave, toast]);
-
-  const handleSaveAndSync = useCallback(
-    async (applyToAll: boolean) => {
-      const result = await doSave();
-      if (!result) return;
-
-      const planId = result.entries.find((e) => e.plan_id != null)?.plan_id;
-      if (!planId) {
-        toast({ title: 'Wochenplan gespeichert', variant: 'success' });
-        return;
-      }
-
-      try {
-        const syncResult = await syncToPlan({
-          week_start: weekStart,
-          plan_id: planId,
-          apply_to_all_weeks: applyToAll,
-        });
-        toast({
-          title: `Gespeichert & in Phase "${syncResult.phase_name}" übernommen`,
-          description: applyToAll
-            ? 'Alle Wochen der Phase aktualisiert'
-            : `Woche ${syncResult.week_key} aktualisiert`,
-          variant: 'success',
-        });
-        setShowSyncBar(false);
-      } catch {
-        toast({ title: 'Gespeichert, aber Sync fehlgeschlagen', variant: 'warning' });
-        setShowSyncBar(true);
-      }
-    },
-    [doSave, weekStart, toast],
-  );
-
-  const handleSaveClick = useCallback(() => {
-    const isPlanLinked = entries.some((e) => e.plan_id != null);
-    if (isPlanLinked && dirty) {
-      setShowSaveDialog(true);
-    } else {
-      handleSaveWeekOnly();
-    }
-  }, [entries, dirty, handleSaveWeekOnly]);
 
   // --- Delete ---
 
@@ -265,7 +217,6 @@ export function useWeeklyPlan() {
   const isCurrentWeek = weekStart === getMondayOfWeek(new Date());
   const hasContent = entries.some((e) => e.sessions.length > 0 || e.is_rest_day);
   const linkedPlanId = entries.find((e) => e.plan_id != null)?.plan_id ?? null;
-  const editedPlanCount = entries.filter((e) => e.plan_id != null && e.edited).length;
 
   return {
     weekStart,
@@ -278,24 +229,17 @@ export function useWeeklyPlan() {
     showDeleteDialog,
     setShowDeleteDialog,
     deleting,
-    showSyncBar,
-    setShowSyncBar,
-    showSaveDialog,
-    setShowSaveDialog,
     navigateWeek,
     goToCurrentWeek,
     updateEntry,
     handleMoveSession,
     handleMoveRestDay,
-    handleSaveWeekOnly,
-    handleSaveAndSync,
-    handleSaveClick,
+    handleSave,
     handleDeleteWeek,
     stats,
     isCurrentWeek,
     hasContent,
     linkedPlanId,
-    editedPlanCount,
     loadWeek,
     undoStatus,
     undoing,

@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import logging
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -51,10 +52,12 @@ from app.models.training_plan import (
     WeeklyStructure,
 )
 from app.models.yaml_validation import ExerciseCheck, YamlValidationIssue, YamlValidationResult
+from app.services.chat_tool_handlers import _ensure_exercises_exist
 from app.services.exercise_enrichment import find_similar_exercises
 from app.services.plan_generator import generate_weekly_plans
 from app.services.yaml_validator import extract_exercise_names, validate_yaml_plan
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/training-plans")
 
 
@@ -1165,6 +1168,13 @@ async def generate_plan_weeks(
     skip_weeks = await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
     weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
 
+    # Fehlende Übungen automatisch anlegen (darf Generierung nicht blockieren)
+    exercises_created = 0
+    try:
+        exercises_created = await _ensure_exercises_exist(db, plan_id)
+    except Exception as e:
+        logger.warning("Übungs-Auto-Erstellung fehlgeschlagen (Plan %d): %s", plan_id, e)
+
     await log_plan_change(
         db,
         plan_id,
@@ -1175,6 +1185,7 @@ async def generate_plan_weeks(
             "source": "system",
             "weeks_generated": weeks_generated,
             "strategy": strategy,
+            "exercises_created": exercises_created,
         },
     )
     await db.commit()
@@ -1660,49 +1671,38 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             future_weeks = {ws for ws in phase_week_starts if ws >= current_monday}
 
             if future_weeks:
-                # Get edited weeks
-                edited_weeks = await _get_edited_weeks(db, plan_id)
-                edited_in_scope = future_weeks & edited_weeks
-                weeks_to_regen = future_weeks - edited_weeks
+                # Regenerate ALL future weeks (bidirectional sync — no edited filter)
+                gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
+                    db, plan_id
+                )
+                weekly_plans = generate_weekly_plans(gen_plan, gen_phases, gen_rest_days, gen_goal)
 
-                if weeks_to_regen:
-                    # Full generation (reuses same logic)
-                    gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
-                        db, plan_id
-                    )
-                    weekly_plans = generate_weekly_plans(
-                        gen_plan, gen_phases, gen_rest_days, gen_goal
-                    )
+                # Only persist weeks that belong to this phase and are in scope
+                phase_plans = [(ws, entries) for ws, entries in weekly_plans if ws in future_weeks]
+                weeks_regenerated = await _persist_generated_weeks(db, plan_id, phase_plans)
 
-                    # Only persist weeks that belong to this phase and are in scope
-                    phase_plans = [
-                        (ws, entries) for ws, entries in weekly_plans if ws in weeks_to_regen
-                    ]
-                    weeks_regenerated = await _persist_generated_weeks(db, plan_id, phase_plans)
+                past_weeks = len(phase_week_starts) - len(future_weeks)
 
-                    past_weeks = len(phase_week_starts) - len(future_weeks)
+                await log_plan_change(
+                    db,
+                    plan_id,
+                    "weekly_auto_generated",
+                    f"{weeks_regenerated} Wochenpläne nach Template-Änderung aktualisiert",
+                    details={
+                        "category": "technical",
+                        "source": "system",
+                        "trigger": "template_change",
+                        "phase_id": phase_id,
+                        "weeks_regenerated": weeks_regenerated,
+                        "weeks_skipped_past": past_weeks,
+                    },
+                )
 
-                    await log_plan_change(
-                        db,
-                        plan_id,
-                        "weekly_auto_generated",
-                        f"{weeks_regenerated} Wochenpläne nach Template-Änderung aktualisiert",
-                        details={
-                            "category": "technical",
-                            "source": "system",
-                            "trigger": "template_change",
-                            "phase_id": phase_id,
-                            "weeks_regenerated": weeks_regenerated,
-                            "weeks_skipped_edited": len(edited_in_scope),
-                            "weeks_skipped_past": past_weeks,
-                        },
-                    )
-
-                    auto_regen = AutoRegenerationResult(
-                        weeks_regenerated=weeks_regenerated,
-                        weeks_skipped_edited=len(edited_in_scope),
-                        weeks_skipped_past=past_weeks,
-                    )
+                auto_regen = AutoRegenerationResult(
+                    weeks_regenerated=weeks_regenerated,
+                    weeks_skipped_edited=0,
+                    weeks_skipped_past=past_weeks,
+                )
 
     await db.commit()
     await db.refresh(phase)

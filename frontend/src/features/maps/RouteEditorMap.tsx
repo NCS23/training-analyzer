@@ -19,6 +19,7 @@ export interface RouteEditorMapProps {
   routing?: boolean;
   height?: string;
   segments?: RouteSegment[];
+  readOnly?: boolean;
 }
 
 const DEFAULT_CENTER: L.LatLngTuple = [53.55, 9.99]; // Hamburg
@@ -156,6 +157,7 @@ function createSegmentPolylines(
   });
 }
 
+// eslint-disable-next-line max-lines-per-function -- Karten-Orchestrator mit mehreren unabhängigen useEffect-Blöcken
 export function RouteEditorMap({
   waypoints,
   routePoints,
@@ -165,23 +167,37 @@ export function RouteEditorMap({
   routing = false,
   height = '60vh',
   segments = [],
+  readOnly = false,
 }: RouteEditorMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const polylineCasingRef = useRef<L.Polyline | null>(null);
   const segmentLinesRef = useRef<L.Polyline[]>([]);
   const callbacksRef = useRef({ onWaypointAdd, onWaypointMove, onWaypointDelete });
+  // readOnly als Ref damit der Klick-Handler reaktiv ist ohne Map-Neustart
+  const readOnlyRef = useRef(readOnly);
 
   useEffect(() => {
     callbacksRef.current = { onWaypointAdd, onWaypointMove, onWaypointDelete };
   }, [onWaypointAdd, onWaypointMove, onWaypointDelete]);
 
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+    // Cursor-Stil für Edit-Modus anzeigen
+    if (mapRef.current) {
+      const container = mapRef.current.getContainer();
+      container.style.cursor = readOnly ? '' : 'crosshair';
+    }
+  }, [readOnly]);
+
   // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const tile = TILES.outdoor;
+    // Standard OSM: gute Lesbarkeit, Sky-500 Route kontrastiert gut
+    const tile = TILES.streets;
     const map = L.map(containerRef.current, {
       scrollWheelZoom: true,
       maxZoom: tile.maxZoom ?? 19,
@@ -192,8 +208,11 @@ export function RouteEditorMap({
       map,
     );
 
+    // Klick-Handler prüft readOnlyRef — reagiert auf Modus-Wechsel ohne Map-Neustart
     map.on('click', (e: L.LeafletMouseEvent) => {
-      callbacksRef.current.onWaypointAdd(e.latlng.lat, e.latlng.lng);
+      if (!readOnlyRef.current) {
+        callbacksRef.current.onWaypointAdd(e.latlng.lat, e.latlng.lng);
+      }
     });
 
     mapRef.current = map;
@@ -207,21 +226,36 @@ export function RouteEditorMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    polylineCasingRef.current?.remove();
+    polylineCasingRef.current = null;
     polylineRef.current?.remove();
     polylineRef.current = null;
 
     const points = routePoints.length > 0 ? routePoints : waypoints;
     if (points.length < 2) return;
 
-    polylineRef.current = L.polyline(
-      points.map((p) => [p.lat, p.lng] as L.LatLngTuple),
-      {
-        color: '#3b82f6',
-        weight: 4,
-        opacity: routing ? 0.4 : 0.8,
-        dashArray: routing ? '8 8' : undefined,
-      },
-    ).addTo(map);
+    const cs = getComputedStyle(document.documentElement);
+    // Leaflet benötigt rohe CSS-Werte — semantische Tokens zur Laufzeit auflösen
+    const routeColor = cs.getPropertyValue('--color-bg-primary').trim() || '#0ea5e9';
+    const casingColor = cs.getPropertyValue('--color-bg-surface').trim() || '#ffffff';
+
+    const latlngs = points.map((p) => [p.lat, p.lng] as L.LatLngTuple);
+    const opacity = routing ? 0.45 : 1;
+
+    // Weißes Casing unter der Route für Sichtbarkeit auf jedem Kartenstil
+    polylineCasingRef.current = L.polyline(latlngs, {
+      color: casingColor,
+      weight: 9,
+      opacity,
+      dashArray: routing ? '8 8' : undefined,
+    }).addTo(map);
+
+    polylineRef.current = L.polyline(latlngs, {
+      color: routeColor,
+      weight: 5,
+      opacity,
+      dashArray: routing ? '8 8' : undefined,
+    }).addTo(map);
   }, [routePoints, waypoints, routing]);
 
   // Update segment color overlays
@@ -253,12 +287,8 @@ export function RouteEditorMap({
 
   return (
     <div className="relative">
-      <div
-        ref={containerRef}
-        style={{ height, minHeight: '250px' }}
-        className="w-full rounded-[var(--radius-component-md)] border border-[var(--color-border-default)] z-0"
-      />
-      <MapOverlays routing={routing} empty={waypoints.length === 0} />
+      <div ref={containerRef} style={{ height, minHeight: '250px' }} className="w-full z-0" />
+      <MapOverlays routing={routing} empty={!readOnly && waypoints.length === 0} />
     </div>
   );
 }

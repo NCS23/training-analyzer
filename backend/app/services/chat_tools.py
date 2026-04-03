@@ -333,9 +333,11 @@ CHAT_TOOLS: list[dict] = [
         "description": (
             "Erstellt einen Trainingsplan in der Datenbank. "
             "DU (die KI) designst den Plan — nutze dein Trainingswissen! "
-            "Rufe VORHER get_training_stats auf, um die Athletendaten zu kennen. "
-            "Uebergib phase_templates mit einer detaillierten 7-Tage-Vorlage pro Phase. "
-            "Der Algorithmus berechnet dann Volumen-Verteilung und Pace-Zonen automatisch."
+            "WICHTIG: VORHER den User nach bisherigen Wettkampfzeiten fragen "
+            "(5K, 10K, HM, Marathon) und diese als personal_records uebergeben! "
+            "Rufe auch get_training_stats auf fuer aktuelle Trainingsdaten. "
+            "Der Algorithmus berechnet VDOT, individuelle Paces, HR-Zonen und "
+            "Volumen-Progression mit Deload-Wochen automatisch."
         ),
         "input_schema": {
             "type": "object",
@@ -371,6 +373,28 @@ CHAT_TOOLS: list[dict] = [
                 "include_strength": {
                     "type": "boolean",
                     "description": "Krafttraining einplanen (Standard: true)",
+                },
+                "personal_records": {
+                    "type": "array",
+                    "description": (
+                        "Bisherige Wettkampfzeiten / Bestzeiten des Athleten. "
+                        "FRAGE den User VORHER danach! Werden fuer VDOT-Berechnung "
+                        "und individuelle Pace-Zonen verwendet."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "distance_km": {
+                                "type": "number",
+                                "description": ("Distanz in km (5.0, 10.0, 21.0975, 42.195)"),
+                            },
+                            "time_seconds": {
+                                "type": "integer",
+                                "description": ("Zeit in Sekunden (z.B. 1500 fuer 25:00)"),
+                            },
+                        },
+                        "required": ["distance_km", "time_seconds"],
+                    },
                 },
                 "phase_templates": {
                     "type": "array",
