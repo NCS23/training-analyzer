@@ -5,8 +5,9 @@
 import { chromium } from "@playwright/test";
 import path from "path";
 
-export const AUTH_STATE_PATH = path.join(
-  import.meta.dirname,
+export const AUTH_STATE_PATH = path.resolve(
+  process.cwd(),
+  "e2e",
   ".auth-state.json",
 );
 
