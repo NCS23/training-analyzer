@@ -1,17 +1,60 @@
+import { useEffect, useRef, useState } from 'react';
 import { Card, Button, Spinner } from '@nordlig/components';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Login() {
-  const { isLoading, error, clearError } = useAuth();
+  const { isLoading, error, clearError, appleClientId, appleRedirectUri, signInWithApple } =
+    useAuth();
+
+  const [sdkReady, setSdkReady] = useState(false);
+  const initDone = useRef(false);
+
+  // Apple JS SDK initialisieren sobald clientId vorhanden
+  useEffect(() => {
+    if (!appleClientId || !appleRedirectUri || initDone.current) return;
+
+    const initSdk = () => {
+      if (typeof AppleID === 'undefined') return;
+      AppleID.auth.init({
+        clientId: appleClientId,
+        scope: 'name email',
+        redirectURI: appleRedirectUri,
+        usePopup: true,
+      });
+      initDone.current = true;
+      setSdkReady(true);
+    };
+
+    // SDK ist moeglicherweise schon geladen
+    if (typeof AppleID !== 'undefined') {
+      initSdk();
+    } else {
+      // Auf das Script warten
+      const checkInterval = setInterval(() => {
+        if (typeof AppleID !== 'undefined') {
+          clearInterval(checkInterval);
+          initSdk();
+        }
+      }, 100);
+      return () => clearInterval(checkInterval);
+    }
+  }, [appleClientId, appleRedirectUri]);
 
   const handleAppleSignIn = async () => {
     clearError();
-    // In der nativen iOS App wird das Apple Sign-In SDK aufgerufen
-    // und das ID-Token + Authorization Code hier uebergeben.
-    // Fuer die Web-Version: Apple JS SDK Integration.
-    // Placeholder fuer die tatsaechliche Apple Sign-In Integration:
-    const event = new CustomEvent('apple-sign-in-request');
-    window.dispatchEvent(event);
+    try {
+      const response = await AppleID.auth.signIn();
+      const { id_token, code } = response.authorization;
+      const firstName = response.user?.name?.firstName;
+      await signInWithApple(id_token, code, firstName);
+    } catch (err) {
+      // User hat Popup geschlossen oder anderer Fehler
+      if (err instanceof Error && err.message !== 'popup_closed_by_user') {
+        useAuth.setState({
+          error: 'Apple-Anmeldung fehlgeschlagen. Bitte erneut versuchen.',
+        });
+      }
+    }
   };
 
   return (
@@ -41,7 +84,7 @@ export default function Login() {
             size="lg"
             className="w-full"
             onClick={handleAppleSignIn}
-            disabled={isLoading}
+            disabled={isLoading || !sdkReady}
           >
             {isLoading ? (
               <Spinner size="sm" />

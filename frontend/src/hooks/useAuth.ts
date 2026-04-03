@@ -19,6 +19,10 @@ interface AuthState {
   refreshToken: string | null;
   /** Fehler-Nachricht. */
   error: string | null;
+  /** Apple Client ID vom Backend (fuer SDK-Init). */
+  appleClientId: string | null;
+  /** Apple Redirect URI vom Backend (fuer SDK-Init). */
+  appleRedirectUri: string | null;
 
   /** Auth-Status vom Backend laden. */
   checkStatus: () => Promise<void>;
@@ -42,12 +46,18 @@ export const useAuth = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       error: null,
+      appleClientId: null,
+      appleRedirectUri: null,
 
       checkStatus: async () => {
         set({ isLoading: true, error: null });
         try {
           const status = await getAuthStatus();
-          set({ authEnabled: status.auth_enabled });
+          set({
+            authEnabled: status.auth_enabled,
+            appleClientId: status.apple_client_id ?? null,
+            appleRedirectUri: status.redirect_uri ?? null,
+          });
 
           if (!status.auth_enabled) {
             // Kein Auth → Default-User laden

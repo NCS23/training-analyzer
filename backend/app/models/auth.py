@@ -46,3 +46,5 @@ class AuthStatusResponse(BaseModel):
     auth_enabled: bool
     authenticated: bool
     user: UserResponse | None = None
+    apple_client_id: str | None = None
+    redirect_uri: str | None = None
