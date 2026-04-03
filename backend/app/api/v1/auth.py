@@ -59,6 +59,10 @@ async def apple_sign_in(
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Authentifiziert einen User via Apple Sign-In."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     try:
         claims = await validate_apple_id_token(body.id_token)
     except ValueError as e:
@@ -66,14 +70,27 @@ async def apple_sign_in(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         ) from e
+    except Exception as e:
+        logger.exception("Apple Token-Validierung fehlgeschlagen: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token-Validierung fehlgeschlagen: {e}",
+        ) from e
 
-    user = await find_or_create_user_by_apple(
-        db,
-        apple_sub=claims.sub,
-        email=claims.email,
-        name=body.name,
-    )
-    return await _create_token_pair(db, user.id)
+    try:
+        user = await find_or_create_user_by_apple(
+            db,
+            apple_sub=claims.sub,
+            email=claims.email,
+            name=body.name,
+        )
+        return await _create_token_pair(db, user.id)
+    except Exception as e:
+        logger.exception("User-Erstellung fehlgeschlagen: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"User-Erstellung fehlgeschlagen: {e}",
+        ) from e
 
 
 @router.post("/apple/callback")
