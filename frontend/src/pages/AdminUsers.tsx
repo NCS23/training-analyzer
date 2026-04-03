@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Button, Spinner, Badge, Breadcrumbs, BreadcrumbItem } from '@nordlig/components';
+import {
+  Card,
+  CardBody,
+  Button,
+  Spinner,
+  Badge,
+  Breadcrumbs,
+  BreadcrumbItem,
+  EmptyState,
+  Heading,
+} from '@nordlig/components';
 import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { getUsers, updateUser, deactivateUser } from '@/api/admin';
 import type { AdminUser } from '@/api/admin';
 import { useAuth } from '@/hooks/useAuth';
@@ -159,18 +170,16 @@ export function AdminUsersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 pt-6 md:p-6 md:pt-8">
+    <div className="mx-auto max-w-5xl space-y-4 p-4 pt-6 md:space-y-6 md:p-6 md:pt-10">
       <div className="space-y-2 pb-2">
-        <Breadcrumbs>
+        <Breadcrumbs separator={<ChevronRight className="h-3.5 w-3.5" />}>
           <BreadcrumbItem>
             <Link to="/profile">Profil</Link>
           </BreadcrumbItem>
           <BreadcrumbItem isCurrent>Nutzerverwaltung</BreadcrumbItem>
         </Breadcrumbs>
 
-        <h1 className="text-[length:var(--font-size-xl)] font-semibold text-[var(--color-text-primary)]">
-          Nutzerverwaltung
-        </h1>
+        <Heading level={1}>Nutzerverwaltung</Heading>
       </div>
 
       {isLoading && (
@@ -190,16 +199,20 @@ export function AdminUsersPage() {
 
       {sortedUsers && sortedUsers.length > 0 && (
         <Card>
-          {sortedUsers.map((u) => (
-            <UserRow key={u.id} adminUser={u} currentUserId={user?.id ?? -1} />
-          ))}
+          <CardBody className="p-0">
+            {sortedUsers.map((u) => (
+              <UserRow key={u.id} adminUser={u} currentUserId={user?.id ?? -1} />
+            ))}
+          </CardBody>
         </Card>
       )}
 
       {sortedUsers && sortedUsers.length === 0 && (
-        <p className="py-8 text-center text-[length:var(--font-size-sm)] text-[var(--color-text-muted)]">
-          Keine Nutzer vorhanden.
-        </p>
+        <Card>
+          <CardBody>
+            <EmptyState title="Keine Nutzer" description="Es sind noch keine Nutzer vorhanden." />
+          </CardBody>
+        </Card>
       )}
     </div>
   );

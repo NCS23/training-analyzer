@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Card, Button, Spinner, Input, Label } from '@nordlig/components';
+import {
+  AuthLayout,
+  Heading,
+  Text,
+  Button,
+  InputField,
+  PasswordInput,
+  Separator,
+  Spinner,
+  Link,
+} from '@nordlig/components';
 import { useAuth } from '@/hooks/useAuth';
 
 /* ------------------------------------------------------------------ */
@@ -62,45 +72,27 @@ function EmailLoginForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="login-email">E-Mail</Label>
-        <Input
-          id="login-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@beispiel.de"
-          required
-          autoComplete="email"
-        />
-      </div>
+      <InputField
+        label="E-Mail"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="name@beispiel.de"
+        required
+        autoComplete="email"
+      />
 
-      <div className="space-y-1.5">
-        <Label htmlFor="login-password">Passwort</Label>
-        <Input
-          id="login-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Passwort"
-          required
-          autoComplete="current-password"
-        />
-      </div>
+      <PasswordInput
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Passwort"
+        required
+        autoComplete="current-password"
+      />
 
       <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isLoading}>
         {isLoading ? <Spinner size="sm" /> : 'Anmelden'}
       </Button>
-
-      <p className="text-center text-[length:var(--font-size-sm)] text-[var(--color-text-secondary)]">
-        Noch kein Konto?{' '}
-        <a
-          href="/register"
-          className="font-medium text-[var(--color-text-primary)] hover:underline"
-        >
-          Registrieren
-        </a>
-      </p>
     </form>
   );
 }
@@ -145,69 +137,68 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <div className="space-y-6 p-6">
-          <div className="text-center">
-            <h1 className="text-[length:var(--font-size-xl)] font-semibold text-[var(--color-text-primary)]">
-              Training Analyzer
-            </h1>
-            <p className="mt-2 text-[length:var(--font-size-sm)] text-[var(--color-text-secondary)]">
-              Melde dich an, um fortzufahren
-            </p>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="rounded-[var(--radius-md)] bg-[var(--color-bg-error-subtle)] p-3 text-[length:var(--font-size-sm)] text-[var(--color-text-error)]"
-            >
-              {error}
-            </div>
-          )}
-
-          {appleClientId && (
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-              onClick={handleAppleSignIn}
-              disabled={isLoading || !sdkReady}
-            >
-              {isLoading ? (
-                <Spinner size="sm" />
-              ) : (
-                <>
-                  <svg
-                    className="mr-2 h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.52-3.23 0-1.44.65-2.2.46-3.06-.4C3.79 16.17 4.36 9.02 8.93 8.78c1.28.06 2.17.72 2.92.76.89-.18 1.74-.88 2.92-.82 1.53.08 2.59.72 3.24 1.84-2.92 1.75-2.23 5.64.94 6.72-.55 1.43-.82 2.07-1.9 3z" />
-                    <path d="M12.16 8.67c-.14-2.14 1.58-3.99 3.63-4.17.27 2.44-2.14 4.28-3.63 4.17z" />
-                  </svg>
-                  Mit Apple anmelden
-                </>
-              )}
-            </Button>
-          )}
-
-          {emailAuthEnabled && appleClientId && (
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-[var(--color-border-muted)]" />
-              <span className="text-[length:var(--font-size-xs)] text-[var(--color-text-muted)]">
-                oder
-              </span>
-              <div className="h-px flex-1 bg-[var(--color-border-muted)]" />
-            </div>
-          )}
-
-          {emailAuthEnabled && (
-            <EmailLoginForm isLoading={isLoading} onSubmit={handleEmailSignIn} />
-          )}
+    <AuthLayout
+      logo={
+        <div className="flex items-center gap-3">
+          <Heading level={3}>Training Analyzer</Heading>
         </div>
-      </Card>
-    </div>
+      }
+      footer={
+        <div className="flex items-center justify-center gap-4">
+          <Link href="/register">Registrieren</Link>
+        </div>
+      }
+    >
+      <Heading level={2} className="mb-6">
+        Anmelden
+      </Heading>
+
+      {error && (
+        <div
+          role="alert"
+          className="mb-4 rounded-[var(--radius-md)] bg-[var(--color-bg-error-subtle)] p-3 text-[length:var(--font-size-sm)] text-[var(--color-text-error)]"
+        >
+          {error}
+        </div>
+      )}
+
+      {appleClientId && (
+        <Button
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          onClick={handleAppleSignIn}
+          disabled={isLoading || !sdkReady}
+        >
+          {isLoading ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <svg
+                className="mr-2 h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.52-3.23 0-1.44.65-2.2.46-3.06-.4C3.79 16.17 4.36 9.02 8.93 8.78c1.28.06 2.17.72 2.92.76.89-.18 1.74-.88 2.92-.82 1.53.08 2.59.72 3.24 1.84-2.92 1.75-2.23 5.64.94 6.72-.55 1.43-.82 2.07-1.9 3z" />
+                <path d="M12.16 8.67c-.14-2.14 1.58-3.99 3.63-4.17.27 2.44-2.14 4.28-3.63 4.17z" />
+              </svg>
+              Mit Apple anmelden
+            </>
+          )}
+        </Button>
+      )}
+
+      {emailAuthEnabled && appleClientId && (
+        <>
+          <Separator className="my-4" />
+          <Text variant="muted" className="mb-4 text-center">
+            Oder mit E-Mail
+          </Text>
+        </>
+      )}
+
+      {emailAuthEnabled && <EmailLoginForm isLoading={isLoading} onSubmit={handleEmailSignIn} />}
+    </AuthLayout>
   );
 }
