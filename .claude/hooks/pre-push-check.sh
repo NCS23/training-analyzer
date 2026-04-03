@@ -19,6 +19,15 @@ case "$CMD" in
   *) exit 0 ;; # not a push — allow immediately
 esac
 
+# --- Block --no-verify on push (prevents bypassing git hooks) ---
+case "$CMD" in
+  *--no-verify*)
+    echo "BLOCKIERT: git push --no-verify ist verboten."
+    echo "Git Hooks duerfen NICHT umgangen werden."
+    exit 2
+    ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 

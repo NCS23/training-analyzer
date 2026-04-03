@@ -61,3 +61,4 @@ e2e/playwright-report/
 # .claude/workflow-checklist.md  → workflow compliance proof
 # .claude/design-review.md      → design review report
 # .claude/screenshots/           → screenshot evidence
+e2e/.auth-state.json

@@ -1,7 +1,8 @@
 import { defineConfig } from "@playwright/test";
+import { AUTH_STATE_PATH } from "./auth-setup";
 
 const PRODUCTION_URL =
-  process.env.BASE_URL || "http://training.89.167.78.223.sslip.io";
+  process.env.BASE_URL || "https://training.nordliggrad.com";
 
 export default defineConfig({
   globalSetup: "./global-setup.ts",
@@ -13,6 +14,7 @@ export default defineConfig({
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: PRODUCTION_URL,
+    storageState: AUTH_STATE_PATH,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },

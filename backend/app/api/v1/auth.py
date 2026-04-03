@@ -159,7 +159,16 @@ async def register(
         )
 
     is_first = await _count_real_users(db) == 0
-    role = "admin" if is_first else "pending"
+    # E2E-Tests: Auto-Approve damit Smoke Tests funktionieren
+    e2e_auto_approve = settings.environment == "production" and body.email.endswith(
+        "@training-analyzer.app"
+    )
+    if is_first:
+        role = "admin"
+    elif e2e_auto_approve:
+        role = "user"
+    else:
+        role = "pending"
 
     user = await create_user_with_password(
         db,

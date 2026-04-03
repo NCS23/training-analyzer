@@ -1,4 +1,5 @@
 import type { FullConfig } from "@playwright/test";
+import { setupAuth } from "./auth-setup";
 
 const POLL_INTERVAL_MS = 5_000;
 const MAX_WAIT_MS = 60_000;
@@ -83,6 +84,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       `[global-setup] API-Check fehlgeschlagen: ${message} — Tests starten trotzdem`,
     );
   }
+
+  // Phase 3: Auth-Setup (E2E Test-User erstellen + Token speichern)
+  await setupAuth(baseURL);
 
   const total = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`[global-setup] Setup abgeschlossen nach ${total}s`);
