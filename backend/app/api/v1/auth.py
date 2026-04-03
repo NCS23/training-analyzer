@@ -3,7 +3,8 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,13 +76,62 @@ async def apple_sign_in(
     return await _create_token_pair(db, user.id)
 
 
+@router.post("/apple/callback")
+async def apple_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Verarbeitet Apples Server-Redirect (form POST mit code + id_token)."""
+    form = await request.form()
+    id_token = form.get("id_token")
+
+    if not id_token or not isinstance(id_token, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="id_token fehlt",
+        )
+
+    try:
+        claims = await validate_apple_id_token(id_token)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        ) from e
+
+    user = await find_or_create_user_by_apple(
+        db,
+        apple_sub=claims.sub,
+        email=claims.email,
+        name=None,
+    )
+    tokens = await _create_token_pair(db, user.id)
+
+    # Redirect zum Frontend mit Tokens im URL-Fragment (nicht sichtbar fuer Server)
+    host = request.headers.get("host", "")
+    scheme = "https" if request.url.scheme == "https" or "localhost" not in host else "http"
+    fragment = (
+        f"access_token={tokens.access_token}"
+        f"&refresh_token={tokens.refresh_token}"
+        f"&expires_in={tokens.expires_in}"
+    )
+    redirect_url = f"{scheme}://{host}/login#auth={fragment}"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
 @router.get("/status", response_model=AuthStatusResponse)
-async def auth_status() -> AuthStatusResponse:
+async def auth_status(request: Request) -> AuthStatusResponse:
     """Gibt den Auth-Status zurueck (fuer App-Initialisierung)."""
+    host = request.headers.get("host", "")
+    scheme = "https" if request.url.scheme == "https" or "localhost" not in host else "http"
     return AuthStatusResponse(
         auth_enabled=settings.auth_enabled,
         authenticated=False,
         user=None,
+        apple_client_id=settings.apple_client_id if settings.auth_enabled else None,
+        redirect_uri=f"{scheme}://{host}/api/v1/auth/apple/callback"
+        if settings.auth_enabled
+        else None,
     )
 
 

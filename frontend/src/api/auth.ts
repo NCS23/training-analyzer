@@ -19,6 +19,8 @@ export interface AuthStatusResponse {
   auth_enabled: boolean;
   authenticated: boolean;
   user: UserResponse | null;
+  apple_client_id: string | null;
+  redirect_uri: string | null;
 }
 
 /** Apple Sign-In: ID-Token gegen Access/Refresh-Token tauschen. */
