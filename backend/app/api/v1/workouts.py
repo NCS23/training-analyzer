@@ -48,7 +48,7 @@ async def upload_workout(
 
         # Analyze with AI (User-Key → .env Fallback)
         try:
-            claude_key = await resolve_claude_api_key(db)
+            claude_key = await resolve_claude_api_key(db, current_user.id)
             ai_analysis = await ai_service.analyze_workout(workout_data, api_key=claude_key)
         except Exception as e:
             ai_analysis = f"AI analysis failed: {str(e)}"

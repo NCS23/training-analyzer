@@ -140,6 +140,9 @@ class AthleteModel(Base):
     encrypted_claude_api_key: Mapped[str | None] = mapped_column(Text, default=None)
     encrypted_openai_api_key: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # AI Provider Präferenz (NULL = System-Default)
+    preferred_ai_provider: Mapped[str | None] = mapped_column(String(20), default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

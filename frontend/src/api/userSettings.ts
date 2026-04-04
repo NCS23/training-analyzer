@@ -5,6 +5,7 @@ export interface UserSettings {
   openai_api_key_masked: string | null;
   claude_api_key_set: boolean;
   openai_api_key_set: boolean;
+  preferred_ai_provider: string | null;
 }
 
 export async function getUserSettings(): Promise<UserSettings> {
@@ -15,6 +16,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function updateUserSettings(params: {
   claude_api_key?: string | null;
   openai_api_key?: string | null;
+  preferred_ai_provider?: string | null;
 }): Promise<UserSettings> {
   const response = await apiClient.patch<UserSettings>('/api/v1/user/settings', params);
   return response.data;

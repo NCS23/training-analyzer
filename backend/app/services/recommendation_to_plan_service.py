@@ -41,6 +41,8 @@ async def apply_recommendations(
     review_week_start: date,
     recommendations: list[str],
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> dict:
     """Passt den Plan der Folgewoche anhand von Empfehlungen an.
 
@@ -61,7 +63,7 @@ async def apply_recommendations(
     # Prompt bauen und KI aufrufen
     system_prompt = _build_system_prompt(race_goal, target_week)
     user_prompt = _build_user_prompt(recommendations, existing_plan, templates)
-    api_key = await resolve_claude_api_key(db)
+    api_key = await resolve_claude_api_key(db, user_id)
 
     t0 = time.monotonic()
     raw = await ai_service.chat(user_prompt, {"system_prompt": system_prompt}, api_key)

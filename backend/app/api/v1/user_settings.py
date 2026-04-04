@@ -1,9 +1,9 @@
-"""User Settings API (API Keys).
+"""User Settings API (API Keys + AI Provider Präferenz).
 
-Verwaltet verschlüsselte API-Keys für KI-Provider.
+Verwaltet verschlüsselte API-Keys und Provider-Einstellungen.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ from app.core.dependencies import get_current_active_user
 from app.core.encryption import encrypt_api_key
 from app.infrastructure.database.models import AthleteModel, UserModel
 from app.infrastructure.database.session import get_db
-from app.models.user_settings import UserSettingsRequest, UserSettingsResponse
+from app.models.user_settings import VALID_PROVIDERS, UserSettingsRequest, UserSettingsResponse
 
 router = APIRouter(prefix="/user", tags=["user-settings"])
 
@@ -68,6 +68,18 @@ async def update_user_settings(
             athlete.encrypted_openai_api_key = None
         else:
             athlete.encrypted_openai_api_key = encrypt_api_key(body.openai_api_key)
+
+    if body.preferred_ai_provider is not None:
+        if body.preferred_ai_provider == "":
+            athlete.preferred_ai_provider = None
+        elif body.preferred_ai_provider in VALID_PROVIDERS:
+            athlete.preferred_ai_provider = body.preferred_ai_provider
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Ungültiger Provider: {body.preferred_ai_provider}. "
+                f"Gültig: {', '.join(sorted(VALID_PROVIDERS))}",
+            )
 
     await db.commit()
     await db.refresh(athlete)
