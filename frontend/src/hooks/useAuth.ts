@@ -21,7 +21,7 @@ interface AuthState {
   isLoading: boolean;
   /** Aktueller User (oder null). */
   user: UserResponse | null;
-  /** Access-Token (nur in-memory, nicht persistiert). */
+  /** Access-Token (persistiert fuer E2E-Kompatibilitaet). */
   accessToken: string | null;
   /** Refresh-Token (persistiert). */
   refreshToken: string | null;
@@ -75,6 +75,21 @@ async function loadUserAndSetState(set: (state: Partial<AuthState>) => void) {
   });
 }
 
+/** Versucht den Access-Token direkt zu nutzen (vermeidet Token-Rotation). */
+async function tryAccessToken(
+  accessToken: string | null,
+  set: (state: Partial<AuthState>) => void,
+): Promise<boolean> {
+  if (!accessToken) return false;
+  apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+  try {
+    await loadUserAndSetState(set);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Setzt den abgemeldeten Zustand. */
 function clearAuthState(set: (state: Partial<AuthState>) => void) {
   set({
@@ -121,8 +136,9 @@ export const useAuth = create<AuthState>()(
             return;
           }
 
-          // Auth aktiviert → pruefen ob Token vorhanden
-          const { refreshToken } = get();
+          // Auth aktiviert → Access-Token-First, dann Refresh-Fallback
+          const { accessToken, refreshToken } = get();
+          if (await tryAccessToken(accessToken, set)) return;
           if (refreshToken) {
             const success = await get().refresh();
             if (success) {
@@ -202,6 +218,7 @@ export const useAuth = create<AuthState>()(
     {
       name: 'training-analyzer-auth',
       partialize: (state) => ({
+        accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
       onRehydrateStorage: () => {

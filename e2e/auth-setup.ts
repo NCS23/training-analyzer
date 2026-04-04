@@ -75,11 +75,13 @@ export async function setupAuth(baseURL: string): Promise<void> {
   }
 
   // 2. Browser starten, Token in localStorage setzen, storageState speichern
+  //    Wichtig: /api/v1/health statt / verwenden — sonst laedt die React-App
+  //    und Zustand persist ueberschreibt unsere Tokens mit null-Werten.
   const browser = await chromium.launch();
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto("/");
+  await page.goto("/api/v1/health");
   await page.evaluate(
     ({ access, refresh }) => {
       localStorage.setItem("ta_access_token", access);
@@ -87,7 +89,7 @@ export async function setupAuth(baseURL: string): Promise<void> {
       localStorage.setItem(
         "training-analyzer-auth",
         JSON.stringify({
-          state: { refreshToken: refresh },
+          state: { accessToken: access, refreshToken: refresh },
           version: 0,
         }),
       );

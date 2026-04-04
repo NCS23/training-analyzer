@@ -1,5 +1,4 @@
 import type { FullConfig } from "@playwright/test";
-import { setupAuth } from "./auth-setup";
 
 const POLL_INTERVAL_MS = 5_000;
 const MAX_WAIT_MS = 60_000;
@@ -85,9 +84,41 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     );
   }
 
-  // Phase 3: Auth-Setup (E2E Test-User erstellen + Token speichern)
-  await setupAuth(baseURL);
+  // Phase 3: E2E-User sicherstellen (Token werden per auth-fixture.ts pro Test geholt)
+  await ensureE2EUser(baseURL);
 
   const total = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`[global-setup] Setup abgeschlossen nach ${total}s`);
+}
+
+const E2E_EMAIL = "e2e-smoke@training-analyzer.app";
+const E2E_PASSWORD = "e2e-smoke-test-2026!";
+
+async function ensureE2EUser(baseURL: string): Promise<void> {
+  console.log("[global-setup] Stelle sicher, dass E2E-User existiert...");
+
+  try {
+    const resp = await fetch(`${baseURL}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: E2E_EMAIL,
+        password: E2E_PASSWORD,
+        name: "E2E Smoke Test",
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (resp.ok) {
+      console.log("[global-setup] E2E-User neu registriert");
+    } else if (resp.status === 409) {
+      console.log("[global-setup] E2E-User existiert bereits");
+    } else {
+      console.warn(
+        `[global-setup] Register HTTP ${resp.status}: ${await resp.text()}`,
+      );
+    }
+  } catch (err) {
+    console.warn("[global-setup] Register fehlgeschlagen:", err);
+  }
 }
