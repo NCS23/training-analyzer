@@ -163,7 +163,7 @@ async def prepare_stream_with_tools(
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     api_key = await resolve_claude_api_key(db, user_id)
-    tool_handler = partial(dispatch_tool, db=db)
+    tool_handler = partial(dispatch_tool, db=db, user_id=user_id)
     stream, provider_name = await ai_service.stream_chat_with_tools(
         api_messages, system_prompt, CHAT_TOOLS, tool_handler, api_key
     )

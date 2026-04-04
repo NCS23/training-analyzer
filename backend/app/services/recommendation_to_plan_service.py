@@ -51,14 +51,14 @@ async def apply_recommendations(
     target_week = review_week_start + timedelta(days=7)
 
     # Bestehenden Plan mit vollen Details laden
-    existing_plan = await _load_full_plan(target_week, db)
+    existing_plan = await _load_full_plan(target_week, db, user_id=user_id)
 
     # plan_id für Sync extrahieren
     plan_id = _extract_plan_id(existing_plan)
 
     # Kontext laden
     templates = await _load_strength_templates(db)
-    race_goal = await _load_race_goal(db)
+    race_goal = await _load_race_goal(db, user_id=user_id)
 
     # Prompt bauen und KI aufrufen
     system_prompt = _build_system_prompt(race_goal, target_week)
@@ -76,7 +76,7 @@ async def apply_recommendations(
 
     # Bestehende Einträge löschen und neue persistieren
     if ai_days:
-        await _replace_plan(target_week, existing_plan, ai_days, db)
+        await _replace_plan(target_week, existing_plan, ai_days, db, user_id=user_id)
 
     # Sync zurück zum Trainingsplan + Changelog
     if ai_days and plan_id:
@@ -128,13 +128,14 @@ def _extract_plan_id(existing_plan: list[dict]) -> int | None:
 # ---------------------------------------------------------------------------
 
 
-async def _load_full_plan(week_start: date, db: AsyncSession) -> list[dict]:
+async def _load_full_plan(
+    week_start: date, db: AsyncSession, *, user_id: int | None = None
+) -> list[dict]:
     """Lädt den bestehenden Plan mit vollen Session-Details für den KI-Prompt."""
-    day_result = await db.execute(
-        select(WeeklyPlanDayModel)
-        .where(WeeklyPlanDayModel.week_start == week_start)
-        .order_by(WeeklyPlanDayModel.day_of_week)
-    )
+    q = select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == week_start)
+    if user_id is not None:
+        q = q.where(WeeklyPlanDayModel.user_id == user_id)
+    day_result = await db.execute(q.order_by(WeeklyPlanDayModel.day_of_week))
     days = day_result.scalars().all()
     if not days:
         return []
@@ -178,11 +179,12 @@ async def _load_strength_templates(db: AsyncSession) -> list[dict]:
     return [{"id": row.id, "name": str(row.name)} for row in result.all()]
 
 
-async def _load_race_goal(db: AsyncSession) -> dict | None:
+async def _load_race_goal(db: AsyncSession, *, user_id: int | None = None) -> dict | None:
     """Lädt das aktive Wettkampfziel."""
-    result = await db.execute(
-        select(RaceGoalModel).where(RaceGoalModel.is_active.is_(True)).limit(1)
-    )
+    q = select(RaceGoalModel).where(RaceGoalModel.is_active.is_(True))
+    if user_id is not None:
+        q = q.where(RaceGoalModel.user_id == user_id)
+    result = await db.execute(q.limit(1))
     goal = result.scalar_one_or_none()
     if not goal:
         return None
@@ -524,12 +526,15 @@ async def _replace_plan(
     existing_plan: list[dict],
     ai_days: list[dict],
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> None:
     """Löscht bestehende Einträge und erstellt den angepassten Plan."""
     # Bestehende Tage + Sessions löschen
-    day_result = await db.execute(
-        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == target_week)
-    )
+    q = select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == target_week)
+    if user_id is not None:
+        q = q.where(WeeklyPlanDayModel.user_id == user_id)
+    day_result = await db.execute(q)
     old_days = day_result.scalars().all()
 
     if old_days:
@@ -548,7 +553,7 @@ async def _replace_plan(
 
     # Neue Tage + Sessions erstellen
     for ai_day in ai_days:
-        await _create_plan_day(target_week, ai_day, plan_id, db)
+        await _create_plan_day(target_week, ai_day, plan_id, db, user_id=user_id)
 
 
 async def _create_plan_day(
@@ -556,6 +561,8 @@ async def _create_plan_day(
     ai_day: dict,
     plan_id: int | None,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> None:
     """Erstellt einen einzelnen Plan-Tag mit Session in der DB."""
     is_rest = ai_day.get("is_rest_day", False)
@@ -567,6 +574,7 @@ async def _create_plan_day(
         notes=ai_day.get("notes"),
         plan_id=plan_id,
         edited=True,
+        user_id=user_id,
     )
     db.add(db_day)
     await db.flush()
@@ -585,6 +593,7 @@ async def _create_plan_day(
         template_id=ai_day.get("template_id"),
         run_details_json=run_details_str,
         notes=ai_day.get("notes"),
+        user_id=user_id,
     )
     db.add(db_session)
 
