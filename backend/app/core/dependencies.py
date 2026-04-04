@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.security import decode_access_token
 from app.infrastructure.database.models import UserModel
 from app.infrastructure.database.session import get_db
-from app.services.data_migration_service import assign_orphaned_data
+from app.services.data_migration_service import assign_orphaned_data, reassign_user_data
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,8 @@ DEFAULT_USER_EMAIL = "local@training-analyzer.app"
 
 # Einmal-Flag: verhindert 17 UPDATE-Queries bei jedem Request nach dem ersten
 _orphan_migration_done = False
+# Set von User-IDs, für die die Fallback-Migration bereits gelaufen ist
+_fallback_migration_done: set[int] = set()
 
 
 async def _ensure_default_user(db: AsyncSession) -> UserModel:
@@ -83,6 +85,20 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Benutzer nicht gefunden oder deaktiviert",
         )
+
+    # Einmalig pro User: Verwaiste + Fallback-Daten übernehmen.
+    # Löst das Problem wenn ein User sich per E-Mail registriert hat,
+    # aber die Daten noch beim Fallback-User liegen.
+    if user.id not in _fallback_migration_done:
+        _fallback_migration_done.add(user.id)
+        await assign_orphaned_data(db, user.id)
+        fallback_result = await db.execute(
+            select(UserModel).where(UserModel.email == DEFAULT_USER_EMAIL)
+        )
+        fallback_user = fallback_result.scalar_one_or_none()
+        if fallback_user is not None and fallback_user.id != user.id:
+            await reassign_user_data(db, fallback_user.id, user.id)
+
     return user
 
 
