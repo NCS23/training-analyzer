@@ -1415,7 +1415,7 @@ async def undo_weekly_plan(
 async def apply_recommendations(
     data: ApplyRecommendationsRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ApplyRecommendationsResponse:
     """Konvertiert KI-Review-Empfehlungen in Plan-Sessions für die Folgewoche."""
     from app.services.recommendation_to_plan_service import (
@@ -1428,6 +1428,7 @@ async def apply_recommendations(
         review_week_start=week_start,
         recommendations=data.recommendations,
         db=db,
+        user_id=current_user.id,
     )
 
     return ApplyRecommendationsResponse(**result)

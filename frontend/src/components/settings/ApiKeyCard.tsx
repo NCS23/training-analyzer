@@ -9,8 +9,15 @@ import {
   AlertDescription,
   Spinner,
   PasswordInput,
+  Select,
 } from '@nordlig/components';
 import type { ApiKeyState } from '@/hooks/useApiKeySettings';
+
+const PROVIDER_OPTIONS = [
+  { value: 'default', label: 'Standard (Claude)' },
+  { value: 'claude', label: 'Anthropic Claude' },
+  { value: 'openai', label: 'OpenAI' },
+];
 
 interface ApiKeyFieldProps {
   id: string;
@@ -55,37 +62,60 @@ function ApiKeyField({
 }
 
 export function ApiKeyCard({ keys }: { keys: ApiKeyState }) {
+  const handleProviderChange = (value: string | undefined) => {
+    if (value) {
+      keys.saveProvider(value);
+    }
+  };
+
   return (
     <Card elevation="raised" padding="spacious">
       <CardHeader>
-        <h2 className="text-sm font-semibold text-[var(--color-text-base)]">API-Schlüssel</h2>
+        <h2 className="text-sm font-semibold text-[var(--color-text-base)]">KI-Einstellungen</h2>
       </CardHeader>
       <CardBody>
-        <p className="text-xs text-[var(--color-text-muted)] mb-4">
-          Eigene API-Schlüssel für die KI-Analyse. Ohne Schlüssel wird der serverseitige Fallback
-          verwendet.
-        </p>
-        <div className="space-y-4">
-          <ApiKeyField
-            id="claude-key"
-            label="Anthropic (Claude)"
-            placeholder="sk-ant-..."
-            isSet={keys.claudeKeySet}
-            value={keys.claudeKey}
-            onChange={keys.setClaudeKey}
-            onClear={() => keys.clearKey('claude')}
-            disabled={keys.saving}
-          />
-          <ApiKeyField
-            id="openai-key"
-            label="OpenAI"
-            placeholder="sk-..."
-            isSet={keys.openaiKeySet}
-            value={keys.openaiKey}
-            onChange={keys.setOpenaiKey}
-            onClear={() => keys.clearKey('openai')}
-            disabled={keys.saving}
-          />
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="ai-provider">KI-Provider</Label>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Wähle den bevorzugten Provider für die Trainingsanalyse.
+            </p>
+            <Select
+              options={PROVIDER_OPTIONS}
+              value={keys.preferredProvider ?? 'default'}
+              onChange={handleProviderChange}
+              inputSize="sm"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label>API-Schlüssel</Label>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Eigene API-Schlüssel für die KI-Analyse.
+              </p>
+            </div>
+            <ApiKeyField
+              id="claude-key"
+              label="Anthropic (Claude)"
+              placeholder="sk-ant-..."
+              isSet={keys.claudeKeySet}
+              value={keys.claudeKey}
+              onChange={keys.setClaudeKey}
+              onClear={() => keys.clearKey('claude')}
+              disabled={keys.saving}
+            />
+            <ApiKeyField
+              id="openai-key"
+              label="OpenAI"
+              placeholder="sk-..."
+              isSet={keys.openaiKeySet}
+              value={keys.openaiKey}
+              onChange={keys.setOpenaiKey}
+              onClear={() => keys.clearKey('openai')}
+              disabled={keys.saving}
+            />
+          </div>
         </div>
 
         {keys.error && (

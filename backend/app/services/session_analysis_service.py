@@ -44,6 +44,7 @@ async def analyze_session(
     db: AsyncSession,
     *,
     force_refresh: bool = False,
+    user_id: int | None = None,
 ) -> SessionAnalysisResponse:
     """Analysiert eine Session mit KI (Cache-First)."""
     workout = await _load_workout(session_id, db)
@@ -56,7 +57,7 @@ async def analyze_session(
     context = await _load_analysis_context(workout, db)
     prompt = _build_analysis_prompt(workout, context)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key = await resolve_claude_api_key(db, user_id)
 
     t0 = time.monotonic()
     raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
@@ -744,13 +745,15 @@ async def analyze_race_session(
     session_id: int,
     db: AsyncSession,
     race_report: dict | None = None,
+    *,
+    user_id: int | None = None,
 ) -> RaceAnalysisResponse:
     """Analysiert eine Wettkampf-Session mit race-spezifischem Prompt."""
     workout = await _load_workout(session_id, db)
     context = await _load_analysis_context(workout, db)
     prompt = _build_race_prompt(workout, context, race_report)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key = await resolve_claude_api_key(db, user_id)
 
     t0 = time.monotonic()
     raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)

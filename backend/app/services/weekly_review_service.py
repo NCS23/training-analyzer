@@ -71,7 +71,7 @@ async def generate_weekly_review(
     # Prompt bauen und AI aufrufen
     prompt = _build_review_prompt(context)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key = await resolve_claude_api_key(db, user_id)
 
     t0 = time.monotonic()
     raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)

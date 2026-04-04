@@ -183,21 +183,9 @@ class ClaudeProvider(AIProvider):
             api_messages.append({"role": "user", "content": tool_results})  # type: ignore[arg-type,typeddict-item]
 
     def is_available(self, api_key: str | None = None) -> bool:
-        """Check if Claude API is available"""
+        """Prüft ob ein API Key vorhanden ist (kein teurer Test-Call)."""
         key = api_key or self.default_api_key
-        if not key:
-            return False
-
-        try:
-            client = self._get_client(api_key)
-            client.messages.create(
-                model=self.model,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "test"}],
-            )
-            return True
-        except Exception:
-            return False
+        return bool(key)
 
     @property
     def name(self) -> str:

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Claude (env var: ANTHROPIC_API_KEY)
     claude_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    claude_model: str = "claude-sonnet-4-20250514"
+    claude_model: str = "claude-sonnet-4-6"
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"

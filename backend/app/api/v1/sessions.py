@@ -944,7 +944,7 @@ async def analyze_session(
     session_id: int,
     body: Optional[AnalyzeRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionAnalysisResponse:
     """KI-gestützte Analyse einer Session (Cache-First)."""
     from app.services.session_analysis_service import (
@@ -953,7 +953,7 @@ async def analyze_session(
 
     force = body.force_refresh if body else False
     try:
-        return await run_analysis(session_id, db, force_refresh=force)
+        return await run_analysis(session_id, db, force_refresh=force, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
@@ -968,7 +968,7 @@ async def generate_recommendations(
     session_id: int,
     body: Optional[AnalyzeRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> RecommendationsListResponse:
     """Generiert KI-gestuetzte Trainingsempfehlungen basierend auf Session-Analyse."""
     from app.services.recommendation_service import (
@@ -977,7 +977,9 @@ async def generate_recommendations(
 
     force = body.force_refresh if body else False
     try:
-        return await run_recommendations(session_id, db, force_refresh=force)
+        return await run_recommendations(
+            session_id, db, force_refresh=force, user_id=current_user.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
