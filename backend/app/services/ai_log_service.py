@@ -23,6 +23,7 @@ class AICallData:
     duration_ms: int | None = None
     workout_id: int | None = None
     context_label: str | None = None
+    user_id: int | None = None
 
 
 async def log_ai_call(db: AsyncSession, data: AICallData) -> None:
@@ -42,6 +43,7 @@ async def log_ai_call(db: AsyncSession, data: AICallData) -> None:
             duration_ms=data.duration_ms,
             workout_id=data.workout_id,
             context_label=data.context_label,
+            user_id=data.user_id,
         )
     )
     await db.commit()
