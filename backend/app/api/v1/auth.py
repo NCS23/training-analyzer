@@ -1,7 +1,7 @@
 """Auth-Router: Apple Sign-In, E-Mail/Passwort, Token-Refresh, Status, Logout."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -255,7 +255,7 @@ async def refresh_tokens(
         select(RefreshTokenModel).where(
             RefreshTokenModel.token_hash == token_hash,
             RefreshTokenModel.revoked_at.is_(None),
-            RefreshTokenModel.expires_at > datetime.now(timezone.utc),
+            RefreshTokenModel.expires_at > datetime.utcnow(),
         )
     )
     refresh_entry = result.scalar_one_or_none()
@@ -267,7 +267,7 @@ async def refresh_tokens(
         )
 
     # Altes Token revoken (Rotation)
-    refresh_entry.revoked_at = datetime.now(timezone.utc)
+    refresh_entry.revoked_at = datetime.utcnow()
 
     # Neues Token-Paar erstellen
     return await _create_token_pair(db, refresh_entry.user_id)
@@ -286,7 +286,7 @@ async def logout(
             RefreshTokenModel.token_hash == token_hash,
             RefreshTokenModel.revoked_at.is_(None),
         )
-        .values(revoked_at=datetime.now(timezone.utc))
+        .values(revoked_at=datetime.utcnow())
     )
     await db.commit()
 
