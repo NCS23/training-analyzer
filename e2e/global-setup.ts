@@ -85,6 +85,32 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     );
   }
 
+  // Phase 2b: SSL-Stabilität prüfen (nach Deploy kann HTTPS kurz ausfallen)
+  if (baseURL.startsWith("https")) {
+    console.log("[global-setup] Prüfe SSL-Stabilität...");
+    let sslOk = false;
+    const sslStart = Date.now();
+    while (Date.now() - sslStart < 60_000) {
+      try {
+        const r = await fetch(`${baseURL}/health`, {
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (r.ok) {
+          sslOk = true;
+          break;
+        }
+      } catch {
+        console.log("[global-setup] SSL noch nicht stabil, warte...");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+    if (sslOk) {
+      console.log("[global-setup] SSL stabil");
+    } else {
+      console.warn("[global-setup] SSL-Check Timeout — Tests starten trotzdem");
+    }
+  }
+
   // Phase 3: Auth-Setup (E2E Test-User erstellen + Token speichern)
   await setupAuth(baseURL);
 
