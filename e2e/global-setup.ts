@@ -11,10 +11,9 @@ const MAX_WAIT_MS = 60_000;
  */
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL =
-    config.projects[0]?.use?.baseURL ??
-    "http://training.89.167.78.223.sslip.io";
-  const healthURL = `${baseURL}/health`;
-  const apiURL = `${baseURL}/api/v1/sessions`;
+    config.projects[0]?.use?.baseURL ?? "https://training.nordliggrad.com";
+  const healthURL = `${baseURL}/api/v1/health`;
+  const apiURL = `${baseURL}/api/v1/auth/status`;
 
   console.log(`[global-setup] Warte auf Health Check: ${healthURL}`);
 
@@ -32,7 +31,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
           status?: string;
           database?: boolean;
         };
-        if (body.status === "ok" && body.database === true) {
+        if ((body.status === "ok" || body.status === "healthy") && body.database === true) {
           const elapsed = ((Date.now() - start) / 1000).toFixed(1);
           console.log(
             `[global-setup] Server gesund nach ${elapsed}s (DB verbunden)`,
@@ -62,53 +61,28 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 
-  // Phase 2: API-Readiness prüfen
-  console.log(`[global-setup] Prüfe API-Readiness: ${apiURL}`);
+  // Phase 2: Auth-Status prüfen (zeigt ob Backend + Auth korrekt laufen)
+  console.log(`[global-setup] Prüfe Auth-Status: ${apiURL}`);
   try {
     const response = await fetch(apiURL, {
       signal: AbortSignal.timeout(10_000),
     });
 
     if (response.ok) {
+      const body = (await response.json()) as { auth_enabled?: boolean };
       console.log(
-        `[global-setup] API erreichbar (HTTP ${response.status})`,
+        `[global-setup] Auth-Status: auth_enabled=${body.auth_enabled}`,
       );
     } else {
       console.warn(
-        `[global-setup] API antwortet mit HTTP ${response.status} — Tests starten trotzdem`,
+        `[global-setup] Auth-Status HTTP ${response.status}`,
       );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(
-      `[global-setup] API-Check fehlgeschlagen: ${message} — Tests starten trotzdem`,
+      `[global-setup] Auth-Status-Check fehlgeschlagen: ${message}`,
     );
-  }
-
-  // Phase 2b: SSL-Stabilität prüfen (nach Deploy kann HTTPS kurz ausfallen)
-  if (baseURL.startsWith("https")) {
-    console.log("[global-setup] Prüfe SSL-Stabilität...");
-    let sslOk = false;
-    const sslStart = Date.now();
-    while (Date.now() - sslStart < 60_000) {
-      try {
-        const r = await fetch(`${baseURL}/health`, {
-          signal: AbortSignal.timeout(5_000),
-        });
-        if (r.ok) {
-          sslOk = true;
-          break;
-        }
-      } catch {
-        console.log("[global-setup] SSL noch nicht stabil, warte...");
-      }
-      await new Promise((resolve) => setTimeout(resolve, 3_000));
-    }
-    if (sslOk) {
-      console.log("[global-setup] SSL stabil");
-    } else {
-      console.warn("[global-setup] SSL-Check Timeout — Tests starten trotzdem");
-    }
   }
 
   // Phase 3: Auth-Setup (E2E Test-User erstellen + Token speichern)
