@@ -1,14 +1,7 @@
 import { defineConfig } from "@playwright/test";
-import { AUTH_STATE_PATH } from "./auth-setup";
-import fs from "fs";
 
 const PRODUCTION_URL =
   process.env.BASE_URL || "https://training.nordliggrad.com";
-
-// storageState nur nutzen wenn die Datei existiert (auth-setup erfolgreich)
-const storageState = fs.existsSync(AUTH_STATE_PATH)
-  ? AUTH_STATE_PATH
-  : undefined;
 
 export default defineConfig({
   globalSetup: "./global-setup.ts",
@@ -20,7 +13,8 @@ export default defineConfig({
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: PRODUCTION_URL,
-    storageState,
+    // Kein storageState mehr — Auth wird per Fixture pro Test injiziert
+    // (auth-fixture.ts), um Token-Rotation-Probleme zu vermeiden.
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },
