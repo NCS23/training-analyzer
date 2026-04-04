@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.core.dependencies import get_current_active_user
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 from app.infrastructure.database.models import (
@@ -62,13 +62,19 @@ class ApplyPlanChangeRequest(BaseModel):
 
 @router.get("/ai/providers")
 async def get_providers(
-    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
-    """Gibt verfügbare AI Provider und deren Status zurück."""
+    """Gibt verfügbare AI Provider und User-spezifischen Status zurück."""
+    api_key, provider_name = await resolve_ai_config(db, current_user.id)
+    provider_available = bool(api_key)
     return {
-        "primary": ai_service.get_active_provider(),
+        "primary": provider_name if provider_available else None,
+        "preferred": provider_name,
         "available": AIProviderFactory.get_available_providers(),
-        "status": ai_service.get_provider_status(),
+        "status": {
+            provider_name: {"available": provider_available, "is_primary": True},
+        },
     }
 
 
@@ -80,12 +86,14 @@ async def chat(
 ):
     """Chat with AI trainer (User-Key → .env Fallback)."""
     try:
-        claude_key = await resolve_claude_api_key(db, current_user.id)
-        response = await ai_service.chat(request.message, request.context, api_key=claude_key)
+        api_key, provider_name = await resolve_ai_config(db, current_user.id)
+        response = await ai_service.chat(
+            request.message, request.context, api_key=api_key, provider_name=provider_name
+        )
         return {
             "success": True,
             "message": response,
-            "provider": ai_service.get_active_provider(),
+            "provider": provider_name,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI chat failed: {str(e)}") from e

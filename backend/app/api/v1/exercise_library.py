@@ -834,7 +834,7 @@ async def delete_exercise(
 async def enrich_all_exercises(
     force: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Reichert alle unangereicherten Übungen per KI an.
 
@@ -844,7 +844,7 @@ async def enrich_all_exercises(
     from app.core.api_key_resolver import resolve_claude_api_key
     from app.services.exercise_ai_enrichment import generate_exercise_enrichment
 
-    api_key = await resolve_claude_api_key(db)
+    api_key = await resolve_claude_api_key(db, current_user.id)
 
     if force:
         result = await db.execute(select(ExerciseModel).where(ExerciseModel.is_hidden.is_not(True)))

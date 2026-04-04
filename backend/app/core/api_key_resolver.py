@@ -28,6 +28,22 @@ async def resolve_preferred_provider(db: AsyncSession, user_id: int | None = Non
     return settings.ai_primary_provider
 
 
+async def resolve_ai_config(db: AsyncSession, user_id: int | None = None) -> tuple[str, str]:
+    """Gibt (api_key, provider_name) basierend auf User-Präferenz zurück.
+
+    Prüft welchen Provider der User gewählt hat und löst den
+    passenden API Key auf. Fallback auf System-Defaults.
+    """
+    provider = await resolve_preferred_provider(db, user_id)
+
+    if provider == "openai":
+        key = await resolve_openai_api_key(db, user_id)
+    else:
+        key = await resolve_claude_api_key(db, user_id)
+
+    return key, provider
+
+
 async def _get_athlete(db: AsyncSession, user_id: int | None) -> AthleteModel | None:
     """Athlete für User laden."""
     query = select(AthleteModel)
