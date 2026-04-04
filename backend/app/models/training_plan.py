@@ -72,7 +72,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
 class PhaseWeeklyTemplate(BaseModel):
     """7-day weekly template for a training phase."""
 
-    days: list[PhaseWeeklyTemplateDayEntry] = Field(..., min_length=7, max_length=7)
+    days: list[PhaseWeeklyTemplateDayEntry] = Field(..., min_length=1, max_length=7)
 
 
 class PhaseWeeklyTemplates(BaseModel):

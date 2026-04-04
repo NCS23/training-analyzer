@@ -83,26 +83,30 @@ def _phase_to_response(
     focus: Optional[PhaseFocus] = None
     raw_focus = _parse_json(str(phase.focus_json) if phase.focus_json else None)
     if raw_focus:
-        focus = PhaseFocus(**raw_focus)
+        with contextlib.suppress(ValidationError):
+            focus = PhaseFocus(**raw_focus)
 
     target_metrics: Optional[PhaseTargetMetrics] = None
     raw_metrics = _parse_json(str(phase.target_metrics_json) if phase.target_metrics_json else None)
     if raw_metrics:
-        target_metrics = PhaseTargetMetrics(**raw_metrics)
+        with contextlib.suppress(ValidationError):
+            target_metrics = PhaseTargetMetrics(**raw_metrics)
 
     weekly_template: Optional[PhaseWeeklyTemplate] = None
     raw_template = _parse_json(
         str(phase.weekly_template_json) if phase.weekly_template_json else None
     )
     if raw_template:
-        weekly_template = PhaseWeeklyTemplate(**raw_template)
+        with contextlib.suppress(ValidationError):
+            weekly_template = PhaseWeeklyTemplate(**raw_template)
 
     weekly_templates: Optional[PhaseWeeklyTemplates] = None
     raw_templates = _parse_json(
         str(phase.weekly_templates_json) if phase.weekly_templates_json else None
     )
     if raw_templates:
-        weekly_templates = PhaseWeeklyTemplates(**raw_templates)
+        with contextlib.suppress(ValidationError):
+            weekly_templates = PhaseWeeklyTemplates(**raw_templates)
 
     return TrainingPhaseResponse(
         id=phase.id,

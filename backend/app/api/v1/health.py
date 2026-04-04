@@ -30,11 +30,17 @@ async def debug_user_data():
     results: dict = {}
     try:
         async with engine.connect() as conn:
+            rows = (
+                await conn.execute(text("SELECT id, email, role FROM users ORDER BY id"))
+            ).fetchall()
+            results["users"] = [{"id": r[0], "email": r[1], "role": r[2]} for r in rows]
+
             for table in [
-                "users",
                 "training_plans",
+                "training_phases",
                 "weekly_plan_days",
                 "planned_sessions",
+                "plan_changelog",
                 "race_goals",
                 "workouts",
                 "chat_conversations",
@@ -42,7 +48,8 @@ async def debug_user_data():
                 rows = (
                     await conn.execute(
                         text(
-                            f"SELECT user_id, COUNT(*) FROM {table} GROUP BY user_id ORDER BY user_id"
+                            f"SELECT user_id, COUNT(*) FROM {table}"  # noqa: S608
+                            " GROUP BY user_id ORDER BY user_id"
                         )
                     )
                 ).fetchall()
