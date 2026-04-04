@@ -209,7 +209,7 @@ jobs:
       - name: Warte auf Deployment und prüfe Health
         id: health
         env:
-          PROD_URL: http://training.89.167.78.223.sslip.io
+          PROD_URL: https://training.nordliggrad.com
         run: |
           echo "Warte 30s auf Coolify Build-Start..."
           sleep 30
@@ -219,10 +219,10 @@ jobs:
           HEALTHY=false
           for i in $(seq 1 20); do
             echo "Versuch $i/20..."
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "000")
+            HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "000")
 
             if [ "$HTTP_CODE" = "200" ]; then
-              BODY=$(curl -s "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "{}")
+              BODY=$(curl -sk "$PROD_URL/health" --connect-timeout 5 --max-time 10 2>/dev/null || echo "{}")
               STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
 
               DB=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('database',''))" 2>/dev/null || echo "")
@@ -250,11 +250,11 @@ jobs:
 
       - name: Prüfe Frontend liefert HTML
         env:
-          PROD_URL: http://training.89.167.78.223.sslip.io
+          PROD_URL: https://training.nordliggrad.com
         run: |
           for i in $(seq 1 5); do
             echo "Frontend-Check Versuch $i/5..."
-            CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" "$PROD_URL/" --connect-timeout 5 --max-time 10 2>/dev/null || echo "")
+            CONTENT_TYPE=$(curl -sk -o /dev/null -w "%{content_type}" "$PROD_URL/" --connect-timeout 5 --max-time 10 2>/dev/null || echo "")
             if echo "$CONTENT_TYPE" | grep -q "text/html"; then
               echo "Frontend liefert HTML aus (Versuch $i)"
               exit 0
@@ -267,7 +267,7 @@ jobs:
 
       - name: Frontend SPA Warmup
         env:
-          PROD_URL: http://training.89.167.78.223.sslip.io
+          PROD_URL: https://training.nordliggrad.com
         run: |
           echo "Lade SPA-Routen vor um JS-Bundle-Caching sicherzustellen..."
 
@@ -278,7 +278,7 @@ jobs:
             echo "--- Versuch $attempt/5 ---"
             FAILED=false
 
-            HTML=$(curl -s "$PROD_URL/" --max-time 15)
+            HTML=$(curl -sk "$PROD_URL/" --max-time 15)
             JS_ASSETS=$(echo "$HTML" | grep -oE '/assets/[^"]+\.js' | head -5)
 
             if [ -z "$JS_ASSETS" ]; then
@@ -286,7 +286,7 @@ jobs:
               FAILED=true
             else
               for asset in $JS_ASSETS; do
-                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL$asset" --max-time 10 2>/dev/null || echo "000")
+                HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$PROD_URL$asset" --max-time 10 2>/dev/null || echo "000")
                 if [ "$HTTP_CODE" = "200" ]; then
                   echo "  ✓ $asset"
                 else
@@ -315,7 +315,7 @@ jobs:
 
           # Warmup: Alle SPA-Routen einmal laden
           for route in /dashboard /sessions /analyse /plan /profile; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL$route" --max-time 10 2>/dev/null || echo "000")
+            HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$PROD_URL$route" --max-time 10 2>/dev/null || echo "000")
             echo "Warmup $route → HTTP $HTTP_CODE"
           done
 
@@ -351,7 +351,7 @@ jobs:
             echo "| Status | FAILED |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "URL: http://training.89.167.78.223.sslip.io" >> $GITHUB_STEP_SUMMARY
+          echo "URL: https://training.nordliggrad.com" >> $GITHUB_STEP_SUMMARY
 
   # E2E Smoke Tests against production
   e2e-smoke:
@@ -465,7 +465,7 @@ jobs:
 
           ### Nächste Schritte
           1. CI Run Log prüfen
-          2. Produktion manuell testen: http://training.89.167.78.223.sslip.io
+          2. Produktion manuell testen: https://training.nordliggrad.com
           3. Bei Bedarf: Coolify Dashboard prüfen (Port 8000)"
 
           if [ -n "$EXISTING_ISSUE" ]; then
