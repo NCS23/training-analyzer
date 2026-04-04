@@ -108,7 +108,14 @@ async def create_user_with_password(
     name: str | None = None,
     role: str = "pending",
 ) -> UserModel:
-    """Erstellt einen neuen User mit E-Mail/Passwort-Authentifizierung."""
+    """Erstellt einen neuen User mit E-Mail/Passwort-Authentifizierung.
+
+    Beim ersten echten User werden verwaiste Daten (user_id=NULL) und
+    Fallback-User-Daten automatisch dem neuen User zugewiesen —
+    gleiche Logik wie bei Apple Sign-In.
+    """
+    is_first_real_user = await _count_real_users(db) == 0
+
     user = UserModel(
         email=email,
         password_hash=password_hash,
@@ -120,6 +127,18 @@ async def create_user_with_password(
     await db.commit()
     await db.refresh(user)
     logger.info("Neuer User erstellt via E-Mail: id=%s, email=%s, role=%s", user.id, email, role)
+
+    # Beim ersten echten User: Verwaiste Daten + Fallback-Daten übernehmen
+    if is_first_real_user:
+        await assign_orphaned_data(db, user.id)
+
+        fallback_result = await db.execute(
+            select(UserModel).where(UserModel.email == _FALLBACK_USER_EMAIL)
+        )
+        fallback_user = fallback_result.scalar_one_or_none()
+        if fallback_user is not None and fallback_user.id != user.id:
+            await reassign_user_data(db, fallback_user.id, user.id)
+
     return user
 
 
