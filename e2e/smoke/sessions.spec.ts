@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../auth-fixture";
 
 test.describe("Sessions", () => {
   test("Sessions-Seite lädt", async ({ page }) => {

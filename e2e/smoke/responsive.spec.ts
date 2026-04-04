@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../auth-fixture";
 
 test.describe("Responsive Layout", () => {
   test("Mobile: BottomNav sichtbar", async ({ page }, testInfo) => {
