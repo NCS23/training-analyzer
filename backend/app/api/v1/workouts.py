@@ -11,7 +11,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.core.dependencies import get_current_active_user
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import UserModel, WorkoutModel
@@ -48,8 +48,10 @@ async def upload_workout(
 
         # Analyze with AI (User-Key → .env Fallback)
         try:
-            claude_key = await resolve_claude_api_key(db, current_user.id)
-            ai_analysis = await ai_service.analyze_workout(workout_data, api_key=claude_key)
+            api_key, provider_name = await resolve_ai_config(db, current_user.id)
+            ai_analysis = await ai_service.analyze_workout(
+                workout_data, api_key=api_key, provider_name=provider_name
+            )
         except Exception as e:
             ai_analysis = f"AI analysis failed: {str(e)}"
 

@@ -15,7 +15,7 @@ from functools import partial
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import ChatConversationModel, ChatMessageModel
 from app.models.chat import (
@@ -81,10 +81,10 @@ async def send_message(
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     # 6. AI-Anfrage
-    api_key = await resolve_claude_api_key(db, user_id)
+    api_key, preferred_provider = await resolve_ai_config(db, user_id)
     start = time.monotonic()
     response_text, provider_name = await ai_service.chat_multi_turn(
-        api_messages, system_prompt, api_key
+        api_messages, system_prompt, api_key, provider_name=preferred_provider
     )
     duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -162,10 +162,15 @@ async def prepare_stream_with_tools(
     system_prompt = await build_chat_system_prompt()
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
-    api_key = await resolve_claude_api_key(db, user_id)
+    api_key, preferred_provider = await resolve_ai_config(db, user_id)
     tool_handler = partial(dispatch_tool, db=db, user_id=user_id)
     stream, provider_name = await ai_service.stream_chat_with_tools(
-        api_messages, system_prompt, CHAT_TOOLS, tool_handler, api_key
+        api_messages,
+        system_prompt,
+        CHAT_TOOLS,
+        tool_handler,
+        api_key,
+        provider_name=preferred_provider,
     )
 
     ctx = StreamContext(

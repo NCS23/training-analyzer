@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
     RaceGoalModel,
@@ -71,12 +71,14 @@ async def generate_weekly_review(
     # Prompt bauen und AI aufrufen
     prompt = _build_review_prompt(context)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db, user_id)
+    api_key, provider_name = await resolve_ai_config(db, user_id)
 
     t0 = time.monotonic()
-    raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    raw = await ai_service.chat(
+        prompt, {"system_prompt": system_prompt}, api_key, provider_name=provider_name
+    )
     duration_ms = int((time.monotonic() - t0) * 1000)
-    provider = ai_service.get_active_provider() or "unknown"
+    provider = provider_name
 
     # Parsen
     parsed = _parse_review_json(raw, context)
