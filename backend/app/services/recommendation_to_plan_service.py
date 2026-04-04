@@ -761,10 +761,36 @@ def _log_recommendation_change(
     )
     reason = "; ".join(recommendations[:10])
 
-    # Build undo snapshot from old_plan (dict-based format from _load_full_plan)
+    # Build undo snapshot from old_plan (dict-based format from _load_full_plan).
+    # Undo erwartet sessions mit run_details_json (String), nicht run_details (Dict).
+    undo_days = []
+    for day in old_plan:
+        undo_day = {
+            "day_of_week": day["day_of_week"],
+            "is_rest_day": day.get("is_rest_day", False),
+            "notes": day.get("notes"),
+            "plan_id": day.get("plan_id"),
+            "edited": day.get("edited", False),
+            "sessions": [],
+        }
+        for sess in day.get("sessions", []):
+            rd = sess.get("run_details")
+            undo_day["sessions"].append(
+                {
+                    "training_type": sess.get("training_type", ""),
+                    "template_id": sess.get("template_id"),
+                    "run_details_json": json.dumps(rd) if rd else None,
+                    "exercises_json": sess.get("exercises_json"),
+                    "notes": sess.get("notes"),
+                    "position": sess.get("position", 0),
+                    "status": sess.get("status", "active"),
+                }
+            )
+        undo_days.append(undo_day)
+
     snapshot_before: dict = {
         "week_start": str(target_week),
-        "days": old_plan,
+        "days": undo_days,
         "phase_id": phase_snapshot.get("phase_id") if phase_snapshot else None,
         "phase_weekly_templates_json": (
             phase_snapshot.get("phase_weekly_templates_json") if phase_snapshot else None
