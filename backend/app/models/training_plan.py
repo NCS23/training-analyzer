@@ -34,7 +34,7 @@ class PhaseWeeklyTemplateSessionEntry(BaseModel):
     run_type: Optional[str] = Field(default=None, pattern=SESSION_TYPE_REGEX)
     template_id: Optional[int] = None
     template_name: Optional[str] = None
-    notes: Optional[str] = Field(default=None, max_length=200)
+    notes: Optional[str] = Field(default=None, max_length=2000)
     run_details: Optional[RunDetails] = None
     exercises: Optional[list[TemplateExercise]] = None
 
@@ -45,7 +45,7 @@ class PhaseWeeklyTemplateDayEntry(BaseModel):
     day_of_week: int = Field(..., ge=0, le=6, description="0=Mon, 6=Sun")
     sessions: list[PhaseWeeklyTemplateSessionEntry] = Field(default_factory=list)
     is_rest_day: bool = False
-    notes: Optional[str] = Field(default=None, max_length=200)
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
     # Legacy flat fields (backwards-compat for old JSON, excluded from serialization)
     training_type: Optional[str] = Field(default=None, pattern="^(strength|running)$", exclude=True)
