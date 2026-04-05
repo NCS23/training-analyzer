@@ -1,12 +1,17 @@
 import logging
+import traceback
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -50,6 +55,44 @@ if _static_dir.exists():
 # Register Routers
 app.include_router(training.router, prefix="/api")
 app.include_router(api_router, prefix="/api/v1")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Pass-through für HTTPException (4xx) — Detail unverändert."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Pydantic-Validierungs-Fehler (422) — liefert Feld-Details."""
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Globaler Fallback: loggt Stack-Trace und liefert Exception-Details in 500-Response.
+
+    Erkannte ungehandelte Exception → sichtbar in Backend-Container-Logs UND
+    als JSON-Detail in der Response, damit Frontend den Fehler anzeigen kann.
+    """
+    tb = traceback.format_exc()
+    logger.exception(
+        "Unhandled exception in %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"{type(exc).__name__}: {exc}",
+            "path": request.url.path,
+            "traceback": tb.splitlines()[-10:],  # letzte 10 Zeilen für Debug
+        },
+    )
 
 
 @app.get("/")
