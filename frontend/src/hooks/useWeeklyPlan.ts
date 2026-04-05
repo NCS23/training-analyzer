@@ -2,6 +2,7 @@
  * Hook for weekly plan data, editing, saving, and deletion.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import axios from 'axios';
 import { useToast } from '@nordlig/components';
 import {
   getWeeklyPlan,
@@ -141,8 +142,13 @@ export function useWeeklyPlan() {
       setEntries(result.entries);
       setDirty(false);
       return result;
-    } catch {
-      setError('Speichern fehlgeschlagen.');
+    } catch (err) {
+      const detail = axios.isAxiosError(err)
+        ? (err.response?.data as { detail?: string } | undefined)?.detail
+        : null;
+      const msg = typeof detail === 'string' ? detail : 'Speichern fehlgeschlagen.';
+      setError(msg);
+      toast({ title: 'Speichern fehlgeschlagen', description: msg, variant: 'error' });
       return null;
     } finally {
       setSaving(false);
