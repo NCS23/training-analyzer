@@ -21,15 +21,13 @@ export function TodayPage() {
 
   if (isError || !data) {
     return (
-      <div className="p-4 pt-6 max-w-5xl mx-auto">
+      <div className="p-4 pt-6 max-w-5xl mx-auto space-y-3">
         <Alert variant="error">
-          <AlertDescription>
-            Fehler beim Laden des Dashboards.{' '}
-            <button onClick={() => refetch()} className="underline text-[var(--color-text-error)]">
-              Erneut versuchen
-            </button>
-          </AlertDescription>
+          <AlertDescription>Fehler beim Laden des Dashboards.</AlertDescription>
         </Alert>
+        <Button variant="secondary" size="sm" onClick={() => refetch()}>
+          Erneut versuchen
+        </Button>
       </div>
     );
   }
