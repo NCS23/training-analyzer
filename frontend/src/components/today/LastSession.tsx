@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, CardBody, Button, Badge } from '@nordlig/components';
+import { Card, CardBody } from '@nordlig/components';
 import { Activity, Clock, MapPin, Heart, Dumbbell, ChevronRight } from 'lucide-react';
 import type { LastSessionSummary } from '@/api/fitness';
 
@@ -28,105 +28,94 @@ function formatDate(isoDate: string): string {
   }
 }
 
-const WORKOUT_BADGE: Record<string, 'neutral' | 'info' | 'warning'> = {
-  running: 'info',
-  strength: 'warning',
+const TYPE_ICON: Record<string, typeof Activity> = {
+  running: Activity,
+  strength: Dumbbell,
 };
 
 export function LastSession({ session }: Props) {
   const navigate = useNavigate();
   const isRunning = session.workout_type === 'running';
+  const TypeIcon = TYPE_ICON[session.workout_type] ?? Activity;
 
   return (
     <section aria-label="Letzte Session">
       <Card elevation="raised">
         <CardBody>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium text-[var(--color-text-base)]">Letzte Session</p>
-                <Badge variant={WORKOUT_BADGE[session.workout_type] ?? 'neutral'} size="sm">
-                  {isRunning ? 'Laufen' : 'Kraft'}
-                </Badge>
-              </div>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {formatDate(session.date)}
-                {session.training_type && ` · ${session.training_type}`}
-              </p>
+          <button
+            type="button"
+            className="flex items-center justify-between gap-3 w-full text-left"
+            onClick={() => navigate(`/sessions/${session.id}`)}
+          >
+            {/* Icon */}
+            <div className="flex items-center justify-center h-10 w-10 shrink-0 rounded-full bg-[var(--color-bg-subtle)]">
+              <TypeIcon className="h-5 w-5 text-[var(--color-interactive-primary)]" />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/sessions/${session.id}`)}
-              aria-label="Session-Details öffnen"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
 
-          {/* Metriken */}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-            {isRunning ? (
-              <>
-                {session.distance_km != null && (
-                  <MetricItem icon={<MapPin className="h-3.5 w-3.5" />}>
-                    {session.distance_km.toFixed(1)} km
-                  </MetricItem>
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <p className="text-sm font-medium text-[var(--color-text-base)]">
+                  {formatDate(session.date)}
+                </p>
+                {session.training_type && (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {session.training_type}
+                  </span>
                 )}
-                {session.duration_seconds != null && (
-                  <MetricItem icon={<Clock className="h-3.5 w-3.5" />}>
-                    {formatDuration(session.duration_seconds)}
-                  </MetricItem>
-                )}
-                {session.avg_pace_formatted && (
-                  <MetricItem icon={<Activity className="h-3.5 w-3.5" />}>
-                    {session.avg_pace_formatted} /km
-                  </MetricItem>
-                )}
-                {session.avg_heartrate != null && (
-                  <MetricItem icon={<Heart className="h-3.5 w-3.5" />}>
-                    {Math.round(session.avg_heartrate)} bpm
-                  </MetricItem>
-                )}
-              </>
-            ) : (
-              <>
-                {session.exercise_count != null && (
-                  <MetricItem icon={<Dumbbell className="h-3.5 w-3.5" />}>
-                    {session.exercise_count} Übungen
-                  </MetricItem>
-                )}
-                {session.tonnage_kg != null && (
-                  <MetricItem icon={<Activity className="h-3.5 w-3.5" />}>
-                    {session.tonnage_kg.toFixed(0)} kg Volumen
-                  </MetricItem>
-                )}
-                {session.duration_seconds != null && (
-                  <MetricItem icon={<Clock className="h-3.5 w-3.5" />}>
-                    {formatDuration(session.duration_seconds)}
-                  </MetricItem>
-                )}
-              </>
-            )}
-          </div>
+              </div>
 
-          {/* Vergleichs-Message */}
-          {session.comparison_message && (
-            <p className="mt-3 text-xs text-[var(--color-text-subtle)]">
-              {session.comparison_message}
-            </p>
-          )}
+              {/* Metriken inline */}
+              <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--color-text-muted)]">
+                {isRunning ? (
+                  <>
+                    {session.distance_km != null && (
+                      <Metric icon={MapPin}>{session.distance_km.toFixed(1)} km</Metric>
+                    )}
+                    {session.duration_seconds != null && (
+                      <Metric icon={Clock}>{formatDuration(session.duration_seconds)}</Metric>
+                    )}
+                    {session.avg_pace_formatted && (
+                      <Metric icon={Activity}>{session.avg_pace_formatted}/km</Metric>
+                    )}
+                    {session.avg_heartrate != null && (
+                      <Metric icon={Heart}>{Math.round(session.avg_heartrate)} bpm</Metric>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {session.exercise_count != null && (
+                      <Metric icon={Dumbbell}>{session.exercise_count} Übungen</Metric>
+                    )}
+                    {session.duration_seconds != null && (
+                      <Metric icon={Clock}>{formatDuration(session.duration_seconds)}</Metric>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Vergleich */}
+              {session.comparison_message && (
+                <p className="mt-1 text-xs text-[var(--color-text-subtle)]">
+                  {session.comparison_message}
+                </p>
+              )}
+            </div>
+
+            {/* Chevron */}
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
+          </button>
         </CardBody>
       </Card>
     </section>
   );
 }
 
-function MetricItem({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function Metric({ icon: Icon, children }: { icon: typeof Activity; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-1 text-sm text-[var(--color-text-base)]">
-      <span className="text-[var(--color-text-muted)]">{icon}</span>
+    <span className="inline-flex items-center gap-0.5">
+      <Icon className="h-3 w-3" />
       {children}
-    </div>
+    </span>
   );
 }
