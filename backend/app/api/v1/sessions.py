@@ -301,6 +301,11 @@ async def _save_and_respond(
     background_tasks: BackgroundTasks | None = None,
 ) -> SessionUploadResponse:
     """Speichert Workout in DB und erstellt Response."""
+    # TRIMP berechnen (#675 Fitness-Score Engine)
+    from app.services.fitness_score import calculate_trimp
+
+    workout.trimp_score = calculate_trimp(workout)
+
     if form.planned_entry_id is not None:
         workout.planned_entry_id = form.planned_entry_id
 
