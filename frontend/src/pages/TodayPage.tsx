@@ -13,22 +13,22 @@ export function TodayPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <main className="flex items-center justify-center min-h-[50vh]">
         <Spinner size="lg" />
-      </div>
+      </main>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="p-4 pt-6 max-w-5xl mx-auto space-y-3">
+      <main className="p-4 pt-6 max-w-5xl mx-auto space-y-3">
         <Alert variant="error">
           <AlertDescription>Fehler beim Laden des Dashboards.</AlertDescription>
         </Alert>
         <Button variant="secondary" size="sm" onClick={() => refetch()}>
           Erneut versuchen
         </Button>
-      </div>
+      </main>
     );
   }
 

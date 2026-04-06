@@ -1,7 +1,7 @@
 import { test, expect } from "../auth-fixture";
 
 const pages = [
-  { path: "/dashboard", name: "Dashboard" },
+  { path: "/heute", name: "Heute" },
   { path: "/sessions", name: "Sessions" },
   { path: "/analyse", name: "Analyse" },
   { path: "/plan", name: "Plan" },

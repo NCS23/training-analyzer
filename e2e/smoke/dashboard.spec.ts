@@ -2,7 +2,7 @@ import { test, expect } from "../auth-fixture";
 
 test.describe("Dashboard", () => {
   test("lädt und zeigt Inhalt", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto("/heute");
     await page.waitForLoadState("domcontentloaded");
 
     // Kein Error-Boundary sichtbar
@@ -17,7 +17,7 @@ test.describe("Dashboard", () => {
   });
 
   test("zeigt App-Branding", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto("/heute");
 
     // Warten bis React gemountet hat und mindestens ein Logo im DOM ist
     const logo = page.locator('img[alt="Training Analyzer"]');

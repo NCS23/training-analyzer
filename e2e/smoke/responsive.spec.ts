@@ -4,17 +4,17 @@ test.describe("Responsive Layout", () => {
   test("Mobile: BottomNav sichtbar", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "desktop", "Nur Mobile");
 
-    await page.goto("/dashboard");
+    await page.goto("/heute");
     await page.waitForLoadState("domcontentloaded");
 
     // BottomNav enthält die 5 Navigations-Links
     const bottomNav = page.locator("nav").filter({
-      has: page.getByRole("link", { name: "Home" }),
+      has: page.getByRole("link", { name: "Heute" }),
     });
     await expect(bottomNav).toBeVisible();
 
     // Alle 5 Nav-Items sichtbar
-    await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Heute" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sessions" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Plan" })).toBeVisible();
   });
@@ -22,7 +22,7 @@ test.describe("Responsive Layout", () => {
   test("Mobile: Sidebar versteckt", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "desktop", "Nur Mobile");
 
-    await page.goto("/dashboard");
+    await page.goto("/heute");
     await page.waitForLoadState("domcontentloaded");
 
     // Sidebar hat class "hidden lg:flex" — auf Mobile nicht sichtbar
@@ -36,7 +36,7 @@ test.describe("Responsive Layout", () => {
   test("Desktop: Sidebar sichtbar", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "Nur Desktop");
 
-    await page.goto("/dashboard");
+    await page.goto("/heute");
     await page.waitForLoadState("domcontentloaded");
 
     // Sidebar mit "Training Analyzer" Branding und User-Chip
@@ -57,12 +57,12 @@ test.describe("Responsive Layout", () => {
   test("Desktop: BottomNav versteckt", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "Nur Desktop");
 
-    await page.goto("/dashboard");
+    await page.goto("/heute");
     await page.waitForLoadState("domcontentloaded");
 
     // BottomNav hat class "lg:hidden" — auf Desktop nicht sichtbar
     const bottomNav = page.locator("nav").filter({
-      has: page.getByRole("link", { name: "Home" }),
+      has: page.getByRole("link", { name: "Heute" }),
     });
     await expect(bottomNav).not.toBeVisible();
   });
