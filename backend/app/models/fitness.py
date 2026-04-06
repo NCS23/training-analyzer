@@ -64,3 +64,101 @@ class RecalculateResponse(BaseModel):
     """Response für Batch-Neuberechnung."""
 
     recalculated_sessions: int
+
+
+# ---------------------------------------------------------------------------
+# Insight-Engine Responses
+# ---------------------------------------------------------------------------
+
+
+class InsightResponse(BaseModel):
+    """Ein einzelner proaktiver Hinweis."""
+
+    type: str = Field(..., description="warning | trend | achievement | recommendation | info")
+    priority: int = Field(..., ge=1, le=10)
+    title: str
+    message: str
+    category: str = Field(..., description="load | balance | performance | plan | recovery")
+    icon: str
+
+
+class InsightsListResponse(BaseModel):
+    """Liste aktiver Insights."""
+
+    insights: list[InsightResponse]
+    generated_at: str
+
+
+class IntensityDistributionResponse(BaseModel):
+    """80/20-Verteilung der Trainingsintensität."""
+
+    low_percent: float
+    medium_percent: float
+    high_percent: float
+    is_polarized: bool
+    total_minutes: float
+
+
+class TrainingQualityResponse(BaseModel):
+    """Trainingsqualität-Metriken."""
+
+    intensity_distribution: IntensityDistributionResponse
+    monotony: float
+    monotony_level: str
+    strain: float
+    strain_level: str
+
+
+# ---------------------------------------------------------------------------
+# Today-Dashboard Responses
+# ---------------------------------------------------------------------------
+
+
+class LastSessionSummary(BaseModel):
+    """Zusammenfassung der letzten Session mit Einordnung."""
+
+    id: int
+    date: str
+    workout_type: str
+    training_type: str | None = None
+    distance_km: float | None = None
+    duration_seconds: int | None = None
+    avg_pace_formatted: str | None = None
+    avg_heartrate: float | None = None
+    exercise_count: int | None = None
+    tonnage_kg: float | None = None
+    rpe: float | None = None
+    trimp_score: float | None = None
+    comparison_message: str = ""
+
+
+class DayStatus(BaseModel):
+    """Status eines einzelnen Tages in der Wochenübersicht."""
+
+    date: str
+    day_name: str
+    has_planned: bool
+    has_completed: bool
+    status: str = Field(..., description="completed | planned | skipped | extra | rest")
+
+
+class WeekProgressResponse(BaseModel):
+    """Wochenfortschritt: geplant vs. erledigt."""
+
+    sessions_completed: int
+    sessions_planned: int
+    distance_completed_km: float
+    distance_planned_km: float | None = None
+    time_completed_seconds: int
+    time_planned_seconds: int | None = None
+    days: list[DayStatus]
+
+
+class TodayResponse(BaseModel):
+    """Aggregierte Dashboard-Daten für die Heute-Seite."""
+
+    greeting: str
+    fitness_score: FitnessScoreResponse
+    last_session: LastSessionSummary | None = None
+    week_progress: WeekProgressResponse
+    insights: list[InsightResponse]
