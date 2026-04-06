@@ -9,12 +9,12 @@ test.describe("Responsive Layout", () => {
 
     // BottomNav enthält die 5 Navigations-Links
     const bottomNav = page.locator("nav").filter({
-      has: page.getByRole("link", { name: "Home" }),
+      has: page.getByRole("link", { name: "Heute" }),
     });
     await expect(bottomNav).toBeVisible();
 
     // Alle 5 Nav-Items sichtbar
-    await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Heute" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sessions" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Plan" })).toBeVisible();
   });
@@ -62,7 +62,7 @@ test.describe("Responsive Layout", () => {
 
     // BottomNav hat class "lg:hidden" — auf Desktop nicht sichtbar
     const bottomNav = page.locator("nav").filter({
-      has: page.getByRole("link", { name: "Home" }),
+      has: page.getByRole("link", { name: "Heute" }),
     });
     await expect(bottomNav).not.toBeVisible();
   });
