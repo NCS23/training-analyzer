@@ -1,4 +1,5 @@
 import { Card, CardBody } from '@nordlig/components';
+import { Check } from 'lucide-react';
 import type { WeekProgressResponse } from '@/api/fitness';
 
 interface Props {
@@ -17,44 +18,21 @@ export function WeekProgress({ data }: Props) {
     <section aria-label="Wochenfortschritt">
       <Card elevation="raised">
         <CardBody>
-          <p className="text-sm font-medium text-[var(--color-text-base)]">Diese Woche</p>
-
-          {/* Tages-Punkte */}
-          <div className="mt-3 flex items-end justify-between gap-1" aria-hidden="true">
-            {data.days.map((day) => (
-              <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
-                <DayDot status={day.status} />
-                <span className="text-[10px] text-[var(--color-text-muted)]">{day.day_name}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-[var(--color-text-base)]">Diese Woche</p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {data.sessions_completed} Session{data.sessions_completed !== 1 ? 's' : ''}
+              {data.distance_completed_km > 0 && ` · ${data.distance_completed_km.toFixed(1)} km`}
+              {data.time_completed_seconds > 0 &&
+                ` · ${formatDuration(data.time_completed_seconds)}`}
+            </p>
           </div>
 
-          {/* Zusammenfassung */}
-          <div className="mt-4 flex gap-4 text-sm">
-            <div>
-              <span className="font-medium text-[var(--color-text-base)]">
-                {data.sessions_completed}
-              </span>
-              <span className="text-[var(--color-text-muted)] ml-1">
-                Session{data.sessions_completed !== 1 ? 's' : ''}
-              </span>
-            </div>
-            {data.distance_completed_km > 0 && (
-              <div>
-                <span className="font-medium text-[var(--color-text-base)]">
-                  {data.distance_completed_km.toFixed(1)}
-                </span>
-                <span className="text-[var(--color-text-muted)] ml-1">km</span>
-              </div>
-            )}
-            {data.time_completed_seconds > 0 && (
-              <div>
-                <span className="font-medium text-[var(--color-text-base)]">
-                  {formatDuration(data.time_completed_seconds)}
-                </span>
-                <span className="text-[var(--color-text-muted)] ml-1">Zeit</span>
-              </div>
-            )}
+          {/* Tages-Circles */}
+          <div className="mt-3 flex items-center justify-between" aria-hidden="true">
+            {data.days.map((day) => (
+              <DayCircle key={day.date} dayName={day.day_name} status={day.status} />
+            ))}
           </div>
         </CardBody>
       </Card>
@@ -64,14 +42,26 @@ export function WeekProgress({ data }: Props) {
 
 type DayStatus = 'completed' | 'planned' | 'skipped' | 'extra' | 'rest';
 
-const DOT_STYLES: Record<DayStatus, string> = {
-  completed: 'h-3 w-3 rounded-full bg-[var(--color-interactive-primary)]',
-  planned: 'h-3 w-3 rounded-full border-2 border-[var(--color-interactive-primary)] bg-transparent',
-  skipped: 'h-3 w-3 rounded-full bg-[var(--color-text-error)] opacity-60',
-  extra: 'h-3 w-3 rounded-full bg-[var(--color-text-success)]',
-  rest: 'h-3 w-3 rounded-full bg-[var(--color-border-default)]',
+const CIRCLE_BASE =
+  'flex items-center justify-center h-8 w-8 rounded-full transition-colors duration-300 motion-reduce:transition-none';
+
+const CIRCLE_STYLES: Record<DayStatus, string> = {
+  completed: `${CIRCLE_BASE} bg-[var(--color-interactive-primary)] text-[var(--color-text-on-primary)]`,
+  planned: `${CIRCLE_BASE} border-2 border-[var(--color-interactive-primary)] bg-transparent`,
+  skipped: `${CIRCLE_BASE} bg-[var(--color-bg-error-subtle)]`,
+  extra: `${CIRCLE_BASE} bg-[var(--color-text-success)] text-[var(--color-text-on-primary)]`,
+  rest: `${CIRCLE_BASE} bg-[var(--color-bg-subtle)]`,
 };
 
-function DayDot({ status }: { status: DayStatus }) {
-  return <span className={DOT_STYLES[status]} />;
+function DayCircle({ dayName, status }: { dayName: string; status: DayStatus }) {
+  const showCheck = status === 'completed' || status === 'extra';
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span className={CIRCLE_STYLES[status]}>
+        {showCheck ? <Check className="h-4 w-4" strokeWidth={2.5} /> : null}
+      </span>
+      <span className="text-[10px] text-[var(--color-text-muted)]">{dayName}</span>
+    </div>
+  );
 }

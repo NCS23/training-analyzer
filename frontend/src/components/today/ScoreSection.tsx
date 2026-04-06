@@ -1,6 +1,7 @@
-import { Card, CardBody, Badge } from '@nordlig/components';
+import { Card, CardBody, Badge, Progress } from '@nordlig/components';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { FitnessScoreResponse } from '@/api/fitness';
+import { ScoreRing } from './ScoreRing';
 
 interface Props {
   data: FitnessScoreResponse;
@@ -10,13 +11,6 @@ const FORM_COLOR: Record<string, string> = {
   green: 'var(--color-text-success)',
   yellow: 'var(--color-text-warning)',
   orange: 'var(--color-text-error)',
-};
-
-const ACWR_BADGE: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
-  low: 'neutral',
-  optimal: 'success',
-  warning: 'warning',
-  danger: 'error',
 };
 
 function TrendIcon({ trend }: { trend: FitnessScoreResponse['trend'] }) {
@@ -34,63 +28,58 @@ export function ScoreSection({ data }: Props) {
     <section aria-label="Fitness-Score">
       <Card elevation="raised">
         <CardBody>
-          {/* Hauptscore */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-[var(--color-text-muted)]">Fitness-Score</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-5xl font-bold tabular-nums text-[var(--color-text-base)]">
-                  {data.score}
+          {/* Hero: Ring + Status */}
+          <div className="flex items-center gap-5">
+            <ScoreRing score={data.score} />
+
+            <div className="flex-1 min-w-0 space-y-2">
+              {/* Form + Trend */}
+              <div>
+                <span className="text-base font-semibold" style={{ color: formColor }}>
+                  {data.form.label}
                 </span>
-                <span className="text-sm text-[var(--color-text-muted)]">/ 100</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <TrendIcon trend={data.trend} />
+                  <span className="text-xs text-[var(--color-text-muted)]">{data.trend_label}</span>
+                </div>
               </div>
-            </div>
-            <div className="text-right space-y-1">
-              <div className="text-sm font-medium" style={{ color: formColor }}>
-                {data.form.label}
-              </div>
-              <div className="flex items-center gap-1 justify-end">
-                <TrendIcon trend={data.trend} />
-                <span className="text-xs text-[var(--color-text-muted)]">{data.trend_label}</span>
+
+              {/* Sub-Scores als Progress-Bars */}
+              <div className="space-y-2">
+                <SubScore label="Ausdauer" value={data.endurance_score} />
+                <SubScore label="Kraft" value={data.strength_score} />
               </div>
             </div>
           </div>
 
-          {/* Sub-Scores */}
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-[var(--radius-component-sm)] bg-[var(--color-bg-subtle)] p-3">
-              <p className="text-xs text-[var(--color-text-muted)]">Ausdauer</p>
-              <p className="text-xl font-semibold tabular-nums text-[var(--color-text-base)] mt-0.5">
-                {data.endurance_score}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-component-sm)] bg-[var(--color-bg-subtle)] p-3">
-              <p className="text-xs text-[var(--color-text-muted)]">Kraft</p>
-              <p className="text-xl font-semibold tabular-nums text-[var(--color-text-base)] mt-0.5">
-                {data.strength_score}
-              </p>
-            </div>
-          </div>
+          {/* Empfehlung (1 Zeile) */}
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">{data.form.recommendation}</p>
 
-          {/* Kontext-Nachricht */}
-          {data.context_message && (
-            <p className="mt-4 text-sm text-[var(--color-text-subtle)]">{data.context_message}</p>
-          )}
-
-          {/* Form-Empfehlung */}
-          <p className="mt-2 text-xs text-[var(--color-text-muted)]">{data.form.recommendation}</p>
-
-          {/* ACWR */}
-          {data.acwr && (
-            <div className="mt-4 flex items-center gap-2">
-              <Badge variant={ACWR_BADGE[data.acwr.zone] ?? 'neutral'} size="sm">
-                ACWR {data.acwr.ratio.toFixed(2)}
+          {/* ACWR nur wenn nicht optimal */}
+          {data.acwr && data.acwr.zone !== 'optimal' && (
+            <div className="mt-3 flex items-center gap-2">
+              <Badge variant={data.acwr.zone === 'danger' ? 'error' : 'warning'} size="sm">
+                ACWR {data.acwr.ratio.toFixed(1)}
               </Badge>
-              <span className="text-xs text-[var(--color-text-muted)]">{data.acwr.message}</span>
+              <span className="text-xs text-[var(--color-text-muted)] line-clamp-1">
+                {data.acwr.message}
+              </span>
             </div>
           )}
         </CardBody>
       </Card>
     </section>
+  );
+}
+
+function SubScore({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-[var(--color-text-muted)] w-16 shrink-0">{label}</span>
+      <Progress value={value} max={100} size="sm" className="flex-1" />
+      <span className="text-xs font-medium tabular-nums text-[var(--color-text-base)] w-6 text-right">
+        {value}
+      </span>
+    </div>
   );
 }

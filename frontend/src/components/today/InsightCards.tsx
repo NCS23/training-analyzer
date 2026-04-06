@@ -1,4 +1,3 @@
-import { Card, CardBody, Badge } from '@nordlig/components';
 import {
   AlertTriangle,
   AlertCircle,
@@ -18,7 +17,6 @@ interface Props {
   insights: InsightResponse[];
 }
 
-// Lucide-Icon-Map für Backend-Icon-Namen
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'alert-triangle': AlertTriangle,
   'alert-circle': AlertCircle,
@@ -33,61 +31,40 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   info: Info,
 };
 
-const TYPE_BADGE: Record<
-  InsightResponse['type'],
-  'error' | 'warning' | 'success' | 'info' | 'neutral'
-> = {
-  warning: 'error',
-  recommendation: 'warning',
-  trend: 'info',
-  achievement: 'success',
-  info: 'neutral',
+const TYPE_COLOR: Record<InsightResponse['type'], string> = {
+  warning: 'var(--color-text-error)',
+  recommendation: 'var(--color-text-warning)',
+  trend: 'var(--color-interactive-primary)',
+  achievement: 'var(--color-text-success)',
+  info: 'var(--color-text-muted)',
 };
 
 export function InsightCards({ insights }: Props) {
   if (insights.length === 0) return null;
 
   return (
-    <section aria-label="Trainings-Insights">
-      <div className="space-y-2">
-        {insights.map((insight, i) => (
-          <InsightCard key={`${insight.type}-${insight.title}-${i}`} insight={insight} />
-        ))}
-      </div>
-    </section>
-  );
-}
+    <section aria-label="Trainings-Insights" className="space-y-0">
+      {insights.map((insight, i) => {
+        const IconComponent = ICON_MAP[insight.icon] ?? Info;
+        const color = TYPE_COLOR[insight.type] ?? 'var(--color-text-muted)';
 
-function InsightCard({ insight }: { insight: InsightResponse }) {
-  const IconComponent = ICON_MAP[insight.icon] ?? Info;
-  const badgeVariant = TYPE_BADGE[insight.type] ?? 'neutral';
-
-  return (
-    <Card elevation="flat">
-      <CardBody>
-        <div className="flex gap-3">
-          <div className="mt-0.5 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true">
-            <IconComponent className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-medium text-[var(--color-text-base)]">{insight.title}</p>
-              <Badge variant={badgeVariant} size="sm">
-                {insight.type === 'warning'
-                  ? 'Warnung'
-                  : insight.type === 'recommendation'
-                    ? 'Tipp'
-                    : insight.type === 'achievement'
-                      ? 'Erfolg'
-                      : insight.type === 'trend'
-                        ? 'Trend'
-                        : 'Info'}
-              </Badge>
+        return (
+          <div
+            key={`${insight.type}-${insight.title}-${i}`}
+            className={`flex gap-3 py-3 ${i > 0 ? 'border-t border-[var(--color-border-default)]' : ''}`}
+          >
+            <div className="mt-0.5 shrink-0" style={{ color }} aria-hidden="true">
+              <IconComponent className="h-4 w-4" />
             </div>
-            <p className="mt-1 text-sm text-[var(--color-text-subtle)]">{insight.message}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--color-text-base)]">{insight.title}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)] leading-relaxed">
+                {insight.message}
+              </p>
+            </div>
           </div>
-        </div>
-      </CardBody>
-    </Card>
+        );
+      })}
+    </section>
   );
 }
