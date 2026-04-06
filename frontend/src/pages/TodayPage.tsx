@@ -33,7 +33,7 @@ export function TodayPage() {
   }
 
   return (
-    <main className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-4 pb-24">
+    <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-4 pb-24">
       {/* Begrüßung */}
       <header className="pb-2">
         <h1 className="text-2xl font-bold text-[var(--color-text-base)]">{data.greeting}</h1>
@@ -54,7 +54,7 @@ export function TodayPage() {
 
       {/* Insights */}
       {data.insights.length > 0 && <InsightCards insights={data.insights} />}
-    </main>
+    </div>
   );
 }
 
