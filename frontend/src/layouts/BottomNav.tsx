@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Activity, TrendingUp, CalendarDays, User } from 'lucide-react';
 
 const navItems = [
-  { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/heute', label: 'Heute', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: Activity },
   { to: '/analyse', label: 'Analyse', icon: TrendingUp },
   { to: '/plan', label: 'Plan', icon: CalendarDays },

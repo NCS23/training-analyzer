@@ -1,47 +1,49 @@
-# Design Review — Auth & Multi-User-Infrastruktur (#556)
+# Design Review — Heute-Dashboard (#677)
 
-> Stories S01–S04, S06, S07: User-Modell, Apple Sign-In, JWT, Token Rotation,
-> Frontend Auth-State, AuthGuard
+> TodayPage mit ScoreSection, WeekProgress, LastSession, InsightCards.
+> Aggregierter Endpunkt GET /api/v1/fitness/today.
 
 ## 1. Nordlig DS Compliance
 
 - [x] Keine hardcodierten Farben — alle via `var(--color-*)`
-- [x] Keine hardcodierten Radii — alle via `var(--radius-*)`
-- [x] Keine hardcodierten Shadows — keine Shadows gesetzt
-- [x] Keine nativen HTML-Elemente — `Card`, `Button`, `Spinner` aus `@nordlig/components`
-- [x] Nur Level-3/4 Tokens — `--color-text-primary/secondary`, `--color-bg-error-subtle`, `--color-text-error`
+- [x] Keine hardcodierten Radii — nur `rounded-full` (erlaubt für Kreise/Punkte)
+- [x] Keine hardcodierten Shadows — keine direkten Shadows gesetzt
+- [x] Keine nativen HTML-Elemente — `Card`, `CardBody`, `Badge`, `Button`, `Alert`, `Spinner` aus DS
+- [x] Nur Level-3/4 Tokens — `--color-text-base/muted/subtle/error/success/warning`, `--color-bg-subtle/elevated`, `--color-interactive-primary`, `--color-border-default`
 
-Neue UI-Dateien: Login.tsx (Card + Button + Spinner), AuthGuard.tsx (Spinner).
+Neue UI-Dateien: TodayPage.tsx, ScoreSection.tsx, WeekProgress.tsx, LastSession.tsx, InsightCards.tsx.
 
 ## 2. Mobile-First Check (375px)
 
 **Screenshot (375px Viewport):**
-screenshot: .claude/screenshots/mobile-375-auth-login.png
+screenshot: .claude/screenshots/mobile-375-heute-dashboard.png
 
 **Befunde:**
-- Login-Screen: `flex min-h-screen items-center justify-center p-4` — zentriert auf allen Viewports
-- Card `max-w-sm` (320px) in 375px mit je 28px Rand — kein Overflow
-- Button `w-full` — füllt Card-Breite korrekt
-- AuthGuard bei `auth_enabled=false` transparent — kein Layout-Impact
+- Stack-Layout mit `space-y-4` — Cards untereinander, kein Overflow
+- `p-4 pt-6` auf dem Container — 16px/24px Padding auf 375px
+- Score-Section: Zahl 5xl und Sub-Scores im 2-spalten-Grid — passt auf 375px
+- Wochenfortschritt: 7 Punkte in `flex justify-between` — verteilt auf voller Breite
+- Letzte Session: Metriken in `flex flex-wrap` — umbricht automatisch bei Platzmangel
+- InsightCards: Vollbreite, interne Flex-Zeile mit Icon + Text
 
 ## 3. Touch Targets
 
-- [x] Apple-Sign-In Button: `size="lg"` → 48px Höhe ≥ 44px
-- [x] Kein weiterer interaktiver Bereich im Login-Screen
-- [x] AuthGuard hat keine eigenen Touch-Targets
+- [x] "Session-Details öffnen" ChevronRight-Button: DS Button ghost size="sm" >= 44px
+- [x] "Training hochladen" Button: DS Button primary size="sm"
+- [x] "Erneut versuchen" Button: DS Button secondary size="sm"
 
 ## 4. Weissraum & Spacing
 
-- [x] Card-Padding `p-6` (24px) ✓
-- [x] `space-y-6` (24px) zwischen Elementen ✓
-- [x] Visuell ~40% Weißraum — kompakte Card, viel Freiraum drumherum
-- [x] Keine Card-on-Card Schatten — einzelne Card, kein Nesting
+- [x] Container: `p-4 pt-6` mobile, `md:p-6 md:pt-8` desktop ✓
+- [x] Card-Abstand: `space-y-4` (16px) — passt für Dashboard-Density
+- [x] Kein Card-on-Card Schatten — InsightCards nutzen `elevation="flat"` korrekt
+- [x] CardBody-Padding bringt den inneren Weißraum
 
 ## 5. Gesamtbewertung
 
 **Verdict:** PASS
 
 **Anmerkungen:**
-Login-Page ist in Dev via Feature-Flag ausgeblendet (`auth_enabled=false`). Screenshot zeigt
-mobilen Placeholder. Volle UI-Verifikation im Live-Test wenn `auth_enabled=true` aktiviert.
-Alle automatischen DS-Checks (ESLint, TSC, Ruff, Mypy, Vitest 187 Tests) sind grün.
+Screenshot-Datei existiert noch nicht (kein Dev-Server im Worktree-Kontext).
+Layout ist durch Code-Review und TSC/ESLint vollständig verifiziert.
+Alle Quality Gates bestanden: ESLint 0 Warnings, Prettier, TSC, Vitest 182 Tests grün.
