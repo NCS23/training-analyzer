@@ -25,7 +25,39 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup and shutdown events."""
     await init_db()
+    await _backfill_trimp_scores()
     yield
+
+
+async def _backfill_trimp_scores() -> None:
+    """Berechne TRIMP für Sessions ohne Score (nach Migration / neuen Algorithmen)."""
+    from sqlalchemy import select
+
+    from app.infrastructure.database.models import WorkoutModel
+    from app.infrastructure.database.session import async_session_maker
+    from app.services.fitness_score import calculate_trimp
+
+    async with async_session_maker() as db:
+        result = await db.execute(select(WorkoutModel).where(WorkoutModel.trimp_score.is_(None)))
+        sessions = list(result.scalars().all())
+        if not sessions:
+            return
+
+        count = 0
+        for session in sessions:
+            trimp = calculate_trimp(session)
+            if trimp > 0:
+                session.trimp_score = trimp
+                count += 1
+
+        if count > 0:
+            await db.commit()
+
+        import logging
+
+        logging.getLogger("uvicorn").info(
+            "TRIMP Backfill: %d/%d Sessions berechnet", count, len(sessions)
+        )
 
 
 app = FastAPI(
