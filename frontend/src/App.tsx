@@ -67,9 +67,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const DashboardPage = lazy(() =>
-  import('./pages/Dashboard').then((m) => ({ default: m.DashboardPage })),
-);
+const TodayPage = lazy(() => import('./pages/TodayPage').then((m) => ({ default: m.TodayPage })));
 const SessionsPage = lazy(() =>
   import('./pages/Sessions').then((m) => ({ default: m.SessionsPage })),
 );
@@ -141,8 +139,9 @@ function App() {
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route element={<AppLayout />}>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route index element={<Navigate to="/heute" replace />} />
+                    <Route path="/heute" element={<TodayPage />} />
+                    <Route path="/dashboard" element={<Navigate to="/heute" replace />} />
                     <Route path="/sessions" element={<SessionsPage />} />
                     <Route path="/sessions/new" element={<UploadPage />} />
                     <Route path="/sessions/new/strength" element={<StrengthSessionPage />} />
