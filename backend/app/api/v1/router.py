@@ -7,6 +7,7 @@ from app.api.v1 import (
     athlete,
     auth,
     exercise_library,
+    fitness,
     goals,
     health,
     pacing,
@@ -49,3 +50,4 @@ api_router.include_router(streak.router, tags=["analytics"])
 api_router.include_router(user_settings.router, tags=["user-settings"])
 api_router.include_router(weekly_review.router, tags=["weekly-review"])
 api_router.include_router(training_routes.router, tags=["routes"])
+api_router.include_router(fitness.router, tags=["fitness"])

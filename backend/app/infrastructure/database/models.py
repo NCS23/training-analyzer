@@ -115,6 +115,9 @@ class WorkoutModel(Base):
         String(20), default="pending", server_default="pending"
     )
 
+    # Fitness-Score (#675)
+    trimp_score: Mapped[float | None] = mapped_column(Float, default=None)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -131,6 +134,9 @@ class AthleteModel(Base):
     )
     resting_hr: Mapped[int | None] = mapped_column(default=None)
     max_hr: Mapped[int | None] = mapped_column(default=None)
+
+    # Fitness-Score Normalisierung (#675)
+    personal_max_ctl: Mapped[float | None] = mapped_column(Float, default=None)
 
     # Elevation correction factors (sec/km per 100m)
     elevation_gain_factor: Mapped[float | None] = mapped_column(Float, server_default="10.0")
