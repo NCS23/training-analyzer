@@ -215,24 +215,46 @@ class TestFitnessMetrics:
 
 
 class TestNormalizeScore:
-    """Score-Normalisierung auf 0-100."""
+    """Score-Normalisierung auf 0-100 (absolute Referenzskala)."""
 
     def test_zero_ctl(self) -> None:
-        assert normalize_score(0.0, 50.0) == 0
+        assert normalize_score(0.0) == 0
 
-    def test_at_max(self) -> None:
-        assert normalize_score(50.0, 50.0) == 100
+    def test_negative_ctl(self) -> None:
+        assert normalize_score(-5.0) == 0
 
-    def test_above_max_capped(self) -> None:
-        assert normalize_score(60.0, 50.0) == 100
+    def test_low_ctl_beginner(self) -> None:
+        """CTL ~5: Einsteiger → Score ca. 15-20."""
+        score = normalize_score(5.0)
+        assert 10 <= score <= 25
 
-    def test_half_max(self) -> None:
-        assert normalize_score(25.0, 50.0) == 50
+    def test_moderate_ctl_regular(self) -> None:
+        """CTL ~30: Regelmäßiges Training → Score ca. 50."""
+        score = normalize_score(30.0)
+        assert 45 <= score <= 55
 
-    def test_no_personal_max_uses_default(self) -> None:
-        # Kein personal_max → CTL/80 * 100
-        score = normalize_score(40.0, None)
-        assert score == 50
+    def test_good_ctl_ambitious(self) -> None:
+        """CTL ~60: Ambitionierter Hobbyathlet → Score ca. 65-70."""
+        score = normalize_score(60.0)
+        assert 62 <= score <= 72
+
+    def test_high_ctl_trained(self) -> None:
+        """CTL ~80: Gut trainiert → Score ca. 73-78."""
+        score = normalize_score(80.0)
+        assert 70 <= score <= 80
+
+    def test_elite_ctl_capped(self) -> None:
+        """CTL >200: Elite → Score maximal 100."""
+        score = normalize_score(200.0)
+        assert 95 <= score <= 100
+
+    def test_monotonically_increasing(self) -> None:
+        """Höherer CTL → höherer Score (immer)."""
+        prev = 0
+        for ctl in [1, 5, 10, 20, 30, 50, 80, 120]:
+            score = normalize_score(float(ctl))
+            assert score >= prev, f"Score fiel bei CTL={ctl}: {score} < {prev}"
+            prev = score
 
 
 # ---------------------------------------------------------------------------
@@ -400,7 +422,7 @@ class TestComputeFullScore:
     def test_regular_training(self) -> None:
         sessions: Any = [self._mock_session(i, 60.0) for i in range(28)]
         result = compute_full_score(sessions)
-        assert result["score"] > 0
+        assert 0 < result["score"] < 100  # Sinnvoller Wert, nicht 100
         assert result["trend"] in ("rising", "stable", "falling")
         assert result["form"]["status"] in ("fresh", "normal", "fatigued")
 
@@ -411,3 +433,9 @@ class TestComputeFullScore:
         result = compute_full_score(sessions)
         assert result["endurance_score"] > 0
         assert result["strength_score"] > 0
+
+    def test_no_new_max_ctl_in_result(self) -> None:
+        """compute_full_score soll kein new_max_ctl mehr zurückgeben."""
+        sessions: Any = [self._mock_session(i, 60.0) for i in range(7)]
+        result = compute_full_score(sessions)
+        assert "new_max_ctl" not in result

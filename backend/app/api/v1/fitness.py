@@ -60,17 +60,8 @@ async def get_fitness_score(
     db: AsyncSession = Depends(get_db),
 ) -> FitnessScoreResponse:
     """Aktueller Fitness-Score mit Form-Indikator und ACWR."""
-    athlete = await _get_athlete(db)
     sessions = await _get_all_sessions(db)
-
-    personal_max_ctl = athlete.personal_max_ctl if athlete else None
-
-    result = compute_full_score(sessions, personal_max_ctl)
-
-    # Max CTL aktualisieren wenn nötig
-    if athlete and result["new_max_ctl"] and result["new_max_ctl"] != personal_max_ctl:
-        athlete.personal_max_ctl = result["new_max_ctl"]
-        await db.commit()
+    result = compute_full_score(sessions)
 
     return FitnessScoreResponse(
         score=result["score"],
@@ -91,11 +82,8 @@ async def get_fitness_history(
     db: AsyncSession = Depends(get_db),
 ) -> FitnessHistoryResponse:
     """Fitness-Verlauf (CTL/ATL/TSB/Score) für Charts."""
-    athlete = await _get_athlete(db)
     sessions = await _get_all_sessions(db)
-
-    personal_max_ctl = athlete.personal_max_ctl if athlete else None
-    history = compute_history(sessions, personal_max_ctl, days)
+    history = compute_history(sessions, days)
 
     return FitnessHistoryResponse(**history)
 
@@ -139,9 +127,7 @@ async def get_insights(
 
     resting_hr = (athlete.resting_hr or 60) if athlete else 60
     max_hr = (athlete.max_hr or 190) if athlete else 190
-    personal_max_ctl = athlete.personal_max_ctl if athlete else None
-
-    score_result = compute_full_score(sessions, personal_max_ctl)
+    score_result = compute_full_score(sessions)
     intensity = calculate_intensity_distribution(sessions, resting_hr, max_hr)
     trimps_7d = get_last_7_days_trimps(sessions)
     monotony = calculate_monotony(trimps_7d)
@@ -227,11 +213,19 @@ def _greeting() -> str:
 def _build_last_session(
     sessions: list[WorkoutModel],
 ) -> LastSessionSummary | None:
-    """Letzte absolvierte Session mit Vergleichs-Einordnung."""
+    """Letzte absolvierte Session mit Vergleichs-Einordnung.
+
+    Gibt None zurück wenn keine Session innerhalb der letzten 14 Tage liegt.
+    """
     if not sessions:
         return None
 
     last = sessions[-1]
+
+    # Nur Sessions der letzten 14 Tage anzeigen
+    session_date = last.date.date() if hasattr(last.date, "date") else last.date
+    if (date.today() - session_date).days > 14:
+        return None
     training_type = last.training_type_override or last.training_type_auto
 
     # Vergleich: Durchschnittspace für gleichen Trainingstyp
@@ -254,8 +248,6 @@ def _build_last_session(
                     session_rpe = data.get("rpe")
         except (json.JSONDecodeError, TypeError):
             pass
-
-    session_date = last.date.date() if hasattr(last.date, "date") else last.date
 
     return LastSessionSummary(
         id=last.id,
@@ -386,14 +378,9 @@ async def get_today(
 
     resting_hr = (athlete.resting_hr or 60) if athlete else 60
     max_hr = (athlete.max_hr or 190) if athlete else 190
-    personal_max_ctl = athlete.personal_max_ctl if athlete else None
 
-    # Fitness-Score
-    score_result = compute_full_score(sessions, personal_max_ctl)
-
-    if athlete and score_result["new_max_ctl"] != personal_max_ctl:
-        athlete.personal_max_ctl = score_result["new_max_ctl"]
-        await db.commit()
+    # Fitness-Score (absolute Referenzskala, kein DB-Write)
+    score_result = compute_full_score(sessions)
 
     # Trainingsqualität
     intensity = calculate_intensity_distribution(sessions, resting_hr, max_hr)

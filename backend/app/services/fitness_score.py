@@ -17,6 +17,7 @@ Berechnung:
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -322,32 +323,39 @@ def calculate_fitness_metrics(
 # ---------------------------------------------------------------------------
 
 
-def normalize_score(ctl: float, personal_max_ctl: float | None) -> int:
-    """Normalisiere CTL auf Score 0-100.
+def normalize_score(ctl: float) -> int:
+    """Normalisiere CTL auf Score 0-100 mit absoluter Referenzskala.
 
-    personal_max_ctl: Höchster je erreichter CTL.
-    Wenn None (neuer Nutzer): nutze CTL direkt, gecapped bei 100.
+    Verwendet eine logarithmische Kurve basierend auf typischen CTL-Werten
+    für verschiedene Trainingsniveaus (Edwards TRIMP):
+
+    - CTL ~10: Gelegenheitssportler (Score ~25)
+    - CTL ~30: Regelmäßiges Training 3×/Woche (Score ~50)
+    - CTL ~60: Ambitionierter Hobbyathlet (Score ~75)
+    - CTL ~80: Gut trainiert, wettkampforientiert (Score ~87)
+    - CTL ~120+: Elite / Hochphase (Score ~95+)
+
+    Die logarithmische Kurve sorgt dafür, dass Anfänger schnell
+    Fortschritte sehen, während hohe Werte schwerer zu erreichen sind.
     """
     if ctl <= 0:
         return 0
-    if personal_max_ctl and personal_max_ctl > 0:
-        return min(100, round(ctl / personal_max_ctl * 100))
-    # Neuer Nutzer: CTL direkt nutzen mit sinnvollem Cap
-    # CTL von ~80+ TRIMP/Tag über 6 Wochen = sehr trainiert
-    return min(100, round(ctl / 80.0 * 100))
+
+    # Logarithmische Normalisierung: score = k * ln(1 + ctl/c)
+    # Kalibriert: CTL=30→50, CTL=60→67, CTL=80→75, CTL=120→85
+    raw = 28.0 * math.log(1.0 + ctl / 6.0)
+    return min(100, round(raw))
 
 
 def calculate_split_scores(
     sessions_with_trimp: list[tuple[date, float, str]],
     up_to_date: date | None = None,
-    personal_max_ctl: float | None = None,
 ) -> tuple[int, int]:
     """Berechne aufgeschlüsselte Scores für Ausdauer und Kraft.
 
     Args:
         sessions_with_trimp: [(date, trimp, workout_type), ...]
         up_to_date: Bis-Datum
-        personal_max_ctl: Für Normalisierung
 
     Returns:
         (endurance_score, strength_score)
@@ -372,9 +380,8 @@ def calculate_split_scores(
         metrics = calculate_fitness_metrics(strength_trimps, up_to_date)
         strength_ctl = metrics.ctl
 
-    # Normalisierung: Anteilig vom Gesamt-Max
-    e_score = normalize_score(endurance_ctl, personal_max_ctl)
-    s_score = normalize_score(strength_ctl, personal_max_ctl)
+    e_score = normalize_score(endurance_ctl)
+    s_score = normalize_score(strength_ctl)
 
     return e_score, s_score
 
@@ -574,7 +581,6 @@ def sessions_with_types(
 
 def compute_full_score(
     sessions: list[WorkoutModel],
-    personal_max_ctl: float | None = None,
     up_to_date: date | None = None,
 ) -> dict:
     """Berechne den kompletten Fitness-Score mit allen Indikatoren.
@@ -589,12 +595,12 @@ def compute_full_score(
     # 2. CTL/ATL/TSB
     metrics = calculate_fitness_metrics(daily_trimps, target)
 
-    # 3. Score normalisieren
-    score = normalize_score(metrics.ctl, personal_max_ctl)
+    # 3. Score normalisieren (absolute Referenzskala)
+    score = normalize_score(metrics.ctl)
 
     # 4. Aufschlüsselung
     typed = sessions_with_types(sessions)
-    endurance_score, strength_score = calculate_split_scores(typed, target, personal_max_ctl)
+    endurance_score, strength_score = calculate_split_scores(typed, target)
 
     # 5. Form
     form = calculate_form(metrics.tsb)
@@ -608,11 +614,6 @@ def compute_full_score(
 
     # 8. Kontext-Satz
     context = generate_context_message(score, trend, form, acwr)
-
-    # 9. Max CTL aktualisieren
-    new_max_ctl = personal_max_ctl
-    if metrics.ctl > (personal_max_ctl or 0):
-        new_max_ctl = metrics.ctl
 
     return {
         "score": score,
@@ -637,13 +638,11 @@ def compute_full_score(
         ),
         "context_message": context,
         "metrics": metrics,
-        "new_max_ctl": new_max_ctl,
     }
 
 
 def compute_history(
     sessions: list[WorkoutModel],
-    personal_max_ctl: float | None = None,
     days: int = 90,
 ) -> dict:
     """Berechne Fitness-Verlauf für Charts.
@@ -661,15 +660,11 @@ def compute_history(
     ) -> list[dict[str, str | float]]:
         return [{"date": d.isoformat(), "value": v} for d, v in history if d >= cutoff]
 
-    # Score-History: CTL normalisiert
-    effective_max = personal_max_ctl or max((v for _, v in metrics.ctl_history), default=1.0)
-    if effective_max <= 0:
-        effective_max = 1.0
-
+    # Score-History: CTL → absolute Skala via normalize_score
     score_history = [
         {
             "date": d.isoformat(),
-            "value": float(min(100, round(v / effective_max * 100))),
+            "value": float(normalize_score(v)),
         }
         for d, v in metrics.ctl_history
         if d >= cutoff
