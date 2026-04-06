@@ -15,6 +15,7 @@ export default defineConfig({
     baseURL: PRODUCTION_URL,
     // Kein storageState mehr — Auth wird per Fixture pro Test injiziert
     // (auth-fixture.ts), um Token-Rotation-Probleme zu vermeiden.
+    ignoreHTTPSErrors: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },

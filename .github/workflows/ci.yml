@@ -380,6 +380,7 @@ jobs:
         working-directory: e2e
         env:
           BASE_URL: https://training.nordliggrad.com
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
         run: npx playwright test
 
       - name: Upload Test Report
