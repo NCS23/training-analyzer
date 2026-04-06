@@ -5,6 +5,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_active_user
+from app.infrastructure.database.models import UserModel
 from app.infrastructure.database.session import get_db
 from app.models.weekly_review import WeeklyReviewGenerateRequest, WeeklyReviewResponse
 from app.services.weekly_review_service import generate_weekly_review, get_weekly_review
@@ -16,6 +18,7 @@ router = APIRouter()
 async def generate_review(
     request: WeeklyReviewGenerateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyReviewResponse:
     """Generiert ein wöchentliches KI-Trainingsreview.
 
@@ -33,7 +36,7 @@ async def generate_review(
 
     try:
         return await generate_weekly_review(
-            week_start_date, db, force_refresh=request.force_refresh
+            week_start_date, db, force_refresh=request.force_refresh, user_id=current_user.id
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -48,6 +51,7 @@ async def generate_review(
 async def get_review(
     week_start: str,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyReviewResponse:
     """Lädt ein gespeichertes Wochen-Review.
 
@@ -63,7 +67,7 @@ async def get_review(
         ) from e
 
     try:
-        review = await get_weekly_review(week_start_date, db)
+        review = await get_weekly_review(week_start_date, db, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

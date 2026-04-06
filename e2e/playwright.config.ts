@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 const PRODUCTION_URL =
-  process.env.BASE_URL || "http://training.89.167.78.223.sslip.io";
+  process.env.BASE_URL || "https://training.nordliggrad.com";
 
 export default defineConfig({
   globalSetup: "./global-setup.ts",
@@ -13,6 +13,8 @@ export default defineConfig({
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: PRODUCTION_URL,
+    // Kein storageState mehr — Auth wird per Fixture pro Test injiziert
+    // (auth-fixture.ts), um Token-Rotation-Probleme zu vermeiden.
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },

@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import AIAnalysisLogModel, WorkoutModel
+from app.core.dependencies import get_current_active_user
+from app.infrastructure.database.models import AIAnalysisLogModel, UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 
 router = APIRouter(prefix="/ai/log")
@@ -46,18 +47,24 @@ class AILogListResponse(BaseModel):
 @router.get("", response_model=AILogListResponse)
 async def list_ai_logs(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> AILogListResponse:
     """Paginierte Liste aller KI-Analyse-Logs (neueste zuerst)."""
     # Total count
-    count_result = await db.execute(select(func.count(AIAnalysisLogModel.id)))
+    count_result = await db.execute(
+        select(func.count(AIAnalysisLogModel.id)).where(
+            AIAnalysisLogModel.user_id == current_user.id
+        )
+    )
     total = count_result.scalar_one()
 
     # Logs mit optionalem Workout LEFT JOIN
     stmt = (
         select(AIAnalysisLogModel, WorkoutModel.date, WorkoutModel.workout_type)
         .outerjoin(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
+        .where(AIAnalysisLogModel.user_id == current_user.id)
         .order_by(AIAnalysisLogModel.created_at.desc())
         .offset(offset)
         .limit(limit)
@@ -97,12 +104,16 @@ async def list_ai_logs(
 async def get_ai_log_detail(
     log_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> AILogDetail:
     """Einzelner Log-Eintrag mit vollem Prompt und Response."""
     stmt = (
         select(AIAnalysisLogModel, WorkoutModel.date, WorkoutModel.workout_type)
         .outerjoin(WorkoutModel, AIAnalysisLogModel.workout_id == WorkoutModel.id)
-        .where(AIAnalysisLogModel.id == log_id)
+        .where(
+            AIAnalysisLogModel.id == log_id,
+            AIAnalysisLogModel.user_id == current_user.id,
+        )
     )
     result = await db.execute(stmt)
     row = result.one_or_none()

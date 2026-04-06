@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
     AthleteModel,
@@ -44,6 +44,7 @@ async def analyze_session(
     db: AsyncSession,
     *,
     force_refresh: bool = False,
+    user_id: int | None = None,
 ) -> SessionAnalysisResponse:
     """Analysiert eine Session mit KI (Cache-First)."""
     workout = await _load_workout(session_id, db)
@@ -56,12 +57,14 @@ async def analyze_session(
     context = await _load_analysis_context(workout, db)
     prompt = _build_analysis_prompt(workout, context)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key, provider_name = await resolve_ai_config(db, user_id)
 
     t0 = time.monotonic()
-    raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    raw = await ai_service.chat(
+        prompt, {"system_prompt": system_prompt}, api_key, provider_name=provider_name
+    )
     duration_ms = int((time.monotonic() - t0) * 1000)
-    provider = ai_service.get_active_provider() or "unknown"
+    provider = provider_name
 
     # Parsen + Cache speichern + Log schreiben
     analysis = _parse_analysis_json(raw, session_id, provider)
@@ -744,18 +747,22 @@ async def analyze_race_session(
     session_id: int,
     db: AsyncSession,
     race_report: dict | None = None,
+    *,
+    user_id: int | None = None,
 ) -> RaceAnalysisResponse:
     """Analysiert eine Wettkampf-Session mit race-spezifischem Prompt."""
     workout = await _load_workout(session_id, db)
     context = await _load_analysis_context(workout, db)
     prompt = _build_race_prompt(workout, context, race_report)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key, provider_name = await resolve_ai_config(db, user_id)
 
     t0 = time.monotonic()
-    raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    raw = await ai_service.chat(
+        prompt, {"system_prompt": system_prompt}, api_key, provider_name=provider_name
+    )
     duration_ms = int((time.monotonic() - t0) * 1000)
-    provider = ai_service.get_active_provider() or "unknown"
+    provider = provider_name
 
     analysis = _parse_race_analysis_json(raw, session_id, provider)
     await log_ai_call(

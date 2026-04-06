@@ -10,12 +10,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.training_plans import log_plan_change
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
     PlannedSessionModel,
     SessionTemplateModel,
     TrainingPhaseModel,
     TrainingPlanModel,
+    UserModel,
     WeeklyPlanDayModel,
     WorkoutModel,
 )
@@ -126,13 +128,13 @@ def _parse_exercises(raw: Optional[str]) -> Optional[list[TemplateExercise]]:
 async def _load_days_with_sessions(
     db: AsyncSession,
     week_start: date,
+    user_id: Optional[int] = None,
 ) -> dict[int, tuple[WeeklyPlanDayModel, list[PlannedSessionModel]]]:
     """Load all days and their sessions for a week. Returns {day_of_week: (day, sessions)}."""
-    day_result = await db.execute(
-        select(WeeklyPlanDayModel)
-        .where(WeeklyPlanDayModel.week_start == week_start)
-        .order_by(WeeklyPlanDayModel.day_of_week)
-    )
+    q = select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == week_start)
+    if user_id is not None:
+        q = q.where(WeeklyPlanDayModel.user_id == user_id)
+    day_result = await db.execute(q.order_by(WeeklyPlanDayModel.day_of_week))
     days = {int(d.day_of_week): d for d in day_result.scalars().all()}
 
     if not days:
@@ -283,6 +285,7 @@ def _build_entry_from_db(
 async def get_weekly_plan(
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyPlanResponse:
     """Get the weekly plan for a given week (defaults to current week)."""
     if week_start is None:
@@ -290,7 +293,7 @@ async def get_weekly_plan(
     else:
         week_start = _monday_of_week(week_start)
 
-    days_data = await _load_days_with_sessions(db, week_start)
+    days_data = await _load_days_with_sessions(db, week_start, user_id=current_user.id)
 
     # Collect template IDs for name lookup
     template_ids: list[int] = []
@@ -487,6 +490,7 @@ async def _auto_sync_week_to_plan(
     db: AsyncSession,
     plan_id: int,
     week_start: date,
+    user_id: Optional[int] = None,
 ) -> None:
     """Auto-sync weekly plan changes back to training plan phase template.
 
@@ -517,7 +521,7 @@ async def _auto_sync_week_to_plan(
     if not phase:
         return  # Week outside plan range
 
-    days_data = await _load_days_with_sessions(db, week_start)
+    days_data = await _load_days_with_sessions(db, week_start, user_id=user_id)
 
     template_ids: list[int] = []
     for _, (_, db_sessions) in days_data.items():
@@ -566,6 +570,7 @@ async def _auto_sync_week_to_plan(
 async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: WeeklyPlanSaveRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> WeeklyPlanResponse:
     """Save/update the weekly plan. Upserts all provided day entries."""
     week_start = _monday_of_week(data.week_start)
@@ -581,7 +586,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refacto
         seen_days.add(entry.day_of_week)
 
     # Fetch existing days + sessions BEFORE deletion (for plan_id + edited preservation)
-    old_data = await _load_days_with_sessions(db, week_start)
+    old_data = await _load_days_with_sessions(db, week_start, user_id=current_user.id)
 
     # Capture snapshot for undo (before any deletion)
     undo_phase_id, undo_phase_json = await _load_linked_phase_template(
@@ -630,6 +635,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refacto
             notes=entry.notes,
             plan_id=plan_id,
             edited=edited,
+            user_id=current_user.id,
         )
         db.add(db_day)
         await db.flush()  # Get db_day.id
@@ -652,6 +658,7 @@ async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refacto
                 exercises_json=exercises_str,
                 notes=session.notes,
                 status=session.status,
+                user_id=current_user.id,
             )
             db.add(db_session)
 
@@ -698,18 +705,19 @@ async def save_weekly_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refacto
     if changed_plan_days:
         await db.flush()  # Ensure new days/sessions are persisted before sync reads them
         for pid in changed_plan_days:
-            await _auto_sync_week_to_plan(db, pid, week_start)
+            await _auto_sync_week_to_plan(db, pid, week_start, user_id=current_user.id)
 
     await db.commit()
 
     # Return the saved plan
-    return await get_weekly_plan(week_start=week_start, db=db)
+    return await get_weekly_plan(week_start=week_start, db=db, current_user=current_user)
 
 
 @router.delete("")
 async def clear_weekly_plan(
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict[str, bool]:
     """Clear all entries for a given week."""
     if week_start is None:
@@ -719,7 +727,10 @@ async def clear_weekly_plan(
 
     # Load days to get IDs for session cleanup
     day_result = await db.execute(
-        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == week_start)
+        select(WeeklyPlanDayModel).where(
+            WeeklyPlanDayModel.week_start == week_start,
+            WeeklyPlanDayModel.user_id == current_user.id,
+        )
     )
     days = day_result.scalars().all()
 
@@ -793,6 +804,7 @@ def _determine_status(  # noqa: PLR0911  # TODO: E16 Refactoring
 async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     week_start: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ComplianceResponse:
     """Get compliance tracking for a given week (plan vs. actual sessions)."""
     if week_start is None:
@@ -803,12 +815,13 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
     week_end = week_start + timedelta(days=6)
 
     # Fetch plan days + sessions
-    days_data = await _load_days_with_sessions(db, week_start)
+    days_data = await _load_days_with_sessions(db, week_start, user_id=current_user.id)
 
     # Fetch all workouts for this week
     session_result = await db.execute(
         select(WorkoutModel)
         .where(
+            WorkoutModel.user_id == current_user.id,
             WorkoutModel.date >= datetime.combine(week_start, datetime.min.time()),
             WorkoutModel.date <= datetime.combine(week_end, datetime.max.time()),
         )
@@ -954,6 +967,7 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
         prev_week_end = week_start - timedelta(days=1)
         prev_result = await db.execute(
             select(WorkoutModel).where(
+                WorkoutModel.user_id == current_user.id,
                 WorkoutModel.workout_type == "strength",
                 WorkoutModel.exercises_json.isnot(None),
                 WorkoutModel.date >= datetime.combine(prev_week_start, datetime.min.time()),
@@ -1011,6 +1025,7 @@ async def get_compliance(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactori
 async def get_sessions_for_date(
     target_date: date = Query(..., alias="date"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> list[PlannedSessionOption]:
     """Get planned sessions for a specific date (for upload linking)."""
     week_start = _monday_of_week(target_date)
@@ -1021,6 +1036,7 @@ async def get_sessions_for_date(
         select(WeeklyPlanDayModel).where(
             WeeklyPlanDayModel.week_start == week_start,
             WeeklyPlanDayModel.day_of_week == day_of_week,
+            WeeklyPlanDayModel.user_id == current_user.id,
         )
     )
     day = day_result.scalar_one_or_none()
@@ -1062,13 +1078,17 @@ async def get_sessions_for_date(
 async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     data: SyncToPlanRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SyncToPlanResponse:
     """Sync edited weekly plan entries back to training plan phase template."""
     week_start = _monday_of_week(data.week_start)
 
-    # Load training plan
+    # Load training plan (verify ownership)
     plan_result = await db.execute(
-        select(TrainingPlanModel).where(TrainingPlanModel.id == data.plan_id)
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == data.plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
     )
     plan = plan_result.scalar_one_or_none()
     if not plan:
@@ -1101,7 +1121,7 @@ async def sync_to_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
         )
 
     # Load weekly plan days + sessions
-    days_data = await _load_days_with_sessions(db, week_start)
+    days_data = await _load_days_with_sessions(db, week_start, user_id=current_user.id)
 
     # Resolve template names for all sessions
     sync_template_ids: list[int] = []
@@ -1259,6 +1279,7 @@ async def _find_undoable_entry(
 async def get_undo_status(
     week_start: date = Query(...),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> UndoStatusResponse:
     """Check if undo is available for a given week."""
     week_start = _monday_of_week(week_start)
@@ -1281,6 +1302,7 @@ async def get_undo_status(
 async def undo_weekly_plan(
     week_start: date = Query(...),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> UndoResponse:
     """Undo the most recent change to a weekly plan (within 24h window)."""
     week_start = _monday_of_week(week_start)
@@ -1295,7 +1317,7 @@ async def undo_weekly_plan(
         raise HTTPException(status_code=409, detail="Snapshot-Daten fehlen oder sind ungültig.")
 
     # Capture current state before restoring (for audit trail)
-    current_data = await _load_days_with_sessions(db, week_start)
+    current_data = await _load_days_with_sessions(db, week_start, user_id=current_user.id)
     current_phase_id, current_phase_json = await _load_linked_phase_template(
         db,
         current_data,
@@ -1327,6 +1349,7 @@ async def undo_weekly_plan(
             notes=snap_day.get("notes"),
             plan_id=plan_id,
             edited=snap_day.get("edited", False),
+            user_id=current_user.id,
         )
         db.add(db_day)
         await db.flush()
@@ -1341,6 +1364,7 @@ async def undo_weekly_plan(
                 exercises_json=snap_session.get("exercises_json"),
                 notes=snap_session.get("notes"),
                 status=snap_session.get("status", "active"),
+                user_id=current_user.id,
             )
             db.add(db_session)
 
@@ -1391,6 +1415,7 @@ async def undo_weekly_plan(
 async def apply_recommendations(
     data: ApplyRecommendationsRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> ApplyRecommendationsResponse:
     """Konvertiert KI-Review-Empfehlungen in Plan-Sessions für die Folgewoche."""
     from app.services.recommendation_to_plan_service import (
@@ -1403,6 +1428,7 @@ async def apply_recommendations(
         review_week_start=week_start,
         recommendations=data.recommendations,
         db=db,
+        user_id=current_user.id,
     )
 
     return ApplyRecommendationsResponse(**result)
@@ -1415,6 +1441,7 @@ async def apply_recommendations(
 async def export_planned_session_fit(
     entry_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Export eines geplanten Lauftrainings als FIT-Workout-Datei.
 
@@ -1425,7 +1452,12 @@ async def export_planned_session_fit(
 
     from app.services.fit_export import export_template_to_fit
 
-    result = await db.execute(select(PlannedSessionModel).where(PlannedSessionModel.id == entry_id))
+    result = await db.execute(
+        select(PlannedSessionModel).where(
+            PlannedSessionModel.id == entry_id,
+            PlannedSessionModel.user_id == current_user.id,
+        )
+    )
     entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Geplanter Eintrag nicht gefunden.")

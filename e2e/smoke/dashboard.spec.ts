@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../auth-fixture";
 
 test.describe("Dashboard", () => {
   test("lädt und zeigt Inhalt", async ({ page }) => {

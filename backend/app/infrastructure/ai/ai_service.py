@@ -2,6 +2,7 @@
 AI Service Factory and Manager
 
 Handles AI provider initialization, selection, and fallback logic.
+Providers können pro Request gewählt werden (User-Präferenz).
 """
 
 from collections.abc import AsyncIterator
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.domain.interfaces.ai_service import AIProvider
 from app.infrastructure.ai.providers.claude_provider import ClaudeProvider
 from app.infrastructure.ai.providers.ollama_provider import OllamaProvider
+from app.infrastructure.ai.providers.openai_provider import OpenAIProvider
 
 
 class AIProviderFactory:
@@ -19,6 +21,7 @@ class AIProviderFactory:
     _providers = {
         "claude": ClaudeProvider,
         "ollama": OllamaProvider,
+        "openai": OpenAIProvider,
     }
 
     @classmethod
@@ -27,8 +30,7 @@ class AIProviderFactory:
         provider_class = cls._providers.get(provider_name.lower())
         if not provider_class:
             raise ValueError(f"Unknown AI provider: {provider_name}")
-
-        return provider_class()
+        return provider_class()  # type: ignore[abstract]
 
     @classmethod
     def get_available_providers(cls) -> list[str]:
@@ -37,61 +39,65 @@ class AIProviderFactory:
 
 
 class AIService:
-    """
-    Main AI Service with provider management and fallback support
+    """Main AI Service mit Provider-Cache und dynamischer Auswahl pro Request."""
 
-    Example:
-        ai_service = AIService()
-        analysis = await ai_service.analyze_workout(workout_data)
-    """
-
-    def __init__(self):
+    def __init__(self) -> None:
+        self._provider_cache: dict[str, AIProvider] = {}
         self.primary_provider: Optional[AIProvider] = None
         self.fallback_providers: list[AIProvider] = []
         self._initialize_providers()
 
-    def _initialize_providers(self):
-        """Initialize AI providers based on config"""
-        # Primary provider
+    def _initialize_providers(self) -> None:
+        """Initialisiert Default-Provider aus Config (für Fallback-Chain)."""
         try:
-            self.primary_provider = AIProviderFactory.create(settings.ai_primary_provider)
+            self.primary_provider = self._get_or_create(settings.ai_primary_provider)
             print(f"✅ Primary AI provider: {self.primary_provider.name}")
         except Exception as e:
             print(f"⚠️  Failed to initialize primary provider: {e}")
 
-        # Fallback providers
         for fallback_name in settings.ai_fallback_providers:
             try:
-                provider = AIProviderFactory.create(fallback_name)
+                provider = self._get_or_create(fallback_name)
                 if provider.is_available():
                     self.fallback_providers.append(provider)
                     print(f"✅ Fallback provider: {provider.name}")
             except Exception as e:
                 print(f"⚠️  Failed to initialize fallback {fallback_name}: {e}")
 
-    async def analyze_workout(self, workout_data: dict, api_key: str | None = None) -> str:
-        """Analyze workout with automatic fallback.
+    def _get_or_create(self, provider_name: str) -> AIProvider:
+        """Provider aus Cache holen oder neu erstellen."""
+        name = provider_name.lower()
+        if name not in self._provider_cache:
+            self._provider_cache[name] = AIProviderFactory.create(name)
+        return self._provider_cache[name]
 
-        Args:
-            workout_data: Dictionary with workout metrics
-            api_key: Optionaler User-API-Key (überschreibt .env)
-
-        Returns:
-            AI analysis text
-
-        Raises:
-            Exception: If all providers fail
-        """
-        # Try primary provider
-        if self.primary_provider and self.primary_provider.is_available(api_key):
+    def _select_provider(self, provider_name: str | None) -> AIProvider | None:
+        """Wählt Provider basierend auf Name oder nimmt Primary."""
+        if provider_name:
             try:
-                result = await self.primary_provider.analyze_workout(workout_data, api_key)
-                return f"[{self.primary_provider.name}] {result}"
+                return self._get_or_create(provider_name)
+            except ValueError:
+                pass
+        return self.primary_provider
+
+    async def analyze_workout(
+        self,
+        workout_data: dict,
+        api_key: str | None = None,
+        provider_name: str | None = None,
+    ) -> str:
+        """Analyze workout mit gewähltem Provider + Fallback."""
+        primary = self._select_provider(provider_name)
+        if primary and primary.is_available(api_key):
+            try:
+                result = await primary.analyze_workout(workout_data, api_key)
+                return f"[{primary.name}] {result}"
             except Exception as e:
                 print(f"Primary provider failed: {e}")
 
-        # Try fallback providers
         for provider in self.fallback_providers:
+            if provider is primary:
+                continue
             if provider.is_available():
                 try:
                     result = await provider.analyze_workout(workout_data)
@@ -102,26 +108,24 @@ class AIService:
 
         raise Exception("All AI providers failed")
 
-    async def chat(self, message: str, context: dict, api_key: str | None = None) -> str:
-        """Chat with AI with automatic fallback.
-
-        Args:
-            message: User message
-            context: Conversation context
-            api_key: Optionaler User-API-Key (überschreibt .env)
-
-        Returns:
-            AI response text
-        """
-        # Try primary provider
-        if self.primary_provider and self.primary_provider.is_available(api_key):
+    async def chat(
+        self,
+        message: str,
+        context: dict,
+        api_key: str | None = None,
+        provider_name: str | None = None,
+    ) -> str:
+        """Chat mit gewähltem Provider + Fallback."""
+        primary = self._select_provider(provider_name)
+        if primary and primary.is_available(api_key):
             try:
-                return await self.primary_provider.chat(message, context, api_key)
+                return await primary.chat(message, context, api_key)
             except Exception as e:
                 print(f"Primary provider failed: {e}")
 
-        # Try fallback providers
         for provider in self.fallback_providers:
+            if provider is primary:
+                continue
             if provider.is_available():
                 try:
                     return await provider.chat(message, context)
@@ -136,22 +140,20 @@ class AIService:
         messages: list[dict],
         system_prompt: str,
         api_key: str | None = None,
+        provider_name: str | None = None,
     ) -> tuple[str, str]:
-        """Multi-Turn Chat mit Konversationshistorie.
-
-        Returns:
-            Tuple von (response_text, provider_name).
-        """
-        if self.primary_provider and self.primary_provider.is_available(api_key):
+        """Multi-Turn Chat mit gewähltem Provider."""
+        primary = self._select_provider(provider_name)
+        if primary and primary.is_available(api_key):
             try:
-                result = await self.primary_provider.chat_multi_turn(
-                    messages, system_prompt, api_key
-                )
-                return result, self.primary_provider.name
+                result = await primary.chat_multi_turn(messages, system_prompt, api_key)
+                return result, primary.name
             except Exception as e:
                 print(f"Primary provider failed: {e}")
 
         for provider in self.fallback_providers:
+            if provider is primary:
+                continue
             if provider.is_available():
                 try:
                     result = await provider.chat_multi_turn(messages, system_prompt)
@@ -167,19 +169,19 @@ class AIService:
         messages: list[dict],
         system_prompt: str,
         api_key: str | None = None,
+        provider_name: str | None = None,
     ) -> tuple[AsyncIterator[str], str]:
-        """Streamt Multi-Turn Chat Token fuer Token.
-
-        Returns:
-            Tuple von (async_iterator, provider_name).
-        """
-        if self.primary_provider and self.primary_provider.is_available(api_key):
+        """Streamt Multi-Turn Chat Token fuer Token."""
+        primary = self._select_provider(provider_name)
+        if primary and primary.is_available(api_key):
             return (
-                self.primary_provider.stream_chat_multi_turn(messages, system_prompt, api_key),
-                self.primary_provider.name,
+                primary.stream_chat_multi_turn(messages, system_prompt, api_key),
+                primary.name,
             )
 
         for provider in self.fallback_providers:
+            if provider is primary:
+                continue
             if provider.is_available():
                 return (
                     provider.stream_chat_multi_turn(messages, system_prompt),
@@ -195,30 +197,28 @@ class AIService:
         tools: list[dict],
         tool_handler: Any,
         api_key: str | None = None,
+        provider_name: str | None = None,
     ) -> tuple[AsyncIterator[dict], str]:
-        """Streamt Chat mit Tool Use. Nur Claude unterstuetzt Tools.
-
-        Returns:
-            Tuple von (async_iterator mit dicts, provider_name).
-        """
-        if self.primary_provider and isinstance(self.primary_provider, ClaudeProvider):
+        """Streamt Chat mit Tool Use. Nur Claude unterstützt Tools nativ."""
+        primary = self._select_provider(provider_name)
+        if isinstance(primary, ClaudeProvider) and primary.is_available(api_key):
             return (
-                self.primary_provider.stream_chat_with_tools(
+                primary.stream_chat_with_tools(
                     messages, system_prompt, tools, tool_handler, api_key
                 ),
-                self.primary_provider.name,
+                primary.name,
             )
 
-        # Fallback: Ohne Tools streamen (Ollama etc.)
-        if self.primary_provider and self.primary_provider.is_available(api_key):
+        # Fallback: Ohne Tools streamen (OpenAI, Ollama etc.)
+        if primary and primary.is_available(api_key):
 
             async def _wrap_stream() -> AsyncIterator[dict]:
-                async for text in self.primary_provider.stream_chat_multi_turn(  # type: ignore[union-attr]
+                async for text in primary.stream_chat_multi_turn(  # type: ignore[union-attr]
                     messages, system_prompt, api_key
                 ):
                     yield {"type": "token", "content": text}
 
-            return _wrap_stream(), self.primary_provider.name
+            return _wrap_stream(), primary.name
 
         raise Exception("No AI provider available for tool-use streaming")
 
@@ -235,7 +235,7 @@ class AIService:
 
     def get_provider_status(self) -> dict:
         """Get status of all configured providers"""
-        status = {}
+        status: dict = {}
 
         if self.primary_provider:
             status[self.primary_provider.name] = {

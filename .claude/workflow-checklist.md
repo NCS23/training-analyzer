@@ -1,4 +1,4 @@
-# Workflow Checklist — Issue #211
+# Workflow Checklist — Auth & Multi-User (#556)
 
 ## Phase 0: Pre-Code
 - [x] GitHub Issue gelesen (Akzeptanzkriterien + Taskbreakdown)
@@ -7,29 +7,38 @@
 - [x] CLEAN_CODE.md gelesen
 
 ## Phase 1: Branch & Board
-- [x] Feature-Branch erstellt (feature/211-consolidate-constants)
+- [x] Feature-Branch erstellt (feature/auth-s01-user-model)
 - [x] Issue auf "In Progress" im Project Board gesetzt
 
 ## Phase 2: Implementation
-- [x] constants/plan.ts erstellt (DAY_LABELS, RUN_TYPE_LABELS, SESSION_TYPE_OPTIONS)
-- [x] constants/training.ts erweitert (CATEGORY_LABELS)
-- [x] DayCard.tsx — lokale DAY_LABELS, RUN_TYPE_LABELS, SESSION_TYPE_OPTIONS entfernt → Import
-- [x] MoveSessionDialog.tsx — lokale DAY_LABELS entfernt → Import
-- [x] PhaseWeeklyTemplateEditor.tsx — lokale DAY_LABELS, SESSION_TYPE_OPTIONS entfernt → Import
-- [x] TemplatePickerDialog.tsx — lokale RUN_TYPE_LABELS entfernt → Import
-- [x] WeeklyPlan.tsx — lokale RUN_TYPE_LABELS + CATEGORY_LABELS (EN→DE) entfernt → Import
-- [x] StrengthProgression.tsx — lokale CATEGORY_LABELS entfernt → Import
-- [x] exercise-helpers.ts — lokale CATEGORY_LABELS → Re-Export aus constants/training.ts
-- [x] plan-helpers.ts — lokale DAY_LABELS → Re-Export aus constants/plan.ts
+- [x] UserModel + RefreshTokenModel (users, refresh_tokens Tabellen)
+- [x] user_id FK (nullable, CASCADE) in allen 17 bestehenden Tabellen
+- [x] Alembic Migrationen c045 + c046
+- [x] JWT Access Token + Refresh Token mit Rotation (security.py)
+- [x] Apple Sign-In JWKS-Validierung (apple_auth_service.py)
+- [x] Daten-Migration (data_migration_service.py)
+- [x] get_current_user Dependency mit Fallback (dependencies.py)
+- [x] auth_enabled Feature-Flag (config.py)
+- [x] Auth-Endpoints: /auth/apple, /auth/status, /auth/refresh, /auth/logout, /auth/me
+- [x] useAuth Zustand-Store (useAuth.ts)
+- [x] AuthGuard (AuthGuard.tsx)
+- [x] Login-Seite mit Apple Sign-In Platzhalter (Login.tsx)
+- [x] Axios-Interceptor: Bearer-Token + 401-Refresh (client.ts)
 
 ## Phase 3: Quality Gates
-- [x] TSC --noEmit bestanden
 - [x] ESLint 0 Warnings
-- [x] Vitest 145 Tests bestanden
+- [x] Prettier Check bestanden
+- [x] TSC --noEmit bestanden
+- [x] Vitest 187 Tests bestanden
+- [x] Ruff check bestanden
+- [x] Ruff format bestanden
+- [x] Mypy bestanden
+- [x] Pytest 1193 Tests bestanden
+- [x] Design Review PASS
 
 ## Phase 4: Abschluss (post-push, not validated by hook)
-- [ ] Commit + Push auf Feature-Branch
-- [ ] CI grün
+- [ ] Push auf Feature-Branch
+- [ ] CI gruen
 - [ ] GitHub Issue kommentiert
 - [ ] GitHub Issue geschlossen
-- [ ] Project Board Status auf "Done"
+- [ ] Project Board Status auf Done

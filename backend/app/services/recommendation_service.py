@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
     AIRecommendationModel,
@@ -62,6 +62,7 @@ async def generate_recommendations(
     db: AsyncSession,
     *,
     force_refresh: bool = False,
+    user_id: int | None = None,
 ) -> RecommendationsListResponse:
     """Generiert KI-Empfehlungen fuer eine Session (Cache-First)."""
     workout = await _load_workout(session_id, db)
@@ -73,7 +74,7 @@ async def generate_recommendations(
             return _build_response(cached, session_id, cached[0].provider, is_cached=True)
 
     # Session-Analyse sicherstellen (Voraussetzung)
-    analysis = await _ensure_analysis(session_id, db)
+    analysis = await _ensure_analysis(session_id, db, user_id=user_id)
 
     # Kontext laden
     context = await _load_recommendation_context(workout, analysis, db)
@@ -81,12 +82,14 @@ async def generate_recommendations(
     # Prompt bauen und AI aufrufen
     prompt = _build_recommendation_prompt(context)
     system_prompt = _build_system_prompt(context)
-    api_key = await resolve_claude_api_key(db)
+    api_key, provider_name = await resolve_ai_config(db, user_id)
 
     t0 = time.monotonic()
-    raw = await ai_service.chat(prompt, {"system_prompt": system_prompt}, api_key)
+    raw = await ai_service.chat(
+        prompt, {"system_prompt": system_prompt}, api_key, provider_name=provider_name
+    )
     duration_ms = int((time.monotonic() - t0) * 1000)
-    provider = ai_service.get_active_provider() or "unknown"
+    provider = provider_name
 
     # Parsen
     parsed = _parse_recommendations_json(raw)
@@ -158,7 +161,9 @@ async def _load_workout(session_id: int, db: AsyncSession) -> WorkoutModel:
     return workout
 
 
-async def _ensure_analysis(session_id: int, db: AsyncSession) -> dict:
+async def _ensure_analysis(
+    session_id: int, db: AsyncSession, *, user_id: int | None = None
+) -> dict:
     """Stellt sicher, dass eine Session-Analyse existiert."""
     result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
     workout = result.scalar_one_or_none()
@@ -172,7 +177,7 @@ async def _ensure_analysis(session_id: int, db: AsyncSession) -> dict:
             pass
 
     # Analyse noch nicht vorhanden — jetzt ausfuehren
-    analysis_response = await analyze_session(session_id, db)
+    analysis_response = await analyze_session(session_id, db, user_id=user_id)
     return analysis_response.model_dump()
 
 

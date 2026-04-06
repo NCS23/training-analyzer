@@ -1,4 +1,4 @@
-"""Pydantic Schemas für User Settings (API Keys) API."""
+"""Pydantic Schemas für User Settings (API Keys + AI Provider) API."""
 
 from __future__ import annotations
 
@@ -9,12 +9,14 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from app.infrastructure.database.models import AthleteModel
 
+VALID_PROVIDERS = {"claude", "openai"}
+
 
 class UserSettingsRequest(BaseModel):
     """PATCH Request für API Key Settings.
 
     - Feld nicht im Body oder None → keine Änderung
-    - Leerer String '' → Key löschen
+    - Leerer String '' → Key löschen / Provider auf Default zurücksetzen
     - Wert → Key verschlüsseln und speichern
     """
 
@@ -24,15 +26,20 @@ class UserSettingsRequest(BaseModel):
     openai_api_key: str | None = Field(
         None, description="OpenAI API Key (raw). None = nicht ändern, '' = löschen"
     )
+    preferred_ai_provider: str | None = Field(
+        None,
+        description="Bevorzugter AI Provider ('claude', 'openai'). None = nicht ändern, '' = Default",
+    )
 
 
 class UserSettingsResponse(BaseModel):
-    """Response mit maskierten API Keys."""
+    """Response mit maskierten API Keys und Provider-Präferenz."""
 
     claude_api_key_masked: str | None = None
     openai_api_key_masked: str | None = None
     claude_api_key_set: bool = False
     openai_api_key_set: bool = False
+    preferred_ai_provider: str | None = None
 
     @classmethod
     def from_db(cls, model: AthleteModel) -> UserSettingsResponse:
@@ -64,4 +71,5 @@ class UserSettingsResponse(BaseModel):
             openai_api_key_masked=openai_masked,
             claude_api_key_set=claude_set,
             openai_api_key_set=openai_set,
+            preferred_ai_provider=getattr(model, "preferred_ai_provider", None),
         )

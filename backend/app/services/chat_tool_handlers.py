@@ -43,7 +43,9 @@ PERIOD_MAP = {
 }
 
 
-async def dispatch_tool(name: str, args: dict, db: AsyncSession) -> dict:
+async def dispatch_tool(
+    name: str, args: dict, db: AsyncSession, *, user_id: int | None = None
+) -> dict:
     """Ruft den passenden Tool-Handler auf."""
     handlers = {
         "get_session_details": handle_get_session_details,
@@ -65,13 +67,13 @@ async def dispatch_tool(name: str, args: dict, db: AsyncSession) -> dict:
     if not handler:
         return {"error": f"Unbekanntes Tool: {name}"}
     try:
-        return await handler(args, db)
+        return await handler(args, db, user_id=user_id)  # type: ignore[operator]
     except Exception as e:
         logger.exception("Tool-Handler %s fehlgeschlagen", name)
         return {"error": f"Fehler bei {name}: {str(e)}"}
 
 
-async def handle_get_session_details(args: dict, db: AsyncSession) -> dict:
+async def handle_get_session_details(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Laedt vollstaendige Session-Details."""
     session_id = args["session_id"]
     result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
@@ -122,7 +124,7 @@ async def handle_get_session_details(args: dict, db: AsyncSession) -> dict:
     return data
 
 
-async def handle_search_sessions(args: dict, db: AsyncSession) -> dict:
+async def handle_search_sessions(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Sucht Sessions mit Filtern."""
     query = select(WorkoutModel)
 
@@ -170,7 +172,7 @@ async def handle_search_sessions(args: dict, db: AsyncSession) -> dict:
     return {"sessions": sessions, "count": len(sessions)}
 
 
-async def handle_get_training_stats(args: dict, db: AsyncSession) -> dict:
+async def handle_get_training_stats(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Aggregierte Trainingsstatistiken + Athletenprofil."""
     today = date.today()
     delta = PERIOD_MAP.get(args["period"], timedelta(weeks=4))
@@ -201,7 +203,7 @@ async def handle_get_training_stats(args: dict, db: AsyncSession) -> dict:
     return result
 
 
-async def handle_get_plan_details(args: dict, db: AsyncSession) -> dict:
+async def handle_get_plan_details(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Laedt aktiven Trainingsplan mit Phasen und Wochenstruktur."""
     today = date.today()
     plan_result = await db.execute(
@@ -264,7 +266,7 @@ async def handle_get_plan_details(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_get_plan_compliance(args: dict, db: AsyncSession) -> dict:
+async def handle_get_plan_compliance(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Soll/Ist-Vergleich fuer eine Woche."""
     today = date.today()
     week_offset = args.get("week_offset", 0)
@@ -325,7 +327,7 @@ async def handle_get_plan_compliance(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_get_personal_records(_args: dict, db: AsyncSession) -> dict:
+async def handle_get_personal_records(_args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Persoenliche Bestleistungen."""
     # Schnellste Pace (nur Laeufe mit Pace-Wert)
     pace_result = await db.execute(
@@ -390,7 +392,7 @@ async def handle_get_personal_records(_args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_get_exercises(args: dict, db: AsyncSession) -> dict:
+async def handle_get_exercises(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Durchsucht die Uebungsdatenbank."""
     query = select(ExerciseModel)
 
@@ -426,7 +428,7 @@ async def handle_get_exercises(args: dict, db: AsyncSession) -> dict:
     return {"exercises": exercises, "count": len(exercises)}
 
 
-async def handle_get_ai_recommendations(args: dict, db: AsyncSession) -> dict:
+async def handle_get_ai_recommendations(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Laedt KI-Empfehlungen."""
     query = select(AIRecommendationModel)
 
@@ -460,7 +462,7 @@ async def handle_get_ai_recommendations(args: dict, db: AsyncSession) -> dict:
     return {"recommendations": recs, "count": len(recs)}
 
 
-async def handle_get_weekly_review(args: dict, db: AsyncSession) -> dict:
+async def handle_get_weekly_review(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Laedt den Wochenrueckblick."""
     today = date.today()
     week_offset = args.get("week_offset", -1)
@@ -487,7 +489,7 @@ async def handle_get_weekly_review(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_search_conversations(args: dict, db: AsyncSession) -> dict:
+async def handle_search_conversations(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Durchsucht fruehere Chat-Konversationen."""
     query_text = args["query"]
     limit = min(args.get("limit", 5), 20)
@@ -513,7 +515,7 @@ async def handle_search_conversations(args: dict, db: AsyncSession) -> dict:
     return {"matches": matches, "count": len(matches)}
 
 
-async def handle_get_plan_change_log(args: dict, db: AsyncSession) -> dict:
+async def handle_get_plan_change_log(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Laedt Planaenderungshistorie."""
     period = args.get("period", "4w")
     delta = PERIOD_MAP.get(period, timedelta(weeks=4))
@@ -682,7 +684,7 @@ async def _load_week_planned_sessions(
     return sessions
 
 
-async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
+async def handle_propose_plan_change(args: dict, db: AsyncSession, **_kw: object) -> dict:
     """Formatiert einen Plan-Vorschlag als strukturierten Block.
 
     Ermittelt die betroffene Woche aus dem Datum und lädt den aktuellen
@@ -729,7 +731,9 @@ async def handle_propose_plan_change(args: dict, db: AsyncSession) -> dict:
     }
 
 
-async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  # noqa: C901, PLR0912, PLR0915
+async def handle_generate_training_plan(  # noqa: C901, PLR0912, PLR0915
+    args: dict, db: AsyncSession, *, user_id: int | None = None, **_kw: object
+) -> dict:
     """Erstellt einen echten Trainingsplan in der Datenbank.
 
     Die KI liefert phase_templates mit der Trainingsstruktur pro Phase.
@@ -824,7 +828,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  
         weeks = max(4, (race_date - start_date).days // 7 + 1)
 
     end_date = start_date + timedelta(weeks=weeks) - timedelta(days=1)
-    goal_id = await _create_race_goal(db, goal_text, race_date)
+    goal_id = await _create_race_goal(db, goal_text, race_date, user_id=user_id)
 
     rest_days = _extract_rest_days(ki_phase_templates)
     plan = await _create_plan_model(
@@ -836,6 +840,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  
         race_date,
         rest_days,
         today,
+        user_id=user_id,
     )
     phases_created = await _create_plan_phases(
         db,
@@ -853,6 +858,7 @@ async def handle_generate_training_plan(args: dict, db: AsyncSession) -> dict:  
             plan.id,
             rest_days,
             fitness_profile=fitness_profile,
+            user_id=user_id,
         )
     except Exception:
         logger.exception("Wochenpläne-Generierung fehlgeschlagen für Plan %d", plan.id)
@@ -1035,6 +1041,8 @@ async def _create_race_goal(
     db: AsyncSession,
     goal_text: str,
     race_date: date | None,
+    *,
+    user_id: int | None = None,
 ) -> int | None:
     """Erstellt ein Wettkampfziel wenn ein Datum vorhanden ist."""
     if not race_date:
@@ -1045,13 +1053,14 @@ async def _create_race_goal(
         distance_km=_parse_goal_distance(goal_text),
         target_time_seconds=_parse_goal_time(goal_text),
         is_active=True,
+        user_id=user_id,
     )
     db.add(goal_model)
     await db.flush()
     return goal_model.id
 
 
-async def _create_plan_model(
+async def _create_plan_model(  # noqa: PLR0913 — user_id added for multi-user
     db: AsyncSession,
     goal_text: str,
     goal_id: int | None,
@@ -1060,6 +1069,8 @@ async def _create_plan_model(
     race_date: date | None,
     rest_days: list[int],
     today: date,
+    *,
+    user_id: int | None = None,
 ) -> TrainingPlanModel:
     """Erstellt das TrainingPlan-Modell in der DB.
 
@@ -1094,6 +1105,7 @@ async def _create_plan_model(
         target_event_date=race_date,
         weekly_structure_json=json.dumps({"rest_days": rest_days}),
         status=status,
+        user_id=user_id,
     )
     db.add(plan)
     await db.flush()
@@ -1401,6 +1413,8 @@ async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
     plan_id: int,
     rest_days: list[int],
     fitness_profile: object | None = None,
+    *,
+    user_id: int | None = None,
 ) -> int:
     """Generiert Wochenpläne und speichert sie in der DB.
 
@@ -1519,6 +1533,7 @@ async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
                 day_of_week=entry.day_of_week,
                 is_rest_day=entry.is_rest_day,
                 notes=entry.notes,
+                user_id=user_id,
             )
             db.add(day)
             await db.flush()
@@ -1536,6 +1551,7 @@ async def _generate_and_save_weekly_plans(  # noqa: PLR0912, PLR0915
                     ),
                     exercises_json=exercises_json,
                     notes=sess.notes,
+                    user_id=user_id,
                 )
                 db.add(ps)
         weeks_generated += 1
@@ -1703,7 +1719,7 @@ def _parse_goal_time(goal_text: str) -> int:
     return 7200
 
 
-async def handle_search_training_knowledge(args: dict, _db: AsyncSession) -> dict:
+async def handle_search_training_knowledge(args: dict, _db: AsyncSession, **_kw: object) -> dict:
     """Durchsucht die Trainingswissen-Datenbank."""
     from app.services.training_knowledge import search_knowledge
 
@@ -1759,7 +1775,7 @@ async def _ensure_exercises_exist(db: AsyncSession, plan_id: int) -> int:
 
     sessions_result = await db.execute(
         select(PlannedSessionModel)
-        .join(WeeklyPlanDayModel)
+        .join(WeeklyPlanDayModel, PlannedSessionModel.day_id == WeeklyPlanDayModel.id)
         .where(WeeklyPlanDayModel.plan_id == plan_id)
     )
     sessions = sessions_result.scalars().all()

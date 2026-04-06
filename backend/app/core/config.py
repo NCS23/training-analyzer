@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Claude (env var: ANTHROPIC_API_KEY)
     claude_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    claude_model: str = "claude-sonnet-4-20250514"
+    claude_model: str = "claude-sonnet-4-6"
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
@@ -37,9 +37,32 @@ class Settings(BaseSettings):
     # Docling
     docling_server_url: str = Field(default="http://192.168.68.66:5001", alias="DOCLING_BASE_URL")
 
-    # Security
+    # Security / JWT
     secret_key: str = "dev-secret-key-change-in-production"
     algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
+
+    # OAuth
+    apple_client_id: str = ""
+    apple_team_id: str = ""
+    apple_key_id: str = ""
+    apple_private_key: str = ""
+    apple_private_key_b64: str = ""  # Base64-kodiert (fuer .env Kompatibilitaet)
+
+    @property
+    def apple_private_key_resolved(self) -> str:
+        """Gibt den Apple Private Key zurueck (direkt oder Base64-dekodiert)."""
+        if self.apple_private_key:
+            return self.apple_private_key
+        if self.apple_private_key_b64:
+            import base64
+
+            return base64.b64decode(self.apple_private_key_b64).decode("utf-8")
+        return ""
+
+    # Auth
+    auth_enabled: bool = False
 
     # External APIs (Enrichment)
     enrichment_enabled: bool = True

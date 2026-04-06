@@ -9,7 +9,8 @@ from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import WorkoutModel
+from app.core.dependencies import get_current_active_user
+from app.infrastructure.database.models import UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.strength import (
     ExerciseInput,
@@ -91,7 +92,7 @@ def _parse_training_file(content: bytes, filename: str) -> Optional[dict]:
 
 
 @router.post("", status_code=201)
-async def create_strength_session(
+async def create_strength_session(  # noqa: PLR0913
     exercises_json: str = Form(..., description="JSON-Array der Übungen"),
     training_date: date = Form(..., description="Datum (YYYY-MM-DD)"),
     duration_minutes: int = Form(..., ge=1, le=600, description="Dauer in Minuten"),
@@ -102,6 +103,7 @@ async def create_strength_session(
         None, description="Manuelle Zuordnung zu geplanter Session"
     ),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Erstellt eine neue Krafttraining-Session.
 
@@ -178,6 +180,7 @@ async def create_strength_session(
         notes=combined_notes,
         rpe=rpe,
         planned_entry_id=planned_entry_id,
+        user_id=current_user.id,
     )
 
     db.add(workout)
@@ -212,12 +215,17 @@ async def update_strength_exercises(
     session_id: int,
     exercises_json: str = Form(..., description="JSON-Array der Übungen"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Aktualisiert die Übungen einer bestehenden Krafttraining-Session."""
     from pydantic import ValidationError
 
     # Session laden
-    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    result = await db.execute(
+        select(WorkoutModel).where(
+            WorkoutModel.id == session_id, WorkoutModel.user_id == current_user.id
+        )
+    )
     workout = result.scalar_one_or_none()
     if not workout:
         raise HTTPException(status_code=404, detail="Session nicht gefunden.")
@@ -268,11 +276,15 @@ async def update_strength_exercises(
 @router.get("/last-complete")
 async def get_last_complete_session(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Gibt die letzte vollstaendige Strength-Session zurueck (fuer Clone + Tonnage-Delta)."""
     query = (
         select(WorkoutModel)
-        .where(WorkoutModel.workout_type == "strength")
+        .where(
+            WorkoutModel.user_id == current_user.id,
+            WorkoutModel.workout_type == "strength",
+        )
         .where(WorkoutModel.exercises_json.isnot(None))
         .order_by(WorkoutModel.date.desc())
         .limit(1)
@@ -304,11 +316,15 @@ async def get_last_complete_session(
 async def get_last_exercises(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Gibt die letzten Sätze einer Übung zurück (Quick-Add)."""
     query = (
         select(WorkoutModel)
-        .where(WorkoutModel.workout_type == "strength")
+        .where(
+            WorkoutModel.user_id == current_user.id,
+            WorkoutModel.workout_type == "strength",
+        )
         .where(WorkoutModel.exercises_json.isnot(None))
         .order_by(WorkoutModel.date.desc())
         .limit(20)
@@ -340,14 +356,15 @@ async def get_last_exercises(
 # --- Progression Tracking (Issue #17) ---
 
 
-async def _load_strength_sessions(db: AsyncSession) -> list[dict]:
+async def _load_strength_sessions(db: AsyncSession, user_id: int | None = None) -> list[dict]:
     """Laedt alle Strength-Sessions mit geparsten Exercises."""
-    query = (
-        select(WorkoutModel)
-        .where(WorkoutModel.workout_type == "strength")
-        .where(WorkoutModel.exercises_json.isnot(None))
-        .order_by(WorkoutModel.date.asc())
-    )
+    conditions = [
+        WorkoutModel.workout_type == "strength",
+        WorkoutModel.exercises_json.isnot(None),
+    ]
+    if user_id is not None:
+        conditions.append(WorkoutModel.user_id == user_id)
+    query = select(WorkoutModel).where(*conditions).order_by(WorkoutModel.date.asc())
     result = await db.execute(query)
     workouts = result.scalars().all()
 
@@ -373,11 +390,12 @@ async def _load_strength_sessions(db: AsyncSession) -> list[dict]:
 @router.get("/exercises")
 async def list_exercises(
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Liste aller verwendeten Übungen mit Metadaten."""
     from app.services.progression_tracker import get_all_exercise_names
 
-    sessions = await _load_strength_sessions(db)
+    sessions = await _load_strength_sessions(db, user_id=current_user.id)
     exercises = get_all_exercise_names(sessions)
     return {"exercises": exercises}
 
@@ -386,11 +404,12 @@ async def list_exercises(
 async def get_exercise_progression(
     exercise_name: str = Query(..., min_length=1, description="Name der Übung"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Progressionsverlauf einer Übung über die Zeit (typ-differenziert)."""
     from app.services.progression_tracker import get_exercise_history
 
-    sessions = await _load_strength_sessions(db)
+    sessions = await _load_strength_sessions(db, user_id=current_user.id)
     history = get_exercise_history(exercise_name, sessions)
 
     if not history:
@@ -457,11 +476,12 @@ async def get_exercise_progression(
 async def get_personal_records(
     session_id: Optional[int] = Query(None, description="Nur PRs dieser Session"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Persönliche Bestleistungen (PRs) pro Übung."""
     from app.services.progression_tracker import detect_personal_records
 
-    sessions = await _load_strength_sessions(db)
+    sessions = await _load_strength_sessions(db, user_id=current_user.id)
     all_prs = detect_personal_records(sessions)
 
     if session_id is not None:
@@ -475,6 +495,7 @@ async def get_personal_records(
 async def get_tonnage_trend(
     days: int = Query(default=90, ge=7, le=365, description="Zeitraum in Tagen"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Woechentlicher Tonnage-Trend fuer Krafttraining."""
     from app.services.progression_tracker import calculate_weekly_tonnage
@@ -483,7 +504,10 @@ async def get_tonnage_trend(
     cutoff = datetime.utcnow() - timedelta(days=days)
     query = (
         select(WorkoutModel)
-        .where(WorkoutModel.workout_type == "strength")
+        .where(
+            WorkoutModel.user_id == current_user.id,
+            WorkoutModel.workout_type == "strength",
+        )
         .where(WorkoutModel.exercises_json.isnot(None))
         .where(WorkoutModel.date >= cutoff)
         .order_by(WorkoutModel.date.asc())
@@ -535,6 +559,7 @@ async def get_tonnage_trend(
 async def get_category_tonnage_trend(
     days: int = Query(default=90, ge=7, le=365, description="Zeitraum in Tagen"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> dict:
     """Woechentliche Tonnage nach Kategorie (push/pull/legs/core/...)."""
     from app.services.progression_tracker import calculate_weekly_category_tonnage
@@ -542,7 +567,10 @@ async def get_category_tonnage_trend(
     cutoff = datetime.utcnow() - timedelta(days=days)
     query = (
         select(WorkoutModel)
-        .where(WorkoutModel.workout_type == "strength")
+        .where(
+            WorkoutModel.user_id == current_user.id,
+            WorkoutModel.workout_type == "strength",
+        )
         .where(WorkoutModel.exercises_json.isnot(None))
         .where(WorkoutModel.date >= cutoff)
         .order_by(WorkoutModel.date.asc())

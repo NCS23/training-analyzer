@@ -20,10 +20,38 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserModel(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(200), default=None)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    apple_sub: Mapped[str | None] = mapped_column(String(255), unique=True, default=None)
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, default=None)
+    is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    role: Mapped[str] = mapped_column(String(20), server_default="pending", default="pending")
+    password_hash: Mapped[str | None] = mapped_column(String(255), default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+
+
+class RefreshTokenModel(Base):
+    __tablename__ = "refresh_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class WorkoutModel(Base):
     __tablename__ = "workouts"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     date: Mapped[datetime] = mapped_column(DateTime, index=True)
     workout_type: Mapped[str] = mapped_column(String(20), index=True)
     subtype: Mapped[str | None] = mapped_column(String(30), default=None)
@@ -101,6 +129,9 @@ class AthleteModel(Base):
     __tablename__ = "athletes"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     resting_hr: Mapped[int | None] = mapped_column(default=None)
     max_hr: Mapped[int | None] = mapped_column(default=None)
 
@@ -115,6 +146,9 @@ class AthleteModel(Base):
     encrypted_claude_api_key: Mapped[str | None] = mapped_column(Text, default=None)
     encrypted_openai_api_key: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # AI Provider Präferenz (NULL = System-Default)
+    preferred_ai_provider: Mapped[str | None] = mapped_column(String(20), default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -127,6 +161,9 @@ class ThresholdTestModel(Base):
     __tablename__ = "threshold_tests"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     test_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     # Kern-Ergebnisse
@@ -148,6 +185,9 @@ class ExerciseModel(Base):
     __tablename__ = "exercises"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     name: Mapped[str] = mapped_column(String(100), unique=True)
     category: Mapped[str] = mapped_column(String(20))
     is_favorite: Mapped[bool] = mapped_column(default=False, server_default="false")
@@ -178,6 +218,9 @@ class SessionTemplateModel(Base):
     __tablename__ = "session_templates"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
     session_type: Mapped[str] = mapped_column(String(30), server_default="strength")
@@ -195,6 +238,9 @@ class RaceGoalModel(Base):
     __tablename__ = "race_goals"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     title: Mapped[str] = mapped_column(String(200))
     race_date: Mapped[datetime] = mapped_column(DateTime, index=True)
     distance_km: Mapped[float] = mapped_column(Float)
@@ -214,6 +260,9 @@ class PacingStrategyModel(Base):
     __tablename__ = "pacing_strategies"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     goal_id: Mapped[int] = mapped_column(ForeignKey("race_goals.id"), index=True)
     strategy: Mapped[str] = mapped_column(String(30))  # even, negative, effort_based
     strategy_label: Mapped[str] = mapped_column(String(50))
@@ -238,6 +287,9 @@ class TrainingRouteModel(Base):
     __tablename__ = "training_routes"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
     distance_km: Mapped[float] = mapped_column(Float)
@@ -264,6 +316,9 @@ class TrainingPlanModel(Base):
     __tablename__ = "training_plans"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
     goal_id: Mapped[int | None] = mapped_column(default=None)  # FK to race_goals
@@ -283,6 +338,9 @@ class TrainingPhaseModel(Base):
     __tablename__ = "training_phases"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     training_plan_id: Mapped[int] = mapped_column(Integer)  # FK to training_plans
     name: Mapped[str] = mapped_column(String(200))
     phase_type: Mapped[str] = mapped_column(String(30))  # base|build|peak|taper|transition
@@ -302,6 +360,9 @@ class WeeklyPlanDayModel(Base):
     __table_args__ = (UniqueConstraint("week_start", "day_of_week", name="uq_day_week_day"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     plan_id: Mapped[int | None] = mapped_column(default=None, index=True)  # FK to training_plans
     week_start: Mapped[date] = mapped_column(Date, index=True)
     day_of_week: Mapped[int] = mapped_column(Integer)  # 0=Mon, 6=Sun
@@ -319,6 +380,9 @@ class PlannedSessionModel(Base):
     __tablename__ = "planned_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     day_id: Mapped[int] = mapped_column(Integer, index=True)  # FK to weekly_plan_days
     position: Mapped[int] = mapped_column(Integer, server_default="0")
     training_type: Mapped[str] = mapped_column(String(30))  # 'strength', 'running'
@@ -338,6 +402,9 @@ class AIAnalysisLogModel(Base):
     __tablename__ = "ai_analysis_log"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     workout_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True, default=None
     )
@@ -356,6 +423,9 @@ class PlanChangeLogModel(Base):
     __tablename__ = "plan_changelog"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     plan_id: Mapped[int] = mapped_column(Integer, index=True)  # FK to training_plans
     change_type: Mapped[str] = mapped_column(String(30))
     category: Mapped[str | None] = mapped_column(String(20), default=None)
@@ -370,6 +440,9 @@ class AIRecommendationModel(Base):
     __tablename__ = "ai_recommendations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     session_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("workouts.id", ondelete="CASCADE"), index=True
     )
@@ -392,6 +465,9 @@ class WeeklyReviewModel(Base):
     __tablename__ = "weekly_reviews"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     week_start: Mapped[date] = mapped_column(Date, unique=True, index=True)
     summary: Mapped[str] = mapped_column(Text)
     volume_comparison_json: Mapped[str] = mapped_column(Text)  # JSON
@@ -410,6 +486,9 @@ class ChatConversationModel(Base):
     __tablename__ = "chat_conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, default=None
+    )
     title: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

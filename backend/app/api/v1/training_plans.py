@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import logging
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -13,6 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.database.models import (
     ExerciseModel,
     PlanChangeLogModel,
@@ -20,6 +22,7 @@ from app.infrastructure.database.models import (
     RaceGoalModel,
     TrainingPhaseModel,
     TrainingPlanModel,
+    UserModel,
     WeeklyPlanDayModel,
     WorkoutModel,
 )
@@ -51,10 +54,12 @@ from app.models.training_plan import (
     WeeklyStructure,
 )
 from app.models.yaml_validation import ExerciseCheck, YamlValidationIssue, YamlValidationResult
+from app.services.chat_tool_handlers import _ensure_exercises_exist
 from app.services.exercise_enrichment import find_similar_exercises
 from app.services.plan_generator import generate_weekly_plans
 from app.services.yaml_validator import extract_exercise_names, validate_yaml_plan
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/training-plans")
 
 
@@ -78,26 +83,30 @@ def _phase_to_response(
     focus: Optional[PhaseFocus] = None
     raw_focus = _parse_json(str(phase.focus_json) if phase.focus_json else None)
     if raw_focus:
-        focus = PhaseFocus(**raw_focus)
+        with contextlib.suppress(ValidationError):
+            focus = PhaseFocus(**raw_focus)
 
     target_metrics: Optional[PhaseTargetMetrics] = None
     raw_metrics = _parse_json(str(phase.target_metrics_json) if phase.target_metrics_json else None)
     if raw_metrics:
-        target_metrics = PhaseTargetMetrics(**raw_metrics)
+        with contextlib.suppress(ValidationError):
+            target_metrics = PhaseTargetMetrics(**raw_metrics)
 
     weekly_template: Optional[PhaseWeeklyTemplate] = None
     raw_template = _parse_json(
         str(phase.weekly_template_json) if phase.weekly_template_json else None
     )
     if raw_template:
-        weekly_template = PhaseWeeklyTemplate(**raw_template)
+        with contextlib.suppress(ValidationError):
+            weekly_template = PhaseWeeklyTemplate(**raw_template)
 
     weekly_templates: Optional[PhaseWeeklyTemplates] = None
     raw_templates = _parse_json(
         str(phase.weekly_templates_json) if phase.weekly_templates_json else None
     )
     if raw_templates:
-        weekly_templates = PhaseWeeklyTemplates(**raw_templates)
+        with contextlib.suppress(ValidationError):
+            weekly_templates = PhaseWeeklyTemplates(**raw_templates)
 
     return TrainingPhaseResponse(
         id=phase.id,
@@ -347,16 +356,23 @@ def _changelog_to_response(entry: PlanChangeLogModel) -> PlanChangeLogEntry:
 async def list_plans(
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanListResponse:
     """List all training plans, optionally filtered by status."""
-    query = select(TrainingPlanModel).order_by(TrainingPlanModel.updated_at.desc())
+    query = (
+        select(TrainingPlanModel)
+        .where(TrainingPlanModel.user_id == current_user.id)
+        .order_by(TrainingPlanModel.updated_at.desc())
+    )
     if status:
         query = query.where(TrainingPlanModel.status == status)
 
     result = await db.execute(query)
     plans = list(result.scalars().all())
 
-    count_query = select(func.count(TrainingPlanModel.id))
+    count_query = select(func.count(TrainingPlanModel.id)).where(
+        TrainingPlanModel.user_id == current_user.id
+    )
     if status:
         count_query = count_query.where(TrainingPlanModel.status == status)
     total = (await db.execute(count_query)).scalar() or 0
@@ -369,6 +385,7 @@ async def list_plans(
 async def create_plan(
     data: TrainingPlanCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Create a new training plan with optional phases and auto-create goal."""
     if data.end_date <= data.start_date:
@@ -382,7 +399,10 @@ async def create_plan(
     if data.goal and not goal_id:
         # Check if a goal with this title already exists
         existing_result = await db.execute(
-            select(RaceGoalModel).where(func.lower(RaceGoalModel.title) == data.goal.title.lower())
+            select(RaceGoalModel).where(
+                func.lower(RaceGoalModel.title) == data.goal.title.lower(),
+                RaceGoalModel.user_id == current_user.id,
+            )
         )
         existing_goal = existing_result.scalar_one_or_none()
         if existing_goal:
@@ -396,6 +416,7 @@ async def create_plan(
                 distance_km=data.goal.distance_km,
                 target_time_seconds=data.goal.target_time_seconds,
                 is_active=True,
+                user_id=current_user.id,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
@@ -416,6 +437,7 @@ async def create_plan(
         target_event_date=data.target_event_date,
         weekly_structure_json=weekly_structure_json,
         status=data.status or "draft",
+        user_id=current_user.id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -795,6 +817,7 @@ async def get_template_yaml() -> FileResponse:
 async def validate_yaml_endpoint(
     yaml_file: UploadFile = File(..., description="YAML-Trainingsplan (.yaml/.yml)"),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001 — ensures auth
 ) -> YamlValidationResult:
     """Validate a YAML training plan file and return structured errors/warnings."""
     if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
@@ -869,6 +892,7 @@ async def import_plan_from_yaml(
         description='JSON mapping {"OldName": "ExistingName"} for exercise name substitutions',
     ),
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Import a training plan from a YAML file."""
     if not yaml_file.filename or not yaml_file.filename.lower().endswith((".yaml", ".yml")):
@@ -919,7 +943,10 @@ async def import_plan_from_yaml(
     goal_title = raw.get("goal_title")
     if goal_title and not raw.get("goal_id") and not raw.get("goal"):
         result = await db.execute(
-            select(RaceGoalModel.id).where(func.lower(RaceGoalModel.title) == goal_title.lower())
+            select(RaceGoalModel.id).where(
+                func.lower(RaceGoalModel.title) == goal_title.lower(),
+                RaceGoalModel.user_id == current_user.id,
+            )
         )
         found_goal_id = result.scalar_one_or_none()
         if found_goal_id:
@@ -940,7 +967,7 @@ async def import_plan_from_yaml(
             detail=f"Validierungsfehler: {exc}",
         ) from None
 
-    created_plan = await create_plan(data=plan_data, db=db)
+    created_plan = await create_plan(data=plan_data, db=db, current_user=current_user)
     await log_plan_change(
         db,
         created_plan.id,
@@ -964,9 +991,15 @@ async def import_plan_from_yaml(
 async def get_generation_preview(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> GenerationPreviewResponse:
     """Preview what re-generation would affect: count edited vs unedited weeks."""
-    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    result = await db.execute(
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1005,13 +1038,17 @@ async def get_generation_preview(
 async def _load_generation_context(
     db: AsyncSession,
     plan_id: int,
+    user_id: int | None = None,
 ) -> tuple[TrainingPlanModel, list[TrainingPhaseModel], Optional[RaceGoalModel], list[int]]:
     """Load plan, phases, goal, and rest_days for weekly plan generation.
 
     Raises HTTPException if plan not found or has no phases.
     Returns (plan, phases, goal, rest_days).
     """
-    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    q = select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+    if user_id is not None:
+        q = q.where(TrainingPlanModel.user_id == user_id)
+    result = await db.execute(q)
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1064,6 +1101,7 @@ async def _persist_generated_weeks(
     plan_id: int,
     weekly_plans: list[tuple[date, list]],
     skip_weeks: set[date] | None = None,
+    user_id: int | None = None,
 ) -> int:
     """Delete old and insert new weekly plan days + sessions.
 
@@ -1109,6 +1147,7 @@ async def _persist_generated_weeks(
                 is_rest_day=plan_entry.is_rest_day,
                 notes=plan_entry.notes,
                 edited=False,
+                user_id=user_id,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
@@ -1130,6 +1169,7 @@ async def _persist_generated_weeks(
                     run_details_json=run_details_str,
                     exercises_json=exercises_str,
                     notes=sess.notes,
+                    user_id=user_id,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )
@@ -1147,6 +1187,7 @@ async def generate_plan_weeks(
     plan_id: int,
     strategy: str = "all",
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> GenerateWeeklyPlansResponse:
     """Generate weekly plans from a training plan's phases.
 
@@ -1159,11 +1200,22 @@ async def generate_plan_weeks(
             detail="strategy muss 'all' oder 'unedited_only' sein.",
         )
 
-    plan, phases, goal, rest_days = await _load_generation_context(db, plan_id)
+    plan, phases, goal, rest_days = await _load_generation_context(
+        db, plan_id, user_id=current_user.id
+    )
     weekly_plans = generate_weekly_plans(plan, phases, rest_days, goal)
 
     skip_weeks = await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
-    weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
+    weeks_generated = await _persist_generated_weeks(
+        db, plan_id, weekly_plans, skip_weeks, user_id=current_user.id
+    )
+
+    # Fehlende Übungen automatisch anlegen (darf Generierung nicht blockieren)
+    exercises_created = 0
+    try:
+        exercises_created = await _ensure_exercises_exist(db, plan_id)
+    except Exception as e:
+        logger.warning("Übungs-Auto-Erstellung fehlgeschlagen (Plan %d): %s", plan_id, e)
 
     await log_plan_change(
         db,
@@ -1175,6 +1227,7 @@ async def generate_plan_weeks(
             "source": "system",
             "weeks_generated": weeks_generated,
             "strategy": strategy,
+            "exercises_created": exercises_created,
         },
     )
     await db.commit()
@@ -1189,9 +1242,15 @@ async def generate_plan_weeks(
 async def get_plan(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Get a training plan with its phases and goal summary."""
-    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    result = await db.execute(
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1203,9 +1262,15 @@ async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     plan_id: int,
     data: TrainingPlanUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPlanResponse:
     """Update a training plan."""
-    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    result = await db.execute(
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1333,14 +1398,16 @@ async def update_plan(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
         if has_phases and has_dates:
             strategy = "all" if old_status == "draft" else "unedited_only"
             gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
-                db, plan_id
+                db, plan_id, user_id=current_user.id
             )
             weekly_plans = generate_weekly_plans(gen_plan, gen_phases, gen_rest_days, gen_goal)
 
             skip_weeks = (
                 await _get_edited_weeks(db, plan_id) if strategy == "unedited_only" else set()
             )
-            weeks_generated = await _persist_generated_weeks(db, plan_id, weekly_plans, skip_weeks)
+            weeks_generated = await _persist_generated_weeks(
+                db, plan_id, weekly_plans, skip_weeks, user_id=current_user.id
+            )
 
             await log_plan_change(
                 db,
@@ -1372,6 +1439,7 @@ async def delete_plan(
     plan_id: int,
     include_weekly_plans: bool = False,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a training plan and cascade-delete its phases.
 
@@ -1379,7 +1447,12 @@ async def delete_plan(
     days (and their planned sessions). Workout references are cleared.
     Changelog entries are always cleaned up.
     """
-    result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    result = await db.execute(
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1447,11 +1520,15 @@ async def delete_plan(
 async def list_phases(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> list[TrainingPhaseResponse]:
     """List all phases of a training plan."""
-    # Verify plan exists
+    # Verify plan exists and belongs to user
     plan_result = await db.execute(
-        select(TrainingPlanModel.id).where(TrainingPlanModel.id == plan_id)
+        select(TrainingPlanModel.id).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
     )
     if not plan_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1473,9 +1550,15 @@ async def create_phase(
     plan_id: int,
     data: TrainingPhaseCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPhaseResponse:
     """Add a phase to a training plan."""
-    plan_result = await db.execute(select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id))
+    plan_result = await db.execute(
+        select(TrainingPlanModel).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
     if not plan_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
 
@@ -1515,8 +1598,19 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     phase_id: int,
     data: TrainingPhaseUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> TrainingPhaseResponse:
     """Update a phase in a training plan."""
+    # Verify plan belongs to user
+    plan_check = await db.execute(
+        select(TrainingPlanModel.id).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
+    if not plan_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
     result = await db.execute(
         select(TrainingPhaseModel).where(
             TrainingPhaseModel.id == phase_id,
@@ -1633,7 +1727,10 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
     auto_regen: Optional[AutoRegenerationResult] = None
     if has_content_change:
         plan_result = await db.execute(
-            select(TrainingPlanModel).where(TrainingPlanModel.id == plan_id)
+            select(TrainingPlanModel).where(
+                TrainingPlanModel.id == plan_id,
+                TrainingPlanModel.user_id == current_user.id,
+            )
         )
         parent_plan = plan_result.scalar_one_or_none()
         if parent_plan and str(parent_plan.status) == "active" and parent_plan.start_date:
@@ -1662,13 +1759,15 @@ async def update_phase(  # noqa: C901, PLR0912, PLR0915  # TODO: E16 Refactoring
             if future_weeks:
                 # Regenerate ALL future weeks (bidirectional sync — no edited filter)
                 gen_plan, gen_phases, gen_goal, gen_rest_days = await _load_generation_context(
-                    db, plan_id
+                    db, plan_id, user_id=current_user.id
                 )
                 weekly_plans = generate_weekly_plans(gen_plan, gen_phases, gen_rest_days, gen_goal)
 
                 # Only persist weeks that belong to this phase and are in scope
                 phase_plans = [(ws, entries) for ws, entries in weekly_plans if ws in future_weeks]
-                weeks_regenerated = await _persist_generated_weeks(db, plan_id, phase_plans)
+                weeks_regenerated = await _persist_generated_weeks(
+                    db, plan_id, phase_plans, user_id=current_user.id
+                )
 
                 past_weeks = len(phase_week_starts) - len(future_weeks)
 
@@ -1703,8 +1802,19 @@ async def delete_phase(
     plan_id: int,
     phase_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a phase from a training plan."""
+    # Verify plan belongs to user
+    plan_check = await db.execute(
+        select(TrainingPlanModel.id).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
+    if not plan_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
     result = await db.execute(
         select(TrainingPhaseModel).where(
             TrainingPhaseModel.id == phase_id,
@@ -1741,11 +1851,15 @@ async def get_changelog(
     offset: int = 0,
     category: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PlanChangeLogResponse:
     """Get the change log for a training plan (paginated, newest first)."""
-    # Verify plan exists
+    # Verify plan exists and belongs to user
     plan_result = await db.execute(
-        select(TrainingPlanModel.id).where(TrainingPlanModel.id == plan_id)
+        select(TrainingPlanModel.id).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
     )
     if not plan_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
@@ -1781,8 +1895,19 @@ async def update_changelog_reason(
     log_id: int,
     data: PlanChangeLogReasonUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> PlanChangeLogEntry:
     """Set or update the reason on a changelog entry."""
+    # Verify plan belongs to user
+    plan_check = await db.execute(
+        select(TrainingPlanModel.id).where(
+            TrainingPlanModel.id == plan_id,
+            TrainingPlanModel.user_id == current_user.id,
+        )
+    )
+    if not plan_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trainingsplan nicht gefunden")
+
     result = await db.execute(
         select(PlanChangeLogModel).where(
             PlanChangeLogModel.id == log_id,

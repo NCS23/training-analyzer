@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
@@ -41,6 +41,8 @@ async def apply_recommendations(
     review_week_start: date,
     recommendations: list[str],
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> dict:
     """Passt den Plan der Folgewoche anhand von Empfehlungen an.
 
@@ -49,24 +51,26 @@ async def apply_recommendations(
     target_week = review_week_start + timedelta(days=7)
 
     # Bestehenden Plan mit vollen Details laden
-    existing_plan = await _load_full_plan(target_week, db)
+    existing_plan = await _load_full_plan(target_week, db, user_id=user_id)
 
     # plan_id für Sync extrahieren
     plan_id = _extract_plan_id(existing_plan)
 
     # Kontext laden
     templates = await _load_strength_templates(db)
-    race_goal = await _load_race_goal(db)
+    race_goal = await _load_race_goal(db, user_id=user_id)
 
     # Prompt bauen und KI aufrufen
     system_prompt = _build_system_prompt(race_goal, target_week)
     user_prompt = _build_user_prompt(recommendations, existing_plan, templates)
-    api_key = await resolve_claude_api_key(db)
+    api_key, provider_name = await resolve_ai_config(db, user_id)
 
     t0 = time.monotonic()
-    raw = await ai_service.chat(user_prompt, {"system_prompt": system_prompt}, api_key)
+    raw = await ai_service.chat(
+        user_prompt, {"system_prompt": system_prompt}, api_key, provider_name=provider_name
+    )
     duration_ms = int((time.monotonic() - t0) * 1000)
-    provider = ai_service.get_active_provider() or "unknown"
+    provider = provider_name
 
     # KI-Antwort parsen → vollständiger 7-Tage-Plan
     ai_days = _parse_plan(raw)
@@ -74,7 +78,7 @@ async def apply_recommendations(
 
     # Bestehende Einträge löschen und neue persistieren
     if ai_days:
-        await _replace_plan(target_week, existing_plan, ai_days, db)
+        await _replace_plan(target_week, existing_plan, ai_days, db, user_id=user_id)
 
     # Sync zurück zum Trainingsplan + Changelog
     if ai_days and plan_id:
@@ -126,13 +130,14 @@ def _extract_plan_id(existing_plan: list[dict]) -> int | None:
 # ---------------------------------------------------------------------------
 
 
-async def _load_full_plan(week_start: date, db: AsyncSession) -> list[dict]:
+async def _load_full_plan(
+    week_start: date, db: AsyncSession, *, user_id: int | None = None
+) -> list[dict]:
     """Lädt den bestehenden Plan mit vollen Session-Details für den KI-Prompt."""
-    day_result = await db.execute(
-        select(WeeklyPlanDayModel)
-        .where(WeeklyPlanDayModel.week_start == week_start)
-        .order_by(WeeklyPlanDayModel.day_of_week)
-    )
+    q = select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == week_start)
+    if user_id is not None:
+        q = q.where(WeeklyPlanDayModel.user_id == user_id)
+    day_result = await db.execute(q.order_by(WeeklyPlanDayModel.day_of_week))
     days = day_result.scalars().all()
     if not days:
         return []
@@ -176,11 +181,12 @@ async def _load_strength_templates(db: AsyncSession) -> list[dict]:
     return [{"id": row.id, "name": str(row.name)} for row in result.all()]
 
 
-async def _load_race_goal(db: AsyncSession) -> dict | None:
+async def _load_race_goal(db: AsyncSession, *, user_id: int | None = None) -> dict | None:
     """Lädt das aktive Wettkampfziel."""
-    result = await db.execute(
-        select(RaceGoalModel).where(RaceGoalModel.is_active.is_(True)).limit(1)
-    )
+    q = select(RaceGoalModel).where(RaceGoalModel.is_active.is_(True))
+    if user_id is not None:
+        q = q.where(RaceGoalModel.user_id == user_id)
+    result = await db.execute(q.limit(1))
     goal = result.scalar_one_or_none()
     if not goal:
         return None
@@ -522,12 +528,15 @@ async def _replace_plan(
     existing_plan: list[dict],
     ai_days: list[dict],
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> None:
     """Löscht bestehende Einträge und erstellt den angepassten Plan."""
     # Bestehende Tage + Sessions löschen
-    day_result = await db.execute(
-        select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == target_week)
-    )
+    q = select(WeeklyPlanDayModel).where(WeeklyPlanDayModel.week_start == target_week)
+    if user_id is not None:
+        q = q.where(WeeklyPlanDayModel.user_id == user_id)
+    day_result = await db.execute(q)
     old_days = day_result.scalars().all()
 
     if old_days:
@@ -546,7 +555,7 @@ async def _replace_plan(
 
     # Neue Tage + Sessions erstellen
     for ai_day in ai_days:
-        await _create_plan_day(target_week, ai_day, plan_id, db)
+        await _create_plan_day(target_week, ai_day, plan_id, db, user_id=user_id)
 
 
 async def _create_plan_day(
@@ -554,6 +563,8 @@ async def _create_plan_day(
     ai_day: dict,
     plan_id: int | None,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> None:
     """Erstellt einen einzelnen Plan-Tag mit Session in der DB."""
     is_rest = ai_day.get("is_rest_day", False)
@@ -565,6 +576,7 @@ async def _create_plan_day(
         notes=ai_day.get("notes"),
         plan_id=plan_id,
         edited=True,
+        user_id=user_id,
     )
     db.add(db_day)
     await db.flush()
@@ -583,6 +595,7 @@ async def _create_plan_day(
         template_id=ai_day.get("template_id"),
         run_details_json=run_details_str,
         notes=ai_day.get("notes"),
+        user_id=user_id,
     )
     db.add(db_session)
 
@@ -750,10 +763,36 @@ def _log_recommendation_change(
     )
     reason = "; ".join(recommendations[:10])
 
-    # Build undo snapshot from old_plan (dict-based format from _load_full_plan)
+    # Build undo snapshot from old_plan (dict-based format from _load_full_plan).
+    # Undo erwartet sessions mit run_details_json (String), nicht run_details (Dict).
+    undo_days = []
+    for day in old_plan:
+        undo_day = {
+            "day_of_week": day["day_of_week"],
+            "is_rest_day": day.get("is_rest_day", False),
+            "notes": day.get("notes"),
+            "plan_id": day.get("plan_id"),
+            "edited": day.get("edited", False),
+            "sessions": [],
+        }
+        for sess in day.get("sessions", []):
+            rd = sess.get("run_details")
+            undo_day["sessions"].append(
+                {
+                    "training_type": sess.get("training_type", ""),
+                    "template_id": sess.get("template_id"),
+                    "run_details_json": json.dumps(rd) if rd else None,
+                    "exercises_json": sess.get("exercises_json"),
+                    "notes": sess.get("notes"),
+                    "position": sess.get("position", 0),
+                    "status": sess.get("status", "active"),
+                }
+            )
+        undo_days.append(undo_day)
+
     snapshot_before: dict = {
         "week_start": str(target_week),
-        "days": old_plan,
+        "days": undo_days,
         "phase_id": phase_snapshot.get("phase_id") if phase_snapshot else None,
         "phase_weekly_templates_json": (
             phase_snapshot.get("phase_weekly_templates_json") if phase_snapshot else None

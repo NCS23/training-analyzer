@@ -35,10 +35,17 @@ import {
   ArrowDownToLine,
   ShieldHalf,
   HeartPulse,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { categoryBadgeVariant } from '@/constants/training';
-import { listExercises, createExercise, toggleFavorite, deleteExercise } from '@/api/exercises';
+import {
+  listExercises,
+  createExercise,
+  toggleFavorite,
+  deleteExercise,
+  enrichAllExercises,
+} from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
 
 const categoryOptions = [
@@ -81,6 +88,25 @@ export function ExerciseLibraryPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  const [enrichingAll, setEnrichingAll] = useState(false);
+
+  const handleEnrichAll = async (force = false) => {
+    setEnrichingAll(true);
+    try {
+      const result = await enrichAllExercises(force);
+      toast({
+        title: `${result.enriched} Übung${result.enriched !== 1 ? 'en' : ''} angereichert`,
+        description: result.failed > 0 ? `${result.failed} fehlgeschlagen` : undefined,
+        variant: result.failed > 0 ? 'warning' : 'success',
+      });
+      if (result.enriched > 0) await loadExercises();
+    } catch {
+      toast({ title: 'KI-Anreicherung fehlgeschlagen', variant: 'error' });
+    } finally {
+      setEnrichingAll(false);
+    }
+  };
 
   // Create dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -258,6 +284,21 @@ export function ExerciseLibraryPage() {
                   }}
                 >
                   Neue Übung
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  icon={enrichingAll ? <Spinner size="sm" /> : <Sparkles className="w-4 h-4" />}
+                  onSelect={() => handleEnrichAll(false)}
+                  disabled={enrichingAll}
+                >
+                  Fehlende KI-Infos ergänzen
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  icon={enrichingAll ? <Spinner size="sm" /> : <Sparkles className="w-4 h-4" />}
+                  onSelect={() => handleEnrichAll(true)}
+                  disabled={enrichingAll}
+                >
+                  Alle neu anreichern (KI)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

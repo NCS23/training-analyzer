@@ -15,12 +15,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
+from app.core.dependencies import get_current_active_user
 from app.infrastructure.ai.ai_service import AIProviderFactory, ai_service
 from app.infrastructure.database.models import (
     PlanChangeLogModel,
     PlannedSessionModel,
     TrainingPlanModel,
+    UserModel,
     WeeklyPlanDayModel,
 )
 from app.infrastructure.database.session import get_db
@@ -59,55 +61,56 @@ class ApplyPlanChangeRequest(BaseModel):
 
 
 @router.get("/ai/providers")
-async def get_providers():
-    """
-    Get available AI providers and their status
-
-    **Returns:**
-    - primary: Current primary provider
-    - available: List of all available provider types
-    - status: Detailed status of each configured provider
-    """
+async def get_providers(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+):
+    """Gibt verfügbare AI Provider und User-spezifischen Status zurück."""
+    api_key, provider_name = await resolve_ai_config(db, current_user.id)
+    provider_available = bool(api_key)
     return {
-        "primary": ai_service.get_active_provider(),
+        "primary": provider_name if provider_available else None,
+        "preferred": provider_name,
         "available": AIProviderFactory.get_available_providers(),
-        "status": ai_service.get_provider_status(),
+        "status": {
+            provider_name: {"available": provider_available, "is_primary": True},
+        },
     }
 
 
 @router.post("/ai/chat")
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat(
+    request: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+):
     """Chat with AI trainer (User-Key → .env Fallback)."""
     try:
-        claude_key = await resolve_claude_api_key(db)
-        response = await ai_service.chat(request.message, request.context, api_key=claude_key)
+        api_key, provider_name = await resolve_ai_config(db, current_user.id)
+        response = await ai_service.chat(
+            request.message, request.context, api_key=api_key, provider_name=provider_name
+        )
         return {
             "success": True,
             "message": response,
-            "provider": ai_service.get_active_provider(),
+            "provider": provider_name,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI chat failed: {str(e)}") from e
 
 
 @router.post("/ai/providers/test/{provider_name}")
-async def test_provider(provider_name: str):
-    """
-    Test if a specific AI provider is working
-
-    **Parameters:**
-    - provider_name: claude, ollama, or openai
-
-    **Returns:**
-    Provider test results
-    """
+async def test_provider(
+    provider_name: str,
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
+):
+    """Testet ob ein AI Provider funktioniert."""
     try:
         provider = AIProviderFactory.create(provider_name)
 
         is_available = provider.is_available()
 
         if is_available:
-            # Quick test
             test_data = {
                 "workout_type": "test",
                 "duration_sec": 1800,
@@ -143,6 +146,7 @@ async def test_provider(provider_name: str):
 async def send_chat_message(
     request: ChatMessageRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """Sendet eine Nachricht an den KI-Trainingsassistenten."""
     try:
@@ -150,6 +154,7 @@ async def send_chat_message(
             message=request.message,
             conversation_id=request.conversation_id,
             db=db,
+            user_id=current_user.id,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -161,6 +166,7 @@ async def send_chat_message(
 async def stream_chat_message(
     request: ChatMessageRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """Streamt eine KI-Antwort als Server-Sent Events."""
     try:
@@ -169,6 +175,7 @@ async def stream_chat_message(
                 message=request.message,
                 conversation_id=request.conversation_id,
                 db=db,
+                user_id=current_user.id,
             ),
             media_type="text/event-stream",
             headers={
@@ -184,15 +191,19 @@ async def stream_chat_message(
 
 
 @router.get("/ai/conversations", response_model=ConversationListResponse)
-async def list_conversations(db: AsyncSession = Depends(get_db)):
+async def list_conversations(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+):
     """Listet alle Konversationen (neueste zuerst)."""
-    return await chat_service.list_conversations(db)
+    return await chat_service.list_conversations(db, user_id=current_user.id)
 
 
 @router.get("/ai/conversations/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
 ):
     """Laedt eine Konversation mit allen Nachrichten."""
     try:
@@ -205,6 +216,7 @@ async def get_conversation(
 async def delete_conversation(
     conversation_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
 ):
     """Loescht eine Konversation."""
     try:
@@ -215,7 +227,10 @@ async def delete_conversation(
 
 
 @router.get("/ai/notifications")
-async def get_ai_notifications(db: AsyncSession = Depends(get_db)):
+async def get_ai_notifications(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
+):
     """Liefert proaktive KI-Benachrichtigungen basierend auf Trainingsdaten."""
     notifications = await get_notifications(db)
     return {"notifications": notifications, "count": len(notifications)}
@@ -225,6 +240,7 @@ async def get_ai_notifications(db: AsyncSession = Depends(get_db)):
 async def apply_plan_change(
     request: ApplyPlanChangeRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),  # noqa: ARG001
 ):
     """Wendet eine KI-vorgeschlagene Planänderung auf den Wochenplan an."""
     try:

@@ -5,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.infrastructure.database.models import Base
+from app.infrastructure.database.models import Base, UserModel
 from app.infrastructure.database.session import get_db
 from app.main import app
 
@@ -25,9 +25,19 @@ def event_loop():
 
 @pytest.fixture(autouse=True)
 async def setup_db():
-    """Create tables before each test, drop after."""
+    """Create tables before each test, drop after. Pre-creates the fallback user."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Pre-create the fallback user (same as get_current_user with auth_enabled=False).
+    # Tests that create data directly in the DB brauchen diesen user_id.
+    async with TestSessionLocal() as session:
+        user = UserModel(
+            email="local@training-analyzer.app", name="Test User", is_active=True, role="user"
+        )
+        session.add(user)
+        await session.commit()
+
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

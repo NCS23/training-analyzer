@@ -43,6 +43,7 @@ async def _create_test_workout(db: AsyncSession) -> WorkoutModel:
         hr_max=162,
         hr_min=120,
         cadence_avg=178,
+        user_id=1,
         laps_json=json.dumps(
             [
                 {

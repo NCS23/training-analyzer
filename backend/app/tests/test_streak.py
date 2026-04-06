@@ -17,6 +17,7 @@ async def _add_session(db: AsyncSession, days_ago: int) -> None:
         workout_type="running",
         duration_sec=2700,
         distance_km=5.0,
+        user_id=1,
     )
     db.add(workout)
     await db.commit()

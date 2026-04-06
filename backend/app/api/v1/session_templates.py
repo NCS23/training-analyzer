@@ -10,7 +10,8 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import SessionTemplateModel, WorkoutModel
+from app.core.dependencies import get_current_active_user
+from app.infrastructure.database.models import SessionTemplateModel, UserModel, WorkoutModel
 from app.infrastructure.database.session import get_db
 from app.models.session_template import (
     SessionTemplateCreate,
@@ -84,16 +85,23 @@ def _model_to_summary(tmpl: SessionTemplateModel) -> SessionTemplateSummary:
 async def list_templates(
     session_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateListResponse:
     """List all session templates."""
-    query = select(SessionTemplateModel).order_by(SessionTemplateModel.updated_at.desc())
+    query = (
+        select(SessionTemplateModel)
+        .where(SessionTemplateModel.user_id == current_user.id)
+        .order_by(SessionTemplateModel.updated_at.desc())
+    )
     if session_type:
         query = query.where(SessionTemplateModel.session_type == session_type)
 
     result = await db.execute(query)
     templates = list(result.scalars().all())
 
-    count_query = select(func.count(SessionTemplateModel.id))
+    count_query = select(func.count(SessionTemplateModel.id)).where(
+        SessionTemplateModel.user_id == current_user.id
+    )
     if session_type:
         count_query = count_query.where(SessionTemplateModel.session_type == session_type)
     total = (await db.execute(count_query)).scalar() or 0
@@ -108,10 +116,14 @@ async def list_templates(
 async def get_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Get a session template with exercises."""
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     tmpl = result.scalar_one_or_none()
     if not tmpl:
@@ -123,6 +135,7 @@ async def get_template(
 async def create_template(
     data: SessionTemplateCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Create a new session template."""
     if data.session_type == "strength" and not data.exercises:
@@ -151,6 +164,7 @@ async def create_template(
         exercises_json=exercises_data,
         run_details_json=run_details_data,
         is_template=True,
+        user_id=current_user.id,
     )
     db.add(tmpl)
     await db.commit()
@@ -163,10 +177,14 @@ async def update_template(
     template_id: int,
     data: SessionTemplateUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Update a session template."""
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     tmpl = result.scalar_one_or_none()
     if not tmpl:
@@ -190,10 +208,14 @@ async def update_template(
 async def delete_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> None:
     """Delete a session template."""
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     tmpl = result.scalar_one_or_none()
     if not tmpl:
@@ -207,10 +229,14 @@ async def delete_template(
 async def duplicate_template(
     template_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Duplicate a session template."""
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     tmpl = result.scalar_one_or_none()
     if not tmpl:
@@ -223,6 +249,7 @@ async def duplicate_template(
         exercises_json=tmpl.exercises_json,
         run_details_json=tmpl.run_details_json,
         is_template=True,
+        user_id=current_user.id,
     )
     db.add(new_tmpl)
     await db.commit()
@@ -234,10 +261,14 @@ async def duplicate_template(
 async def export_template_fit(
     template_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
     """Export eines Lauf-Templates als FIT-Workout-Datei fuer HealthFit/Garmin."""
     result = await db.execute(
-        select(SessionTemplateModel).where(SessionTemplateModel.id == template_id)
+        select(SessionTemplateModel).where(
+            SessionTemplateModel.id == template_id,
+            SessionTemplateModel.user_id == current_user.id,
+        )
     )
     tmpl = result.scalar_one_or_none()
     if not tmpl:
@@ -309,9 +340,15 @@ def _classify_run_type(
 async def create_from_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
 ) -> SessionTemplateResponse:
     """Create a template from an existing session."""
-    result = await db.execute(select(WorkoutModel).where(WorkoutModel.id == session_id))
+    result = await db.execute(
+        select(WorkoutModel).where(
+            WorkoutModel.id == session_id,
+            WorkoutModel.user_id == current_user.id,
+        )
+    )
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
@@ -349,6 +386,7 @@ async def create_from_session(
             session_type="strength",
             exercises_json=exercises_data,
             is_template=True,
+            user_id=current_user.id,
         )
     else:
         training_type = str(session.training_type_override or session.training_type_auto or "")
@@ -393,6 +431,7 @@ async def create_from_session(
             session_type="running",
             run_details_json=json.dumps(run_details),
             is_template=True,
+            user_id=current_user.id,
         )
 
     db.add(tmpl)

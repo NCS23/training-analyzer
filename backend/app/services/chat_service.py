@@ -15,7 +15,7 @@ from functools import partial
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api_key_resolver import resolve_claude_api_key
+from app.core.api_key_resolver import resolve_ai_config
 from app.infrastructure.ai.ai_service import ai_service
 from app.infrastructure.database.models import ChatConversationModel, ChatMessageModel
 from app.models.chat import (
@@ -50,13 +50,15 @@ async def send_message(
     message: str,
     conversation_id: int | None,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> ChatMessageResponse:
     """Sendet eine Nachricht und gibt die KI-Antwort zurueck."""
     # 1. Konversation erstellen oder laden
     if conversation_id:
         conversation = await _load_conversation(conversation_id, db)
     else:
-        conversation = ChatConversationModel(title=_generate_title(message))
+        conversation = ChatConversationModel(title=_generate_title(message), user_id=user_id)
         db.add(conversation)
         await db.flush()
 
@@ -79,10 +81,10 @@ async def send_message(
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     # 6. AI-Anfrage
-    api_key = await resolve_claude_api_key(db)
+    api_key, preferred_provider = await resolve_ai_config(db, user_id)
     start = time.monotonic()
     response_text, provider_name = await ai_service.chat_multi_turn(
-        api_messages, system_prompt, api_key
+        api_messages, system_prompt, api_key, provider_name=preferred_provider
     )
     duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -136,13 +138,15 @@ async def prepare_stream_with_tools(
     message: str,
     conversation_id: int | None,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> tuple[AsyncIterator[dict], StreamContext]:
     """Bereitet Streaming mit Tool Use vor."""
     if conversation_id:
         conversation = await _load_conversation(conversation_id, db)
     else:
         title = message[:100].strip()
-        conversation = ChatConversationModel(title=title)
+        conversation = ChatConversationModel(title=title, user_id=user_id)
         db.add(conversation)
         await db.flush()
 
@@ -158,10 +162,15 @@ async def prepare_stream_with_tools(
     system_prompt = await build_chat_system_prompt()
     api_messages = [{"role": m.role, "content": m.content} for m in history]
 
-    api_key = await resolve_claude_api_key(db)
-    tool_handler = partial(dispatch_tool, db=db)
+    api_key, preferred_provider = await resolve_ai_config(db, user_id)
+    tool_handler = partial(dispatch_tool, db=db, user_id=user_id)
     stream, provider_name = await ai_service.stream_chat_with_tools(
-        api_messages, system_prompt, CHAT_TOOLS, tool_handler, api_key
+        api_messages,
+        system_prompt,
+        CHAT_TOOLS,
+        tool_handler,
+        api_key,
+        provider_name=preferred_provider,
     )
 
     ctx = StreamContext(
@@ -211,9 +220,11 @@ async def stream_sse_events(
     message: str,
     conversation_id: int | None,
     db: AsyncSession,
+    *,
+    user_id: int | None = None,
 ) -> AsyncIterator[str]:
     """Generiert SSE-Events fuer den Streaming-Endpoint (mit Tool Use)."""
-    stream, ctx = await prepare_stream_with_tools(message, conversation_id, db)
+    stream, ctx = await prepare_stream_with_tools(message, conversation_id, db, user_id=user_id)
 
     # Erstes Event: Konversations-ID
     yield f"data: {json.dumps({'type': 'start', 'conversation_id': ctx.conversation_id})}\n\n"
@@ -239,11 +250,16 @@ async def stream_sse_events(
     yield f"data: {json.dumps({'type': 'done', 'conversation_id': ctx.conversation_id})}\n\n"
 
 
-async def list_conversations(db: AsyncSession) -> ConversationListResponse:
+async def list_conversations(
+    db: AsyncSession, *, user_id: int | None = None
+) -> ConversationListResponse:
     """Listet alle Konversationen (neueste zuerst)."""
-    result = await db.execute(
+    query = (
         select(ChatConversationModel).order_by(ChatConversationModel.updated_at.desc()).limit(50)
     )
+    if user_id is not None:
+        query = query.where(ChatConversationModel.user_id == user_id)
+    result = await db.execute(query)
     conversations = result.scalars().all()
 
     summaries = []

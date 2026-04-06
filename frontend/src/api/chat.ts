@@ -66,9 +66,14 @@ export async function streamChatMessage(
   signal?: AbortSignal,
 ): Promise<void> {
   const baseUrl = apiClient.defaults.baseURL ?? '';
+  const authHeader = apiClient.defaults.headers.common['Authorization'];
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof authHeader === 'string') {
+    headers['Authorization'] = authHeader;
+  }
   const response = await fetch(`${baseUrl}/api/v1/ai/conversations/messages/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(params),
     signal,
   });
