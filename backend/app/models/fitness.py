@@ -154,11 +154,30 @@ class WeekProgressResponse(BaseModel):
     days: list[DayStatus]
 
 
+class NextSessionInfo(BaseModel):
+    """Nächste geplante Session aus dem Wochenplan."""
+
+    day_name: str = Field(..., description="z.B. 'Morgen', 'Mittwoch'")
+    workout_type: str = Field(..., description="running | strength")
+    description: str = Field(..., description="z.B. 'Intervall-Lauf' oder 'Oberkörper'")
+
+
+class GoalSummary(BaseModel):
+    """Zusammenfassung des aktiven Trainingsziels."""
+
+    title: str
+    days_until: int
+    target_time_formatted: str | None = None
+
+
 class TodayResponse(BaseModel):
     """Aggregierte Dashboard-Daten für die Heute-Seite."""
 
     greeting: str
+    motivation: str | None = None
     fitness_score: FitnessScoreResponse
     last_session: LastSessionSummary | None = None
     week_progress: WeekProgressResponse
     insights: list[InsightResponse]
+    next_session: NextSessionInfo | None = None
+    goal_summary: GoalSummary | None = None
