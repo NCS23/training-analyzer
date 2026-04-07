@@ -16,22 +16,44 @@ interface TokenPair {
   refresh_token: string;
 }
 
-/** Holt ein frisches Token-Paar per API-Login (kein Cache!). */
+/** Holt ein frisches Token-Paar per API-Login mit Retry (TLS-Fehler bei Deploy). */
 async function getFreshTokens(baseURL: string): Promise<TokenPair> {
-  const response = await fetch(`${baseURL}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: E2E_EMAIL, password: E2E_PASSWORD }),
-    signal: AbortSignal.timeout(10_000),
-  });
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 5_000;
 
-  if (!response.ok) {
-    throw new Error(
-      `E2E Login fehlgeschlagen: HTTP ${response.status} ${await response.text()}`,
-    );
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${baseURL}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: E2E_EMAIL, password: E2E_PASSWORD }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `E2E Login fehlgeschlagen: HTTP ${response.status} ${await response.text()}`,
+        );
+      }
+
+      return (await response.json()) as TokenPair;
+    } catch (error) {
+      const isTLS =
+        error instanceof TypeError &&
+        (error.message.includes("fetch failed") ||
+          error.message.includes("TLS") ||
+          error.message.includes("SSL"));
+
+      if (isTLS && attempt < MAX_RETRIES) {
+        // Server wahrscheinlich noch beim Neustart — warten und nochmal
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+        continue;
+      }
+      throw error;
+    }
   }
 
-  return (await response.json()) as TokenPair;
+  throw new Error("getFreshTokens: Alle Retries fehlgeschlagen");
 }
 
 /**
