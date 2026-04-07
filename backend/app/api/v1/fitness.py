@@ -12,16 +12,25 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import AthleteModel, WorkoutModel
+from app.infrastructure.database.models import (
+    AthleteModel,
+    PlannedSessionModel,
+    RaceGoalModel,
+    UserModel,
+    WeeklyPlanDayModel,
+    WorkoutModel,
+)
 from app.infrastructure.database.session import get_db
 from app.models.fitness import (
     DayStatus,
     FitnessHistoryResponse,
     FitnessScoreResponse,
+    GoalSummary,
     InsightResponse,
     InsightsListResponse,
     IntensityDistributionResponse,
     LastSessionSummary,
+    NextSessionInfo,
     RecalculateResponse,
     TodayResponse,
     TrainingQualityResponse,
@@ -200,14 +209,170 @@ async def get_training_quality(
 # ---------------------------------------------------------------------------
 
 
-def _greeting() -> str:
-    """Tageszeit-abhängige Begrüßung."""
+def _greeting(name: str | None = None) -> str:
+    """Tageszeit-abhängige, persönliche Begrüßung."""
     hour = datetime.now().hour
     if hour < 11:
-        return "Guten Morgen"
-    if hour < 17:
-        return "Guten Tag"
-    return "Guten Abend"
+        base = "Guten Morgen"
+    elif hour < 17:
+        base = "Guten Tag"
+    else:
+        base = "Guten Abend"
+    if name:
+        return f"{base}, {name}!"
+    return base
+
+
+def _compute_streak(sessions: list[WorkoutModel]) -> int:
+    """Berechne aktuelle Trainings-Streak (aufeinanderfolgende Tage)."""
+    if not sessions:
+        return 0
+    today = date.today()
+    training_dates: set[date] = set()
+    for s in sessions:
+        d = s.date.date() if hasattr(s.date, "date") else s.date
+        training_dates.add(d)
+
+    streak = 0
+    check = today
+    if check not in training_dates:
+        check = today - timedelta(days=1)
+    while check in training_dates:
+        streak += 1
+        check -= timedelta(days=1)
+    return streak
+
+
+def _build_motivation(
+    streak: int,
+    trend: str,
+    form_status: str,
+    last_session_days_ago: int | None,
+) -> str | None:
+    """Generiere einen kurzen, emotionalen Motivations-Satz."""
+    if streak >= 5:
+        return f"{streak}-Tage-Streak — herausragend!"
+    if streak >= 3:
+        return f"{streak}-Tage-Streak — weiter so!"
+    if form_status == "fresh":
+        return "Perfekt erholt — bereit für ein gutes Training"
+    if trend == "rising":
+        return "Deine Fitness entwickelt sich super!"
+    if last_session_days_ago is not None and last_session_days_ago >= 3:
+        return "Zeit für eine Einheit? Dein Körper ist bereit"
+    return None
+
+
+async def _build_next_session(
+    db: AsyncSession,
+) -> NextSessionInfo | None:
+    """Finde die nächste geplante Session aus dem Wochenplan."""
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    day_names = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+    # Tage dieser Woche ab heute laden
+    result = await db.execute(
+        select(WeeklyPlanDayModel)
+        .where(
+            WeeklyPlanDayModel.week_start == monday,
+            WeeklyPlanDayModel.day_of_week >= today.weekday(),
+            WeeklyPlanDayModel.is_rest_day.is_(False),
+        )
+        .order_by(WeeklyPlanDayModel.day_of_week)
+    )
+    plan_days = list(result.scalars().all())
+
+    for plan_day in plan_days:
+        # Geplante Sessions für diesen Tag
+        sessions_result = await db.execute(
+            select(PlannedSessionModel)
+            .where(
+                PlannedSessionModel.day_id == plan_day.id,
+                PlannedSessionModel.status == "active",
+            )
+            .limit(1)
+        )
+        planned = sessions_result.scalar_one_or_none()
+        if not planned:
+            continue
+
+        target_date = monday + timedelta(days=plan_day.day_of_week)
+        if target_date == today:
+            day_label = "Heute"
+        elif target_date == today + timedelta(days=1):
+            day_label = "Morgen"
+        else:
+            day_label = day_names[plan_day.day_of_week]
+
+        description = _describe_planned_session(planned)
+        return NextSessionInfo(
+            day_name=day_label,
+            workout_type=planned.training_type,
+            description=description,
+        )
+    return None
+
+
+def _describe_planned_session(planned: PlannedSessionModel) -> str:
+    """Generiere kurze Beschreibung einer geplanten Session."""
+    if planned.training_type == "strength":
+        return "Krafttraining"
+    if planned.run_details_json:
+        try:
+            details = json.loads(planned.run_details_json)
+            training_type = details.get("training_type", "")
+            type_labels = {
+                "easy": "Lockerer Lauf",
+                "long_run": "Langer Lauf",
+                "intervals": "Intervall-Training",
+                "tempo": "Tempo-Lauf",
+                "threshold": "Schwellenlauf",
+                "fartlek": "Fahrtspiel",
+                "repetitions": "Wiederholungsläufe",
+                "progression": "Steigerungslauf",
+                "recovery": "Regenerationslauf",
+            }
+            return type_labels.get(training_type, "Lauf")
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return "Lauf"
+
+
+async def _build_goal_summary(db: AsyncSession) -> GoalSummary | None:
+    """Lade aktives Wettkampf-Ziel."""
+    result = await db.execute(
+        select(RaceGoalModel)
+        .where(RaceGoalModel.is_active.is_(True))
+        .order_by(RaceGoalModel.race_date.asc())
+        .limit(1)
+    )
+    goal = result.scalar_one_or_none()
+    if not goal:
+        return None
+
+    race_date = goal.race_date.date() if hasattr(goal.race_date, "date") else goal.race_date
+    days_until = (race_date - date.today()).days
+    if days_until < 0:
+        return None
+
+    target_formatted = None
+    if goal.target_time_seconds:
+        h = goal.target_time_seconds // 3600
+        m = (goal.target_time_seconds % 3600) // 60
+        target_formatted = f"{h}:{m:02d}" if h > 0 else f"{m} min"
+
+    return GoalSummary(
+        title=goal.title,
+        days_until=days_until,
+        target_time_formatted=target_formatted,
+    )
+
+
+async def _get_user(db: AsyncSession) -> UserModel | None:
+    """Lade ersten User (Single-User-Mode)."""
+    result = await db.execute(select(UserModel).limit(1))
+    return result.scalar_one_or_none()
 
 
 def _build_last_session(
@@ -315,18 +480,20 @@ def _parse_pace(pace_str: str | None) -> float | None:
     return None
 
 
-def _build_week_progress(sessions: list[WorkoutModel]) -> WeekProgressResponse:
-    """Wochenfortschritt: Sessions und km dieser Woche."""
+async def _build_week_progress(
+    sessions: list[WorkoutModel],
+    db: AsyncSession,
+) -> WeekProgressResponse:
+    """Wochenfortschritt: geplante und absolvierte Sessions dieser Woche."""
     today = date.today()
-    # Montag dieser Woche
     monday = today - timedelta(days=today.weekday())
     day_names = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
+    # Absolvierte Sessions
     completed_by_day: dict[date, bool] = {}
     total_km = 0.0
     total_sec = 0
     count = 0
-
     for s in sessions:
         d = s.date.date() if hasattr(s.date, "date") else s.date
         if monday <= d <= today:
@@ -335,23 +502,51 @@ def _build_week_progress(sessions: list[WorkoutModel]) -> WeekProgressResponse:
             total_sec += s.duration_sec or 0
             count += 1
 
+    # Geplante Sessions aus Wochenplan
+    planned_by_dow: set[int] = set()
+    plan_count = 0
+    plan_result = await db.execute(
+        select(WeeklyPlanDayModel).where(
+            WeeklyPlanDayModel.week_start == monday,
+            WeeklyPlanDayModel.is_rest_day.is_(False),
+        )
+    )
+    plan_days = list(plan_result.scalars().all())
+
+    for plan_day in plan_days:
+        sessions_result = await db.execute(
+            select(PlannedSessionModel.id)
+            .where(
+                PlannedSessionModel.day_id == plan_day.id,
+                PlannedSessionModel.status == "active",
+            )
+            .limit(1)
+        )
+        if sessions_result.scalar_one_or_none() is not None:
+            planned_by_dow.add(plan_day.day_of_week)
+            plan_count += 1
+
     days: list[DayStatus] = []
     for i in range(7):
         d = monday + timedelta(days=i)
         has_completed = d in completed_by_day
+        has_planned = i in planned_by_dow
         is_future = d > today
-        status = "rest"
+
         if has_completed:
             status = "completed"
-        elif not is_future:
-            status = "rest"  # Vergangenheit ohne Session
-        # geplante Sessions würden aus dem Wochenplan kommen (Phase 3)
+        elif has_planned and is_future:
+            status = "planned"
+        elif has_planned and not is_future:
+            status = "skipped"
+        else:
+            status = "rest"
 
         days.append(
             DayStatus(
                 date=d.isoformat(),
                 day_name=day_names[i],
-                has_planned=False,  # Wird in Phase 3 ergänzt
+                has_planned=has_planned,
                 has_completed=has_completed,
                 status=status,
             )
@@ -359,11 +554,11 @@ def _build_week_progress(sessions: list[WorkoutModel]) -> WeekProgressResponse:
 
     return WeekProgressResponse(
         sessions_completed=count,
-        sessions_planned=0,  # Phase 3
+        sessions_planned=plan_count,
         distance_completed_km=round(total_km, 1),
-        distance_planned_km=None,  # Phase 3
+        distance_planned_km=None,
         time_completed_seconds=total_sec,
-        time_planned_seconds=None,  # Phase 3
+        time_planned_seconds=None,
         days=days,
     )
 
@@ -374,12 +569,13 @@ async def get_today(
 ) -> TodayResponse:
     """Aggregierte Daten für das Heute-Dashboard."""
     athlete = await _get_athlete(db)
+    user = await _get_user(db)
     sessions = await _get_all_sessions(db)
 
     resting_hr = (athlete.resting_hr or 60) if athlete else 60
     max_hr = (athlete.max_hr or 190) if athlete else 190
 
-    # Fitness-Score (absolute Referenzskala, kein DB-Write)
+    # Fitness-Score
     score_result = compute_full_score(sessions)
 
     # Trainingsqualität
@@ -402,8 +598,27 @@ async def get_today(
     )
     insights = generate_insights(ctx, max_insights=2)
 
+    # Persönliche Daten
+    streak = _compute_streak(sessions)
+    last_session = _build_last_session(sessions)
+
+    # Letzte Session: wie viele Tage her?
+    last_session_days_ago: int | None = None
+    if sessions:
+        last_date = sessions[-1].date
+        d = last_date.date() if hasattr(last_date, "date") else last_date
+        last_session_days_ago = (date.today() - d).days
+
+    motivation = _build_motivation(
+        streak=streak,
+        trend=score_result["trend"],
+        form_status=form.status,
+        last_session_days_ago=last_session_days_ago,
+    )
+
     return TodayResponse(
-        greeting=_greeting(),
+        greeting=_greeting(user.name if user else None),
+        motivation=motivation,
         fitness_score=FitnessScoreResponse(
             score=score_result["score"],
             endurance_score=score_result["endurance_score"],
@@ -415,8 +630,8 @@ async def get_today(
             context_message=score_result["context_message"],
             updated_at=datetime.utcnow().isoformat(),
         ),
-        last_session=_build_last_session(sessions),
-        week_progress=_build_week_progress(sessions),
+        last_session=last_session,
+        week_progress=await _build_week_progress(sessions, db),
         insights=[
             InsightResponse(
                 type=i.type,
@@ -428,4 +643,6 @@ async def get_today(
             )
             for i in insights
         ],
+        next_session=await _build_next_session(db),
+        goal_summary=await _build_goal_summary(db),
     )

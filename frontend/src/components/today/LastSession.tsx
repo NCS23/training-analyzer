@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardBody } from '@nordlig/components';
-import { Activity, Clock, MapPin, Heart, Dumbbell, ChevronRight } from 'lucide-react';
+import { Activity, Clock, MapPin, Heart, Dumbbell, ChevronRight, List } from 'lucide-react';
 import type { LastSessionSummary } from '@/api/fitness';
 
 interface Props {
@@ -94,9 +94,16 @@ export function LastSession({ session }: Props) {
                 )}
               </div>
 
-              {/* Vergleich */}
+              {/* Vergleich — emotional hervorgehoben */}
               {session.comparison_message && (
-                <p className="mt-1 text-xs text-[var(--color-text-subtle)]">
+                <p
+                  className="mt-1 text-xs font-medium"
+                  style={{
+                    color: session.comparison_message.includes('schneller')
+                      ? 'var(--color-text-success)'
+                      : 'var(--color-text-muted)',
+                  }}
+                >
                   {session.comparison_message}
                 </p>
               )}
@@ -105,6 +112,17 @@ export function LastSession({ session }: Props) {
             {/* Chevron */}
             <ChevronRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
           </button>
+
+          {/* Link zu allen Sessions */}
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-default)]">
+            <Link
+              to="/sessions"
+              className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-interactive-primary)] hover:underline"
+            >
+              <List className="h-3.5 w-3.5" />
+              Alle Sessions
+            </Link>
+          </div>
         </CardBody>
       </Card>
     </section>

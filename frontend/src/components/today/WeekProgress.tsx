@@ -1,9 +1,10 @@
 import { Card, CardBody } from '@nordlig/components';
-import { Check } from 'lucide-react';
-import type { WeekProgressResponse } from '@/api/fitness';
+import { Check, Activity, Dumbbell } from 'lucide-react';
+import type { WeekProgressResponse, NextSessionInfo } from '@/api/fitness';
 
 interface Props {
   data: WeekProgressResponse;
+  nextSession: NextSessionInfo | null;
 }
 
 function formatDuration(seconds: number): string {
@@ -13,7 +14,7 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-export function WeekProgress({ data }: Props) {
+export function WeekProgress({ data, nextSession }: Props) {
   return (
     <section aria-label="Wochenfortschritt">
       <Card elevation="raised">
@@ -21,7 +22,9 @@ export function WeekProgress({ data }: Props) {
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-[var(--color-text-base)]">Diese Woche</p>
             <p className="text-xs text-[var(--color-text-muted)]">
-              {data.sessions_completed} Session{data.sessions_completed !== 1 ? 's' : ''}
+              {data.sessions_completed}
+              {data.sessions_planned > 0 && `/${data.sessions_planned}`} Session
+              {data.sessions_completed !== 1 ? 's' : ''}
               {data.distance_completed_km > 0 && ` · ${data.distance_completed_km.toFixed(1)} km`}
               {data.time_completed_seconds > 0 &&
                 ` · ${formatDuration(data.time_completed_seconds)}`}
@@ -34,6 +37,21 @@ export function WeekProgress({ data }: Props) {
               <DayCircle key={day.date} dayName={day.day_name} status={day.status} />
             ))}
           </div>
+
+          {/* Nächste geplante Session */}
+          {nextSession && (
+            <div className="mt-3 flex items-center gap-2 rounded-[var(--radius-component-sm)] bg-[var(--color-bg-primary-subtle)] px-3 py-2">
+              {nextSession.workout_type === 'running' ? (
+                <Activity className="h-3.5 w-3.5 text-[var(--color-interactive-primary)]" />
+              ) : (
+                <Dumbbell className="h-3.5 w-3.5 text-[var(--color-interactive-primary)]" />
+              )}
+              <span className="text-xs text-[var(--color-text-base)]">
+                <span className="font-medium">{nextSession.day_name}:</span>{' '}
+                {nextSession.description}
+              </span>
+            </div>
+          )}
         </CardBody>
       </Card>
     </section>
@@ -47,7 +65,7 @@ const CIRCLE_BASE =
 
 const CIRCLE_STYLES: Record<DayStatus, string> = {
   completed: `${CIRCLE_BASE} bg-[var(--color-interactive-primary)] text-[var(--color-text-on-primary)]`,
-  planned: `${CIRCLE_BASE} border-2 border-[var(--color-interactive-primary)] bg-transparent`,
+  planned: `${CIRCLE_BASE} border-2 border-dashed border-[var(--color-interactive-primary)] bg-transparent`,
   skipped: `${CIRCLE_BASE} bg-[var(--color-bg-error-subtle)]`,
   extra: `${CIRCLE_BASE} bg-[var(--color-text-success)] text-[var(--color-text-on-primary)]`,
   rest: `${CIRCLE_BASE} bg-[var(--color-bg-subtle)]`,

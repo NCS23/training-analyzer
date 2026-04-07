@@ -1,3 +1,4 @@
+import { Card, CardBody } from '@nordlig/components';
 import {
   AlertTriangle,
   AlertCircle,
@@ -39,32 +40,49 @@ const TYPE_COLOR: Record<InsightResponse['type'], string> = {
   info: 'var(--color-text-muted)',
 };
 
+const TYPE_BG: Record<InsightResponse['type'], string> = {
+  warning: 'var(--color-bg-error-subtle)',
+  recommendation: 'var(--color-bg-warning-subtle)',
+  trend: 'var(--color-bg-primary-subtle)',
+  achievement: 'var(--color-bg-success-subtle)',
+  info: 'transparent',
+};
+
 export function InsightCards({ insights }: Props) {
   if (insights.length === 0) return null;
 
   return (
-    <section aria-label="Trainings-Insights" className="space-y-0">
-      {insights.map((insight, i) => {
-        const IconComponent = ICON_MAP[insight.icon] ?? Info;
-        const color = TYPE_COLOR[insight.type] ?? 'var(--color-text-muted)';
-
-        return (
-          <div
-            key={`${insight.type}-${insight.title}-${i}`}
-            className={`flex gap-3 py-3 ${i > 0 ? 'border-t border-[var(--color-border-default)]' : ''}`}
-          >
-            <div className="mt-0.5 shrink-0" style={{ color }} aria-hidden="true">
-              <IconComponent className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--color-text-base)]">{insight.title}</p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)] leading-relaxed">
-                {insight.message}
-              </p>
-            </div>
+    <section aria-label="Trainings-Insights">
+      <Card elevation="raised">
+        <CardBody>
+          <p className="text-sm font-medium text-[var(--color-text-base)] mb-3">Hinweise</p>
+          <div className="space-y-2">
+            {insights.map((insight, i) => (
+              <InsightItem key={`${insight.type}-${insight.title}-${i}`} insight={insight} />
+            ))}
           </div>
-        );
-      })}
+        </CardBody>
+      </Card>
     </section>
+  );
+}
+
+function InsightItem({ insight }: { insight: InsightResponse }) {
+  const IconComponent = ICON_MAP[insight.icon] ?? Info;
+  const color = TYPE_COLOR[insight.type] ?? 'var(--color-text-muted)';
+  const bg = TYPE_BG[insight.type] ?? 'transparent';
+
+  return (
+    <div className="flex gap-3 rounded-[var(--radius-component-sm)] p-3" style={{ background: bg }}>
+      <div className="mt-0.5 shrink-0" style={{ color }} aria-hidden="true">
+        <IconComponent className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-[var(--color-text-base)]">{insight.title}</p>
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)] leading-relaxed">
+          {insight.message}
+        </p>
+      </div>
+    </div>
   );
 }

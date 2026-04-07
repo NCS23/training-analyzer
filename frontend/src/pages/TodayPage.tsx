@@ -6,6 +6,7 @@ import { ScoreSection } from '@/components/today/ScoreSection';
 import { LastSession } from '@/components/today/LastSession';
 import { WeekProgress } from '@/components/today/WeekProgress';
 import { InsightCards } from '@/components/today/InsightCards';
+import { GoalCountdown } from '@/components/today/GoalCountdown';
 
 export function TodayPage() {
   const { data, isLoading, isError, refetch } = useToday();
@@ -34,16 +35,22 @@ export function TodayPage() {
 
   return (
     <div className="p-4 pt-6 md:p-6 md:pt-8 max-w-5xl mx-auto space-y-4 pb-24">
-      {/* Begrüßung */}
+      {/* Begrüßung + Motivation */}
       <header className="pb-2">
         <h1 className="text-2xl font-bold text-[var(--color-text-base)]">{data.greeting}</h1>
+        {data.motivation && (
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">{data.motivation}</p>
+        )}
       </header>
 
-      {/* Fitness-Score */}
+      {/* Fitness-Score (Hero) */}
       <ScoreSection data={data.fitness_score} />
 
-      {/* Wochenfortschritt */}
-      <WeekProgress data={data.week_progress} />
+      {/* Wochenfortschritt + nächste Session */}
+      <WeekProgress data={data.week_progress} nextSession={data.next_session} />
+
+      {/* Wettkampf-Ziel */}
+      {data.goal_summary && <GoalCountdown goal={data.goal_summary} />}
 
       {/* Letzte Session */}
       {data.last_session ? (

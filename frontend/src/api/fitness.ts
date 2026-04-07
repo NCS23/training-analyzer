@@ -85,12 +85,27 @@ export interface WeekProgressResponse {
   days: DayStatus[];
 }
 
+export interface NextSessionInfo {
+  day_name: string;
+  workout_type: 'running' | 'strength';
+  description: string;
+}
+
+export interface GoalSummary {
+  title: string;
+  days_until: number;
+  target_time_formatted: string | null;
+}
+
 export interface TodayResponse {
   greeting: string;
+  motivation: string | null;
   fitness_score: FitnessScoreResponse;
   last_session: LastSessionSummary | null;
   week_progress: WeekProgressResponse;
   insights: InsightResponse[];
+  next_session: NextSessionInfo | null;
+  goal_summary: GoalSummary | null;
 }
 
 // ---------------------------------------------------------------------------
