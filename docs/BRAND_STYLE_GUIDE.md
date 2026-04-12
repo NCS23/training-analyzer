@@ -48,7 +48,37 @@ Nutzer noch keine Daten hat.
 
 ---
 
-## 2. Designprinzipien
+## 2. Pitch & Positionierung
+
+### Elevator Pitch
+
+> „Jeder Lauf ist ein Kapitel. Jeder harte Tag, jeder Durchbruch — das ist deine Saga.
+>
+> minsaga begleitet dich dabei wie ein Coach: analysiert dein Training, gibt dir Feedback, zeigt dir wo du stehst und wie du dein Ziel erreichst."
+
+### Wettbewerbsübersicht
+
+| App | Was sie gut machen | Was fehlt |
+|---|---|---|
+| **Strava** | Social, Community, GPS-Tracking | Kein echtes Coaching. Motivation durch Vergleich mit anderen, nicht durch eigene Entwicklung |
+| **Garmin Connect** | Tiefe Daten, Hardware-Integration | Klinisch, überwältigend. Arztbericht statt Coach |
+| **Nike Run Club** | Kostenlos, geführte Läufe, Pläne | Keine Individualisierung. Kennt dich nicht, passt sich nicht an |
+| **TrainingPeaks** | Professionelle Planung, Coach-Workflow | Für Profis mit externem Coach. Zu komplex für den ambitionierten Selbstläufer |
+| **Runna** | Einfache AI-Trainingspläne | Nur Plan-Erstellung. Kein Begleiter der dein Training versteht und einordnet |
+
+### Warum es minsaga braucht
+
+Strava zeigt was du getan hast — sagt aber nicht was es bedeutet. Garmin überwältigt
+mit Daten ohne Kontext. Nike Run Club gibt dir einen Plan der dich nicht kennt.
+TrainingPeaks ist für Profis mit Coach. Runna erstellt Pläne, hört aber dort auf.
+
+minsaga füllt die Lücke: ein persönlicher KI-Begleiter der deinen Fortschritt
+versteht, dir Feedback gibt, deinen Plan anpasst — und der weiß dass hinter den
+Zahlen eine Geschichte steckt.
+
+---
+
+## 3. Designprinzipien
 
 ### Designsprache
 
@@ -129,7 +159,7 @@ Wenn eine Frage mit *Nein* beantwortet wird, ist das Design nicht fertig.
 
 ---
 
-## 3. Logo
+## 4. Logo
 
 ### Finales Konzept: Berg & Trail
 
@@ -189,7 +219,7 @@ Logo-Icon auf hellem Hintergrund. Kein dunkler Hintergrund für das Standard-Ico
 
 ---
 
-## 4. Farbsystem
+## 5. Farbsystem
 
 ### Brand Colors
 
@@ -290,7 +320,7 @@ Vorwärtsbewegung und Aktion. Gezielt eingesetzt, nie als Hintergrundtapete.
 
 ---
 
-## 5. Typografie
+## 6. Typografie
 
 ### Schriftfamilien
 
@@ -325,7 +355,7 @@ Vorwärtsbewegung und Aktion. Gezielt eingesetzt, nie als Hintergrundtapete.
 
 ---
 
-## 6. Spacing & Layout
+## 7. Spacing & Layout
 
 ### Container
 
@@ -364,7 +394,7 @@ viel Raum dazwischen — nicht vollgepackte Screens.
 
 ---
 
-## 7. Form-Sprache
+## 8. Form-Sprache
 
 ### Radii
 
@@ -406,7 +436,7 @@ Nie hart, nie übertrieben.
 
 ---
 
-## 8. Komponenten-Regeln
+## 9. Komponenten-Regeln
 
 ### Nordlig DS (PFLICHT)
 
@@ -430,7 +460,7 @@ Alle UI-Primitives kommen aus `@nordlig/components`:
 
 ---
 
-## 9. Tonalität & Sprache
+## 10. Tonalität & Sprache
 
 ### Grundton
 
@@ -475,7 +505,7 @@ ihn daran wenn es darauf ankommt.
 
 ---
 
-## 10. Fitness Level System
+## 11. Fitness Level System
 
 > Vollständige Begründungen und Algorithmen: [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) · Epic [#694](https://github.com/NCS23/training-analyzer/issues/694)
 
@@ -542,7 +572,7 @@ Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt →
 
 ---
 
-## 11. Animationen & Micro-Interactions
+## 12. Animationen & Micro-Interactions
 
 - **motion-reduce:** `motion-reduce:transition-none` auf ALLEN Animationen
 - Micro-Interactions (Color, Opacity): 150ms
@@ -555,7 +585,7 @@ Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt →
 
 ---
 
-## 12. Referenzen
+## 13. Referenzen
 
 - [REDESIGN_KONZEPT.md](REDESIGN_KONZEPT.md) — UX-Konzept & Informationsarchitektur
 - [DESIGN_REVIEW.md](DESIGN_REVIEW.md) — UX-Review-Checkliste
