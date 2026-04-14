@@ -296,6 +296,13 @@ Klare Hintergrund-Hierarchie:
 
 **Farbe ist niemals einziger Informationsträger** — immer mit Icon, Text oder Form kombinieren (~8 % der Männer sind farbenblind).
 
+### Semantische Border-Tokens (L3)
+
+| Token | Aliasing | Verwendung |
+|---|---|---|
+| `L3 · Semantic/border/neutral` | neutral-1/slate/200 | Strukturelle Borders (Nav, Card, Divider) |
+| `L3 · Semantic/border/subtle` | neutral-2/stone/200 | Komponentenrahmen auf Surface (Avatar-Ring etc.) |
+
 ### Primärfarben (L3/L4 Tokens)
 
 | Rolle | Token (L3/L4) | Verwendung |
