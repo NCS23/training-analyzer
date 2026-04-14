@@ -19,6 +19,18 @@ Du arbeitest am Training Analyzer. Diese Regeln sind PFLICHT:
 10. KEINE Card-on-Card Schatten — innere Cards mit elevation="flat"
 
 Hooks erzwingen Regeln 3-5 beim Schreiben und 8 beim Committen.
+
+=== FIGMA-REGELN (automatisch injiziert) ===
+PFLICHT vor jeder Figma-Operation:
+F1. NODE-TYP prüfen — COMPONENT oder INSTANCE?
+    → Änderungen NUR an COMPONENT, nie direkt an INSTANCE auf einem Frame
+F2. VARIANTEN wählen, nicht manuell patchen
+    → ❌ resize(44,44) → ✅ setProperties({ Size: 'lg' })
+F3. TOKEN-EBENEN einhalten — L1→L2→L3→L4, keine Sprünge
+F4. SCHRIFT — nur DM Sans (UI) und Fraunces (Display), kein Inter
+F5. TOUCH-TARGETS — interaktive Elemente min. 44×44px → lg-Variante verwenden
+F6. SEITE setzen — await figma.setCurrentPageAsync(page) vor jeder Suche
+Vollständige Regeln: docs/FIGMA_RULES.md
 ===
 RULES
 
