@@ -1,7 +1,7 @@
 # Brand & Style Guide — minsaga
 
 > **Status:** Entwurf — wird schrittweise ergänzt
-> **Letzte Aktualisierung:** 2026-04-12
+> **Letzte Aktualisierung:** 2026-04-14
 
 ---
 
@@ -179,8 +179,8 @@ Sky Blue → Cyan → Indigo/Violet.
 
 ### Wortmarke
 
-„minsaga" in einem gerundeten Sans-Serif, tiefes Navy. Einheitliches Gewicht
-(Medium/Semibold) — kein Bold/Regular-Split im Wortbild.
+„minsaga" in einem gerundeten Sans-Serif, tiefes Navy. Bewusster Gewichts-Split:
+**min** in SemiBold (Betonung, Zugehörigkeit), **saga** in Light (fließend, offen).
 
 ### Logo Lockup (Horizontal)
 
@@ -248,8 +248,19 @@ Signalisiert sofort: das ist KI-generierter Inhalt.
 
 | Token | Palette | Hauptverwendung |
 |---|---|---|
-| neutral-1 | slate | Text, Borders, Icons |
+| neutral-1 | slate | Text, strukturelle Borders, Icons |
 | neutral-2 | stone | Hintergrundflächen, Surfaces — alternativ weiß |
+
+**Slate trennt — Stone rahmt:**
+
+Die Unterscheidung zwischen `slate` und `stone` folgt der Funktion, nicht der Komponente:
+
+| Funktion | Token | Beispiel |
+|---|---|---|
+| Strukturelle Trennung | neutral-1 (slate) | Nav-Border, Card-Kante, Divider, Section-Borders |
+| Komponentenrahmen auf Surface | neutral-2 (stone) | Avatar-Ring, Icon-Container-Border, Rahmen die sich in ihre Hintergrund-Surface einfügen |
+
+*Regel:* Borders die zwei verschiedene Bereiche trennen → slate. Borders die eine Komponente einrahmen und sich harmonisch in den Hintergrund einfügen → stone.
 
 Klare Hintergrund-Hierarchie:
 
@@ -284,6 +295,13 @@ Klare Hintergrund-Hierarchie:
 - Text: nie reines Schwarz — slate-900 als dunkelster Wert
 
 **Farbe ist niemals einziger Informationsträger** — immer mit Icon, Text oder Form kombinieren (~8 % der Männer sind farbenblind).
+
+### Semantische Border-Tokens (L3)
+
+| Token | Aliasing | Verwendung |
+|---|---|---|
+| `L3 · Semantic/border/neutral` | neutral-1/slate/200 | Strukturelle Borders (Nav, Card, Divider) |
+| `L3 · Semantic/border/subtle` | neutral-2/stone/200 | Komponentenrahmen auf Surface (Avatar-Ring etc.) |
 
 ### Primärfarben (L3/L4 Tokens)
 
