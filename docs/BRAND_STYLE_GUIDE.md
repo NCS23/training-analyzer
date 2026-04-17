@@ -1,7 +1,7 @@
 # Brand & Style Guide — minsaga
 
 > **Status:** Entwurf — wird schrittweise ergänzt
-> **Letzte Aktualisierung:** 2026-04-17
+> **Letzte Aktualisierung:** 2026-04-18
 
 ---
 
@@ -495,6 +495,100 @@ Alle UI-Primitives kommen aus `@nordlig/components`:
   - Footer-Gap: 12px (Standard-Button-Group-Spacing)
 - **Symmetrisches Padding** (alle vier Seiten gleich). Asymmetrisches Padding (z.B. für „Timestamp am Cardboden") gehört in spezialisierte Cards (`SessionCard`, `StatCard`), nicht in die generische Card
 - **Corner-Radius:** 32px — der Minsaga-Card-Radius, charakteristisch weich
+
+#### Padding-Varianten — wann welche verwenden?
+
+**`compact` (12px) — „Dense / List"**
+
+Wenn mehrere Cards gleichzeitig sichtbar sind und Dichte wichtiger ist als Luftigkeit.
+
+- Listen — Session-Row in der Trainingshistorie, News-Feed
+- Dashboard-Grids — StatCard-Grid (4 kleine Metriken nebeneinander/gestapelt)
+- Sidebars / Widgets — schmale seitliche Cards
+- Tables disguised as Cards
+
+*Feeling:* effizient, scannbar, auf-einen-Blick
+*Minsaga-Beispiel:* Trainingshistorie-Liste — 15–20 Cards, scrollbar.
+
+**`normal` (20px) — „Default / Standard"**
+
+Default-Wahl. Wenn du dich fragst „welches Padding?" — nimm `normal`.
+
+- Single primary content cards — die „Als Nächstes"-Card auf dem Heute-Dashboard
+- AI Coach Messages
+- Form-Cards (Einstellungen, Eingabefelder gruppiert)
+- Die meisten Main-Content-Situationen
+
+*Feeling:* komfortabel, ausbalanciert, „Lagom"
+*Minsaga-Beispiel:* „Als Nächstes — Fartlek Run" auf dem Heute-Dashboard.
+
+**`spacious` (24px) — „Hero / Featured"**
+
+Wenn die Card der **Fokus** eines Screens oder Moments ist. Luft als Aussage.
+
+- Hero-Cards — die Ziel-Card (Halbmarathon-Countdown)
+- Empty States — erzählerische Cards mit viel Luft („Jede Saga braucht ein Ziel.")
+- Feier-Momente — Level-Up, Goal-Achieved
+- Primary CTAs als Card — wenn die ganze Card klickbar ist
+- Onboarding-Cards
+
+*Feeling:* wichtig, einladend, besonders
+*Minsaga-Beispiel:* Die Goal-Card mit Countdown + Progress-Ring — der visuelle Eyecatcher des Dashboards.
+
+**Faustregeln:**
+
+| Regel | Erklärung |
+|---|---|
+| Start mit `normal` | Default. 90% der Fälle. |
+| `compact` nur bei Dichte | Liste mit 5+ Cards sichtbar → compact. Sonst nicht. |
+| `spacious` nur bei Hierarchie | Nur **eine** spacious-Card pro Screen — sie IST der Fokus. Mehrere spacious-Cards = keine Hierarchie mehr. |
+| Padding ist Dichte, keine Hierarchie | Wenn eine Card anders aussehen soll, liegt es fast immer am Content (Titel, Farbe, Position) — nicht am Padding. |
+| Mobile vs. Desktop kein Grund | `compact` auf Mobile ≠ gute Idee. Touch-Targets brauchen Luft. Mobile nutzt die gleichen Varianten wie Desktop. |
+
+#### Elevation-Varianten — wann welche verwenden?
+
+**`raised` (weiß + Schatten) — „Standard / Standalone"**
+
+Default für jede Card, die **selbst** auf der Page oder in einem Container steht. Wenn du dich fragst „welche Elevation?" — nimm `raised`.
+
+- Dashboard-Cards auf der Page — Goal-Card, Stat-Cards, AI-Coach-Messages
+- Listen-Items die eigenständig wirken sollen — z.B. SessionCard in der Trainingshistorie
+- Alle Top-Level-Cards auf einem Screen
+
+*Feeling:* eigenständig, fokussiert, wichtig genug für einen Schatten
+*Minsaga-Beispiel:* Die „Als Nächstes"-Card auf dem Heute-Dashboard.
+
+**`flat` (stone/50, kein Schatten) — „Nested / Grouping"**
+
+**Nur** innerhalb einer `raised` Card (oder auf anderer weißer Fläche wie Modals/Sheets). Zum Gruppieren von zusammengehörigem Content *innerhalb* einer Card — ohne visuell eine neue Card zu erzeugen.
+
+- Sub-Sektionen innerhalb einer Card — z.B. die 4 Readiness-Komponenten (Fitness / Langläufe / Tempoläufe / Konsistenz) innerhalb der Goal-Card
+- Zusammengehörige Mini-Gruppen — z.B. „Laps-Übersicht" innerhalb einer SessionCard
+- Modal-Content — weiße Modal-Fläche mit einer flat-Card drin, die Metadaten gruppiert
+
+*Feeling:* eingebettet, untergeordnet, „Unter-Abschnitt"
+*Minsaga-Beispiel:* Innerhalb der Goal-Card (raised, weiß) vier flat-Cards mit den Readiness-Komponenten — visuell klar als „Teil der Goal-Card" erkennbar, nicht als eigenständige Cards.
+
+**Harte Regeln (verboten):**
+
+| Situation | Warum verboten |
+|---|---|
+| `flat` direkt auf Page | stone/50 auf stone/50 = unsichtbar |
+| `raised` innerhalb `raised` | Card-on-Card Schatten (Anti-Pattern) |
+| `flat` innerhalb `flat` | Pointless — stone/50 auf stone/50, kein visueller Unterschied |
+
+**Die zentrale Regel:**
+> `flat` ist eine **Nest-nur-Variante**. Ohne eine weiße Fläche drumherum ist sie unsichtbar. Wer `flat` außerhalb einer `raised` Card (oder eines Modals/Sheets mit weißer Fläche) verwendet, hat das Token-System falsch verstanden.
+
+**Faustregeln:**
+
+| Regel | Erklärung |
+|---|---|
+| Start mit `raised` | Default. 90% der Cards sind raised. |
+| `flat` nur für Gruppierung IN einer raised Card | Wenn `flat` als „andere Card-Optik" dient, liegt meist ein Hierarchie-Problem vor. |
+| Max. 2 Nesting-Ebenen | `raised → flat` — reicht fast immer. Tiefer wirkt überstrukturiert. |
+| Modals zählen als weiße Fläche | `flat` innerhalb eines Modals ist erlaubt und sinnvoll. |
+| Elevation ist nicht für Wichtigkeit | Wichtigkeit zeigst du durch Position, Typografie, Farbe — nicht durch Elevation-Wechsel. |
 
 ### Touch-Targets
 
