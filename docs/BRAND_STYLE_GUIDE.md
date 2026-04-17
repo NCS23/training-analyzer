@@ -1,7 +1,7 @@
 # Brand & Style Guide — minsaga
 
 > **Status:** Entwurf — wird schrittweise ergänzt
-> **Letzte Aktualisierung:** 2026-04-14
+> **Letzte Aktualisierung:** 2026-04-17
 
 ---
 
@@ -266,9 +266,14 @@ Klare Hintergrund-Hierarchie:
 
 | Ebene | Farbe | Begründung |
 |---|---|---|
-| Page / App-Hintergrund | stone | Warmer Grundton, nie kalt oder steril |
-| Cards | weiß | Hebt sich sauber vom stone-Hintergrund ab |
+| Page / App-Hintergrund | stone/50 | Warmer Grundton, nie kalt oder steril |
+| Cards (Standard, `elevation="raised"`) | weiß | Hebt sich sauber vom stone-Hintergrund ab |
+| Innere / verschachtelte Cards (`elevation="flat"`) | stone/50 | Fraktale Hierarchie: die ambient Farbe der Ebene davor wird zur Umgebung der nächsten |
 | Modals / Overlays | weiß | Maximale Klarheit im Fokus-Zustand |
+
+**Fraktale Farbhierarchie:** Die Trennung zwischen „ambient" (stone) und „fokussiert" (weiß) wiederholt sich rekursiv. Auf der Page: `stone umrahmt weiß` (Page→Card). Innerhalb einer Card: `weiß umrahmt stone` (Card→innere Card). Das erzeugt ein natürliches Zoom-Prinzip — jede Ebene hat dieselbe Logik, nur invertiert.
+
+**Konsequenz:** Verschachtelte Cards brauchen **keine Border** — der Farb-Ton (stone auf weiß) trennt bereits. Borders sind fast immer Hilfsmittel, wenn Ton oder Schatten nicht reichen — hier reicht Ton.
 
 ### Nicht in der Palette
 
@@ -290,8 +295,9 @@ Klare Hintergrund-Hierarchie:
 - Große Texte / Icons: mind. 3:1
 
 **Warme Untertöne:**
-- Page-Hintergrund: stone (nie reines Weiß `#FFFFFF` für die App-Fläche)
-- Cards: reines Weiß — der Kontrast zum stone-Hintergrund ist gewollt
+- Page-Hintergrund: stone/50 (nie reines Weiß `#FFFFFF` für die App-Fläche)
+- Cards (raised): reines Weiß — der Kontrast zum stone-Hintergrund ist gewollt
+- Cards (flat, innen): stone/50 — inverse Hierarchie zur äußeren Card
 - Text: nie reines Schwarz — slate-900 als dunkelster Wert
 
 **Farbe ist niemals einziger Informationsträger** — immer mit Icon, Text oder Form kombinieren (~8 % der Männer sind farbenblind).
@@ -416,13 +422,13 @@ viel Raum dazwischen — nicht vollgepackte Screens.
 
 ### Radii
 
-Weiche Kanten, sanfte Formen — organisch, nie hartkantig.
+Weiche Kanten, sanfte Formen — organisch, nie hartkantig. **Minsaga nutzt einen charakteristisch großen Radius auf Cards** — das ist Teil der Markenpersönlichkeit (weich, einladend, nicht hart-kantig wie Enterprise-Software).
 
 | Kontext | Radius | Token |
 |---|---|---|
 | Buttons, Inputs, Chips | 4–8px | `--radius-sm` |
-| Cards, Container | 8–16px | `--radius-md` |
-| Modale, Panels | 12–24px | `--radius-lg` |
+| Cards, Container | **32px** | `--card-radius` |
+| Modale, Panels | 24–32px | `--radius-lg` |
 | Pill (Tags/Badges only) | 9999px | `rounded-full` |
 
 **Pill-Form nur für Tags/Badges** — nicht für primäre Aktionen (reduziert die wahrgenommene Klickfläche).
@@ -430,21 +436,36 @@ Weiche Kanten, sanfte Formen — organisch, nie hartkantig.
 ### Schatten
 
 Weich, diffus, niedrige Opazität — wie Henningsens „menschliches Licht".
-Nie hart, nie übertrieben.
+Nie hart, nie übertrieben. Minsaga-Schatten sind **weit gestreut und kaum spürbar** — sie erzeugen Separation, ohne dass das Auge sie bewusst wahrnimmt.
 
-| Ebene | Token/Prop | Verwendung |
+**Minsaga Card-Schatten (raised):**
+```
+offset: 0, 10px
+blur: 40px
+spread: -4px
+color: rgba(15, 23, 42, 0.04)  /* slate/900 mit 4% Opazität */
+```
+
+| Ebene | Visuelle Differenzierung | Verwendung |
 |---|---|---|
-| flat | `elevation="flat"` | Innere Cards, keine Elevation |
-| raised | `--shadow-sm` | Standard-Cards |
-| floating | `--shadow-md` | Modale, Dropdowns, FAB |
+| `elevation="flat"` | stone/50 Hintergrund (kein Schatten, keine Border) | Innere / verschachtelte Cards |
+| `elevation="raised"` | weißer Hintergrund + weicher Schatten (keine Border) | Standard-Cards auf der Page |
 
-- **Keine Card-on-Card Schatten** — innere Cards immer `elevation="flat"`
-- **Max. 2 Schattenebenen** auf einer Seite
+**Shadow OR Background — nie beides.** Raised-Cards nutzen Schatten zur Separation, flat-Cards nutzen Tonwechsel (stone/50 auf weiß). **Niemals Shadow + Border** — das ist „doppelt gemoppelt" und erzeugt visuellen Lärm.
+
+**Floating-Elemente** (Modals, Dropdowns, Popover, Tooltips) sind **eigene Komponenten** (Dialog, Popover, Dropdown) mit eigenen Shadow-Tokens — **nicht** eine dritte Card-Variante. Karten sind für In-Flow-Page-Content, Floating für Overlays.
+
+**Regel — Keine Card-on-Card Schatten:** Innere Cards immer `elevation="flat"`. Der Tonwechsel zur Stone-Farbe trennt ausreichend.
+
+**Max. 2 Schattenebenen** auf einer Seite (Raised-Cards + ggf. ein Modal).
 
 ### Borders
 
-- **1px**, gedämpfte Farbe (`--color-border-muted`)
+- **Cards verwenden standardmäßig keine Border.** Separation entsteht über Schatten (raised) oder Tonwechsel (flat).
+- Borders nur dort, wo Schatten und Ton nicht reichen: Inputs, Divider, Fokus-Ring.
+- Wenn Border: **1px**, gedämpfte Farbe (`--color-border-muted` = slate/200)
 - Keine 2px-Borders außer für den Fokus-Ring (Accessibility)
+- `strokeWeight` auf Cards ist trotzdem token-gebunden (`card/border/width` = 1px) — falls im Spezialfall eine Border gewünscht wird (z.B. Error-State, Selected-State), steht die Infrastruktur bereit.
 
 ### Icons
 
@@ -465,6 +486,15 @@ Alle UI-Primitives kommen aus `@nordlig/components`:
 ### Cards
 
 - Cards als primäre Strukturierung, nicht als Dekoration
+- **Zwei Varianten-Achsen:**
+  - `elevation`: `flat` (innere/verschachtelte, stone/50 bg) | `raised` (Standard, weiß + Schatten)
+  - `padding`: `compact` (12px) | `normal` (20px) | `spacious` (24px)
+- **Slots:** `Header`, `Content`, `Footer` — jeder mit eigenen Gap-Tokens
+  - Header-Gap: 4px (Meta+Title sind eine semantische Einheit)
+  - Content-Gap: 16px (komfortabler Rhythmus für Body-Inhalte)
+  - Footer-Gap: 12px (Standard-Button-Group-Spacing)
+- **Symmetrisches Padding** (alle vier Seiten gleich). Asymmetrisches Padding (z.B. für „Timestamp am Cardboden") gehört in spezialisierte Cards (`SessionCard`, `StatCard`), nicht in die generische Card
+- **Corner-Radius:** 32px — der Minsaga-Card-Radius, charakteristisch weich
 
 ### Touch-Targets
 
