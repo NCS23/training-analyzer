@@ -1,7 +1,7 @@
 # Brand & Style Guide — minsaga
 
 > **Status:** Entwurf — wird schrittweise ergänzt
-> **Letzte Aktualisierung:** 2026-04-18
+> **Letzte Aktualisierung:** 2026-04-24
 
 ---
 
@@ -734,8 +734,10 @@ Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt →
 - [PROJEKT_REGELN.md](PROJEKT_REGELN.md) — Technische Regeln
 - [CLEAN_CODE.md](CLEAN_CODE.md) — Code-Qualität
 - [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) — Konzept, Designentscheidungen & Algorithmus-Begründungen
+- [MINSAGA_TOKENS.md](MINSAGA_TOKENS.md) — Minsaga-spezifische Token-Ergänzungen (5 Collections: Color, Typography, Spacing, Sizing, Radius)
 - Nordlig DS Storybook: http://storybook.89.167.78.223.sslip.io
 - Nordlig DS Designprinzipien: `nordlig-design-system/DESIGN_PRINCIPLES.md`
+- Nordlig DS Token-Architektur: `nordlig-design-system/docs/TOKEN_GUIDELINES.md`
 - Fitness Level System: GitHub Epic #694
 
 ---
