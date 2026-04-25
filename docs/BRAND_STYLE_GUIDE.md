@@ -614,12 +614,26 @@ Default für jede Card, die **selbst** auf der Page oder in einem Container steh
 
 ### Der AI Coach
 
+> Vollständiges Konzept (drei Stimmen, Symbol, FAB-Verankerung, Form): [AI_PRESENCE_CONCEPT.md](AI_PRESENCE_CONCEPT.md) · Issue [#751](https://github.com/NCS23/training-analyzer/issues/751)
+
 Der AI Coach ist kein Chatbot — er ist ein persönlicher Trainingsbegleiter.
 Er analysiert abgeschlossene Trainings, gibt konkretes Feedback, schlägt Pläne vor
 und passt diese kontinuierlich an. Er kennt die Ziele des Läufers und erinnert
 ihn daran wenn es darauf ankommt.
 
 **Ton des AI Coach:** Klar, direkt, motivierend — nie bevormundend.
+
+**Drei Stimmen, eine Präsenz:**
+
+| Stimme | Rolle | Auslöser |
+|---|---|---|
+| **Begleiter** *(Grundton)* | warm, fragend, partnerschaftlich | Tagesbegrüßung, Reflexion, Empty States, weiche Momente |
+| **Coach** | klar, handlungsleitend, diagnostisch | Trainingsempfehlung, Warnung, Plan-Anpassung, Onboarding |
+| **Zeuge** | beobachtend, würdigend, still | Level-Up, Meilenstein, Saga-Rückblick |
+
+Stimmen-Wechsel an Kanten: *Etwas zu tun* → Coach. *Etwas zu fühlen* → Begleiter. *Etwas zu würdigen* → Zeuge.
+
+**Visuelle Verkörperung:** Stilisierte Rabe-Silhouette in Fuchsia-Familie (Markenfarbe AI, §5). Symbol statt Eigenname. Strukturell verankert im FAB, sprachlich nur anlassbezogen — kein Dauerkommentar.
 
 ### Fitness-Level-Namen (Ausdauer)
 
@@ -735,6 +749,7 @@ Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt →
 - [CLEAN_CODE.md](CLEAN_CODE.md) — Code-Qualität
 - [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) — Konzept, Designentscheidungen & Algorithmus-Begründungen
 - [MINSAGA_TOKENS.md](MINSAGA_TOKENS.md) — Minsaga-spezifische Token-Ergänzungen (5 Collections: Color, Typography, Spacing, Sizing, Radius)
+- [AI_PRESENCE_CONCEPT.md](AI_PRESENCE_CONCEPT.md) — KI-Präsenz: drei Stimmen, Symbol statt Eigenname, FAB-Verankerung, Form (Rabe in Fuchsia-Familie)
 - Nordlig DS Storybook: http://storybook.89.167.78.223.sslip.io
 - Nordlig DS Designprinzipien: `nordlig-design-system/DESIGN_PRINCIPLES.md`
 - Nordlig DS Token-Architektur: `nordlig-design-system/docs/TOKEN_GUIDELINES.md`
