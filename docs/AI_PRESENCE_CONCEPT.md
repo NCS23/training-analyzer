@@ -186,6 +186,60 @@ Charaktere.
 | **Coach** | wacher, präziser (1.5–2 s) | etwas stärker, klarer Rand | leicht in Bewegung |
 | **Zeuge** | kein Atem — Stillstand | großer, weiter Halo | Nordlicht-Gradient flutet langsam (nur in diesem Moment) |
 
+### Explizite KI-Markierung im Label
+
+Das Symbol (Rabe in Fuchsia-Familie) ist die **Marken-Codierung** für KI. Bis diese
+Konvention im Nutzer-Bewusstsein etabliert ist, trägt das Card-Header-Label
+zusätzlich eine **explizite Klassifikation**.
+
+#### Begründung
+
+| Argument | Folge |
+|---|---|
+| **Mental Model in der Lernphase** | Beim ersten Kontakt erkennt ein Nutzer die Konvention „Fuchsia + Rabe = KI" noch nicht. Eine explizite Markierung verankert die Bedeutung. |
+| **Style Guide §5** | *„Fuchsia signalisiert sofort: KI-generierter Inhalt."* — eine Markenfarbe allein trägt diese Last nur für geschulte Augen. |
+| **EU AI Act / Compliance** | Transparenz ist Pflicht: Nutzer haben das Recht zu wissen, wann KI im Spiel ist. Eine Markenfarbe allein reicht juristisch nicht. |
+
+#### Card-Header-Struktur
+
+Zwei-teiliges Label mit `·` als Trenner:
+
+```
+Insight · KI-GENERIERT
+```
+
+| Teil | Stil | Rolle |
+|---|---|---|
+| **Hauptwort** *(z.B. „Insight")* | DM Sans, Sentence-case, Fuchsia | das *Was* — Funktion der Card |
+| `·` | DM Sans, Slate (muted) | Trenner |
+| **Klassifikation** *(z.B. „KI-GENERIERT")* | DM Sans, **all-caps**, semibold, `tracking-wider`, `text-muted` (Slate) | das *Woher* — Quelle / KI-Marker |
+
+Die `uppercase tracking-wider text-muted`-Form folgt dem **App-weiten Eyebrow-Pattern**
+(belegt in `Dashboard.tsx`, `TrainingPlanReadView.tsx`, `DayCard.tsx`,
+`SessionMetricsGrid.tsx`, `WeatherCorrelationCard.tsx`, `AppLayout.tsx`).
+Sentence-case wäre ein Bruch.
+
+#### Erweiterbarkeit
+
+Das Klassifikations-Slot ist nicht auf „KI-GENERIERT" beschränkt. Anlassbezogen:
+
+| Anlass | Klassifikation |
+|---|---|
+| Generischer Coach-Tipp / Tagesinsight | `KI-GENERIERT` |
+| Konkrete Plan-Empfehlung | `KI-EMPFEHLUNG` |
+| Verletzungsrisiko / Warnung | `KI-WARNUNG` |
+| Reflexions-Frage / Begleiter-Modus | `KI-IMPULS` *(Vorschlag, zu validieren)* |
+
+Die `KI-`-Vorsilbe bleibt konstant — sie ist der wiedererkennbare Marker, nicht das
+Wort danach.
+
+#### Schreibweise
+
+- **Bindestrich** ist Pflicht (`KI-GENERIERT`, nicht `KI GENERIERT`) — zusammengesetztes
+  Adjektiv im deutschen Sprachgebrauch (analog zu „CO2-neutral", „handgemacht").
+- **All-caps**, weil Klassifikation, nicht Aussage.
+- **Deutsch**, weil App-Sprache deutsch (Style Guide §10).
+
 ---
 
 ## Verworfene Ansätze
@@ -199,6 +253,10 @@ Charaktere.
 | **Schwarzer / dunkler Rabe** | Bricht die Fuchsia-Regel (Style Guide §5: AI = Fuchsia). Hugin/Munin-Mythologie ist eine externe Referenz, die im Brand-Universum nicht vorkommt. Düstere Konnotation widerspricht Hygge. |
 | **Tier-Farbe pro Stimme variieren** | Bricht „Eine Form, drei Stimmen" — Variation darf nur in Atem/Halo/Gradient liegen, nicht in der Form selbst. Drei Farben = drei Wesen. |
 | **Allgegenwärtig sprechend** (Modell 3 in Iteration) | Killt Lagom. Verstößt gegen *„nüchtern bei Daten"*. Wird gemutet oder die App gewechselt. |
+| **Card-Header `Insight` allein** (ohne KI-Markierung) | Trägt die KI-Identität nur über Fuchsia + Rabe — funktioniert erst nach Etablierung der Konvention, nicht beim ersten Kontakt. Compliance-Lücke (EU AI Act). |
+| **Card-Header `AI Coach · INSIGHT`** | „AI Coach" als Eigenname-Etikett widerspricht Punkt 2 (Symbol statt Eigenname). Drei Fuchsia-Layer auf einer Card (Bubble + Rabe + Label) sind zu laut. |
+| **Card-Header `KI · INSIGHT`** *(KI größer + Fuchsia, INSIGHT kleiner + Slate)* | „KI" dominiert visuell, „Insight" wird zur Untertitel-Klassifikation — Hierarchie ist umgekehrt zur Funktion. Wirkt wie Tech-Schlagzeile, nicht wie ruhige Meta-Zeile. |
+| **Card-Header `Insight · KI generiert`** *(sentence-case, ohne Bindestrich)* | Bricht das App-weite Eyebrow-Pattern (`uppercase tracking-wider`). „KI generiert" ohne Bindestrich liest sich auf den ersten Blick als Verb, nicht als Klassifikation. |
 
 ---
 
