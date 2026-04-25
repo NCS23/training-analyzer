@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Präsenz — Aurora-Wellen v3</title>
+  <style>
+    /* Standalone Design-Skizze. Hardcodierte Werte bewusst — nicht Teil des App-Builds. */
+    :root {
+      --fuchsia: #d946ef;
+      --stone-50: #fafaf9;
+      --stone-100: #f5f5f4;
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-400: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', -apple-system, system-ui, sans-serif;
+      background: var(--stone-50);
+      color: var(--slate-900);
+      padding: 48px 24px 96px;
+      max-width: 1080px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 22px;
+      margin: 56px 0 4px;
+      letter-spacing: -0.01em;
+    }
+    p.lede { color: var(--slate-700); margin-bottom: 16px; max-width: 64ch; }
+
+    .principles {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--slate-700);
+      box-shadow: 0 10px 40px -4px rgba(15, 23, 42, 0.04);
+    }
+    .principles ul { padding-left: 20px; }
+    .principles li { margin-bottom: 4px; }
+
+    .variant {
+      background: white;
+      border-radius: 32px;
+      padding: 32px;
+      margin-top: 24px;
+      box-shadow: 0 10px 40px -4px rgba(15, 23, 42, 0.04);
+    }
+    .variant-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 4px; }
+    .variant-name { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 600; }
+    .variant-tag { font-size: 12px; color: var(--fuchsia); text-transform: uppercase; letter-spacing: 0.08em; }
+    .variant-desc { color: var(--slate-700); font-size: 14px; margin-bottom: 24px; max-width: 64ch; }
+
+    .sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 32px;
+      flex-wrap: wrap;
+      padding: 24px 0;
+      border-top: 1px solid var(--stone-100);
+      border-bottom: 1px solid var(--stone-100);
+      margin-bottom: 24px;
+    }
+    .size { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .size-label { font-size: 11px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .states {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .state {
+      background: var(--stone-50);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .state-title { font-family: 'Fraunces', Georgia, serif; font-size: 14px; font-weight: 600; }
+    .state-sub { font-size: 11px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .context-row { display: flex; gap: 24px; flex-wrap: wrap; }
+    .chat-stack {
+      flex: 1;
+      min-width: 280px;
+      background: var(--stone-50);
+      border-radius: 24px;
+      padding: 20px;
+    }
+    .chat-stack-label { font-size: 11px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    .chat-msg { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+    .chat-bubble {
+      background: white;
+      padding: 10px 14px;
+      border-radius: 16px 16px 16px 4px;
+      font-size: 13px;
+      color: var(--slate-700);
+      max-width: 240px;
+      line-height: 1.5;
+    }
+    .fab-demo {
+      width: 220px;
+      background: var(--stone-50);
+      border-radius: 24px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .fab-circle {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 30px -4px rgba(217, 70, 239, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    }
+    .fab-label { font-size: 11px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .breathing { animation: breathe 4s ease-in-out infinite; transform-origin: 50% 50%; }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.95; }
+      50% { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .breathing { animation: none !important; }
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+    @media (min-width: 720px) {
+      .compare { grid-template-columns: repeat(4, 1fr); }
+    }
+    .compare-item {
+      background: var(--stone-50);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .compare-name { font-family: 'Fraunces', Georgia, serif; font-size: 14px; font-weight: 600; }
+
+    .meta { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--stone-100); font-size: 12px; color: var(--slate-400); }
+
+    /* SVG-Stroke-Defaults für Aurora-Pfade */
+    .aurora-stroke {
+      fill: none;
+      stroke: #d946ef;
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AI-Präsenz — Aurora-Wellen</h1>
+  <p class="lede">
+    Vier Konturen, abgeleitet von der Form des Nordlichts. Lucide-kompatibler Stroke (~2 px auf 24 px),
+    eine Farbe (Fuchsia), Glow optional aus der Form selbst. Drei Zustände pro Variante:
+    Ruhe (Begleiter) · Leichter Impuls (Coach) · Starker Impuls (Zeuge).
+  </p>
+
+  <div class="principles">
+    <strong>Was sich gegenüber v2 geändert hat:</strong>
+    <ul>
+      <li>Kontur statt gefüllter Form — kompatibel mit Lucide-Icons in der App</li>
+      <li>Form aus dem Nordlicht abgeleitet (Aurora-Welle, kein Sparkle, kein Stern)</li>
+      <li>Logo und AI-Symbol teilen das Universum: Logo nutzt Nordlicht als Farbe (Berge+Trail in Gradient), AI-Symbol nutzt Nordlicht als Form (Welle in Fuchsia)</li>
+      <li>Drei Zustände passen 1:1 auf die drei Stimmen (Begleiter/Coach/Zeuge)</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SVG Defs: Glow-Filter für drei Zustände                   -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="b1"/>
+        <feGaussianBlur stdDeviation="8" in="SourceGraphic" result="b2"/>
+        <feMerge>
+          <feMergeNode in="b2"/>
+          <feMergeNode in="b1"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- VARIANT 1: SCHLEIER                                       -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">1. Schleier</div>
+      <div class="variant-tag">eine geste · still · elegant</div>
+    </div>
+    <p class="variant-desc">
+      Eine einzelne, fließende S-Linie — wie ein Aurora-Schleier, der durch den Himmel zieht.
+      Die ruhigste Variante. Ein einziger Pinselstrich, eine Geste, eine Bewegung.
+      Maximale Reduktion ohne leer zu wirken.
+    </p>
+
+    <!-- Größen -->
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <!-- Drei Zustände -->
+    <div class="states">
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="state-title">Begleiter</div>
+        <div class="state-sub">Ruhe</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 30 15 C 70 30, 30 70, 70 85" filter="url(#glow-soft)"/></svg>
+        <div class="state-title">Coach</div>
+        <div class="state-sub">Leichter Impuls</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85" filter="url(#glow-strong)"/></svg>
+        <div class="state-title">Zeuge</div>
+        <div class="state-sub">Starker Impuls</div>
+      </div>
+    </div>
+
+    <!-- Kontext -->
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 30 15 C 70 30, 30 70, 70 85" filter="url(#glow-soft)"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- VARIANT 2: VORHANG                                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">2. Vorhang</div>
+      <div class="variant-tag">drei strähnen · präsent · vielschichtig</div>
+    </div>
+    <p class="variant-desc">
+      Drei vertikale, leicht gewellte Linien — wie ein Aurora-Vorhang am Himmel. Mehr Substanz
+      als der Schleier, klarer als Symbol erkennbar. Die drei Linien können später jeweils mit
+      einer Stimme assoziiert werden (Begleiter/Coach/Zeuge — drei Stränge einer Präsenz).
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="states">
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><g class="aurora-stroke breathing"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="state-title">Begleiter</div>
+        <div class="state-sub">Ruhe</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><g class="aurora-stroke breathing" filter="url(#glow-soft)"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="state-title">Coach</div>
+        <div class="state-sub">Leichter Impuls</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><g class="aurora-stroke" filter="url(#glow-strong)"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="state-title">Zeuge</div>
+        <div class="state-sub">Starker Impuls</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><g class="aurora-stroke"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><g class="aurora-stroke breathing" filter="url(#glow-soft)"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- VARIANT 3: FALTE                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">3. Falte</div>
+      <div class="variant-tag">aktive aurora · gerichtet · charakter</div>
+    </div>
+    <p class="variant-desc">
+      Eine Linie mit zentraler Spitze — wie aktive Aurora, die sich zu einem hohen Vorhang faltet.
+      Charakterstärker als Schleier oder Vorhang. Vertikale Achse trägt schwach die Logo-DNA
+      (Berg-Silhouette ohne Berg zu sein), ohne mit dem Logo zu konkurrieren.
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="states">
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="state-title">Begleiter</div>
+        <div class="state-sub">Ruhe</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" filter="url(#glow-soft)" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="state-title">Coach</div>
+        <div class="state-sub">Leichter Impuls</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke" filter="url(#glow-strong)" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="state-title">Zeuge</div>
+        <div class="state-sub">Starker Impuls</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><path class="aurora-stroke breathing" filter="url(#glow-soft)" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- VARIANT 4: BOGEN                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">4. Bogen</div>
+      <div class="variant-tag">aurora vom horizont · weit · friedlich</div>
+    </div>
+    <p class="variant-desc">
+      Ein einzelner Bogen — wie Aurora aus der Ferne gesehen, ein Lichtbogen über dem Horizont.
+      Der friedlichste Vorschlag, fast meditativ. Risiko: könnte mit einem Lächeln/Smile-Icon
+      verwechselt werden, wenn er zu glatt ist. Mit leichter Asymmetrie versucht der Entwurf das zu vermeiden.
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="states">
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="state-title">Begleiter</div>
+        <div class="state-sub">Ruhe</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke breathing" filter="url(#glow-soft)" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="state-title">Coach</div>
+        <div class="state-sub">Leichter Impuls</div>
+      </div>
+      <div class="state">
+        <svg width="72" height="72" viewBox="0 0 100 100"><path class="aurora-stroke" filter="url(#glow-strong)" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="state-title">Zeuge</div>
+        <div class="state-sub">Starker Impuls</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><path class="aurora-stroke" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><path class="aurora-stroke breathing" filter="url(#glow-soft)" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- DIREKTVERGLEICH                                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>Direktvergleich</h2>
+  <p class="lede">Welche Form fühlt sich auf den ersten Blick am stimmigsten an?</p>
+
+  <div class="variant">
+    <div class="compare">
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 30 15 C 70 30, 30 70, 70 85"/></svg>
+        <div class="compare-name">Schleier</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><g class="aurora-stroke breathing"><path d="M 28 15 C 33 35, 25 55, 30 82"/><path d="M 50 10 C 56 30, 44 60, 52 88"/><path d="M 72 15 C 67 35, 75 55, 70 82"/></g></svg>
+        <div class="compare-name">Vorhang</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 15 78 Q 35 75, 42 45 Q 48 18, 50 16 Q 52 18, 58 45 Q 65 75, 85 78"/></svg>
+        <div class="compare-name">Falte</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><path class="aurora-stroke breathing" d="M 12 70 C 28 30, 62 22, 88 55"/></svg>
+        <div class="compare-name">Bogen</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta">
+    Standalone Design-Skizze · keine Produktivkomponente · respektiert <code>prefers-reduced-motion</code> ·
+    Stroke 2 px (Lucide-konform), Glow per <code>feGaussianBlur</code>-Filter, einheitlich Fuchsia (#d946ef).
+  </div>
+
+</body>
+</html>
