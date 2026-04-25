@@ -38,7 +38,11 @@ if check_bypass; then
 fi
 
 # --- Get current branch ---
-BRANCH=$(git -C "$PROJECT_ROOT" branch --show-current 2>/dev/null || echo "unknown")
+# Use the working directory of the push (not $PROJECT_ROOT). When the user pushes
+# from a worktree, the worktree's branch is what's actually being pushed — not
+# the branch checked out in the main repo. Hardcoding $PROJECT_ROOT would falsely
+# block worktree pushes whenever the main repo happens to sit on a merged branch.
+BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
   cat <<EOF
