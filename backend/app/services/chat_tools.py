@@ -292,8 +292,12 @@ CHAT_TOOLS: list[dict] = [
             "Erzeugt eine interaktive Karte im Chat. Nutze dieses Tool wenn du eine "
             "Aenderung am Trainingsplan empfiehlst (z.B. Ruhetag einschieben, Session tauschen, "
             "oder eine Session inkl. Intervall-Struktur ersetzen). "
-            "Bei action='add' oder 'replace' KANN run_details mit Intervallen (Warmup, Work, "
-            "Recovery, Cooldown) uebergeben werden, damit die Session segmentgenau im Plan landet."
+            "PFLICHT bei action='add' oder 'replace' fuer Lauf-Sessions mit Struktur "
+            "(Intervalle, Tempolauf, Long Run, Progression): training_type='running' UND "
+            "run_details mit run_type + intervals[] (Warmup, Work mit Pace/repeats, Recovery, "
+            "Cooldown). Verstecke Pace, Dauer oder Wiederholungen NIEMALS nur in description "
+            "oder to_value — sonst landen sie nur als Freitext-Notiz und nicht als echtes "
+            "Segment im Plan. notes ist nur fuer Begleithinweise."
         ),
         "input_schema": {
             "type": "object",
