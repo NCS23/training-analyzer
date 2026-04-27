@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Icon } from '@nordlig/components';
+import { Button, Icon } from '@nordlig/components';
 import {
   CalendarDays,
   LayoutDashboard,
@@ -220,12 +220,23 @@ function Sidebar() {
 
 /* Mobile top bar — only visible below 900px */
 function MobileTopBar() {
+  const { logout } = useAuth();
   return (
     <div className="fixed top-0 right-0 left-0 z-[90] flex h-[64px] items-center justify-between border-b border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-5 shadow-[var(--shadow-xs)] lg:hidden">
       <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-base)]">
         <img src="/logo.svg" alt="Training Analyzer" className="h-10 w-10 shrink-0" />
         Training Analyzer
       </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => void logout()}
+        title="Abmelden"
+        aria-label="Abmelden"
+        className="!px-3"
+      >
+        <LogOut className="h-5 w-5" />
+      </Button>
     </div>
   );
 }
