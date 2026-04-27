@@ -62,3 +62,4 @@ e2e/playwright-report/
 # .claude/design-review.md      → design review report
 # .claude/screenshots/           → screenshot evidence
 e2e/.auth-state.json
+.playwright-mcp/

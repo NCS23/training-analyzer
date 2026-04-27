@@ -13,17 +13,42 @@
 set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-REVIEW="${REPO_ROOT}/.claude/design-review.md"
+REVIEWS_DIR="${REPO_ROOT}/.claude/reviews"
 ERRORS=0
 
 # ============================================================
-# 1. Report must exist
+# 1. Find review file for current branch
+#    Convention: .claude/reviews/<issue-number>-<slug>.md
+#    Issue number is parsed from branch name like
+#    "feature/759-foo-bar" → 759.
+#    Old single-file pattern (.claude/design-review.md) is no longer
+#    supported; reviews are kept per-branch as audit history.
 # ============================================================
-if [ ! -f "$REVIEW" ]; then
-  echo "  No design review report found at .claude/design-review.md"
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+ISSUE_NUM="$(echo "$BRANCH" | grep -oE '[0-9]+' | head -1 || true)"
+
+if [ -z "$ISSUE_NUM" ]; then
+  echo "  Could not extract issue number from branch '$BRANCH'."
+  echo "  Branch name should contain an issue number (e.g. feature/759-foo)."
+  exit 1
+fi
+
+if [ ! -d "$REVIEWS_DIR" ]; then
+  echo "  Reviews directory missing: .claude/reviews/"
+  echo "  Create it and add ${ISSUE_NUM}-<slug>.md from scripts/design-review-template.md."
+  exit 1
+fi
+
+REVIEW="$(ls "$REVIEWS_DIR"/${ISSUE_NUM}-*.md 2>/dev/null | head -1 || true)"
+
+if [ -z "$REVIEW" ] || [ ! -f "$REVIEW" ]; then
+  echo "  No design review found for issue #${ISSUE_NUM}."
+  echo "  Expected: .claude/reviews/${ISSUE_NUM}-<slug>.md"
   echo "  Copy from scripts/design-review-template.md and fill it out."
   exit 1
 fi
+
+echo "  Validating review: ${REVIEW#${REPO_ROOT}/}"
 
 # ============================================================
 # 2. Required sections must be present
