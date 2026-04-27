@@ -290,7 +290,10 @@ CHAT_TOOLS: list[dict] = [
         "description": (
             "Schlaegt eine konkrete Planaenderung vor, die der User per Klick uebernehmen kann. "
             "Erzeugt eine interaktive Karte im Chat. Nutze dieses Tool wenn du eine "
-            "Aenderung am Trainingsplan empfiehlst (z.B. Ruhetag einschieben, Session tauschen)."
+            "Aenderung am Trainingsplan empfiehlst (z.B. Ruhetag einschieben, Session tauschen, "
+            "oder eine Session inkl. Intervall-Struktur ersetzen). "
+            "Bei action='add' oder 'replace' KANN run_details mit Intervallen (Warmup, Work, "
+            "Recovery, Cooldown) uebergeben werden, damit die Session segmentgenau im Plan landet."
         ),
         "input_schema": {
             "type": "object",
@@ -322,7 +325,109 @@ CHAT_TOOLS: list[dict] = [
                 },
                 "to_value": {
                     "type": "string",
-                    "description": "Was stattdessen geplant werden soll",
+                    "description": (
+                        "Was stattdessen geplant werden soll (Kurzbeschreibung). "
+                        "Bei strukturierten Sessions ZUSAETZLICH run_details fuellen."
+                    ),
+                },
+                "training_type": {
+                    "type": "string",
+                    "description": (
+                        "Trainings-Typ bei action='add'/'replace'. "
+                        "'running' fuer Lauf-Sessions, 'strength' fuer Krafttraining."
+                    ),
+                    "enum": ["running", "strength"],
+                },
+                "run_details": {
+                    "type": "object",
+                    "description": (
+                        "Strukturierte Lauf-Session inkl. Intervalle (Soll-Vorgaben). "
+                        "NUR bei training_type='running' und action='add'/'replace' verwenden."
+                    ),
+                    "properties": {
+                        "run_type": {
+                            "type": "string",
+                            "enum": [
+                                "recovery",
+                                "easy",
+                                "long_run",
+                                "progression",
+                                "tempo",
+                                "intervals",
+                                "repetitions",
+                                "fartlek",
+                                "race",
+                            ],
+                        },
+                        "target_duration_minutes": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "maximum": 360,
+                        },
+                        "target_pace_min": {
+                            "type": "string",
+                            "description": "Schnellere Pace im Format 'M:SS' (z.B. '5:30')",
+                        },
+                        "target_pace_max": {
+                            "type": "string",
+                            "description": "Langsamere Pace im Format 'M:SS' (z.B. '6:00')",
+                        },
+                        "intervals": {
+                            "type": "array",
+                            "description": (
+                                "Strukturierte Intervalle. IMMER angeben bei Lauf — auch "
+                                "bei einfachen Laeufen (ein 'steady'-Segment)."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "warmup",
+                                            "cooldown",
+                                            "steady",
+                                            "work",
+                                            "recovery_jog",
+                                            "rest",
+                                            "strides",
+                                            "drills",
+                                        ],
+                                    },
+                                    "duration_minutes": {
+                                        "type": "number",
+                                        "minimum": 0.1,
+                                        "maximum": 180,
+                                    },
+                                    "distance_km": {
+                                        "type": "number",
+                                        "minimum": 0.1,
+                                        "maximum": 100,
+                                    },
+                                    "target_pace_min": {"type": "string"},
+                                    "target_pace_max": {"type": "string"},
+                                    "target_hr_min": {
+                                        "type": "integer",
+                                        "minimum": 60,
+                                        "maximum": 220,
+                                    },
+                                    "target_hr_max": {
+                                        "type": "integer",
+                                        "minimum": 60,
+                                        "maximum": 220,
+                                    },
+                                    "repeats": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                    "notes": {"type": "string"},
+                                },
+                                "required": ["type"],
+                            },
+                        },
+                    },
+                    "required": ["run_type"],
                 },
             },
             "required": ["action", "day", "description", "reason"],
@@ -494,6 +599,48 @@ CHAT_TOOLS: list[dict] = [
                 },
             },
             "required": ["query"],
+        },
+    },
+    {
+        "name": "propose_week_rewrite",
+        "description": (
+            "Schlaegt eine komplette Wochen-Umstrukturierung vor (analog zum Wochen-Review). "
+            "Der User bekommt eine interaktive Karte und kann den kompletten 7-Tage-Plan inkl. "
+            "Segmente per Klick uebernehmen. Nutze dieses Tool wenn der User die ganze "
+            "Folgewoche oder eine bestehende Woche anpassen moechte (z.B. Volumen reduzieren, "
+            "Tempo-Tag verschieben, neue Phase einleiten). "
+            "WICHTIG: Liefere konkrete, umsetzbare Empfehlungen — nicht nur 'mehr trainieren'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "review_week_start": {
+                    "type": "string",
+                    "description": (
+                        "Wochen-Start (Montag, YYYY-MM-DD) der ABGESCHLOSSENEN Woche. "
+                        "Die KI passt dann die FOLGEWOCHE basierend auf den Empfehlungen an."
+                    ),
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "Kurze Beschreibung der geplanten Aenderungen fuer den User",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Begruendung fuer die Wochen-Umstrukturierung",
+                },
+                "recommendations": {
+                    "type": "array",
+                    "description": (
+                        "Konkrete Empfehlungen als Freitext-Liste. Diese werden vom Backend "
+                        "an den apply_recommendations-Service uebergeben, der die Folgewoche "
+                        "neu strukturiert."
+                    ),
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                },
+            },
+            "required": ["review_week_start", "summary", "reason", "recommendations"],
         },
     },
 ]

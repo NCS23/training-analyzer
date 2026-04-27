@@ -1,6 +1,8 @@
 # Design Review — Issue #ISSUE_NUMBER
 
 > Dieser Report wird automatisch vom pre-push Hook validiert.
+> Ablage: `.claude/reviews/<issue-nr>-<slug>.md` (eine Datei pro Issue, nicht überschreiben!).
+> Alte Reviews bleiben als Audit-Historie liegen.
 > Alle Sektionen müssen ausgefüllt sein. Screenshots müssen existieren.
 
 ## 1. Nordlig DS Compliance

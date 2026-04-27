@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Loader2, Undo2 } from 'lucide-react';
 import { Button } from '@nordlig/components';
-import { applyPlanChange } from '@/api/chat';
+import { applyPlanChange, type PlanInterval, type PlanRunDetails } from '@/api/chat';
 
 export interface PlanSuggestion {
   action: 'swap' | 'skip' | 'add' | 'move' | 'replace' | 'rest_day';
@@ -13,6 +13,8 @@ export interface PlanSuggestion {
   reason: string;
   from?: string;
   to?: string;
+  training_type?: 'running' | 'strength';
+  run_details?: PlanRunDetails;
 }
 
 interface PlanSuggestionCardProps {
@@ -28,6 +30,74 @@ const ACTION_LABELS: Record<string, string> = {
   replace: 'Ersetzen',
   rest_day: 'Ruhetag einschieben',
 };
+
+const SEGMENT_LABELS: Record<string, string> = {
+  warmup: 'Warmup',
+  cooldown: 'Cooldown',
+  steady: 'Steady',
+  work: 'Belastung',
+  recovery_jog: 'Trab-Pause',
+  rest: 'Pause',
+  strides: 'Steigerungen',
+  drills: 'Lauf-ABC',
+};
+
+function formatPaceRange(min?: string, max?: string): string | null {
+  if (min && max) return `${min}–${max}/km`;
+  if (min) return `${min}/km`;
+  if (max) return `${max}/km`;
+  return null;
+}
+
+function formatDuration(interval: PlanInterval): string | null {
+  if (interval.duration_minutes) {
+    const total = interval.duration_minutes;
+    return total >= 1
+      ? `${total % 1 === 0 ? total : total.toFixed(1)} min`
+      : `${Math.round(total * 60)} s`;
+  }
+  if (interval.distance_km) return `${interval.distance_km} km`;
+  return null;
+}
+
+function RunDetailsPreview({ details }: { details: PlanRunDetails }) {
+  const intervals = details.intervals ?? [];
+  const totalDuration = details.target_duration_minutes;
+  const overallPace = formatPaceRange(details.target_pace_min, details.target_pace_max);
+
+  return (
+    <div className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] p-2 space-y-1">
+      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+        <span className="font-medium text-[var(--color-text-base)]">{details.run_type}</span>
+        {totalDuration && <span>· {totalDuration} min gesamt</span>}
+        {overallPace && <span>· {overallPace}</span>}
+      </div>
+      {intervals.length > 0 && (
+        <ol className="space-y-1">
+          {intervals.map((interval, idx) => {
+            const label = SEGMENT_LABELS[interval.type] ?? interval.type;
+            const dur = formatDuration(interval);
+            const pace = formatPaceRange(interval.target_pace_min, interval.target_pace_max);
+            const repeats = interval.repeats && interval.repeats > 1 ? `${interval.repeats}× ` : '';
+            return (
+              <li
+                key={idx}
+                className="flex items-baseline gap-2 text-xs text-[var(--color-text-base)]"
+              >
+                <span className="font-medium min-w-[5.5rem]">
+                  {repeats}
+                  {label}
+                </span>
+                {dur && <span className="text-[var(--color-text-muted)]">{dur}</span>}
+                {pace && <span className="text-[var(--color-text-muted)]">@ {pace}</span>}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 export function PlanSuggestionCard({ suggestion, onApplied }: PlanSuggestionCardProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'applied' | 'error'>('idle');
@@ -53,6 +123,8 @@ export function PlanSuggestionCard({ suggestion, onApplied }: PlanSuggestionCard
         reason: suggestion.reason,
         from: suggestion.from,
         to: suggestion.to,
+        training_type: suggestion.training_type,
+        run_details: suggestion.run_details,
       });
       setStatus('applied');
       onApplied?.();
@@ -82,6 +154,8 @@ export function PlanSuggestionCard({ suggestion, onApplied }: PlanSuggestionCard
       </div>
 
       <p className="text-sm text-[var(--color-text-base)]">{suggestion.description}</p>
+
+      {suggestion.run_details && <RunDetailsPreview details={suggestion.run_details} />}
 
       {suggestion.from && suggestion.to && (
         <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
