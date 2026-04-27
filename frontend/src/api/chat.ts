@@ -139,6 +139,26 @@ export async function getChatNotifications(): Promise<NotificationsResponse> {
 
 // --- Plan Changes ---
 
+export interface PlanInterval {
+  type: string;
+  duration_minutes?: number;
+  distance_km?: number;
+  target_pace_min?: string;
+  target_pace_max?: string;
+  target_hr_min?: number;
+  target_hr_max?: number;
+  repeats?: number;
+  notes?: string;
+}
+
+export interface PlanRunDetails {
+  run_type: string;
+  target_duration_minutes?: number;
+  target_pace_min?: string;
+  target_pace_max?: string;
+  intervals?: PlanInterval[];
+}
+
 export interface ApplyPlanChangeRequest {
   action: string;
   date: string;
@@ -148,6 +168,8 @@ export interface ApplyPlanChangeRequest {
   reason?: string;
   from?: string;
   to?: string;
+  training_type?: 'running' | 'strength';
+  run_details?: PlanRunDetails;
 }
 
 export interface ApplyPlanChangeResponse {

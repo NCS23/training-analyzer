@@ -12,6 +12,9 @@ import { parsePlanCreated } from './planCreatedParser';
 import type { PlanSuggestion } from './PlanSuggestionCard';
 import { PlanSuggestionCard } from './PlanSuggestionCard';
 import { parsePlanSuggestions } from './planSuggestionParser';
+import type { WeekRewriteSuggestion } from './WeekRewriteCard';
+import { WeekRewriteCard } from './WeekRewriteCard';
+import { parseWeekRewrites } from './weekRewriteParser';
 
 function TypingDots() {
   return (
@@ -64,14 +67,16 @@ interface ParsedContent {
   charts: ChartData[];
   plans: PlanCreatedInfo[];
   suggestions: PlanSuggestion[];
+  rewrites: WeekRewriteSuggestion[];
 }
 
-/** Parst Charts, Plan-Erstellungen und Plan-Vorschläge aus dem Content. */
+/** Parst Charts, Plan-Erstellungen, Session- und Wochen-Vorschläge aus dem Content. */
 function parseAssistantContent(content: string): ParsedContent {
   const { text: t1, charts } = parseChartBlocks(content);
   const { text: t2, plans } = parsePlanCreated(t1);
-  const { text, suggestions } = parsePlanSuggestions(t2);
-  return { text, charts, plans, suggestions };
+  const { text: t3, suggestions } = parsePlanSuggestions(t2);
+  const { text, rewrites } = parseWeekRewrites(t3);
+  return { text, charts, plans, suggestions, rewrites };
 }
 
 interface ChatMessageBubbleProps {
@@ -92,7 +97,7 @@ export function ChatMessageBubble({
 
   const parsed = !isUser
     ? parseAssistantContent(content)
-    : { text: content, charts: [], plans: [], suggestions: [] };
+    : { text: content, charts: [], plans: [], suggestions: [], rewrites: [] };
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -156,6 +161,9 @@ function BubbleContent({
       ))}
       {parsed.suggestions.map((s, i) => (
         <PlanSuggestionCard key={i} suggestion={s} />
+      ))}
+      {parsed.rewrites.map((r, i) => (
+        <WeekRewriteCard key={i} suggestion={r} />
       ))}
       {toolStatus && <ToolIndicator label={toolStatus} />}
     </div>

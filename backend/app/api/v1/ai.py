@@ -56,6 +56,15 @@ class ApplyPlanChangeRequest(BaseModel):
     reason: str = ""
     from_value: Optional[str] = Field(None, alias="from")
     to_value: Optional[str] = Field(None, alias="to")
+    training_type: Optional[str] = Field(
+        None,
+        pattern="^(running|strength)$",
+        description="Trainings-Typ bei add/replace (Standard: aus to_value abgeleitet)",
+    )
+    run_details: Optional[dict] = Field(
+        None,
+        description="Strukturierte Lauf-Session inkl. Intervalle (run_type, intervals[])",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -293,21 +302,24 @@ async def apply_plan_change(
 
     # Changelog erstellen
     if plan_id:
+        details: dict = {
+            "source": "ki_chat",
+            "action": request.action,
+            "date": request.date,
+            "from": request.from_value,
+            "to": request.to_value,
+        }
+        if request.training_type:
+            details["training_type"] = request.training_type
+        if request.run_details:
+            details["run_details"] = request.run_details
         changelog = PlanChangeLogModel(
             plan_id=plan_id,
             change_type="session_modified",
             category="content",
             summary=request.description or f"KI-Chat: {request.action}",
             reason=request.reason,
-            details_json=json.dumps(
-                {
-                    "source": "ki_chat",
-                    "action": request.action,
-                    "date": request.date,
-                    "from": request.from_value,
-                    "to": request.to_value,
-                }
-            ),
+            details_json=json.dumps(details),
         )
         db.add(changelog)
 
@@ -382,15 +394,7 @@ async def _action_replace(
     for s in sessions_result.scalars().all():
         await db.delete(s)
 
-    new_type, new_notes = _parse_to_value(request.to_value)
-    db.add(
-        PlannedSessionModel(
-            day_id=day.id,
-            position=0,
-            training_type=new_type,
-            notes=new_notes or request.description,
-        )
-    )
+    db.add(_build_planned_session(day_id=day.id, position=0, request=request))
     day.is_rest_day = False
     return {"message": f"Session ersetzt: {request.to_value}"}
 
@@ -409,17 +413,49 @@ async def _action_add(
     )
     max_pos = max_pos_result.scalar_one_or_none() or -1
 
-    new_type, new_notes = _parse_to_value(request.to_value)
-    db.add(
-        PlannedSessionModel(
-            day_id=day.id,
-            position=max_pos + 1,
-            training_type=new_type,
-            notes=new_notes or request.description,
-        )
-    )
+    db.add(_build_planned_session(day_id=day.id, position=max_pos + 1, request=request))
     day.is_rest_day = False
     return {"message": f"Session hinzugefügt: {request.to_value}"}
+
+
+def _build_planned_session(
+    *,
+    day_id: int,
+    position: int,
+    request: ApplyPlanChangeRequest,
+) -> PlannedSessionModel:
+    """Baut ein PlannedSessionModel für add/replace.
+
+    Übernimmt run_details (inkl. Intervalle) wenn vorhanden, validiert das
+    Schema strikt über RunDetails und persistiert es als run_details_json.
+    Fällt auf den alten Heuristik-Pfad (_parse_to_value) zurück, wenn keine
+    strukturierten Details mitgegeben wurden — so bleibt die KI rückwärts-
+    kompatibel zu reinen Freitext-Vorschlägen.
+    """
+    parsed_type, parsed_notes = _parse_to_value(request.to_value)
+    training_type = request.training_type or parsed_type
+    notes = parsed_notes or request.description
+
+    run_details_json: str | None = None
+    if request.run_details and training_type == "running":
+        from app.models.weekly_plan import RunDetails
+
+        try:
+            validated = RunDetails(**request.run_details)
+        except Exception as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Ungültige run_details: {e}",
+            ) from e
+        run_details_json = validated.model_dump_json(exclude_none=True)
+
+    return PlannedSessionModel(
+        day_id=day_id,
+        position=position,
+        training_type=training_type,
+        notes=notes,
+        run_details_json=run_details_json,
+    )
 
 
 async def _handle_swap(

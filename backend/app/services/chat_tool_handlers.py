@@ -60,6 +60,7 @@ async def dispatch_tool(
         "search_conversations": handle_search_conversations,
         "get_plan_change_log": handle_get_plan_change_log,
         "propose_plan_change": handle_propose_plan_change,
+        "propose_week_rewrite": handle_propose_week_rewrite,
         "generate_training_plan": handle_generate_training_plan,
         "search_training_knowledge": handle_search_training_knowledge,
     }
@@ -704,29 +705,71 @@ async def handle_propose_plan_change(args: dict, db: AsyncSession, **_kw: object
     # Plan-ID ermitteln für Changelog
     plan_id = await _get_active_plan_id(db)
 
+    payload: dict = {
+        "action": args.get("action", "replace"),
+        "day": args.get("day", ""),
+        "date": args.get("date"),
+        "week_start": week_start_str,
+        "plan_id": plan_id,
+        "description": args.get("description", ""),
+        "reason": args.get("reason", ""),
+        "from": args.get("from_value"),
+        "to": args.get("to_value"),
+    }
+
+    training_type = args.get("training_type")
+    if training_type:
+        payload["training_type"] = training_type
+
+    run_details = args.get("run_details")
+    if run_details:
+        payload["run_details"] = run_details
+
     return {
         "rendered": True,
-        "block": (
-            "```plan-change\n"
-            + json.dumps(
-                {
-                    "action": args.get("action", "replace"),
-                    "day": args.get("day", ""),
-                    "date": args.get("date"),
-                    "week_start": week_start_str,
-                    "plan_id": plan_id,
-                    "description": args.get("description", ""),
-                    "reason": args.get("reason", ""),
-                    "from": args.get("from_value"),
-                    "to": args.get("to_value"),
-                },
-                ensure_ascii=False,
-            )
-            + "\n```"
-        ),
+        "block": "```plan-change\n" + json.dumps(payload, ensure_ascii=False) + "\n```",
         "instruction": (
             "Fuege den obigen ```plan-change``` Block UNMODIFIZIERT in deine Antwort ein. "
             "Das Frontend rendert ihn automatisch als interaktive Karte mit Uebernehmen-Button."
+        ),
+    }
+
+
+async def handle_propose_week_rewrite(args: dict, db: AsyncSession, **_kw: object) -> dict:
+    """Formatiert einen Wochen-Rewrite-Vorschlag als interaktive Karte.
+
+    Die eigentliche Plan-Anpassung passiert serverseitig erst beim Klick auf
+    "Übernehmen" über den bestehenden ``apply_recommendations``-Endpunkt — so
+    bleiben Validierung, Plan-Sync und Changelog identisch zum Wochen-Review.
+    """
+    review_week_start = args.get("review_week_start")
+    target_week_start_str: str | None = None
+
+    if review_week_start:
+        try:
+            d = datetime.strptime(review_week_start, "%Y-%m-%d").date()
+            target_week_start_str = str(d + timedelta(days=7))
+        except ValueError:
+            pass
+
+    plan_id = await _get_active_plan_id(db)
+
+    payload: dict = {
+        "review_week_start": review_week_start,
+        "target_week_start": target_week_start_str,
+        "plan_id": plan_id,
+        "summary": args.get("summary", ""),
+        "reason": args.get("reason", ""),
+        "recommendations": args.get("recommendations", []),
+    }
+
+    return {
+        "rendered": True,
+        "block": "```week-rewrite\n" + json.dumps(payload, ensure_ascii=False) + "\n```",
+        "instruction": (
+            "Fuege den obigen ```week-rewrite``` Block UNMODIFIZIERT in deine Antwort ein. "
+            "Das Frontend rendert ihn als interaktive Karte. Beim Klick auf 'Uebernehmen' "
+            "wird die Folgewoche serverseitig anhand der Empfehlungen neu strukturiert."
         ),
     }
 
