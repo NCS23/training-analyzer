@@ -182,15 +182,17 @@ Wochenstruktur: **4 Läufe + 2 Krafttrainings + 1 Ruhetag**
 | Aufbau | 12–14 | Wochenstruktur, Konsistenz prüfen | Heute, Training |
 | Belastung | 6–10 | Form überwachen, Überlastung erkennen | Analyse |
 | Tapering | 1–2 | Form maximieren — Wochenstruktur bleibt ähnlich, aber Goal-Readiness-Card und KI-Insight zeigen Tapering-spezifische Inhalte | Analyse, Heute |
-| Race-Tag | 0 | **Vor Race:** Pacing-Strategie geklärt + verfügbar zum Nachschlagen · **Während Race:** Pacing-Strategie auf Mobile/Watch, „Worauf achten"-Hinweise · **Companion-Vision:** Watch-App begleitet aktiv während des Laufs | Plan (Pacing) + Companion-App (Vision) |
+| Race-Tag | 0 | **Vor Race:** Pacing-Strategie geklärt + verfügbar zum Nachschlagen · **Während Race:** Pacing-Strategie auf Mobile/Watch, „Worauf achten"-Hinweise · **Companion (MVP-Feature):** Watch-App begleitet aktiv während des Laufs | Plan (Pacing) + Companion-Watch-App |
 | Reflexion | +1 | Auswertung „Wie war es?" + Erkenntnisse fließen in neuen Trainingsplan ein | Analyse + Plan |
 
-#### Race-Day-spezifische Bedürfnisse (Vision)
+#### Race-Day-spezifische Bedürfnisse (jetzt MVP-Features)
 
 - **Streckenprofil laden** (GPX/Höhenprofil) — beeinflusst Pacing
 - **Versorgungs-Punkte** auf der Strecke (Wasser, Verpflegung) → **Gel-Strategie** ableitbar
 - **Pacing-Strategie auf der Watch** während des Laufs (gleichmäßig / negativ / konservativ)
 - **Companion-Mode**: Watch-App begleitet aktiv (Splits, Pace-Hinweise, ggf. Begleiter-Stimme)
+
+→ Mit nativer iOS-App + Apple-Watch-Companion realisierbar (siehe §6.8 Strategie-Pivot).
 
 #### Wochen-Review (Pflicht, automatisch)
 
@@ -1281,6 +1283,102 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Schlüsselerkenntnis:** Backend ist sehr weit. Kern-Endpoints, Domain-Modell, KI-Integrationen sind alle vorhanden und produktionsreif. Der Lift zur PRD-Vision ist **mehr UI-Routing + Komposition als Backend-Arbeit**.
 
+### 6.8 Strategie-Pivot: Native iOS-App-Only (2026-04-28)
+
+**Ursprünglicher Plan:** Web-App als primärer Channel, Quick Wins waren Web-Refactor (Routing, GoalCard-Hero, etc.).
+
+**Neuer Plan:** Native iOS-App ist das Produkt. Web-App bleibt internes Dev-Tool / Dogfooding-Plattform.
+
+#### Konsequenzen für die Bestand-Bewertung
+
+| Asset | Vorher (Web-Strategie) | Jetzt (iOS-Strategie) |
+|---|---|---|
+| Web-App (React/TS) | 🟡 ADAPT (Hauptprodukt umbauen) | 🟡 ADAPT als internes Tool / Dogfooding |
+| Backend (FastAPI + DB) | 🟢 KEEP, Hauptproduktion | 🟢 KEEP, Hauptproduktion (auch für iOS-App) |
+| Native iOS-App | ⊘ existiert nicht | 🔵 NEW — komplett zu bauen (3–6 Monate SwiftUI) |
+| Apple Watch Companion | Vision (Roadmap) | 🔵 NEW — wird MVP-Feature für Race-Day |
+
+#### Was im Backend angepasst werden muss
+
+- **HealthKit-Integration** (Endpoint zum Empfangen von Apple-Watch-/iPhone-Health-Daten)
+- **StoreKit-Receipt-Validation** (eigene API zur Apple-Subscription-Validierung)
+- **Subscription-Authorization-Schicht** (vor jedem KI-Call, hängt an StoreKit-Status)
+- Keine Stripe-Integration (nicht nötig)
+
+#### Realistischer Zeithorizont
+
+Native iOS-Entwicklung Solo-Solo: **4–6 Monate** bis App Store Launch.
+
+#### Web-App-Status (entscheiden)
+
+Drei Optionen für die existierende Web-App:
+
+| Option | Was |
+|---|---|
+| **A — Dogfooding-Tool** *(Empfehlung)* | Personal-Dev-Plattform, nicht öffentlich verkauft. Quick Wins (Routing-Umbau etc.) als Konzept-Schärfung machen. |
+| **B — Marketing-Site** | Landing-Page mit Pricing + Beta-Sign-Up. Keine App-Funktion auf Web. |
+| **C — Stilllegen** | Web-App komplett aufgeben. Alles auf iOS. |
+
+→ **Aktuelle Entscheidung: A** — Web-App weiterentwickeln als Dogfooding-Plattform. Quick Wins schärfen Konzepte vor SwiftUI-Investment.
+
+#### Personal-Use-First-Phase (2026-04-28)
+
+**Wichtige Strategie-Klarstellung:** Markt-Launch ist nicht der nächste Schritt.
+
+| Phase | Plattform | Zugang | Compliance-Druck | Zeithorizont |
+|---|---|---|---|---|
+| **1: Personal Use** | Apple TestFlight (Internal) | nur Nils' Geräte | minimal | nächste **6–12 Monate** |
+| **2: Erweiterte Beta** | TestFlight External | bis 10k externe Tester | mittel (TestFlight-spezifisch) | wenn Konzept reif |
+| **3: Markt-Launch** | Apple App Store | Public | voll (DSGVO + AGB + Subscription + Versicherung) | wenn Phase 2 erfolgreich |
+
+**Konsequenzen:**
+
+- **Keine Compliance-Bürokratie sofort** — DSGVO + AGB + AVVs + Berufshaftpflicht werden Phase-3-Items
+- **Keine Subscription-Implementierung** — StoreKit-Integration wartet bis Phase 3
+- **Keine Marketing/Pricing-Tests** — Pricing-Spec im PRD bleibt als Plan, nicht als Pflicht
+- **Dogfooding = primärer Treiber** — Konzept reift durch eigene Nutzung über Monate
+- **Monetarisierung = Optionalität** — kann später aktiviert werden, ist nicht Daily-Driver
+
+→ **Effekt:** Die nächsten 6+ Monate fokussieren wir auf Native-iOS-App-Build, nicht auf Markt-Vorbereitung. §10 (Geschäftsmodell) und §11 (Compliance) bleiben **vollständig dokumentiert für Phase 3**, sind aber **nicht jetzt umzusetzen**.
+
+#### Sprint-Roadmap (priorisiert: Personal Use first)
+
+**Phase 1 — Personal Use (TestFlight, primärer Fokus für 6+ Monate):**
+
+| Sprint | Was | Aufwand |
+|---|---|---|
+| **1.0** | Apple Developer Account + TestFlight-Setup | klein |
+| **1.1** | Native iOS-App-Setup (SwiftUI, Architektur, AppShell, Navigation) | groß |
+| **1.2** | HealthKit-Integration + Auto-FIT-Import + Auto-Workout-Erkennung | mittel |
+| **1.3** | Heute-Tab nativ (GoalCard-Hero, WeekOverview, AI Coach Insight) | groß |
+| **1.4** | Training-Tab nativ (Sessions, Detail, Soll/Ist-Compare, Collapse-Sektionen) | mittel |
+| **1.5** | Plan-Tab nativ + Pacing-Rechner | mittel |
+| **1.6** | Analyse-Tab nativ + Insights-Engine | mittel |
+| **1.7** | Sammlung-Tab nativ (Routen, Vorlagen, Übungen) | mittel |
+| **1.8** | Apple Watch Companion (Workout-Export, Race-Day-Begleitung) | mittel-groß |
+| **1.9** | Personal-Use-Phase: 3–6 Monate eigene Nutzung, Konzept feinjustieren | — |
+
+**Phase 2 — Erweiterte Beta (wenn Konzept reif, ~6 Monate später):**
+
+| Sprint | Was | Aufwand |
+|---|---|---|
+| **2.0** | TestFlight External (bis 10k Tester) öffnen | klein |
+| **2.1** | Feedback-Mechanismus für Beta-Tester | mittel |
+| **2.2** | Konzept-Iterationen aus Beta-Feedback | variabel |
+
+**Phase 3 — Markt-Launch (wenn Beta erfolgreich, Entscheidung zu Monetarisierung):**
+
+| Sprint | Was | Aufwand |
+|---|---|---|
+| **3.0** | StoreKit-Integration + Tier-Logik + Upgrade-CTAs | mittel |
+| **3.1** | Compliance (DSGVO, AGB, Datenschutzerklärung, Disclaimer) | mittel |
+| **3.2** | Berufshaftpflicht-Versicherung + ggf. UG-Umfirmierung | klein |
+| **3.3** | App Store Submission + Marketing | mittel |
+
+**Realistischer Zeithorizont Phase 1:** 4–6 Monate Solo-Entwicklung bis personal-nutzbar.
+
+**Parallel auf der Web-App (Phase 1, niedrige Priorität):** Quick Wins als Konzept-Schärfung — Routing-Umbau, GoalCard-Hero, AI-Insight-First, Streak-Anti-Pattern-Fix. Dogfooding-Plattform für dich selbst.
+
 ### 6.7 Abomodell-Schicht (Verweis)
 
 Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls laufen über den Entwickler-Key. Damit das Geschäft trägt, braucht es eine Abomodell-Schicht.
@@ -1405,6 +1503,8 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 ## 10. Geschäftsmodell
 
 > Erfasst in Abomodell-Session (2026-04-28). Mehrfach iteriert nach Cost-Realismus-Check.
+>
+> ⏰ **Phasen-Status:** Diese Sektion beschreibt das Modell für **Phase 3 (Markt-Launch)**. In Phase 1 (Personal Use, TestFlight) und Phase 2 (Beta) ist Subscription-Layer **nicht aktiv**. Siehe §6.8 Sprint-Roadmap.
 
 ### 10.1 Grundprinzipien
 
@@ -1470,16 +1570,29 @@ Statt klassischem Trial (gratis 14 Tage, dann Subvention-Rückstand) bieten wir 
 - Echtes Commitment → höhere Conversion-Wahrscheinlichkeit
 - Wochenabo kann auto-renewing sein (default off, opt-in)
 
-### 10.6 Distribution
+### 10.6 Distribution — Apple StoreKit only
 
-| Kanal | Wie | Anteil |
+**Strategische Entscheidung (2026-04-28):** Vertrieb ausschließlich über Apple App Store.
+
+| Kanal | Status | Begründung |
 |---|---|---|
-| **Apple StoreKit** | Pflicht für iOS-User (Apple-Regel: keine Web-Payments im iOS-App-Store) | 30% / 15%-nach-Jahr 1 Apple-Anteil |
-| **Stripe** | Web-App (+ später Android) | ~3% Fees |
+| **Apple StoreKit** | ✅ einziger Channel | Native iOS-App ohnehin geplant (Companion-Watch + Sensor-Zugriff) |
+| ~~Stripe (Web)~~ | ❌ entfällt | Web-App bleibt internes Tool, kein Verkauf |
+| ~~Google Play~~ | ❌ vorerst nicht | Apple-Demographic priorisiert |
 
-→ Beides parallel ab MVP-Launch.
+**Konsequenzen:**
 
-### 10.7 Cost-Modell — realistische Zahlen mit MwSt-Korrektur
+- ✅ Apple regelt MwSt + Refunds + Auto-Renewal + Family-Sharing automatisch
+- ✅ Operativ einfacher (keine OSS-Verfahren, keine eigene MwSt-Pflicht)
+- ✅ Companion-Apple-Watch wird realisierbar (Race-Day, Live-Begleitung)
+- ✅ HealthKit-Integration für Auto-FIT-Import ohne Workflow-Friction
+- ❌ Apple-Cut 30% Jahr 1 (15% ab Jahr 2)
+- ❌ Android-User komplett ausgeschlossen (vorerst)
+- ❌ Apple kann App ablehnen → totaler Plattform-Verlust (Risiko)
+
+→ **Eigentliche Konsequenz:** Web-App-Strategie wird obsolet. Native iOS-App ist das Produkt. Web-App = internes Dev-Tool für Dogfooding. Siehe §6.8.
+
+### 10.7 Cost-Modell — Apple StoreKit only (mit MwSt-Korrektur)
 
 Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-Qualität.
 
@@ -1495,15 +1608,7 @@ Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-
 
 #### Echtes Net-Revenue pro Tier (mit MwSt-Abzug)
 
-Pricing ist **brutto** (inkl. 19% MwSt). Apple und Stripe handhaben das unterschiedlich.
-
-**Stripe (Web, EEA-Karten 1,5% + 0,25€):**
-
-| Tier | Brutto | -MwSt | -Stripe | **Net** |
-|---|---|---|---|---|
-| Wochenabo | 3,99 € | -0,64 € | -0,31 € | **3,04 €** |
-| Monatsabo | 12,99 € | -2,07 € | -0,45 € | **10,47 €** |
-| Jahresabo | 99 € | -15,80 € | -1,74 € | **81,46 €** (6,79 €/Mo) |
+Pricing ist **brutto** (inkl. 19% MwSt). Apple ist Merchant-of-Record — zieht MwSt + Apple-Cut automatisch ab.
 
 **Apple iOS Jahr 1 (30% Cut, MwSt vorab):**
 
@@ -1521,39 +1626,35 @@ Pricing ist **brutto** (inkl. 19% MwSt). Apple und Stripe handhaben das untersch
 | Monatsabo | **9,28 €** |
 | Jahresabo (per-Mo) | **5,89 €** |
 
-#### Margen-Tabelle mit echten Zahlen
+#### Margen-Tabelle mit echten Zahlen (Apple)
 
 KI-Cost aktiv ~3,85 €/Monat (= $4.20 bei $1.09/€).
 
-| Tier × Channel | Net/Mo | Marge |
+| Tier × Phase | Net/Mo | Marge |
 |---|---|---|
-| Stripe Monatsabo | 10,47 € | **63%** ✅ |
-| Stripe Jahresabo | 6,79 € | **43%** |
-| Stripe Wochenabo | 3,04 € (1 Wo) | **70%** |
-| Apple Monat J1 | 7,64 € | **50%** |
-| **Apple Jahr J1** | **4,85 €** | **21%** ⚠️ ENG |
-| Apple Monat J2 | 9,28 € | **59%** |
-| Apple Jahr J2 | 5,89 € | **35%** |
+| Apple Monatsabo · Jahr 1 | 7,64 € | **50%** |
+| Apple Monatsabo · Jahr 2+ | 9,28 € | **59%** |
+| **Apple Jahresabo · Jahr 1** | **4,85 €** | **21%** ⚠️ ENG |
+| Apple Jahresabo · Jahr 2+ | 5,89 € | **35%** |
+| Apple Wochenabo (1 Wo) | 2,34 € · J1 / 2,85 € · J2 | **~50–60%** |
 
 #### ⚠️ Apple-Jahresabo Jahr 1: nur 21% Marge
 
-Tragbar wegen langer Apple-User-Retention (LTV holt das auf), aber **Risiko-Faktor bei Skalierung**:
+Strukturell tragbar wegen langer Apple-User-Retention (LTV holt das auf), aber **Risiko-Faktor bei Skalierung**.
 
-- Pricing erhöhen (z.B. auf 14,99 € / 119 €) wenn nötig
-- Apple-Jahresabo-Pricing ggf. höher als Stripe (legal, aber wirkt unfair)
-- Akzeptieren weil nach Jahr 1 → 35% Marge
+→ **Aktuelle Entscheidung:** Pricing bei 3,99 € / 12,99 € / 99 € lassen, Apple-Jahresabo-Risiko in Jahr 1 bewusst tragen. Nach Jahr 1 → 35% Marge.
 
-→ **Aktuelle Entscheidung: Pricing bei 12,99 € / 99 € lassen, Apple-Jahresabo-Risiko bewusst tragen.**
+#### Profitabilitäts-Szenarien (Apple-only, mit MwSt + 30% Cut Jahr 1)
 
-#### Profitabilitäts-Szenarien (Web/Stripe, mit MwSt-Korrektur)
+Annahme: 60% Monatsabo, 30% Jahresabo, 10% Wochenabo (rotierend).
 
-| Szenario | Free | Paid | Net-Revenue | KI-Cost | **Net** |
+| Szenario | Free | Paid | Apple-Net-Revenue | KI-Cost | **Net** |
 |---|---|---|---|---|---|
-| Klein, 5% Conv. | 95 | 5 | 52,35 € | 16,76 € | **+35,59 €** ✅ |
-| Mittel, 10% Conv. | 450 | 50 | 523,50 € | 167,55 € | **+356 €** ✅ |
-| 5k User, 10% Conv. | 4.500 | 500 | 5.235 € | 1.676 € | **+3.559 €** ✅ |
+| Klein, 5% Conv. | 95 | 5 | ~32 € | ~17 € | **+15 €** ✅ |
+| Mittel, 10% Conv. | 450 | 50 | ~322 € | ~168 € | **+154 €** ✅ |
+| 5k User, 10% Conv. | 4.500 | 500 | ~3.220 € | ~1.680 € | **+1.540 €** ✅ |
 
-→ Modell trägt weiter, aber **15% niedriger** als ursprünglich gerechnet.
+→ Modell trägt auch Apple-only, aber **40% niedriger** als bei Stripe-Mix wegen 30% Apple-Cut. Nach Jahr 1 wird das deutlich gesünder (Cut sinkt auf 15%).
 
 #### Modell-Wahl
 
@@ -1572,11 +1673,16 @@ Tragbar wegen langer Apple-User-Retention (LTV holt das auf), aber **Risiko-Fakt
 - **Authorization-Middleware** vor jedem KI-Endpoint (Subscription-Check)
 - **Onboarding-Sample-Counter** pro User (1× KI-Plan Lifetime)
 
-#### Payment-Integration
+#### Payment-Integration (Apple StoreKit only)
 
-- **Stripe-Integration** (Webhooks, Customer-Portal, Subscription-Lifecycle, drei Pricing-Stufen)
-- **Apple StoreKit-Integration** (Receipt-Validation, Subscription-Lifecycle, drei Subscription-Group-Produkte)
-- **Idempotenz + Reconciliation** zwischen StoreKit und eigenem Backend
+- **Apple StoreKit 2-Integration** (Receipt-Validation, Subscription-Lifecycle)
+- **Subscription-Group** in App Store Connect mit drei Produkten (Wochen / Monat / Jahr)
+- **Server-Side-Receipt-Validation** über Apple Server-to-Server Notifications
+- **Family-Sharing-Support** (Apple-Standard, ein Sub teilbar in Family-Group)
+- **Restore-Purchases-Funktion** (Pflicht laut Apple Guidelines)
+- **Cancel-Subscription-Link** in App-Settings (Pflicht laut Apple Guidelines)
+
+> Stripe-Integration entfällt (siehe §10.6).
 
 #### Algorithmische Fallbacks (Free-Tier-Säule)
 
@@ -1676,12 +1782,11 @@ Bei Überschreiten des Soft-Limits (z.B. via Bot/Script):
 - [ ] Buchhaltungs-Software (Lexoffice / Sevdesk / Buchhaltungsbutler)
 - [ ] Berufshaftpflicht-Versicherung gegen KI-Plan-Haftungsfälle prüfen
 
-**MwSt-Handling pro Channel:**
+**MwSt-Handling (Apple-only):**
 
-- **Apple**: Apple ist Merchant-of-Record in EU — zieht MwSt automatisch ab + führt sie ab. Du erhältst Net-Beträge.
-- **Stripe**: **Du bist USt-Schuldner.** Du musst MwSt selbst ausweisen + abführen. EU-OSS-Verfahren für grenzüberschreitenden B2C-Verkauf nutzen.
+Apple ist Merchant-of-Record in EU — zieht MwSt automatisch ab + führt sie ab. Du erhältst Net-Beträge auf dein Geschäftskonto. Steuerlich einfach: Apple-Auszahlungen als gewerbliche Einnahmen verbuchen.
 
-→ Stripe ist operativ aufwendiger. Mit Buchhaltungs-Software automatisierbar.
+> Stripe entfällt (siehe §10.6). Damit kein USt-Schuldner-Komplex, kein OSS-Verfahren.
 
 **Kleinunternehmerregelung** (bis 22k €/Jahr Umsatz keine MwSt-Pflicht): bei Apple-Sales nicht anwendbar (EU-grenzüberschreitend), praktisch wenig Vorteil im SaaS-Modell.
 
@@ -1712,7 +1817,9 @@ Der eigentliche Grund für UG/GmbH ist **nicht** Apple oder Stripe, sondern Haft
 
 ## 11. Compliance & Datenschutz
 
-> Pflicht-Spezifikation für Markt-Launch. DSGVO + EU AI Act + Apple App Store + Stripe AGB.
+> Pflicht-Spezifikation für **Phase 3 (Markt-Launch)**. DSGVO + EU AI Act + Apple App Store.
+>
+> ⏰ **Phasen-Status:** In Phase 1 (Personal Use) reduzierte Anforderungen. Voller Compliance-Stack wird vor App Store Submission aktiviert. Siehe §6.8 Sprint-Roadmap, Phase 3.
 
 ### 11.1 DSGVO-Pflichten
 
