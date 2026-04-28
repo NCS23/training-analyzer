@@ -279,6 +279,537 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
     *„Beim Training möchte ich wissen welche Schuhe ich heute tragen soll und wie viele Kilometer die schon haben — bevor sie ausgemustert werden müssen."*
     → **Heute** (Schuh-Hinweis) + **Profil/Equipment** (Tracking)
 
+### 2.5 Journey-Walkthroughs
+
+> Konkrete Schritt-für-Schritt-Reisen pro Use Case. Drei Journey-Typen:
+> **Daily** (mehrmals/Woche) · **Weekly/Monthly** · **Lifecycle** (selten, lebenswichtig).
+
+#### 2.5.1 Daily — Morgens vor dem Lauf
+
+**Trigger:** Nutzer wacht auf, will wissen was anliegt.
+**Frequenz:** 4–6× pro Woche (an Trainings-Tagen).
+**Erwartete Verstehzeit:** 5 Sekunden.
+
+**Mentales Modell (priorisiert):**
+1. *„Was steht heute an?"* — heutige Trainings-Session
+2. *„Wo stehe ich zum Ziel?"* — Goal Readiness
+
+**Hauptpfad:**
+1. App öffnen → Heute-Tab
+2. **Erste Sicht (Top → Bottom):**
+   - **AI Coach Insight** (Alert variant=ai)
+     — *bei Form-Issue oder Anpassungs-Empfehlung: hier sofort*
+   - **GoalCard (Hero)** — Race + Tage-Countdown + ReadinessRing + 4 Faktoren
+   - **WeekOverviewCard mit heutiger Session-Detail** — Trainings-Typ, Pace, Distanz, CTA
+3. **Primärer CTA:** „Auf Watch exportieren" — heute 3-Schritt-Pain, soll ein Tap werden (native iOS-App)
+4. **Bei Anpassungs-Empfehlung:** Akzeptieren/Ablehnen direkt aus Insight-Card → §5.8 Plan Adaptation
+5. Exit: App weg, Training läuft über Watch
+
+**Schmerz im Ist:**
+- Workout-Export ist 3-Schritt-Prozess (Web-App → iPhone → Health → Watch)
+- Goal Readiness fehlt als prominenter Block (Score ist heute Hero)
+- AI Insight ist nicht erstes Element
+
+**Soll-Erlebnis:**
+- Goal-Status + heutiges Training in einem Screen, in 5 Sekunden verstanden
+- „Auf Watch" als ein Tap (erfordert native iOS-App; Fallback heute: 3 Schritte)
+- Bei Form-/Plan-Issue: Anpassungs-Empfehlung sofort sichtbar UND actionable (nicht erst nach dem Lauf)
+
+**Edge Cases:**
+- Heute kein Training → *„Heute kein Training."* (Copy §5.6)
+- Kein Ziel gesetzt → Empty State *„Jede Saga braucht ein Ziel."* (§5.4)
+- Form schlecht → AI Coach Insight schlägt Anpassung vor (§5.8 Goal-Realism-Check)
+
+**Screen-Anforderungen (für Figma):**
+- Heute · Default
+- Heute · mit Anpassungs-Empfehlung
+- Heute · Empty State (kein Ziel)
+- Heute · kein Training heute
+- Anpassungs-Vorschlag-Modal/Sheet
+- Native iOS Watch-Export-Flow (separat)
+
+**Komponenten-Bedarf:**
+- Vorhanden: Alert(ai), GoalCard, WeekOverviewCard
+- Neu: Schuh-Hint-Komponente (Equipment, optional in Slot 1 oder als Footer)
+
+---
+
+#### 2.5.2 Daily — Nach dem Lauf (Upload + Coach-Quittung)
+
+**Trigger:** Lauf/Kraft beendet, FIT-Datei vom Watch synchronisiert, User öffnet App.
+**Frequenz:** ~6× pro Woche (4 Lauf + 2 Kraft).
+**Erwartete Verstehzeit:** 5–10 Sekunden für die Quittung; Drilldown nach Belieben.
+
+**Mentales Modell (priorisiert):**
+1. *„Was sagt mir der Coach dazu?"* — AI Insight als Hero
+2. *„Was waren die Eckdaten?"* — Pace, HR, Distanz, Dauer
+3. *(sekundär)* *„Wie war Soll/Ist?"* — bei Plan-Verknüpfung
+
+**Hauptpfad (Soll):**
+1. **Auto-Erkennung** der neuen FIT (HealthKit-Listener) → Toast/Heute-Card *„Neue Session erkannt"*
+2. **Ein-Tap-Upload** mit auto-ausgefülltem Datum + erkanntem Typ
+3. Direkt nach Upload: Session-Detail-Page mit **automatisch generierter KI-Analyse** (Pre-fetch)
+4. **Erste Sicht (Top → Bottom):**
+   - **AI Coach Insight (Hero)** — Kurz-Quittung in Begleiter-/Zeugen-Stimme, z.B. *„Solide Einheit. Pace 6s/km schneller als Schnitt für Tempoläufe. HR-Drift im normalen Bereich."*
+   - **Eckdaten-Stat-Reihe** kompakt: Pace · HR · Distanz · Dauer
+   - **Soll/Ist-Vergleich-Card** (nur wenn Plan-Verknüpfung)
+   - **Sub-Sektionen** (HR-Zonen · Laps · GPS-Karte · RPE/Notizen) **collapsed by default**, Tap zum Aufklappen
+5. Optional: Anpassungs-Vorschlag wenn Insight es nahelegt → §5.8
+6. Exit: App weg oder zurück auf Heute
+
+**Schmerz im Ist:**
+- Upload-Flow zu komplex (Datei → Typ → Datum → Detail, 3+ Schritte)
+- Session-Detail überladen — alles auf einer Seite stapelt sich, KI-Insight nicht prominent
+- KI-Analyse muss explizit per Button angefragt werden, nicht automatisch
+
+**Soll-Erlebnis:**
+- HealthKit-Listener erkennt FIT, ein Tap zum Upload (erfordert native iOS-App)
+- AI Insight als Hero — sofort lesbar, ohne Suchen
+- Progressive Disclosure: Kurz-Quittung sofort, alles weitere collapse-bar
+- KI-Analyse läuft automatisch im Hintergrund (Pre-fetch nach Upload)
+
+**Edge Cases:**
+- Upload-Fehler → Fehler-Card mit klarem Retry
+- KI-Analyse noch nicht fertig → Skeleton/Spinner statt leerer Hero
+- Keine Plan-Verknüpfung → Soll/Ist-Sektion fehlt komplett, kein Hinweis
+- Doppel-Upload → erkennen, *„Diese FIT ist schon hochgeladen"*-Toast
+
+**Screen-Anforderungen (für Figma):**
+- Upload-Trigger · Auto-Erkennungs-Toast oder Heute-Card *„Neue Session"*
+- Session-Detail · Default (mit AI Insight Hero, collapsed Sub-Sektionen)
+- Session-Detail · KI-Analyse läuft (Skeleton)
+- Session-Detail · ohne Plan-Verknüpfung
+- Session-Detail · Sub-Sektionen aufgeklappt
+- Upload-Fehler-State
+- Doppel-Upload-Hinweis
+
+**Komponenten-Bedarf:**
+- Vorhanden: SessionDetailPage (überarbeiten), Alert(ai), StatBox, GPS-Karte (Leaflet)
+- Neu: **Collapse/Accordion-Sektion** für HR-Zonen, Laps, Karte, RPE, Notizen
+- Neu: **Soll/Ist-Compare-Card** mit visuellem Diff
+- Neu: **Auto-Upload-Indikator** (Toast und/oder Heute-Block)
+- Neu: **Skeleton-Variante** der Session-Detail (während KI-Analyse läuft)
+
+---
+
+#### 2.5.3 Weekly — Sonntag abends · Wochen-Review + Vorbereitung
+
+**Trigger:** Sonntag abend, Woche zu Ende, User schaut zurück + voraus.
+**Frequenz:** 1× pro Woche.
+**Erwartete Dauer:** 5–15 Minuten (mit Tiefe).
+
+**Mentales Modell (priorisiert):**
+1. *„Wie war die letzte Woche?"* — Rückblick zuerst
+2. *„Was schlägt die App vor?"* — Anpassungs-Empfehlung
+3. *„Was steht nächste Woche an?"* — Vorblick mit ggf. übernommenen Anpassungen
+
+**Hauptpfad:**
+1. App öffnen → Heute-Tab oder Plan-Tab (TBD: welcher Einstieg)
+2. **Wochen-Rückblick prominent** — *nicht versteckt in Sektion*:
+   - Zusammenfassung der Woche (Plan-Treue, Volumen, Form-Entwicklung)
+   - Highlights *(„Tempolauf gut gelaufen — neue Best-Pace")*
+   - Einordnung im Kontext der Phase
+3. **Anpassungs-Vorschlag der App** *(falls relevant)* — direkt nach Rückblick:
+   - Konkreter Vorschlag mit Begründung *(„Letzte 2 Wochen ACWR > 1.4 — regenerative Mikrozyklus empfohlen, 1× Tempolauf statt 2 nächste Woche")*
+   - **Akzeptieren / Ablehnen / Anpassen** als Aktionen
+4. **Vorblick auf nächste Woche** — mit ggf. übernommenen Anpassungen:
+   - 7-Tage-Layout (Mo–So) mit konkreten Sessions
+   - **Sessions verschieben per Drag-and-Drop** (heute schon implementiert)
+   - Equipment-Check pro Session (Schuh-Vorschlag, KM-Stand) — *Vision*
+5. **Workout-Export für Mo** — *idealerweise ein Tap*:
+   - Heute Pain: 3-Schritt-Prozess Web-App → iPhone → Health Fit → Watch
+   - Soll: native iOS-App + Watch-Companion → ein Tap
+6. Exit: App weg, Sonntag fertig
+
+**Schmerz im Ist:**
+- **Watch-Export** ist der größte Schmerz (3-Schritt-Prozess pro Session)
+- Wochen-Review existiert (`POST /api/v1/weekly-review/generate`), aber UI wenig prominent
+- Anpassungs-Vorschlag fehlt heute komplett
+- Rückblick + Vorblick sind getrennt (Plan-Tab vs. Analyse-Tab)
+
+**Soll-Erlebnis:**
+- **Ein zusammenhängender Sonntag-Abend-Flow:** Rückblick → Vorschlag → Vorblick → Export
+- App proaktiv mit Anpassungs-Vorschlag (datenbasiert, siehe §5.7 + §5.8)
+- Watch-Export als ein Tap (native iOS-App)
+- Equipment-Check ist Teil des Vorblicks (welche Schuhe für welche Session, KM-Stand)
+
+**Edge Cases:**
+- Wenig/keine Daten in der Woche (Krankheit) → Rückblick reduziert, Vorschlag „regenerativ" oder „in normalen Rhythmus zurück"
+- Plan ist nicht aktiv → kein Vorschlag möglich, Rückblick ohne Plan-Treue-Bezug
+- Nutzer überspringt Vorschlag → wird in der nächsten Woche wieder vorgeschlagen wenn Lage sich nicht ändert
+
+**Screen-Anforderungen (für Figma):**
+- Wochen-Review · Default (Rückblick + Vorschlag + Vorblick auf einer Seite oder als Wizard)
+- Wochen-Review · ohne Anpassungs-Vorschlag (wenn nichts zu tun)
+- Wochen-Review · Vorschlag-Detail-Sheet (mit Begründung, Daten, Akzeptieren/Ablehnen)
+- Wochen-Vorblick · 7-Tage-Layout mit Drag-and-Drop
+- Wochen-Vorblick · mit Schuh-Hint pro Session (Equipment)
+- Watch-Export-Trigger (heute manuell, später Companion-App-Flow)
+
+**Komponenten-Bedarf:**
+- Vorhanden: WeekOverviewCard (überarbeiten als Vorblick-Komponente), Drag-and-Drop-Kalender
+- Neu: **WeeklyReviewCard** (Rückblick + Highlights)
+- Neu: **PlanAdaptationProposal-Sheet** (Vorschlag mit Begründung + Aktionen)
+- Neu: **EquipmentHint** (Schuh-Vorschlag pro Session-Card)
+- Neu: **WatchExport-CTA** (heute Web-Download-Button, später iOS-Companion-Flow)
+
+---
+
+#### 2.5.4 Lifecycle — Plan-Erstellung (für ein Race)
+
+**Trigger:** Nutzer hat ein Race im Auge (z.B. HM Berlin in 14 Wochen) und will den Plan dazu setzen.
+**Frequenz:** 1–3× pro Jahr (pro Wettkampf).
+**Erwartete Dauer:** 5–10 Minuten.
+
+**Mentales Modell:**
+1. *„Ich gebe dir mein Ziel — gib mir den passenden Plan."*
+2. Vertrauen in KI-Generierung als Default; manuelle Eingriffe optional
+3. Nicht entscheiden müssen wann Plan „startet" — das soll sich aus dem Datum ergeben
+
+**Hauptpfad (Soll):**
+1. **Entry:** Plan-Tab → „+ Neuer Plan" oder Heute-Empty-State (wenn kein Ziel) → CTA
+2. **Schritt 1 — Ziel eingeben:**
+   - Race-Name (z.B. *„Halbmarathon Berlin"*)
+   - Datum (Date-Picker)
+   - Distanz (HM / Marathon / 10k / 5k / Custom)
+   - Zielzeit (Time-Picker, z.B. *Sub-2h* = 1:59:59)
+   - *(Optional)* Aktueller Stand: aktuelle HM-Pace, max KM/Woche
+3. **Schritt 2 — KI generiert vollständigen Plan:**
+   - Skeleton/Progress-Indikator während Generierung (vermutlich 5–15s)
+   - Plan kommt komplett: Phasen (Aufbau / Belastung / Tapering) + Wochen-Templates für alle Wochen
+4. **Schritt 3 — Review:**
+   - **Phasen-Timeline** als Hero (visueller Balken über Wochen, Phase-Marker)
+   - **Erste Woche detailliert** sichtbar (Mo–So mit Sessions) — *so versteht User was real auf ihn zukommt*
+   - **Plan-Eckdaten**: Anzahl Wochen, Wochenstruktur (z.B. 4× Lauf + 2× Kraft), Phasen-Längen
+5. **Schritt 4 — Justieren (optional):**
+   - Wochenstruktur ändern (z.B. *„nur 3× Lauf"*)
+   - Phase-Längen variieren
+   - Einzelne Sessions tauschen
+   - KI re-generiert betroffene Bereiche
+6. **Schritt 5 — Speichern:**
+   - Plan ist gespeichert, **noch nicht aktiv**
+   - Auto-Aktivierung beim Beginn der Phase 1 (also bei erstem Sonntag der Plan-Wochen)
+   - Hinweis-Card auf Heute: *„Plan startet am [Datum]. X Tage bis Aufbau-Phase."*
+7. Exit: zurück auf Heute oder Plan-Übersicht
+
+**Schmerz im Ist:**
+- Aktuelle Implementation: KI-Generierung ist pro Phase einzeln, mehrstufig
+- Wenig Visualisierung der Phasen-Timeline auf einen Blick
+- „Aktivieren"-Schritt explizit nötig
+- Komplexe Plan-Editor-Page mit vielen Optionen
+
+**Soll-Erlebnis:**
+- **Linear: Ziel → KI → Review → Done.** 5 Minuten, fertig.
+- KI-Generierung **komplett**, nicht stückweise
+- Phasen-Timeline + erste Woche als **mentaler Anker**
+- Auto-Aktivierung statt expliziter Switch (reduziert Cognitive Load)
+- Justierung sekundär — Default-KI-Plan soll meistens passen
+
+**Edge Cases:**
+- KI-Generierung schlägt fehl → Fallback auf Standard-Vorlage
+- Race-Datum zu nah (< 6 Wochen für HM) → Plan wird kondensiert, Hinweis auf Realismus-Kompromiss
+- Race-Datum in der Vergangenheit → Validation-Error
+- Aktiver Plan vorhanden → Conflict-Dialog: *„Aktiven Plan ersetzen oder zweiten Plan parallel anlegen?"*
+- Sehr ambitioniertes Ziel (Pace-Sprung > X%) → Hinweis im Review: *„Dieses Ziel erfordert eine Pace-Steigerung von Xs/km — knapp realisierbar."*
+
+**Screen-Anforderungen (für Figma):**
+- Plan-Erstellung · Step 1: Ziel-Eingabe-Form
+- Plan-Erstellung · Step 2: KI-Generierung läuft (Skeleton/Progress)
+- Plan-Erstellung · Step 3: Plan-Review mit Phasen-Timeline + erste Woche
+- Plan-Erstellung · Step 4: Justierung (Wochenstruktur, Phasen, Session-Swap)
+- Plan-Erstellung · Step 5: Bestätigung mit Auto-Aktivierungs-Hinweis
+- Plan · KI-Fehler-Fallback (Vorlage-Picker)
+- Plan · Conflict-Dialog (aktiver Plan ersetzen)
+- Plan · Race-zu-nah-Warnung
+- Plan · Ambitions-Realismus-Hinweis im Review
+
+**Komponenten-Bedarf:**
+- Vorhanden: TrainingPlanEditorPage (komplett überarbeiten), Phase-Komponenten
+- Neu: **GoalSetting-Form** (Race + Zielzeit + Distanz + Datum + optional Stand)
+- Neu: **PhaseTimeline** (visueller Balken über alle Wochen, Phase-Marker, hervorgehobene aktuelle Phase)
+- Neu: **PlanReview-Komponente** (Timeline + erste Woche detailliert + Eckdaten)
+- Neu: **PlanAutoActivationHint** (Heute-Card *„Plan startet am [Datum]"*)
+- Neu: **PlanConflict-Dialog** (mehrere Pläne / Aktivierungs-Switch)
+
+---
+
+#### 2.5.5 System-initiiert — Plan-Anpassungs-Vorschlag
+
+**Trigger:** App initiiert, nicht Nutzer. Vier Auslöser:
+- Nach einem Lauf, wenn Insight Anpassung nahelegt
+- Im Sonntag-Wochen-Review (siehe §2.5.3)
+- Bei Goal-Realism-Issue (Pace-Vorhersage reicht nicht für Ziel — siehe §5.8)
+- Bei Form-Krise (HR-Drift-Trend, ACWR-Sprung)
+
+**Frequenz:** unregelmäßig — etwa 1× pro 2 Wochen.
+
+**Mentales Modell:**
+1. *„Etwas ist aufgefallen."* — User wird angesprochen
+2. *„Was, warum, was jetzt?"* — verstehen + entscheiden
+3. *„Akzeptieren oder Ablehnen — und Schluss."* — keine Nachfrage-Schleife
+
+**Hauptpfad:**
+1. **Doppelt verankert:**
+   - Vorschlag erscheint **am Trigger-Ort** (z.B. Session-Detail nach Auswertung, Wochen-Review-Sektion am Sonntag) — *direkt im Kontext, in dem der Anlass entstand*
+   - **UND auf Heute** als Spiegel (zentrale Inbox) — *wenn User direkt morgens öffnet, sieht er es da*
+2. **Komplette Begründung sofort sichtbar** (nicht „mehr"-Tap):
+   - Konkreter Vorschlag (z.B. *„1× Tempolauf statt 2 nächste Woche"*)
+   - 2–3 Sätze Begründung mit Daten *(z.B. „ACWR letzte 2 Wochen 1.45 — Risiko-Bereich. HR-Drift in Tempoläufen +9 bpm bei gleicher Pace.")*
+3. **Aktionen:**
+   - **Akzeptieren** → Plan wird angepasst, Bestätigungs-Toast, weg
+   - **Ablehnen** → Vorschlag verschwindet sofort, App akzeptiert ohne Nachfrage
+4. **Wenn ähnliche Lage in folgender Woche besteht:** Vorschlag erscheint erneut, mit Hinweis *„Erinnerung — die Lage hat sich nicht verändert."*
+
+**Schmerz im Ist:**
+- Anpassungs-Vorschlag fehlt komplett (App schlägt nichts proaktiv vor)
+- Wochen-Review existiert (`POST /api/v1/weekly-review/generate`) aber ohne Konsequenz/Aktion
+
+**Soll-Erlebnis:**
+- App ist proaktiv, ohne aufdringlich zu sein (keine Push, kein Modal)
+- Lagom-Regel: präsent, nicht laut
+- Komplette Transparenz: User sieht warum und kann nachvollziehen
+- Kein Druck: Ablehnen ist legitim, App lernt nicht „weniger Vorschläge", sondern respektiert Einzelentscheidung
+
+**Edge Cases:**
+- User ignoriert Vorschlag tagelang → Vorschlag bleibt sichtbar in Heute, aber wird nicht penetranter
+- Plan wurde inzwischen anderweitig geändert → Vorschlag deaktiviert sich automatisch
+- Mehrere Vorschläge gleichzeitig (z.B. Session-Trigger + Wochen-Trigger) → priorisiert nach Schwere; ältere Vorschläge bleiben in Inbox
+
+**Screen-Anforderungen:**
+- Heute · mit Anpassungs-Vorschlag-Card (am Top, vor GoalCard)
+- Session-Detail · mit Anpassungs-Vorschlag-Inline (am Ende der KI-Insight-Section)
+- Wochen-Review · mit Anpassungs-Vorschlag inline
+- Vorschlag · Akzeptieren-Toast (nach Tap)
+- Vorschlag · Ablehnen-Toast (kurz, ohne Nachfrage)
+- Vorschlag · „Erinnerung"-Variante (zweite Iteration desselben Vorschlags)
+
+**Komponenten-Bedarf:**
+- Vorhanden: Alert(variant=ai)
+- Neu: **PlanAdaptationProposal** — Card-Komponente mit Begründung + Daten-Snippet + Akzeptieren/Ablehnen-Aktionen
+- Neu: **AdaptationToast** — Bestätigungs-Feedback (akzeptiert/abgelehnt)
+
+---
+
+#### 2.5.6 Lifecycle — Race-Day-Flow
+
+**Trigger:** Wettkampf — der Höhepunkt der Vorbereitung.
+**Frequenz:** 1–3× pro Jahr.
+**Drei Phasen:** Vorabend → Race-Morgen → Während Race → (Post-Race siehe Reflexion)
+
+**Mentales Modell:**
+1. **Vorabend** = Operationen — alles muss sitzen
+2. **Morgen** = Emotion + schneller Check — bereit, jetzt los
+3. **Während** = Stille — App stört nicht
+
+**Hauptpfad — Vorabend (T-1 Tag):**
+
+App zeigt **Pre-Race-Checklist** prominent auf Heute (oder Race-Card auf Plan-Tab):
+- ☐ Pacing-Strategie final + auf Watch exportiert
+- ☐ Streckenprofil eingespielt (GPX-Upload mit Höhenprofil)
+- ☐ Gel-/Versorgungs-Strategie (Marker auf Strecke, Gel-KM-Plan)
+- *(optional)* GoalCard zeigt Tapering-Final-State
+
+Jeder Punkt ist ein Tap zur jeweiligen Action. Wenn alle ☑: Card kollabiert mit *„Bereit für morgen."*
+
+**Hauptpfad — Race-Morgen:**
+
+GoalCard wechselt in `state=raceday`:
+- Caption: *„Du hast alles getan. Jetzt lauf deine Saga."* (Saga-Tonfall an Schwelle, siehe §1.3.2 + §5.6)
+- **Pacing-Strategie als großer Tap-Punkt** — ein Klick öffnet Splits-Übersicht (operationell zugänglich, keine Such-Reibung)
+- Streckenprofil + Versorgungs-Marker auf Wunsch sichtbar
+
+**Hauptpfad — Während Race:**
+
+**App ist still.** Watch übernimmt das Tracking, Mobile kein Touchpoint erwartet.
+- Optional Heute-Indikator *„Race läuft"* — passiv, dezent
+- Nutzer braucht Mobile nicht in der Hand
+
+**Hauptpfad — Direkt nach Race:**
+
+Übergang in Post-Race-State (Siehe §5.6 Copy: *„Dein Kapitel ist geschrieben. Was kommt als Nächstes?"*) — Auswertungs-Journey separat (im Reflexions-Block; folgt).
+
+**Schmerz im Ist:**
+- Streckenprofil-Upload existiert nicht
+- Gel-/Versorgungs-Strategie existiert nicht
+- Race-Day-State der GoalCard ist nur in Figma, nicht in Code
+- Pre-Race-Checklist existiert nicht
+- Pacing-auf-Watch-Export ist 3-Schritt-Pain (siehe Journey 1)
+
+**Soll-Erlebnis:**
+- **Vorabend:** alles in einem Flow erreichbar, Checklist macht Status sichtbar
+- **Morgen:** emotional aufgeladen (Saga-Caption) + sofort operativ (Pacing-CTA)
+- **Während:** App schweigt
+- **Vision (nicht MVP):** Companion-Mode auf Watch begleitet aktiv mit ruhigen Splits/Hinweisen
+
+**Edge Cases:**
+- Race-Datum verschoben → Plan-Update
+- Race ausgefallen (DNS / Wetter) → User markiert, GoalCard reagiert mit milder Caption
+- DNF während Race → später als DNF markieren, Post-Race-State respektiert (kein Saga-Triumph)
+- Streckenprofil-Upload schlägt fehl → manueller Höhenmeter-Eintrag oder Race ohne Profil
+- Pacing nicht final → Pre-Race-Checklist warnt am Vorabend prominent
+
+**Screen-Anforderungen (für Figma):**
+- Heute · Vorabend mit Pre-Race-Checklist
+- Heute · Race-Morgen (state=raceday) mit Saga-Caption + Pacing-CTA
+- Heute · Race läuft (passiv, Indikator)
+- Heute · DNF / DNS-State
+- Pacing-Strategie · Race-Modus mit Streckenprofil + Versorgungs-Markern
+- Streckenprofil · GPX-Upload-Flow + Visualisierung
+- Gel-Strategie · Versorgungs-Punkte als Marker, Gel-KM-Empfehlung
+- Companion-Mode (Vision, nicht MVP)
+
+**Komponenten-Bedarf:**
+- Vorhanden: GoalCard (`state=raceday` in Figma vorhanden, in Code fehlt), PacingPage, RoutesPage
+- Neu: **PreRaceChecklist** — Card mit 3–4 Status-Punkten + Tap-Aktionen
+- Neu: **RaceStrategy-View** — Pacing + Streckenprofil + Versorgungs-Marker zusammenhängend
+- Neu: **GelStrategy** — Versorgungs-Punkte als Marker auf Strecke, Gel-KM-Empfehlung
+- Neu: **RaceState-Heute-Block** — passiver „läuft gerade"-Indikator
+- Vision: Native iOS Companion-Mode (Watch-App, später)
+
+---
+
+#### 2.5.7 Lifecycle — Onboarding (First-Time-User)
+
+**Trigger:** Nutzer öffnet App das erste Mal.
+**Frequenz:** 1× pro User-Lifetime (zzgl. Re-Onboarding nach langer Pause).
+**Erwartete Dauer:** 2–5 Minuten.
+
+**Mentales Modell:**
+1. *„Wer ist diese App?"* — erste Begegnung mit der Marke
+2. *„Was muss ich preisgeben?"* — möglichst wenig, schnell zum Wert
+3. *„Wann fängt das eigentliche Training an?"* — klar Pfade
+
+**Hauptpfad:**
+1. **Welcome-Screen** — Brand (Wortmarke + Bildmarke), kurzer Pitch (1–2 Sätze), CTA *„Los geht's"*
+2. **Account/Login** (existiert: Email / Apple / Google)
+3. **Coach-Dialog (KI-geführt)** — kein Wizard, sondern strukturierter Trainer-Dialog in Begleiter-Stimme. Setzt direkt die Drei-Stimmen-Tonalität (siehe §1.3.1):
+   - Begrüßung
+   - Frage 1: *„Hast du ein Wettkampf-Ziel im Auge?"* — Antwort: Ja / *„Später"* (skip)
+     - Falls Ja → Race-Name + Datum + Distanz + Zielzeit
+   - Frage 2 (optional): *„Wie ist dein aktueller Stand?"* (z.B. letzter HM-Pace) — skip möglich
+   - Frage 3 (optional): *„Wie sieht deine typische Trainingswoche aus?"* (Anzahl Lauf/Kraft pro Woche) — skip möglich
+   - Coach: *„Alles klar. Ich richte das ein."*
+4. **Plan-Generierung** (wenn Ziel gesetzt) — siehe Journey 2.5.4 Step 2–5
+5. **Bewusst NICHT im Onboarding:**
+   - **HF-Werte (Athleten-Profil)** → werden durch Nutzung erstellt, primär durch **Schwellentest** der nach 1–2 Wochen aktiv angeboten wird. Ruhe-HF kann via Apple Health gelesen werden (wenn HealthKit verbunden).
+   - **AI-Provider-Key** → User gibt KEINEN Key ein. Lauf über **Entwickler-Key** + Abomodell-Schicht (siehe §6.7).
+6. **Erster Screen nach Onboarding:**
+   - Mit Ziel: Heute mit *„Plan startet am [Datum]"*-Hint (Auto-Aktivierung)
+   - Ohne Ziel: Heute · Empty State *„Jede Saga braucht ein Ziel."* + CTA „Ziel festlegen"
+
+**Schmerz im Ist:**
+- Onboarding existiert vermutlich minimal / ohne KI-Coach-Dialog
+- AI-Provider-Key wird heute vom User selbst eingegeben (Hürde, technisch, schreckt ab)
+- HF-Werte werden direkt im Profil-Setup abgefragt → harte Hürde im ersten Eindruck
+- Athletenprofil-Page ist heute eine eigene Seite — als Onboarding-Stop schwer
+
+**Soll-Erlebnis:**
+- Erste Begegnung = Coach-Dialog → setzt Tonalität, fühlt sich wie Trainer-Gespräch an
+- Minimal-Setup: Account + (optional) Ziel
+- Datentiefe entsteht durch Nutzung, nicht durch Setup-Hürde
+- Kein API-Key-Reibung — User merkt nichts vom Backend-Setup
+
+**Edge Cases:**
+- User skippt alle Coach-Fragen → Heute mit Empty State, App nutzbar aber leer
+- User hat kein gültiges Abo → siehe §6.7 Abomodell-Schicht
+- HealthKit nicht freigegeben → manuelle HF-Eingabe später, kein Onboarding-Block
+
+**Screen-Anforderungen (für Figma):**
+- Welcome (Brand + Pitch + CTA)
+- Login (existiert, ggf. Onboarding-Variante)
+- Coach-Dialog · Begrüßung
+- Coach-Dialog · Ziel-Frage (Ja/Später)
+- Coach-Dialog · Ziel-Eingabe (Race + Datum + Zielzeit)
+- Coach-Dialog · Stand-Frage (skipbar)
+- Coach-Dialog · Wochenstruktur-Frage (skipbar)
+- Coach-Dialog · Abschluss
+- Plan-Generierung läuft (Skeleton)
+- Plan-Review (siehe Journey 2.5.4)
+- Heute · mit Plan-Start-Hint
+- Heute · Empty State (Ziel skipped)
+- Schwellentest-Angebot (später, in Heute-Inbox eingeschoben)
+
+**Komponenten-Bedarf:**
+- Vorhanden: Auth-Pages, ChatPage (als Inspiration)
+- Neu: **WelcomeScreen** (Brand + Pitch + CTA)
+- Neu: **CoachDialog** — strukturierter Dialog-Wizard mit Skip-Option, nutzt KI-Chat-Pattern aber linear gefuehrt
+- Neu: **OnboardingShell** mit Progress-Indikator
+- Neu: **SchwellentestPrompt** — wird ~1–2 Wochen nach Onboarding in Heute eingeschoben
+
+#### 2.5.8 Daily — Trainings-Problem-Konsultation (KI-Chat)
+
+**Trigger:** Nutzer hat ein konkretes Trainings-Problem oder eine Frage.
+**Frequenz:** unregelmäßig — von 0 bis mehrmals pro Woche.
+
+**Mentales Modell:**
+1. *„Ich habe eine Frage / ein Problem."*
+2. *„Die KI soll mir helfen, mit Kontext zu meinem Training."*
+3. Output sollte umsetzbar sein, ggf. zurück in Plan einfließen
+
+**Beispiel-Anlässe:**
+- *„Ich habe eine Pause gehabt, wie steige ich wieder ein?"*
+- *„Mein Knie zwickt nach Tempoläufen — was kann ich tun?"*
+- *„Wie integriere ich Lauf-ABC in meinen Wochenplan?"*
+- *„Mein letzter Tempolauf war schlecht — woran kann das liegen?"*
+- *„Was bedeutet eigentlich VO2max für mich?"*
+
+**Hauptpfad (Soll):**
+1. **Trigger:** Nutzer tippt auf Chat-FAB (rechts unten, auf jeder Seite verfügbar — siehe §3.2)
+2. Chat öffnet als **Sheet/Drawer** über aktueller Seite (nicht als eigene Page) — Kontext der aktuellen Seite bleibt sichtbar
+3. **Eingabefeld + Konversations-Verlauf** — Streaming-Antwort
+4. **Kontextpicker** — KI weiß automatisch aus aktueller Seite (z.B. Session-Detail aufgerufen → KI hat diese Session als Kontext); manueller Override möglich
+5. Antwort kommt in **Coach-Stimme** (siehe §1.3.1)
+6. **Wenn Antwort eine Plan-Änderung nahelegt:** direkt aus Chat *„Plan-Änderung übernehmen?"*-Button (existiert bereits laut Audit)
+7. Exit: Sheet schließt, Nutzer ist wieder auf vorheriger Seite
+
+**Schmerz im Ist:**
+- Chat ist eigene Page (`/chat`) statt FAB-Overlay
+- Kontextpicker existiert, aber nicht automatisch aus aktueller Seite gefuellt
+- Coach-Stimme inkonsistent (heutige KI-Antworten sind eher generisch)
+
+**Soll-Erlebnis:**
+- Chat überall, ohne Page-Wechsel
+- Kontext kommt automatisch aus aktueller Seite
+- Coach-Stimme: Begleiter im Default, Coach bei konkreten Plan-Eingriffen
+- Plan-Änderungs-Übernahme bleibt erhalten (Audit zeigt: existiert)
+
+**Edge Cases:**
+- KI-Antwort schlägt Plan-Änderung vor, User akzeptiert → Plan-Adaptation-Flow (Journey 2.5.5)
+- KI hat keine Antwort → ehrliche Antwort: *„Da bin ich nicht sicher. Frag dich, ob..."*
+- Sehr lange Konversation → Scrollbar, Verlauf bleibt erhalten
+- Ohne Internet → Offline-Hinweis, keine Antwort möglich (KI ist Cloud-Service)
+
+**Screen-Anforderungen:**
+- Chat-FAB · auf jeder Seite (existiert als Komponente in AppLayout)
+- Chat-Sheet · default mit Begrüßung, Vorschläge für Quick-Actions
+- Chat-Sheet · Konversation läuft (Streaming-Antwort)
+- Chat-Sheet · Antwort mit Plan-Änderungs-CTA
+- Chat-Sheet · Antwort mit Drilldown-Link (z.B. *„Lies Insight zu Tempolauf X"*)
+- Chat-Page (existiert, als Full-Screen-Fallback)
+- Chat · Offline-State
+
+**Komponenten-Bedarf:**
+- Vorhanden: ChatPage, ChatFAB-Komponente in AppLayout, KI-Endpoints (Streaming, Plan-Anwendung)
+- Neu/Anpassen: **ChatSheet** als Drawer/Sheet-Variante des Chats — überlagert aktuelle Seite, schließt zurück
+- Anpassen: **AutoContextPicker** — füllt Kontext automatisch aus aktueller Page
+
+---
+
+### 2.6 Journey-Übersicht (Tabelle)
+
+Konsolidierte Sicht auf alle 8 Journeys:
+
+| # | Journey | Typ | Frequenz | Tab(s) |
+|---|---|---|---|---|
+| 2.5.1 | Morgens vor dem Lauf | Daily | 4–6×/Wo | Heute |
+| 2.5.2 | Nach dem Lauf (Upload + Coach-Quittung) | Daily | ~6×/Wo | Training |
+| 2.5.3 | Sonntag · Wochen-Review + Vorbereitung | Weekly | 1×/Wo | Plan + Heute |
+| 2.5.4 | Plan-Erstellung für ein Race | Lifecycle | 1–3×/Jahr | Plan |
+| 2.5.5 | Plan-Anpassungs-Vorschlag (System-initiiert) | unregelmäßig | ~1×/2 Wo | Heute + Trigger-Ort |
+| 2.5.6 | Race-Day-Flow | Lifecycle | 1–3×/Jahr | Heute + Plan |
+| 2.5.7 | Onboarding (First-Time) | Lifecycle | 1×/Lifetime | Auth + Coach-Dialog |
+| 2.5.8 | Trainings-Problem-Konsultation (KI-Chat) | Daily/On-demand | 0–mehrmals/Wo | Querschnitt (FAB) |
+
 ### 2.4 Anti-Jobs
 
 Was die App **nicht** für mich tun soll:
@@ -629,55 +1160,144 @@ Pro Feature/Bereich eines von vier Labels:
 | 🔵 **NEW** | Existiert nicht, wird neu gebaut | Goal Readiness, AI Coach Chat-FAB |
 | 🔴 **REMOVE** | Existiert, wird ersatzlos entfernt | Level-System (FITNESS_LEVEL_SYSTEM_V2 → siehe Archiv) |
 
-### 6.2 Mapping pro Tab/Bereich
+### 6.2 Routen-Map (Frontend) — Ist-Zustand
 
-> *[wird im Interview / parallelem Code-Audit befüllt]*
+> Erfasst per Code-Audit am 2026-04-28.
 
-| Bereich | Aktueller Stand | Status | Was zu tun ist | Aufwand |
+| Aktuelle Route | Page-Komponente | Was der User dort macht | PRD-Tab | Status |
 |---|---|---|---|---|
-| **Heute (Dashboard)** | Existiert, mit alten Stats-Cards | 🟡 ADAPT | Cards austauschen (siehe §4.1), AICoachInsight + Goal Readiness Card neu | M |
-| **Training-Wochenansicht** | Existiert | 🟡 ADAPT | In Tab „Training" einordnen, Soll/Ist-Vergleich ergänzen | M |
-| **Sessions-Liste + Detail** | Existiert | 🟢 KEEP | Nur Routing anpassen | S |
-| **Session-Upload (CSV/FIT)** | Existiert | 🟢 KEEP | — | — |
-| **Trainingsplan + Phasen** | Existiert | 🟡 ADAPT | Ziel-Felder integrieren (kein separater Ziele-Tab) | M |
-| **RaceGoal als Entity** | Existiert | 🔴 REMOVE | Migration: in Plan überführen, Tabelle deprecaten | M |
-| **Pacing-Rechner** | Existiert | 🟡 ADAPT | Quelle Plan statt RaceGoal | S |
-| **Routen-Bibliothek** | Existiert | 🟡 ADAPT | Sub-Tab unter „Sammlung", vereinfachtes Datenmodell (siehe REDESIGN_KONZEPT.md §6) | L |
-| **Übungen-Bibliothek** | Existiert | 🟢 KEEP | — | — |
-| **Vorlagen** | tbd | tbd | — | — |
-| **Goal Readiness** | Konzept liegt vor | 🔵 NEW | Komplette Implementation: Backend + Frontend Card | L |
-| **AI Coach Insight Card (Dashboard)** | Existiert in Figma, Frontend tbd | 🔵 NEW | Komponente + Insight-Engine | M |
-| **AI Coach Chat (FAB)** | tbd | 🔵 NEW | Floating UI + Chat-Backend | L |
-| **Level-System (Score 0-100, 4 Levels)** | Konzept war geplant, nie implementiert | 🔴 REMOVE | Konzept im Archiv lassen, im Code keine Spuren | — |
-| **Stats/Statistiken-Tab** | Existiert | 🔴 REMOVE | Funktion geht in Tab „Analyse" auf | M |
-| **Profil als Bottom-Nav-Tab** | Existiert | 🟡 ADAPT | Wird zum Avatar oben rechts | S |
-| **KI-Chat als isolierter Menüpunkt** | Existiert evtl. | 🟡 ADAPT | Wird zum FAB, kontextbezogen auf jeder Seite | M |
+| `/heute` | `TodayPage` | Begrüßung, Fitness-Score (CTL/ATL/TSB), Wochenfortschritt, letzte Session, Insights, Ziel-Countdown, nächste Session | **Heute** | 🟡 ADAPT — Score ist Hero statt GoalCard; AI Insight nicht erstes Element |
+| `/sessions` | `SessionsPage` | Session-Liste mit Filter, Pagination | **Training** | 🟡 ADAPT — Routing → `/training/sessions` |
+| `/sessions/new` | `UploadPage` | FIT/CSV-Upload | **Training** | 🟡 ADAPT — Routing |
+| `/sessions/new/strength` | `StrengthSessionPage` | Krafttraining manuell erfassen | **Training** | 🟡 ADAPT — Routing |
+| `/sessions/:id` | `SessionDetailPage` | HR-Zonen, Laps, GPS-Karte, KI-Analyse, RPE, Notizen, FIT-Export | **Training** | 🟡 ADAPT — Routing; Soll/Ist-Vergleich-UI bitte verifizieren |
+| `/sessions/:id/race-report` | `RaceReportPage` | Wettkampf-Auswertung mit km-Splits + KI | **Training/Analyse** | 🟡 ADAPT — Routing |
+| `/analyse` | `AnalysePage` | Trends Pace/HR/Volumen, Kraft-Progression, Balance | **Analyse** | 🟡 ADAPT — Goal Readiness fehlt hier |
+| `/plan` | `WeeklyPlanPage` | Wochenplan: 7-Tage, Drag-and-Drop, KI-Wochenreview | **Plan** | 🟡 ADAPT — Wochenplan ist „falscher" Default; PRD will Saison-Phasen als Hero |
+| `/plan/goals` | `GoalsPage` | Wettkampfziele CRUD | **Plan** | 🟢 KEEP |
+| `/plan/pacing` | `PacingPage` | Pacing-Strategie, Wetter, Höhenprofil, FIT-Export | **Plan** | 🟢 KEEP |
+| `/plan/programs` (+ `/new`, `/:id`) | `TrainingPlansPage` / `TrainingPlanEditorPage` | Saison-Pläne mit Phasen, KI-Generierung, Changelog | **Plan** | 🟡 ADAPT — Naming („Programme" → „Plan") |
+| `/plan/templates` (+ `/new`, `/:id`) | `SessionTemplates*` | Session-Vorlagen CRUD | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/vorlagen` |
+| `/plan/exercises` (+ `/:id`) | `ExerciseLibrary*` | Übungsbibliothek | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/uebungen` |
+| `/plan/routes` (+ `/new`, `/:id`) | `Routes*` / `RouteEditorPage` | Routen zeichnen, OSRM-Snap, Segmente, Pacing, GPX/FIT-Export | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/routen` |
+| `/profile` | `AthleteProfilePage` | Profil, HF, KI-Keys, Provider | Header-Avatar | 🟢 KEEP |
+| `/chat` | `ChatPage` | KI-Chat (Konversationen, Streaming, Plan-Anwendung) | AI Coach FAB | 🟡 ADAPT — Chat als FAB überall, nicht eigene Seite |
+| `/ki-log` | `KiLogPage` | Alle KI-Calls (Debug) | (intern) | 🔴 REMOVE oder → `/admin` |
+| `/admin/users` | `AdminUsersPage` | User-Verwaltung | (Admin) | 🟢 KEEP |
 
-> Aufwands-Schätzung: S (≤ 1 Tag), M (2–5 Tage), L (1+ Woche). Wird nach Interview verifiziert.
+### 6.3 User-Flows (Ist-Zustand)
 
-### 6.3 Datenbank-Migrationen (vorläufig)
+| Flow | Status | Anmerkung |
+|---|---|---|
+| Session-Upload Laufen (FIT/CSV) | 🟢 vollständig | — |
+| Session-Upload Kraft (manuell) | 🟢 vollständig | — |
+| Heute-Blick | 🟡 teilweise | Goal Readiness fehlt als Hero, Wochenkontext ohne heutige-Session-Detail |
+| Pacing-Strategie | 🟢 vollständig | Wetter + Höhenprofil integriert |
+| Wochenplan pflegen | 🟢 vollständig | Drag-and-Drop, KI-Review |
+| KI-Chat | 🟡 teilweise | Chat ist isolierte Seite, kein FAB überall |
+| Trainingsplan KI-generiert | 🟢 vollständig | Phasen, Wochentemplates, Changelog |
+| Wochen-Review | 🟢 vorhanden | UI wenig prominent |
+| Route zeichnen | 🟢 vollständig | Leaflet, OSRM, GPX/FIT-Export |
+| Post-Race-Analyse | 🟢 vollständig | km-Splits + KI |
 
-> *[wird im Code-Audit konkretisiert]*
+### 6.4 Backend-Capabilities (Ist-Zustand)
 
-- `race_goals` → in `training_plans` integrieren (Felder: `race_name`, `race_date`, `race_distance_km`, `target_time_seconds`)
-- `level_score`, `level_name` etc. (falls vorhanden) → entfernen
-- Sub-Tab-Struktur unter `/sammlung` → URL-Redirects für `/bibliothek/*`
+**Kernendpoints — alle 🟢:**
+- Sessions CRUD + Upload + KI-Analyse + Empfehlungen
+- Fitness: `/today`, `/score`, `/history`, `/insights`, `/quality` (CTL/ATL/TSB/ACWR/Form)
+- Trends, Training-Balance, Wochen-Review-Generation
+- Wochenplan + geplante Sessions
+- Goals CRUD, Pacing-Berechnung + gespeicherte Strategien
+- Trainingspläne + Phasen + KI-Generierung + Changelog
+- Routen + OSRM + GPX/FIT-Export
+- Session-Templates, Übungs-Bibliothek (mit Claude-Enrichment)
+- KI-Chat (Konversation + Streaming SSE)
+- Threshold-Tests (LTHR), Athletenprofil, Auth
 
-### 6.4 Übersicht: was bleibt vs. was kommt neu
+**Externe Integrationen — alle 🟢:**
+- OSRM (Routen-Snap, Rundkurse)
+- Open-Meteo (Wetter)
+- Claude API / OpenAI (User-Key wählbar)
+- free-exercise-db (Übungs-Daten)
 
-**Großteils bleibt (Backend):**
-- CSV-Parser (Apple Watch Format)
-- FIT-Import
-- Session-Entitäten + API
-- Trainingsplan-Generator
-- HR-Zonen-Logik
-- CTL/ATL/TSB-Berechnung
+**🔴 Anti-Pattern-Verletzung gefunden:**
+- `/api/v1/streak` Endpoint + `_build_motivation()` in `backend/app/api/v1/fitness.py` enthält Streak-Logik. Widerspricht §1.2 #3 (Anti-Streak-Shaming). **Fix**: Motivation-String entstreak-shamen, Endpoint deprecaten oder umfunktionieren (z.B. „90-Tage-Aktivitäten-Heatmap" ohne Streak-Wertung).
 
-**Großteils neu (Frontend):**
-- Tab-Struktur (Heute / Training / Analyse / Plan / Sammlung)
-- Dashboard-Cards (AICoachInsight, Goal Readiness)
-- AI Coach Chat-FAB
-- Konsolidierte Sub-Navigation in „Sammlung"
+### 6.5 Domain-Modell (Ist-Zustand)
+
+| Entität | Status |
+|---|---|
+| `users`, `refresh_tokens` (Auth) | 🟢 KEEP |
+| `workouts` (alle Sessions, GPS, HR, Laps, TRIMP, Wetter-Enrichment) | 🟢 KEEP — Naming-Inkonsistenz: API/Frontend sagen „session", DB sagt „workout" |
+| `athletes` (HF, KI-Keys, Provider, max CTL) | 🟢 KEEP |
+| `threshold_tests`, `exercises`, `session_templates` | 🟢 KEEP |
+| `race_goals`, `pacing_strategies`, `training_routes` | 🟢 KEEP |
+| `training_plans`, `training_phases`, `weekly_plan_days`, `planned_sessions` | 🟢 KEEP |
+| `ai_analysis_log`, `ai_recommendations`, `weekly_reviews`, `plan_changelog` | 🟢 KEEP — Plan-Changelog stützt §5.8 Transparenz |
+| `chat_conversations`, `chat_messages` | 🟢 KEEP |
+
+> **Korrektur ggü. älterem Plan:** `race_goals` als eigene Entity bleibt — funktioniert gut, kein Migrationsdruck zum Plan-internen Goal.
+
+### 6.6 Lücken zur PRD-Vision (🔵 NEW)
+
+**Tab-Ebene:**
+- Bottom Nav: aktuelle 5 Slots ≠ PRD (Sessions/Profil raus, Sammlung/Training rein)
+- Sammlung-Tab existiert nicht — Inhalte (Routen/Vorlagen/Übungen) sind unter `/plan/*` versteckt
+
+**Heute-Tab (§4.1):**
+- GoalCard als Hero (mit ReadinessRing + Faktoren) — nicht implementiert
+- AI Coach Insight als erstes Element — falsche Reihenfolge
+- WeekOverviewCard mit eingebetteter PlannedSessionCard-Detail — `WeekProgress` existiert, aber ohne Detail-Section
+- GoalCard Tapering-/Race-Day-/Post-Race-State — alle nicht implementiert
+
+**Plan-Tab (§4.4):**
+- Plan = Saison-Hero statt Wochenplan-Hero (Strukturumbau)
+
+**Querschnitt:**
+- Equipment-/Schuh-Tracking (§2.3 #13) — kein Datenmodell, keine UI
+- Workout-Export auf Apple Watch (ein Tap) — Pain Point, native iOS-App nötig
+- Race-Day-Companion-Mode (Watch-App) — Vision
+- Gel-Strategie / Versorgungs-Punkte auf Pacing — fehlt
+- Voice & Copy: Tonalitäts-Regeln + Copy-Library im Code noch nicht etabliert
+
+**Chat:**
+- Chat-FAB-Konzept reconcilen: ChatFAB-Komponente in AppLayout existiert ABER `/chat`-Page parallel — Konzepte zusammenführen
+
+### 6.7 Empfehlung — pragmatische Reihenfolge
+
+> Vom Code-Explorer-Agent priorisiert nach Wert/Komplexität.
+
+| # | Story | Wert | Komplexität |
+|---|---|---|---|
+| 1 | **Routing-Umbau** (`/sessions` → `/training`, `/plan/templates|exercises|routes` → `/sammlung/*`) + Sammlung-Tab | hoch | niedrig |
+| 2 | **GoalCard als Hero auf Heute** (Race + Tage-Countdown + ReadinessRing) | hoch | mittel |
+| 3 | **AI Insight als erstes Element auf Heute** | hoch | niedrig |
+| 4 | **Streak-Anti-Pattern fixen** (`_build_motivation` in `fitness.py`) | mittel | niedrig |
+| 5 | **Chat-FAB-Konzept reconcilen** (FAB überall + `/chat` als Full-Screen-Fallback) | mittel | mittel |
+| 6 | **Equipment-/Schuh-Tracking Datenmodell + UI** | hoch | mittel |
+| 7 | **Tapering-/Race-Day-/Post-Race-States auf GoalCard** | mittel | mittel |
+| 8 | **Plan-Tab-Umbau** (Saison-Planung als Hero, Wochenplan als Untersektion) | mittel | hoch |
+
+**Schlüsselerkenntnis:** Backend ist sehr weit. Kern-Endpoints, Domain-Modell, KI-Integrationen sind alle vorhanden und produktionsreif. Der Lift zur PRD-Vision ist **mehr UI-Routing + Komposition als Backend-Arbeit**.
+
+### 6.7 Abomodell-Schicht (NEU, ergänzt aus Onboarding-Journey)
+
+**Anforderung:** Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein. Alle KI-Calls laufen über den **Entwickler-Key**. Damit das Geschäft trägt, braucht es eine **Abomodell-Schicht**:
+
+- **Auth-Layer existiert** (Email/Apple/Google) → kann erweitert werden
+- **Payment-Integration fehlt komplett** (🔵 NEW)
+- **Tier-Logik fehlt komplett** — *was kann Free, was Paid?*
+- **In-App-Purchase via Apple StoreKit** (Pflicht für iOS-App im App Store) → bei Native-iOS-App-Roadmap mitdenken
+- **Web-Payment-Alternative** (z.B. Stripe) für Web-Variante
+
+**Offene Fragen:** Was darf der Free-Tier? *(z.B. Manueller Plan + Sessions ohne KI-Insights? Oder gar nichts?)* Was kostet Paid? Welche Limits? Trial-Period?
+
+→ **Zu klären in eigenem Block** (Geschäftsmodell-Definition). Siehe §8 #18.
+
+**Folgen für andere Sektionen:**
+- §2.5.7 Onboarding: KI-Provider-Key wird nicht abgefragt, läuft über Entwickler-Key
+- §6.4 Backend: Pre-Calls-Authorization-Check vor KI-Calls (gegen Abo-Status)
+- §7 Was nicht: Abomodell ist **explizit IM Scope**, nicht ausgeschlossen
 
 ---
 
@@ -708,7 +1328,12 @@ Pro Feature/Bereich eines von vier Labels:
 | 12 | **Streckenprofil + Versorgungs-Punkte** für Race-Pacing | offen | — | GPX-Import, Wasser/Verpflegung als Marker. Beeinflusst Pacing-Strategie und Gel-Strategie. Siehe §2.3 Job 8. |
 | 13 | **Equipment-Tracking (Schuhe)** | offen | — | Pro Training Schuh festhalten, KM-Stand pro Schuh, Ausmusterungs-Warnung. Siehe §2.3 Job 13. |
 | 14 | **Insights-Spezifikation** | offen | Nils | Welche Datenpunkte fließen ein, wie tief gehen die Insights. **Wird in S2 / Insights-Fragerunde geklärt.** |
-| 15 | **Wetter-Berücksichtigung in Insights** | offen | — | Wetter (Temperatur, Wind) als Kontext für HR-/Pace-Abweichungen. Erfordert Wetter-API + Korrelation. |
+| 15 | **Wetter-Berücksichtigung in Insights** | erledigt-bestätigt | — | Open-Meteo ist angebunden (siehe §6.4). Korrelations-Insights können auf Wetterdaten zugreifen. |
+| 16 | **Streak-Logik in `_build_motivation`** | **Fix erforderlich** | — | Backend-Endpoint `/api/v1/streak` + Motivation-String widersprechen Anti-Pattern §1.2 #3. Siehe §6.4. Fix als Story Priorität 4. |
+| 17 | **`workouts` vs. „session" Naming** | offen | — | DB-Tabelle heißt `workouts`, API/Frontend sagen „session". Konsistenz herstellen oder bewusst tolerieren? |
+| 18 | **Abomodell — Free vs. Paid Tier** | **groß**, offen | Nils | Was kann ein Nicht-Abonnent? KI ohne / mit Limit? Manueller Plan + Sessions OK? Trial? Preis? Apple StoreKit + Stripe? Siehe §6.7 |
+| 19 | **Companion-Mode Apple Watch** | Vision (Roadmap) | — | Aktive Begleitung während Race + ggf. Training. Erfordert native Watch-App. Siehe §2.5.6. |
+| 20 | **HealthKit-Integration** | offen | — | Auto-FIT-Erkennung + Schlaf + Ruhe-HF aus Apple Health. Siehe §2.5.2 + §2.5.7. |
 
 ---
 
