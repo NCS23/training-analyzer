@@ -1,10 +1,17 @@
 # 🏔️ Nordlig Design System
 
+> ⚠️ **ARCHIVIERT — 2026-04-27**
+>
+> Source of Truth für das Nordlig Design System ist das **eigene Repo**:
+> [NCS23/nordlig-design-system](https://github.com/NCS23/nordlig-design-system) + Storybook.
+> Diese Markdown-Spiegelung ist redundant und veraltet (Stand: Februar 2026).
+> Hier verbleibend, bis Verweise bereinigt sind — danach löschbar.
+
 **Nordisches Design für moderne Apps**
 
-**Version:** 1.0.0-alpha  
-**Status:** 📋 Planning Phase  
-**Repository:** `@nordlig/design-system` (npm package)  
+**Original-Version:** 1.0.0-alpha
+**Original-Status:** 📋 Planning Phase
+**Repository:** `@nordlig/design-system` (npm package)
 **Last Updated:** 2026-02-12
 
 ---

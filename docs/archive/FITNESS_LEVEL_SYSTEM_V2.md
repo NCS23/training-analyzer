@@ -1,8 +1,32 @@
 # Fitness Level System v2 — Konzept & Designentscheidungen
 
-**Epic:** [#694](https://github.com/NCS23/training-analyzer/issues/694)
+> ⚠️ **ARCHIVIERT (Superseded) — 2026-04-27**
+>
+> Das Level-System wird **nicht** umgesetzt. Goal Readiness ersetzt es konzeptionell.
+> Source of Truth: **PRD §5.1 (Goal Readiness)** → [`../PRD.md`](../PRD.md).
+> Hier verbleibend als historische Referenz für die Entscheidungsbegründung.
+
+> **Original-Status: SUPERSEDED — 2026-04-26**
+>
+> Das Level-System wird **nicht** umgesetzt. Goal Readiness (Epic [#718](https://github.com/NCS23/training-analyzer/issues/718)) ist
+> das primäre Mess-Instrument. Siehe [DASHBOARD_LAYOUT_PROPOSAL.md](DASHBOARD_LAYOUT_PROPOSAL.md)
+> für das neue Konzept.
+>
+> **Kurzbegründung:**
+> 1. **Kraft-Levels methodisch nicht haltbar** — RPE-basiertes TRIMP belohnt Untrainiertheit (siehe §6 unten).
+> 2. **Levels widersprechen der Coach-Positionierung** — abstrakte Klassifizierung statt kontextualisiertem Coaching.
+> 3. **Level-Cards konkurrieren mit Goal Readiness** — beide beantworten dieselbe Frage, Goal Readiness aber spezifischer.
+>
+> **Was bleibt:** Die Level-Namen (*„Im Rhythmus", „In voller Stärke"* etc.) bleiben als
+> Coach-Vokabular für die AI Coach Subline erhalten — nicht als formale Klassifizierung.
+>
+> Dieses Dokument bleibt als historische Referenz / Designentscheidungs-Trace bestehen.
+
+---
+
+**Epic:** [#694](https://github.com/NCS23/training-analyzer/issues/694) · **Status:** zurückgestellt
 **Erarbeitet:** April 2026
-**Mockup:** `.claude/worktrees/peaceful-ride/mockups/fitness-level-mockup.html`
+**Mockup:** `.claude/worktrees/peaceful-ride/mockups/fitness-level-mockup.html` (obsolet)
 
 ---
 
@@ -222,8 +246,94 @@ Keine statische Zeile — dynamisch generiert, kontextabhängig. Brückt zwische
 
 ---
 
+## Entscheidung gegen das Level-System (2026-04-26)
+
+Nach kritischer Prüfung wurde entschieden, das Level-System **nicht** umzusetzen.
+Die Begründung im Detail:
+
+### 1. Kraft-Levels sind methodisch nicht haltbar
+
+Punkt 6 der „Offenen Fragen" oben dokumentiert, dass RPE-basiertes Kraft-TRIMP
+**Untrainiertheit belohnt**: Wer eine Session mit RPE 9 absolviert (weil untrainiert)
+akkumuliert mehr TRIMP als jemand fitteres mit RPE 5 bei gleicher Dauer. Höheres
+Level für weniger Fitness ist kaputtes Design.
+
+Die diskutierten Alternativen lösen das Grundproblem nicht:
+- **Tonnage** (kg × reps × sets) bevorzugt schweres Heben über Wiederholungs-Volumen —
+  ungeeignet für läuferspezifisches Krafttraining (Stabilität/Funktion, nicht 1RM)
+- **Reine Konsistenz**: brauchbar, aber dann kein Level-System mehr, sondern Streak-Tracking
+
+Zudem: Kraft ist mehrdimensional (Maximalkraft, Hypertrophie, Kraftausdauer,
+sportartspezifisch). Ein einzelnes Kraft-Level kann nichts Aussagekräftiges
+zusammenfassen. Bei einem Läufer ist Kraft Begleittraining, nicht Hauptdisziplin —
+sie braucht keinen parallelen Level-Stack zur Ausdauer.
+
+### 2. Ausdauer-Levels widersprechen der Coach-Positionierung
+
+Der Style Guide (`BRAND_STYLE_GUIDE.md`) positioniert minsaga explizit:
+
+> *„Coach, nicht Werkzeug — Daten erscheinen immer mit Kontext. Nicht 'CTL: 82'
+> sondern 'Du bist in voller Form.'"*
+
+> *„minsaga füllt die Lücke: ein persönlicher KI-Begleiter der deinen Fortschritt
+> versteht … hinter den Zahlen eine Geschichte steckt."*
+
+Ein Level-System bringt Daten *ohne* Handlungskontext: „Level 4, Score 82" sagt
+einem Läufer **nichts darüber, was er tun soll oder was es bedeutet**. Es ist
+abstrakte Klassifizierung — exakt das, was Garmin macht und was Minsaga laut
+eigener Positionierung *nicht* sein will.
+
+Ein echter Coach sagt nicht *„Du bist Level 4"*. Er sagt *„Deine Grundlagenausdauer
+ist gut, aber deine Tempoläufe für die Pace fehlen — die nächsten 4 Wochen
+fokussieren wir darauf."* — genau das, was Goal Readiness mit ihren 4 Komponenten
+plus AI Coach Subline schon leistet.
+
+### 3. Level-Cards konkurrieren mit Goal Readiness
+
+Im obigen Abschnitt „Warum Ziel-Card primär, nicht Score?" ist bereits dokumentiert:
+
+> *„Die täglich relevante Frage ist nicht 'wie fit bin ich abstrakt?' sondern
+> 'komme ich rechtzeitig ans Ziel?'. Die Level-Cards sind wichtig, aber sekundär."*
+
+Wenn die Level-Cards **nicht** die täglich relevante Frage beantworten, sind sie
+auf dem Dashboard fehl am Platz. Sie konkurrieren mit Goal Readiness um Aufmerksamkeit,
+ohne neuen Erkenntniswert zu bieten.
+
+### 4. Geratene Schwellwerte
+
+Der Abschnitt „Warum diese Grenzen?" räumt ein, dass die CTL-Bereiche (12, 28, 48,
+68, 88, 120) *„noch gegen echte App-Daten zu validieren"* sind — d.h. die
+Schwellwerte sind aktuell geraten. Ein produktiv ausgerolltes System mit geratenen
+Klassengrenzen wäre methodisch fragwürdig und würde nach erster Datenerhebung
+ohnehin korrigiert werden müssen, was zu Level-Migrationen für Bestandsnutzer führen würde.
+
+### Was wir stattdessen tun
+
+- **Goal Readiness** bleibt das primäre Mess-Instrument (Epic [#718](https://github.com/NCS23/training-analyzer/issues/718))
+- **CTL-Trend** bleibt verfügbar — verschiebt sich aber in eine Detail-/Verlaufsansicht
+- **Level-Namen** (*„Erste Schritte"* … *„Legende"*) bleiben als Coach-Vokabular für
+  AI-Subline-Formulierungen erhalten — z.B. *„Du bist auf Kurs für Sub-2h"*
+- **Krafttraining** wird als Konsistenz-Indikator („2 von 3 Einheiten diese Woche")
+  abgebildet — keine Score- oder Level-Berechnung
+- **Goal-Achievement-Feier** ersetzt die Level-Up-Feier — emotional stärker, weil
+  mit echter persönlicher Geschichte verknüpft
+
+### Auswirkungen auf bestehende Stories
+
+| Story | Aktion |
+|---|---|
+| [#694](https://github.com/NCS23/training-analyzer/issues/694) Epic Fitness Level System | **Schließen** als Wontfix mit Verweis auf neue Doku |
+| [#695](https://github.com/NCS23/training-analyzer/issues/695) Score-Engine v2 | **Schließen** — wird nicht implementiert |
+| [#696](https://github.com/NCS23/training-analyzer/issues/696) Level Cards Frontend | **Schließen** — Cards entfallen aus Dashboard |
+| [#697](https://github.com/NCS23/training-analyzer/issues/697) Level-Up Celebration | **Umschreiben** auf Goal-Achievement Celebration |
+
+---
+
 ## Verwandte Dokumente
 
+- [DASHBOARD_LAYOUT_PROPOSAL.md](DASHBOARD_LAYOUT_PROPOSAL.md) — **Aktuelles Dashboard-Konzept (ersetzt dieses Doc)**
+- [BRAND_STYLE_GUIDE.md](BRAND_STYLE_GUIDE.md) Section 11 — Aktualisierte Doku zum Fitness-Tracking
 - [TRAINING_CONTEXT.md](TRAINING_CONTEXT.md) — HM Sub-2h Kontext
 - [DOMAIN_MODEL.md](DOMAIN_MODEL.md) — Datenmodell
-- Epic [#694](https://github.com/NCS23/training-analyzer/issues/694) — Implementierungsplan
+- Epic [#694](https://github.com/NCS23/training-analyzer/issues/694) — Implementierungsplan (zurückgestellt)
+- Epic [#718](https://github.com/NCS23/training-analyzer/issues/718) — Goal Readiness (aktuelles Konzept)

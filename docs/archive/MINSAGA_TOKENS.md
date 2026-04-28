@@ -1,7 +1,14 @@
 # Minsaga Token-System
 
-> **Status:** Produktiv | 2026-04-22  
-> **Referenz:** [nordlig-design-system/docs/TOKEN_GUIDELINES.md](https://github.com/NCS23/nordlig-design-system/blob/main/docs/TOKEN_GUIDELINES.md)  
+> ⚠️ **ARCHIVIERT — 2026-04-27**
+>
+> Tokens leben in **Figma Variables** (File `vfjxFkAugXZCZPRVyADQRY`) und im **NDS-Repo / Storybook**
+> ([NCS23/nordlig-design-system](https://github.com/NCS23/nordlig-design-system)).
+> Diese Markdown-Spiegelung ist redundant und wird nicht mehr gepflegt.
+> Hier verbleibend, bis Verweise im Code/Doc bereinigt sind — danach löschbar.
+
+> **Original-Status:** Produktiv | 2026-04-22
+> **Referenz:** [nordlig-design-system/docs/TOKEN_GUIDELINES.md](https://github.com/NCS23/nordlig-design-system/blob/main/docs/TOKEN_GUIDELINES.md)
 > **Gilt für:** Training-Analyzer (Minsaga-App)
 
 ---

@@ -1,5 +1,11 @@
 # 🤖 KI-Analyse Integration - Training Analyzer
 
+> ⚠️ **ARCHIVIERT — 2026-04-27**
+>
+> Dieses Dokument ist nicht mehr die Source of Truth.
+> Inhalte fließen ins **PRD §5.3 (AI Coach)** ein → [`../PRD.md`](../PRD.md).
+> Hier verbleibend als historische Referenz.
+
 ## 💡 Die Vision
 
 **"Claude als Trainingsassistent"** - Intelligente Analyse & Empfehlungen basierend auf Training-Daten
