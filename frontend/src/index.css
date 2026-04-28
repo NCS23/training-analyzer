@@ -124,6 +124,29 @@
   z-index: 299 !important;
 }
 
+/* Combobox-/Select-Dropdown Override (#774).
+ *
+ * Nordlig Combobox setzt intern `max-h-[240px] overflow-y-auto` auf der
+ * Options-Liste — bei ~40px pro Item passen genau 6 Optionen. Bei längeren
+ * Listen (Segment-Typen 8, drills 18, Übungs-Bibliothek > 100) sind die
+ * restlichen Optionen praktisch unerreichbar:
+ *   - Visuell unsichtbar, kein deutlicher Scroll-Indikator
+ *   - Touch-Scroll auf iOS bricht innerhalb des Radix-Popover oft
+ *     (weil das umgebende Dialog body-scroll-lock erzwingt)
+ *
+ * Quick-Fix für Training Analyzer: max-h auf 60vh erhöhen (auf Mobile damit
+ * praktisch alles sichtbar, auf Desktop genug Platz) und touch-action +
+ * overscroll-behavior so setzen, dass das Scrollen sicher beim cmdk-list
+ * landet, nicht beim Body. Echtes Fix folgt im NDS-Repo.
+ */
+[cmdk-list] {
+  max-height: min(60vh, 480px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 @keyframes typing-dot {
   0%,
   80%,
