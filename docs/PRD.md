@@ -1479,7 +1479,7 @@ Statt klassischem Trial (gratis 14 Tage, dann Subvention-Rückstand) bieten wir 
 
 → Beides parallel ab MVP-Launch.
 
-### 10.7 Cost-Modell — realistische Zahlen
+### 10.7 Cost-Modell — realistische Zahlen mit MwSt-Korrektur
 
 Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-Qualität.
 
@@ -1493,27 +1493,67 @@ Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-
 | KI-Plan-Generierung (mehrstufig) | 25k in / 8k out | **~$0.20** |
 | Plan-Anpassungs-Vorschlag | 7.5k in / 700 out | **~$0.033** |
 
-#### Cost pro User-Typ pro Monat
+#### Echtes Net-Revenue pro Tier (mit MwSt-Abzug)
 
-| User-Typ | KI-Cost | Revenue (Web) | Marge |
-|---|---|---|---|
-| **Free** | $0 (außer Onboarding-Sample, $0.20 einmalig) | 0 € | — (kein Verlust) |
-| **Wochenabo** | ~$1 (1 Woche aktive Nutzung) | $4 | **~75%** |
-| **Monatsabo** (aktiv) | ~$4.20 | $13.40 | **~69%** |
-| **Jahresabo** (per-Monat) | ~$4.20 | $8.70 | **~52%** |
+Pricing ist **brutto** (inkl. 19% MwSt). Apple und Stripe handhaben das unterschiedlich.
 
-**Apple StoreKit (iOS) Margen:** 10–20 Prozentpunkte niedriger durch 30%-Cut Jahr 1 (15% ab Jahr 2). Tragbar.
+**Stripe (Web, EEA-Karten 1,5% + 0,25€):**
 
-#### Profitabilitäts-Szenarien (Web, Sonnet)
+| Tier | Brutto | -MwSt | -Stripe | **Net** |
+|---|---|---|---|---|
+| Wochenabo | 3,99 € | -0,64 € | -0,31 € | **3,04 €** |
+| Monatsabo | 12,99 € | -2,07 € | -0,45 € | **10,47 €** |
+| Jahresabo | 99 € | -15,80 € | -1,74 € | **81,46 €** (6,79 €/Mo) |
 
-| Szenario | Free | Paid | Revenue | KI-Cost | **Net/Monat** |
+**Apple iOS Jahr 1 (30% Cut, MwSt vorab):**
+
+| Tier | **Net** |
+|---|---|
+| Wochenabo | **2,34 €** |
+| Monatsabo | **7,64 €** |
+| Jahresabo (per-Mo) | **4,85 €** |
+
+**Apple iOS Jahr 2+ (15% Cut):**
+
+| Tier | **Net** |
+|---|---|
+| Wochenabo | **2,85 €** |
+| Monatsabo | **9,28 €** |
+| Jahresabo (per-Mo) | **5,89 €** |
+
+#### Margen-Tabelle mit echten Zahlen
+
+KI-Cost aktiv ~3,85 €/Monat (= $4.20 bei $1.09/€).
+
+| Tier × Channel | Net/Mo | Marge |
+|---|---|---|
+| Stripe Monatsabo | 10,47 € | **63%** ✅ |
+| Stripe Jahresabo | 6,79 € | **43%** |
+| Stripe Wochenabo | 3,04 € (1 Wo) | **70%** |
+| Apple Monat J1 | 7,64 € | **50%** |
+| **Apple Jahr J1** | **4,85 €** | **21%** ⚠️ ENG |
+| Apple Monat J2 | 9,28 € | **59%** |
+| Apple Jahr J2 | 5,89 € | **35%** |
+
+#### ⚠️ Apple-Jahresabo Jahr 1: nur 21% Marge
+
+Tragbar wegen langer Apple-User-Retention (LTV holt das auf), aber **Risiko-Faktor bei Skalierung**:
+
+- Pricing erhöhen (z.B. auf 14,99 € / 119 €) wenn nötig
+- Apple-Jahresabo-Pricing ggf. höher als Stripe (legal, aber wirkt unfair)
+- Akzeptieren weil nach Jahr 1 → 35% Marge
+
+→ **Aktuelle Entscheidung: Pricing bei 12,99 € / 99 € lassen, Apple-Jahresabo-Risiko bewusst tragen.**
+
+#### Profitabilitäts-Szenarien (Web/Stripe, mit MwSt-Korrektur)
+
+| Szenario | Free | Paid | Net-Revenue | KI-Cost | **Net** |
 |---|---|---|---|---|---|
-| Klein, 5% Conv. | 95 | 5 | 50 € | $20 | **+$33** ✅ |
-| Mittel, 10% Conv. | 450 | 50 | 500 € | $210 | **+$320** ✅ |
-| 1k User, 5% Conv. | 950 | 50 | 500 € | $210 | **+$320** ✅ |
-| 5k User, 10% Conv. | 4.500 | 500 | 5.000 € | $2.100 | **+$3.350** ✅ |
+| Klein, 5% Conv. | 95 | 5 | 52,35 € | 16,76 € | **+35,59 €** ✅ |
+| Mittel, 10% Conv. | 450 | 50 | 523,50 € | 167,55 € | **+356 €** ✅ |
+| 5k User, 10% Conv. | 4.500 | 500 | 5.235 € | 1.676 € | **+3.559 €** ✅ |
 
-→ Modell trägt schon bei niedrigen Conversion-Rates und kleinen User-Bases.
+→ Modell trägt weiter, aber **15% niedriger** als ursprünglich gerechnet.
 
 #### Modell-Wahl
 
@@ -1618,6 +1658,154 @@ Bei Überschreiten des Soft-Limits (z.B. via Bot/Script):
 - **KI-Prompt-Hardening** gegen Token-Burning-Attacks (z.B. „Erzähl mir Geschichte mit 100k Wörtern")
 - **Conversation-Limits** siehe §10.9
 
+### 10.11 Rechtsform & Steuern
+
+**Empfehlung für Solo-Founder beim Start:** Einzelunternehmer / Gewerbeanmeldung.
+
+| Form | Stammkapital | Haftung | Wann |
+|---|---|---|---|
+| **Einzelunternehmer** | 0 € | privat (voll) | **Start** — niedrigste Hürde |
+| UG (haftungsbeschränkt) | ~1k € | beschränkt | bei >50k €/Jahr Umsatz oder Haftungs-Sorgen |
+| GmbH | 25k € | beschränkt | wenn Investoren / B2B / Mitgründer |
+
+**Operative Pflichten:**
+
+- [ ] Steuerberater konsultieren (Apple/Stripe + OSS + Reverse-Charge — kompliziert)
+- [ ] Gewerbeanmeldung beim lokalen Ordnungsamt
+- [ ] Geschäftskonto trennen vom Privatkonto
+- [ ] Buchhaltungs-Software (Lexoffice / Sevdesk / Buchhaltungsbutler)
+- [ ] Berufshaftpflicht-Versicherung gegen KI-Plan-Haftungsfälle prüfen
+
+**MwSt-Handling pro Channel:**
+
+- **Apple**: Apple ist Merchant-of-Record in EU — zieht MwSt automatisch ab + führt sie ab. Du erhältst Net-Beträge.
+- **Stripe**: **Du bist USt-Schuldner.** Du musst MwSt selbst ausweisen + abführen. EU-OSS-Verfahren für grenzüberschreitenden B2C-Verkauf nutzen.
+
+→ Stripe ist operativ aufwendiger. Mit Buchhaltungs-Software automatisierbar.
+
+**Kleinunternehmerregelung** (bis 22k €/Jahr Umsatz keine MwSt-Pflicht): bei Apple-Sales nicht anwendbar (EU-grenzüberschreitend), praktisch wenig Vorteil im SaaS-Modell.
+
+---
+
+## 11. Compliance & Datenschutz
+
+> Pflicht-Spezifikation für Markt-Launch. DSGVO + EU AI Act + Apple App Store + Stripe AGB.
+
+### 11.1 DSGVO-Pflichten
+
+#### Datenschutzerklärung (Privacy Policy)
+
+Pflicht auf Website + in der App (Settings + Onboarding-Link). Inhalt:
+
+- Welche Daten erhoben werden: Name, Email, Trainings-Daten, optional Health-Daten (HF, Schlaf), Geräte-/Apple-Watch-Metadaten, Zahlungsdaten (über Stripe/Apple)
+- Zweck pro Datenkategorie
+- Rechtsgrundlage (Art 6 DSGVO):
+  - „Vertragserfüllung" für App-Funktion
+  - **„Einwilligung" für KI-Verarbeitung**
+- Empfänger / Auftragsverarbeiter: Anthropic, Stripe, Apple, Hetzner (Hosting), Email-Provider
+- Speicherdauer pro Datenkategorie
+- Betroffenenrechte: Auskunft, Berichtigung, Löschung, Datenexport, Widerspruch, Beschwerde bei Aufsichtsbehörde
+- Kontakt-Email für Datenschutz-Anfragen
+
+#### Auftragsverarbeitungs-Verträge (AVV)
+
+Pflicht mit jedem, der personenbezogene Daten verarbeitet:
+
+| Anbieter | AVV verfügbar | Action |
+|---|---|---|
+| **Anthropic** | ja, [anthropic.com/legal/dpa](https://www.anthropic.com/legal/dpa) | unterschreiben |
+| **Stripe** | ja, automatisch im Account | bestätigen |
+| **Apple** | über App Store Connect | automatisch |
+| **Hetzner / Coolify** | im Hetzner-Robot | unterschreiben |
+| **Apple/Google OAuth** | über OAuth-Setup | bestätigen |
+
+#### Einwilligung für KI-Verarbeitung
+
+Im Onboarding **explizit** einholen, separat von App-Nutzung:
+
+> *„Ich willige ein, dass minsaga meine Trainings-Daten an die KI-Anbindung (Anthropic Claude) sendet, um personalisierte Insights und Coaching zu liefern."*  ☐
+
+- Default: nicht angekreuzt
+- Frei widerrufbar in Settings
+- Bei Widerruf: keine KI-Features mehr, App weiter nutzbar (algorithmische Funktionen)
+
+#### Datenexport & Löschung
+
+- **Export** (Art 20 DSGVO): User kann alle Daten als JSON/CSV-Export anfordern (Settings-Button)
+- **Löschung** (Art 17 DSGVO): Account-Löschung mit allen Daten innerhalb 30 Tagen
+- **Backup-Bereinigung** parallel — Backups dürfen User-Daten nicht beliebig lange behalten (Standard: 30 Tage)
+
+### 11.2 Datenminimierung beim KI-Call
+
+Strikt definiert, was an Anthropic geht:
+
+**✅ Wird mitgeschickt:**
+- Trainings-Daten (Pace, HR, Distanz, Datum, Splits, Kadenz)
+- Plan-Kontext (Phasen, Wochenstruktur, Race-Goal)
+- Wetter-Kontext (für Korrelations-Insights)
+- Interne, anonyme User-ID (UUID)
+
+**❌ Wird NICHT mitgeschickt:**
+- Email
+- Name (Vor-/Nachname)
+- Geburtstag
+- Telefon
+- Bezahl-Daten
+- Geo-Standort (außer zur Strecken-Berechnung, dann ohne Personen-Bezug)
+
+### 11.3 Privacy-Pledge (User-Trust)
+
+Im Onboarding + Settings + Datenschutzerklärung deutlich kommuniziert:
+
+> *„Deine Trainings-Daten werden NICHT zum Training von KI-Modellen verwendet. Die Anthropic-API-Calls sind explizit ausgeschlossen vom Modell-Training (siehe Anthropic AGB)."*
+
+Wichtige Trust-Botschaft, weil viele User Sorge haben.
+
+### 11.4 EU AI Act
+
+Gilt voll ab August 2026. **minsaga ist nicht Hochrisiko-Klassifikation** (kein Hochrisiko-Anwendungsfall wie Bewerbungsentscheidung, Kreditvergabe, Strafverfolgung).
+
+**Reduzierte Pflichten:**
+
+| Pflicht | Erfüllt |
+|---|---|
+| **Transparenz** — User muss wissen, dass mit KI interagiert | ✅ via „Insight · KI-GENERIERT"-Pattern (§5.6 / Brand Style Guide) |
+| **Kein Manipulieren** — KI darf User nicht zu Aktionen drängen | ✅ via Lagom-Regel + Vorschlagsmodell (§5.8 + §1.2 #4) |
+| **Foundation-Model-Pflichten** | ❌ trifft Anthropic, nicht minsaga |
+| **Logging von KI-Entscheidungen** | ✅ existiert (`ai_analysis_log`, siehe §6.5) |
+
+### 11.5 Apple App Store Compliance
+
+Apple lehnt Apps ab, die nur Paywall sind. Pflicht:
+
+- **Free-Tier substantiell**: minsaga's Free hat algorithmische Funktionen + 1× Onboarding-Sample → **erfüllt**, sofern Apple das so wertet
+- **Cancel-Subscription-Link** in der App sichtbar (in Settings)
+- **Restore-Purchases-Button** für Re-Login auf neuem Device
+- **Subscription-Disclosure** im Pricing-Screen: Auto-Renewal-Klausel, Pricing, Cancel-Hinweis
+- **Family-Sharing** als Option im StoreKit (User entscheidet, ob er teilen will)
+
+### 11.6 Haftungs-Disclaimer für KI-Trainingspläne
+
+In Onboarding + bei Plan-Generierung sichtbar:
+
+> *„minsaga ist Lauf-Begleiter und Coach-Werkzeug. Die KI-generierten Pläne und Empfehlungen ersetzen nicht die Beratung durch einen ausgebildeten Trainer oder Sportarzt. Bei Beschwerden, Verletzungen oder gesundheitlichen Bedenken konsultiere bitte einen Arzt."*
+
+**Berufshaftpflicht-Versicherung** prüfen (Schutz gegen Schadensersatz-Klagen).
+
+### 11.7 Operative Compliance-To-Dos vor Markt-Launch
+
+- [ ] Datenschutzerklärung erstellen (Vorlage + Anwalt-Review)
+- [ ] AVVs mit allen Anbietern unterschrieben
+- [ ] Onboarding-Einwilligung implementiert
+- [ ] Datenexport-Funktion implementiert
+- [ ] Account-Löschung-Flow implementiert (mit Backup-Bereinigung)
+- [ ] „KI-GENERIERT"-Pattern app-weit konsistent
+- [ ] Cancel-Subscription-Link prominent
+- [ ] Restore-Purchases implementiert
+- [ ] Haftungs-Disclaimer in Plan-Generation + Onboarding
+- [ ] Berufshaftpflicht-Versicherung abgeschlossen (oder Risiko bewusst akzeptiert)
+- [ ] Anwalt-Review der gesamten Compliance vor Launch
+
 ---
 
 ## Anhang A: Versionshistorie
@@ -1626,3 +1814,4 @@ Bei Überschreiten des Soft-Limits (z.B. via Bot/Script):
 |---|---|---|
 | 2026-04-27 | PRD-Skelett angelegt, alte Konzept-Docs nach `archive/` verschoben | Konsolidierung Single Source of Truth |
 | 2026-04-28 | §6 Code-Audit · §2.5/2.6 8 User-Journeys · §10 Geschäftsmodell | Interview-Sessions S1–S3, Code-Audit, Journey-Vertiefung, Abomodell-Definition |
+| 2026-04-28 | §10.7 MwSt-Korrektur · §10.11 Rechtsform · §11 Compliance | Cost-Realismus-Check + Compliance-Block (DSGVO, EU AI Act, Apple App Store, Haftung) |
