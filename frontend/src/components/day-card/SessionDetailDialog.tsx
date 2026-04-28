@@ -322,6 +322,13 @@ export function SessionDetailDialog({
         <div
           className="space-y-4 overflow-y-auto"
           style={{
+            // Flex-Scroll-Fix (#778): Der Dialog ist `flex flex-col` und dieser
+            // div ist ein Flex-Child. Ohne `min-height: 0` und `flex: 1 1 auto`
+            // bleibt er auf intrinsischer Content-Hoehe stehen und overflow-auto
+            // wird unfluessig. Mit `flex: 1` schrumpft er sauber im Dialog und
+            // scrollt zuverlaessig per Mausrad/Touch.
+            flex: '1 1 auto',
+            minHeight: 0,
             // Viewport minus Dialog-Padding + Header + Footer (geschaetzt 180px)
             // dvh statt vh fuer iOS Safari (beruecksichtigt Adressleisten-Animation).
             maxHeight: 'calc(100dvh - 180px)',
