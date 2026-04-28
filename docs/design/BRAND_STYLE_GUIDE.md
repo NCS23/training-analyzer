@@ -1,7 +1,7 @@
 # Brand & Style Guide — minsaga
 
 > **Status:** Entwurf — wird schrittweise ergänzt
-> **Letzte Aktualisierung:** 2026-04-24
+> **Letzte Aktualisierung:** 2026-04-26
 
 ---
 
@@ -635,23 +635,23 @@ Stimmen-Wechsel an Kanten: *Etwas zu tun* → Coach. *Etwas zu fühlen* → Begl
 
 **Visuelle Verkörperung:** Stilisierte Rabe-Silhouette in Fuchsia-Familie (Markenfarbe AI, §5). Symbol statt Eigenname. Strukturell verankert im FAB, sprachlich nur anlassbezogen — kein Dauerkommentar.
 
-### Fitness-Level-Namen (Ausdauer)
+### Coach-Vokabular für Form-Beschreibung
 
-1. Erste Schritte
-2. Im Rhythmus
-3. Auf Kurs
-4. In voller Stärke
-5. Entfesselt
-6. Grenzenlos
-7. Legende
+Die folgenden Begriffe sind keine formalen Klassifizierungen mehr (siehe
+Abschnitt 11 für die Geschichte) — sie bleiben als **warmes Coach-Vokabular**
+für AI-Subline-Formulierungen und narrative Empty States bestehen.
 
-### Fitness-Level-Namen (Kraft)
+**Ausdauer-Spektrum** (von leicht zu intensiv):
 
-1. Erste Wiederholung
-2. Im Aufbau
-3. Starke Basis
-4. Volle Kraft
-5. Unaufhaltsam
+> *„Erste Schritte"* · *„Im Rhythmus"* · *„Auf Kurs"* · *„In voller Stärke"* · *„Entfesselt"* · *„Grenzenlos"* · *„Legende"*
+
+**Verwendung:**
+- AI-Subline: *„Du bist im Rhythmus für Sub-2h."* oder *„Auf Kurs zur Halbmarathon-Form."*
+- Empty States / Onboarding: *„Erste Schritte sind die wichtigsten."*
+- Goal-Achievement-Feier: *„Du bist in voller Stärke."*
+
+**Niemals als formale Klassifizierung:** Keine Buttons, Badges, Cards oder Charts
+mit „Level 4 — In voller Stärke". Die Begriffe sind Sprache, keine Daten.
 
 ### Empty States
 
@@ -661,38 +661,59 @@ Stimmen-Wechsel an Kanten: *Etwas zu tun* → Coach. *Etwas zu fühlen* → Begl
 
 ---
 
-## 11. Fitness Level System
+## 11. Fitness-Tracking & Goal Readiness
 
-> Vollständige Begründungen und Algorithmen: [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) · Epic [#694](https://github.com/NCS23/training-analyzer/issues/694)
+> Vollständiges Konzept: [DASHBOARD_LAYOUT_PROPOSAL.md](DASHBOARD_LAYOUT_PROPOSAL.md) · Epic [#718](https://github.com/NCS23/training-analyzer/issues/718) Goal Readiness
+>
+> **Historie:** Ein zwischenzeitlich entworfenes Level-System (siehe [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md))
+> wurde nach kritischer Prüfung verworfen. Begründung dort dokumentiert. Dieses Section
+> beschreibt den aktuellen, bewussten Stand.
 
-### Kernkonzept
+### Kernprinzip
 
-Der Score kommuniziert zwei Dinge: **„Wie gut ist meine Fitness?"** und **„Wie entwickle ich mich?"**. Goal Readiness (Ziel-Vorbereitung) ist eine dritte, separate Metrik.
+minsaga ist **zielfokussiert, nicht klassifizierend**. Die täglich relevante Frage
+für einen ambitionierten Läufer ist nicht *„wie fit bin ich abstrakt?"*, sondern
+*„komme ich rechtzeitig ans Ziel?"*. Das Dashboard ist entlang dieser Frage gebaut.
 
-Das alte System (CTL / persönliches Maximum) wurde ersetzt weil der Score nach Trainingspausen schrumpft und 100 praktisch unerreichbar ist.
+Es gibt keine Level, keine Score-Vergleiche mit anderen Nutzern, keine abstrakten
+Fitness-Klassifizierungen. Stattdessen:
 
-### Level-System
-
-Score 0–100 = Position *innerhalb* des aktuellen Levels. Level-Grenzen sind populationsreferenziert (fix, nicht personal). Das persönliche Höchstlevel ist ein permanentes Achievement — es kann nicht verloren gehen.
-
-**Normalisierung:** `sqrt(CTL / 90) × 100` → auf Level-Grenzen gemappt
-
-**Hysterese:** Level-Up nach 7 Tagen über Schwelle · Level-Down nach 21 Tagen
+- **AICoachInsight** als Erzähler-Schicht — kontextabhängige Empfehlung mit Fuchsia-Akzent
+- **Goal Readiness** als primäres Mess-Instrument (vier Komponenten, ein Wert in %)
+- **PlannedSessionCard** als Heute-Card mit Action-CTAs (7 Session-States)
+- **WeekOverviewCard** als Wochenkontext mit Status pro Tag
 
 ### Dashboard-Hierarchie
 
 ```
 Guten Morgen, Nils.
-[AI Coach Subline — dynamisch, kontextabhängig]
+
+[AICoachInsight — Fuchsia-Akzent, Bot-Icon]
+  Header: „Insight · KI-GENERIERT"
+  Body: kontextabhängiger Text (TSB, gestrige Session, Tage bis Ziel, Trend)
 
 [Ziel-Card — primärer Eyecatcher]
   Rennen · Zielzeit · Tage-Countdown
   Goal Readiness % (Ring)
   4 Komponenten: Fitness (CTL) / Langläufe / Tempoläufe / Konsistenz
 
-[Ausdauer Card]   Level 4 · In voller Stärke · Score 82
-[Kraft Card]      Level 2 · Im Aufbau · Score 54
+[PlannedSessionCard — Heute]
+  Eine Session, 7 States: planned / active / completed / missed / optional /
+  rest-day / upload. Trägt die konkreten Aktionen (Lauf starten, FIT-Datei
+  hochladen, Auswerten, Verschieben, Einplanen).
+
+[WeekOverviewCard — Wochenkontext]
+  Wochenleiste (Mo–So mit Status pro Tag). Detail-Sektion klappt nur auf,
+  wenn ein anderer Tag als heute ausgewählt wird — sonst doppelt sie sich
+  mit der PlannedSessionCard.
 ```
+
+Die ehemalige *Ausdauer Card* (Level + Score) und *Kraft Card* (Level + Score) sind
+**entfernt**. Goal Readiness leistet dasselbe spezifischer und handlungsorientierter.
+
+PlannedSessionCard und WeekOverviewCard haben unterschiedlichen Scope (eine Session vs.
+ganze Woche) und ergänzen sich. Form (TSB) bekommt keine eigene Card, sondern wird als
+Kontext im AICoachInsight aufgegriffen (*„Du bist frisch — heute geht Tempo."*).
 
 ### Goal Readiness
 
@@ -705,16 +726,36 @@ CTL allein reicht nicht — es misst Volumen, nicht Rennvorbereitung. Deshalb 4 
 | Tempoläufe | Pace-spezifische Vorbereitung |
 | Konsistenz | Trainingstage / 30 in letzten 42 Tagen |
 
-Schwacher Wert (<70%) wird orange hervorgehoben. AI Coach greift den schwächsten Wert direkt auf.
+Schwacher Wert (<70 %) wird orange hervorgehoben. AI Coach greift den schwächsten
+Wert direkt auf und macht daraus eine Empfehlung.
 
-### AI Coach Subline
+### Krafttraining
 
-Dynamisch generiert, kontextabhängig — keine statische Zeile. Brückt zwischen Begrüßung und Dashboard-Content. Inputs: Tage bis Rennen, gestrige Session, Form (TSB), Trend.
+Krafttraining ist für den Läufer **Begleittraining**, keine Hauptdisziplin. Es wird
+deshalb nicht mit Score, Level oder Volumen-Metrik bewertet, sondern als **Konsistenz-Indikator**:
+
+> *„Krafttraining diese Woche: 2 / 3 Einheiten"*
+
+Das ist ehrlich (kein methodisch zweifelhaftes Kraft-CTL), läufer-spezifisch (Kraft
+soll regelmäßig stattfinden, nicht maximiert werden) und einfach (drei Einheiten ist
+das wöchentliche Ziel — fertig).
+
+### AICoachInsight
+
+Existierende Komponente (Figma `2675:4232`). Bot-Icon mit Fuchsia-Akzent + Header
+*„Insight · KI-GENERIERT"* + Body-Text. Eigene L4-Tokens unter `components/aicoachinsight/*`.
+Direkt unter dem Begrüßungs-Header, vor der Goal-Card. Der Coach spricht zuerst und
+setzt den emotionalen Ton fürs Dashboard.
+
+Dynamisch generiert, kontextabhängig — keine statische Zeile. Inputs: Tage bis Rennen,
+gestrige Session, Form (TSB), Trend, schwächste Goal-Readiness-Komponente.
 
 Beispiele:
 - *„Du bist auf dem richtigen Weg. Hier ist dein Stand."* (42 Tage, steigend)
 - *„Gestern hast du geliefert. Heute schaust du, wo du stehst."* (nach hartem Training)
 - *„7 Tage noch. Alles was du brauchst, hast du bereits."* (Rennwoche)
+- *„Du bist im Rhythmus für Sub-2h."* (nutzt Coach-Vokabular aus Section 10)
+- *„Tempoläufe sind dein schwacher Punkt — ich hab Donnerstag was geplant."*
 
 ### Empty State (kein Ziel gesetzt)
 
@@ -722,9 +763,21 @@ Beispiele:
 > *Ein Rennen. Eine Zeit. Eine Distanz.*
 > *Setz den Horizont — wir zeigen dir den Weg dorthin."*
 
-### Level-Up Feier
+Wenn kein Ziel gesetzt ist, fällt die Goal-Card weg. Die WeekOverviewCard kann
+trotzdem angezeigt werden — mit allgemeinen Empfehlungen des AI Coach in den
+Tages-Details.
 
-Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt → neu), dann große Fraunces-Überschrift mit Stat-Zusammenfassung („Es hat dich X Wochen und Y Einheiten gekostet"). Still, warm, verdient. `motion-reduce` wird respektiert.
+### Goal-Achievement-Feier
+
+Wenn der Läufer sein gesetztes Ziel erreicht (z.B. Sub-2h beim Halbmarathon),
+geht die App ganz aus sich heraus. Nordlicht-Gradient flutet langsam den Screen,
+dann eine große Fraunces-Überschrift mit Stat-Zusammenfassung (*„Sub 2:00 — geschafft"*,
+*„42 Tage Vorbereitung. 38 Trainingseinheiten. Eine Saga."*). Still, warm, verdient.
+
+`motion-reduce` wird respektiert.
+
+Diese Feier ersetzt die ursprünglich geplante Level-Up-Feier — emotional stärker,
+weil mit echter persönlicher Geschichte verknüpft, nicht mit abstrakter Klassifizierung.
 
 ---
 
@@ -747,13 +800,15 @@ Nordlicht-Gradient flutet langsam den Screen, dann Badge-Transformation (alt →
 - [DESIGN_REVIEW.md](DESIGN_REVIEW.md) — UX-Review-Checkliste
 - [PROJEKT_REGELN.md](PROJEKT_REGELN.md) — Technische Regeln
 - [CLEAN_CODE.md](CLEAN_CODE.md) — Code-Qualität
-- [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) — Konzept, Designentscheidungen & Algorithmus-Begründungen
+- [DASHBOARD_LAYOUT_PROPOSAL.md](DASHBOARD_LAYOUT_PROPOSAL.md) — Aktuelles Dashboard-Konzept (zielfokussiert, ohne Levels)
+- [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) — *Superseded* — Historische Designentscheidungen zum verworfenen Level-System
 - [MINSAGA_TOKENS.md](MINSAGA_TOKENS.md) — Minsaga-spezifische Token-Ergänzungen (5 Collections: Color, Typography, Spacing, Sizing, Radius)
 - [AI_PRESENCE_CONCEPT.md](AI_PRESENCE_CONCEPT.md) — KI-Präsenz: drei Stimmen, Symbol statt Eigenname, FAB-Verankerung, Form (Rabe in Fuchsia-Familie)
 - Nordlig DS Storybook: http://storybook.89.167.78.223.sslip.io
 - Nordlig DS Designprinzipien: `nordlig-design-system/DESIGN_PRINCIPLES.md`
 - Nordlig DS Token-Architektur: `nordlig-design-system/docs/TOKEN_GUIDELINES.md`
-- Fitness Level System: GitHub Epic #694
+- Goal Readiness: GitHub Epic [#718](https://github.com/NCS23/training-analyzer/issues/718)
+- Fitness Level System (verworfen): GitHub Epic [#694](https://github.com/NCS23/training-analyzer/issues/694)
 
 ---
 

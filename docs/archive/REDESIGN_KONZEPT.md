@@ -1,6 +1,16 @@
 # Training Analyzer — Redesign Konzept v2
 
-> **Status:** Entwurf — Diskussionsbasis für Epics & Stories
+> ⚠️ **ARCHIVIERT — 2026-04-27**
+>
+> Dieses Dokument war die ursprüngliche Diskussionsbasis für das Redesign.
+> Inhalte fließen jetzt ins **PRD** ein → [`../PRD.md`](../PRD.md):
+> - Navigationsstruktur (§3 — Tabs werden im Interview neu festgelegt)
+> - Tab-Specs Heute / Training / Analyse / Plan / Sammlung (§4)
+> - Querschnittskonzepte wie Ziel-Integration in Plan (§5)
+>
+> Hier verbleibend als historische Referenz für ursprüngliche Überlegungen.
+
+> **Original-Status:** Entwurf — Diskussionsbasis für Epics & Stories
 > **Erstellt:** 2026-04-06
 > **Kontext:** Grundlegendes Redesign der App-Architektur, Navigation und Features
 

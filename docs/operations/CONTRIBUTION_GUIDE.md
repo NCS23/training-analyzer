@@ -193,10 +193,11 @@ pytest app/tests/ -x
 
 **VOR Implementation lesen:**
 1. `CLAUDE.md` — Einstiegspunkt + Workflow
-2. `docs/PROJEKT_REGELN.md` — Technische Regeln
-3. `docs/DESIGN_REVIEW.md` — UX & Design Checkliste
-4. `docs/DOMAIN_MODEL.md` — Datenmodelle
+2. `docs/PRD.md` — Was ist Scope, was ist Status (KEEP/ADAPT/NEW/REMOVE)
+3. `docs/engineering/PROJEKT_REGELN.md` — Technische Regeln
+4. `docs/engineering/DESIGN_REVIEW.md` — UX & Design Checkliste
+5. `docs/reference/DOMAIN_MODEL.md` — Datenmodelle
 
 **NACH Implementation updaten:**
 1. GitHub Issue kommentieren + schliessen
-2. `docs/CHANGELOG.md` (bei Releases)
+2. `docs/operations/CHANGELOG.md` (bei Releases)

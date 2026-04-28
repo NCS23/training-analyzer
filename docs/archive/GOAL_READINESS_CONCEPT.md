@@ -1,8 +1,14 @@
 # Goal Readiness — Konzept
 
-> **Status:** Entwurf v1
+> ⚠️ **ARCHIVIERT — 2026-04-27**
+>
+> Dieses Dokument ist nicht mehr die Source of Truth.
+> Inhalte fließen ins **PRD §5.1 (Goal Readiness)** ein → [`../PRD.md`](../PRD.md).
+> Hier verbleibend als historische Referenz für die sportwissenschaftliche Herleitung.
+
+> **Original-Status:** Entwurf v1
 > **Letzte Aktualisierung:** 2026-04-19
-> **Verwandt:** [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) · [BRAND_STYLE_GUIDE.md](BRAND_STYLE_GUIDE.md)
+> **Verwandt:** [FITNESS_LEVEL_SYSTEM_V2.md](FITNESS_LEVEL_SYSTEM_V2.md) · [../design/BRAND_STYLE_GUIDE.md](../design/BRAND_STYLE_GUIDE.md)
 > **Issue:** [#716](https://github.com/NCS23/training-analyzer/issues/716)
 
 ---

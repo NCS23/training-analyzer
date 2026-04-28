@@ -2,11 +2,27 @@
 
 ## Quick Links
 
-- [PROJEKT_REGELN.md](docs/PROJEKT_REGELN.md) — Technische Regeln (Frontend, Backend, Testing)
-- [DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) — UX & Design Review Checkliste
-- [DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) — Domänenmodell (15 Entities, 200+ Felder)
-- [TRAINING_CONTEXT.md](docs/TRAINING_CONTEXT.md) — Trainingskontext (HM Sub-2h)
-- [CLEAN_CODE.md](docs/CLEAN_CODE.md) — Clean Code & SOLID Regeln
+> 📚 **Dokumentationsstruktur:** [`docs/README.md`](docs/README.md) — Übersicht über alle Docs.
+
+**Single Source of Truth:**
+- 📋 [docs/PRD.md](docs/PRD.md) — **Was** wird gebaut (Produkt, Features, Konzepte)
+
+**Engineering-Regeln (wie wird gebaut):**
+- [docs/engineering/PROJEKT_REGELN.md](docs/engineering/PROJEKT_REGELN.md) — Technische Regeln (Frontend, Backend, Testing)
+- [docs/engineering/CLEAN_CODE.md](docs/engineering/CLEAN_CODE.md) — Clean Code & SOLID Regeln
+- [docs/engineering/DESIGN_REVIEW.md](docs/engineering/DESIGN_REVIEW.md) — UX & Design Review Checkliste
+- [docs/engineering/FIGMA_RULES.md](docs/engineering/FIGMA_RULES.md) — Figma-Workflow-Regeln
+
+**Reference (Domain & Daten):**
+- [docs/reference/DOMAIN_MODEL.md](docs/reference/DOMAIN_MODEL.md) — Domänenmodell (Entities, 200+ Felder)
+- [docs/reference/TRAINING_CONTEXT.md](docs/reference/TRAINING_CONTEXT.md) — Trainingskontext (HM Sub-2h)
+
+**Design (Brand):**
+- [docs/design/BRAND_STYLE_GUIDE.md](docs/design/BRAND_STYLE_GUIDE.md) — Visuelle Sprache, Tonalität
+
+**Externe Sources of Truth:**
+- 🎨 [Figma File `vfjxFkAugXZCZPRVyADQRY`](https://www.figma.com/design/vfjxFkAugXZCZPRVyADQRY/) — Komponenten + Tokens
+- 📦 [NCS23/nordlig-design-system](https://github.com/NCS23/nordlig-design-system) — DS-Code + Storybook
 
 ---
 
@@ -32,11 +48,13 @@ Jedes Feature, jeder Bugfix, jede Änderung durchläuft diese Phasen.
 
 Vor der ersten Zeile Code:
 
-1. **PROJEKT_REGELN.md lesen** — Mobile-First, Nordlig DS, API-Design, Testing
-2. **DESIGN_REVIEW.md lesen** — 5 Säulen, 7 Kriterien, Nordlig-Heuristik
-3. **DOMAIN_MODEL.md lesen** — Entities und deren Beziehungen verstehen
-4. **CLEAN_CODE.md lesen** — Clean Code & SOLID Regeln, Grenzwerte
-5. Bei UI-Änderungen: relevante Nordlig DS Komponenten in Storybook prüfen
+1. **`docs/PRD.md` konsultieren** — Steht das Feature im PRD? In welchem Abschnitt? Was ist sein Status (KEEP / ADAPT / NEW / REMOVE — siehe PRD §6)?
+2. **`docs/engineering/PROJEKT_REGELN.md` lesen** — Mobile-First, Nordlig DS, API-Design, Testing
+3. **`docs/engineering/DESIGN_REVIEW.md` lesen** — 5 Säulen, 7 Kriterien, Nordlig-Heuristik
+4. **`docs/reference/DOMAIN_MODEL.md` lesen** — Entities und deren Beziehungen verstehen
+5. **`docs/engineering/CLEAN_CODE.md` lesen** — Clean Code & SOLID Regeln, Grenzwerte
+6. Bei UI-Änderungen: relevante Nordlig DS Komponenten in Storybook prüfen
+7. Bei Figma-Änderungen: **`docs/engineering/FIGMA_RULES.md` lesen** — Token-Architektur (L4→L3→L2→L1), Atomares Design, Arbeitsablauf. Kein `use_figma`-Aufruf ohne diese Regeln gelesen zu haben.
 
 ### Phase 1: Issue & Branch
 
