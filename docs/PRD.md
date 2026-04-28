@@ -1,8 +1,14 @@
 # minsaga — Product Requirements Document
 
-> **Status:** v0 (Skelett) · 2026-04-27
+> **Status:** v0 · 2026-04-27, mehrfach iteriert 2026-04-28
 > **Single Source of Truth.** Wenn etwas Produkt- oder Konzept-Bezogenes nicht hier steht, ist es **nicht spezifiziert**.
 > Visuelle Spezifikationen (Komponenten, Tokens, Brand) leben **nicht** hier — siehe Verlinkungen.
+
+> **Implementation:**
+> - **iOS / iPadOS / macOS / watchOS App** *(Hauptprodukt ab Phase 1)*: [`minsaga`](https://github.com/NCS23/minsaga) *(Repo wird angelegt)*
+> - **Backend + Web-App** *(Übergangs-Tool)*: dieses Repo (`training-analyzer`)
+> - **Design System**: [`nordlig-design-system`](https://github.com/NCS23/nordlig-design-system)
+> - **Stories für iOS-App**: [Epic #551](https://github.com/NCS23/training-analyzer/issues/551)
 
 ---
 
@@ -1362,6 +1368,38 @@ Web-App + Backend bleiben **Übergangs-Tool**:
 - **Phase 3**: Web wird stillgelegt oder bleibt als Marketing-Site
 
 → Backend wird bei Phase 3 **nicht mehr benötigt** (alles in SwiftData + CloudKit + Foundation Models + optional Claude API direkt vom Device).
+
+#### Repo-Strategie
+
+**Entscheidung (2026-04-28):** Native iOS-App in **eigenem Repo**.
+
+| Repo | Rolle | Lifecycle |
+|---|---|---|
+| **`training-analyzer`** *(dieses Repo)* | Konzept-Master · PRD · Backend (Übergang) · Web (Dogfooding) | bis Phase 3, dann archivieren |
+| **`minsaga`** *(neu)* | iOS / iPadOS / macOS / watchOS App — **Hauptprodukt** | aktiv ab Phase 1 |
+| **`nordlig-design-system`** | Design-System (existiert) | aktiv |
+
+**Begründung:**
+- Apple-Tooling (Xcode · Provisioning · Fastlane · App Store Connect) ist sehr Apple-spezifisch — Mixed-Repo erzeugt Reibung
+- Backend wird langfristig sterben — Monorepo-Vorteil schwindet
+- Indie-iOS-Standard: dedizierte App-Repos
+- Klare strategische Botschaft: `minsaga` = Produkt, `training-analyzer` = Konzept + Übergangs-Tool
+
+**Cross-Repo-Verlinkung:**
+
+In `minsaga/README.md`:
+- Konzept & Vision → PRD im `training-analyzer`
+- Design System → `nordlig-design-system`
+- Stories → Epic #551 im `training-analyzer`
+
+In `training-analyzer/docs/PRD.md` (Anfang):
+- Implementation iOS → Link zu `minsaga`-Repo
+
+**Issue-Tracking:**
+- Konzept-Issues + Backend-Wartung: `training-analyzer`
+- iOS-Implementation-Stories: `minsaga`
+- Cross-Cutting (z.B. „Algo-Generator portieren von Python nach Swift") → Issue im `training-analyzer` mit Link zu `minsaga`-Issue
+- **Gemeinsamer Project Board** „Development Backlog" über alle drei Repos hinweg
 
 #### Personal-Use-First-Phase (2026-04-28)
 
