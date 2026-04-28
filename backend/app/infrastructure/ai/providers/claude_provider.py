@@ -131,14 +131,22 @@ class ClaudeProvider(AIProvider):
         tool_handler: Any,
         api_key: str | None = None,
     ) -> AsyncIterator[dict]:
-        """Streamt Chat mit Tool Use. Yields dicts mit type: tool_call | token."""
+        """Streamt Chat mit Tool Use. Yields dicts mit type: tool_call | token.
+
+        max_tool_rounds (#770): Plan-Erstellung kann viele Rounds brauchen
+        (get_training_stats + get_personal_records + search_training_knowledge
+        + generate_training_plan + Follow-up-Korrekturen). Bei zu niedrigem
+        Limit brach der Stream frueher kommentarlos ab — jetzt 12 Rounds und
+        explizites error-Event wenn das Limit erreicht ist, damit der User
+        eine klare Fehlermeldung sieht statt eines stillen Abbruchs.
+        """
         client = self._get_async_client(api_key)
         api_messages: list[anthropic.types.MessageParam] = [
             {"role": m["role"], "content": m["content"]}
             for m in messages  # type: ignore[misc]
         ]
 
-        max_tool_rounds = 5
+        max_tool_rounds = 12
         for round_idx in range(max_tool_rounds):
             # Signal: Neuer API-Call startet (nach Tool-Verarbeitung)
             if round_idx > 0:
@@ -181,6 +189,21 @@ class ClaudeProvider(AIProvider):
                     )
 
             api_messages.append({"role": "user", "content": tool_results})  # type: ignore[arg-type,typeddict-item]
+
+        # Tool-Round-Limit erreicht ohne dass die KI fertig wurde —
+        # explizit signalisieren, sonst sieht der User einen stillen Abbruch.
+        logger.warning(
+            "stream_chat_with_tools: max_tool_rounds=%d erreicht ohne Abschluss",
+            max_tool_rounds,
+        )
+        yield {
+            "type": "error",
+            "message": (
+                f"Die KI hat das Tool-Limit ({max_tool_rounds} Runden) erreicht, ohne "
+                "fertig zu werden. Bitte formuliere die Anfrage konkreter oder teile "
+                "sie in mehrere Schritte auf."
+            ),
+        }
 
     def is_available(self, api_key: str | None = None) -> bool:
         """Prüft ob ein API Key vorhanden ist (kein teurer Test-Call)."""
