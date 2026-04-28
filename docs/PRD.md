@@ -1280,23 +1280,15 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Schlüsselerkenntnis:** Backend ist sehr weit. Kern-Endpoints, Domain-Modell, KI-Integrationen sind alle vorhanden und produktionsreif. Der Lift zur PRD-Vision ist **mehr UI-Routing + Komposition als Backend-Arbeit**.
 
-### 6.7 Abomodell-Schicht (NEU, ergänzt aus Onboarding-Journey)
+### 6.7 Abomodell-Schicht (Verweis)
 
-**Anforderung:** Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein. Alle KI-Calls laufen über den **Entwickler-Key**. Damit das Geschäft trägt, braucht es eine **Abomodell-Schicht**:
+Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls laufen über den Entwickler-Key. Damit das Geschäft trägt, braucht es eine Abomodell-Schicht.
 
-- **Auth-Layer existiert** (Email/Apple/Google) → kann erweitert werden
-- **Payment-Integration fehlt komplett** (🔵 NEW)
-- **Tier-Logik fehlt komplett** — *was kann Free, was Paid?*
-- **In-App-Purchase via Apple StoreKit** (Pflicht für iOS-App im App Store) → bei Native-iOS-App-Roadmap mitdenken
-- **Web-Payment-Alternative** (z.B. Stripe) für Web-Variante
-
-**Offene Fragen:** Was darf der Free-Tier? *(z.B. Manueller Plan + Sessions ohne KI-Insights? Oder gar nichts?)* Was kostet Paid? Welche Limits? Trial-Period?
-
-→ **Zu klären in eigenem Block** (Geschäftsmodell-Definition). Siehe §8 #18.
+→ **Vollständige Spezifikation in [§10 Geschäftsmodell](#10-geschäftsmodell).**
 
 **Folgen für andere Sektionen:**
-- §2.5.7 Onboarding: KI-Provider-Key wird nicht abgefragt, läuft über Entwickler-Key
-- §6.4 Backend: Pre-Calls-Authorization-Check vor KI-Calls (gegen Abo-Status)
+- §2.5.7 Onboarding: KI-Provider-Key wird nicht abgefragt
+- §6.4 Backend: Authorization-Schicht vor KI-Endpoints
 - §7 Was nicht: Abomodell ist **explizit IM Scope**, nicht ausgeschlossen
 
 ---
@@ -1331,7 +1323,7 @@ Pro Feature/Bereich eines von vier Labels:
 | 15 | **Wetter-Berücksichtigung in Insights** | erledigt-bestätigt | — | Open-Meteo ist angebunden (siehe §6.4). Korrelations-Insights können auf Wetterdaten zugreifen. |
 | 16 | **Streak-Logik in `_build_motivation`** | **Fix erforderlich** | — | Backend-Endpoint `/api/v1/streak` + Motivation-String widersprechen Anti-Pattern §1.2 #3. Siehe §6.4. Fix als Story Priorität 4. |
 | 17 | **`workouts` vs. „session" Naming** | offen | — | DB-Tabelle heißt `workouts`, API/Frontend sagen „session". Konsistenz herstellen oder bewusst tolerieren? |
-| 18 | **Abomodell — Free vs. Paid Tier** | **groß**, offen | Nils | Was kann ein Nicht-Abonnent? KI ohne / mit Limit? Manueller Plan + Sessions OK? Trial? Preis? Apple StoreKit + Stripe? Siehe §6.7 |
+| 18 | **Abomodell — Free vs. Paid Tier** | erledigt-2026-04-28 | Nils | Spezifiziert in §10 (Pricing 10€/79€, kein Trial, Per-Feature-Limits, StoreKit + Stripe) |
 | 19 | **Companion-Mode Apple Watch** | Vision (Roadmap) | — | Aktive Begleitung während Race + ggf. Training. Erfordert native Watch-App. Siehe §2.5.6. |
 | 20 | **HealthKit-Integration** | offen | — | Auto-FIT-Erkennung + Schlaf + Ruhe-HF aus Apple Health. Siehe §2.5.2 + §2.5.7. |
 
@@ -1409,8 +1401,105 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ---
 
+## 10. Geschäftsmodell
+
+> Erfasst in Abomodell-Session (2026-04-28).
+
+### 10.1 Grundprinzipien
+
+- **Der Endnutzer gibt KEINEN AI-Provider-Key ein** — alle KI-Calls laufen über Entwickler-Key
+- **Free-Tier ist echt nutzbar, nicht zeitlimitiert** (kein Trial-Tease)
+- **Klare Trennlinie:** algorithmische Funktionen Free, KI-Funktionen mit Free-Limit, Paid unbegrenzt
+- **Transparente, einfach kündbare Bezahlung**
+- **Keine Dark Patterns** — kein Streak-Lock, keine Daten-Geisel, keine Manipulation
+
+### 10.2 Tier-Architektur
+
+**Eine Tier:** Free + Paid. Keine Pro-Verwirrung.
+
+| Bereich | Free | Paid |
+|---|---|---|
+| Sessions hochladen, verwalten | ✅ unbegrenzt | ✅ unbegrenzt |
+| **Algorithmischer Plan-Generator** (Templates) | ✅ unbegrenzt | ✅ unbegrenzt |
+| Wettkampfziel, Pacing | ✅ unbegrenzt | ✅ unbegrenzt |
+| Trends, Stats, CTL/ATL/TSB als Zahlen | ✅ unbegrenzt | ✅ unbegrenzt |
+| Goal Readiness als Score | ✅ unbegrenzt | ✅ unbegrenzt |
+| Routen, Übungs-Bibliothek | ✅ unbegrenzt | ✅ unbegrenzt |
+| Algo-Wochen-Review (regel-basiert) | ✅ unbegrenzt | ✅ unbegrenzt |
+| KI-Insights nach Sessions | 🔒 **5/Monat** | ♾ |
+| AI Coach Chat (Konversationen) | 🔒 **3/Monat** | ♾ |
+| KI-Wochen-Review | 🔒 **2/Monat** | ♾ |
+| KI-Plan-Generierung | 🔒 **1 Lifetime** | ♾ |
+| Plan-Anpassungs-Vorschläge | 🔒 **2/Monat** | ♾ |
+| Coach-Sprache auf Goal Readiness | 🔒 (in Limit) | ♾ |
+
+### 10.3 Limit-Verhalten pro Feature
+
+| Feature | Beim Limit |
+|---|---|
+| **Insights** | **Hybrid** — Algo-Fallback (regel-basierter Insight: Soll/Ist + Kadenz-Check) + Upgrade-CTA für Detail-KI-Insight |
+| **Chat** | **Soft-Stop** — FAB sichtbar, Tap zeigt Upgrade-Card statt Chat-Eingabe |
+| **Wochen-Review** | **Hybrid** — Algo-Bericht permanent verfügbar (Plan-Treue, Volumen-Δ, Status), KI-Sample bei Free-Quote |
+| **Plan-Generierung (KI)** | Algo-Plan + Hinweis *„KI-Personalisierung mit Upgrade"* |
+| **Plan-Anpassung** | **Hard-Stop** — keine weiteren Vorschläge bis Monatsanfang |
+
+### 10.4 Pricing
+
+| | Preis | Vergleich |
+|---|---|---|
+| **Monatlich** | **10 €** | leicht über Strava Premium (~10€) |
+| **Jährlich** | **79 €** (~34% Rabatt) | knapp unter Runna (~17€/Monat) |
+
+→ Aggressive Einstiegspreis. Premium-Position klar zu Strava + Garmin/Apple, klar günstiger als Runna/TrainingPeaks.
+
+### 10.5 Kein Trial
+
+Free-Tier ist der Default — kein zeitbasiertes Trial. User testet die Free-Limits, upgradet wenn überzeugt.
+
+→ Konsequenz: kein „nach 14 Tagen ist Schluss"-Frust, keine Kündigungs-Falle. Marken-konform mit P1.
+
+### 10.6 Distribution
+
+| Kanal | Wie | Anteil |
+|---|---|---|
+| **Apple StoreKit** | Pflicht für iOS-User (Apple-Regel: keine Web-Payments im iOS-App-Store) | 30% / 15%-nach-Jahr 1 Apple-Anteil |
+| **Stripe** | Web-App (+ später Android) | ~3% Fees |
+
+→ Beides parallel ab MVP-Launch.
+
+### 10.7 Cost-Modell
+
+Mit **Claude 3.5 Sonnet** als Default-Modell (Premium-Qualität, einheitlich):
+
+| User-Typ | KI-Cost/Monat | Pricing | Marge |
+|---|---|---|---|
+| **Free (im Limit)** | ~$0.40 | 0 € | -$0.40 (Subvention) |
+| **Paid (aktiv)** | ~$1.50 | 10 € | ~85% |
+
+Bei stark inaktiven Free-Usern fast kostenfrei. Modell trägt sich.
+
+### 10.8 Technische Anforderungen (🔵 NEW, alle nicht implementiert)
+
+Was muss gebaut werden:
+
+- **Subscription-Status** in `users` oder eigener `subscriptions`-Tabelle
+- **Per-Feature-Counter** mit Reset-Logik (KI-Insights/Monat, Chat-Konversationen/Monat, Wochen-Review/Monat, Plan-Anpassung/Monat, KI-Plan-Lifetime)
+- **Authorization-Schicht** vor jedem KI-Endpoint (Limit-Check + Subscription-Check)
+- **Stripe-Integration** (Webhooks, Customer-Portal, Subscription-Lifecycle)
+- **Apple StoreKit-Integration** (Receipt-Validation, Subscription-Lifecycle)
+- **Algorithmischer Plan-Generator** als separater Service (kein LLM)
+- **Algorithmischer Wochen-Review-Generator** als Fallback (regel-basiert)
+- **Algorithmischer Insight-Generator** als Fallback (Soll/Ist, Kadenz-Δ, HR-Drift-Hinweis ohne KI-Sprache)
+- **Upgrade-CTA-Komponenten** (Card + Sheet, kontextabhängig)
+- **Free-Tier-Status-Anzeige** im Profil/Settings (Verbrauch, Limits, Reset-Datum)
+
+→ Diese Anforderungen sind Basis für Sprint-Planung; vor Marktstart Pflicht.
+
+---
+
 ## Anhang A: Versionshistorie
 
 | Datum | Was geändert | Begründung |
 |---|---|---|
 | 2026-04-27 | PRD-Skelett angelegt, alte Konzept-Docs nach `archive/` verschoben | Konsolidierung Single Source of Truth |
+| 2026-04-28 | §6 Code-Audit · §2.5/2.6 8 User-Journeys · §10 Geschäftsmodell | Interview-Sessions S1–S3, Code-Audit, Journey-Vertiefung, Abomodell-Definition |
