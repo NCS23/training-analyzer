@@ -18,6 +18,9 @@
 - [7. Was wir bewusst NICHT machen](#7-was-wir-bewusst-nicht-machen)
 - [8. Offene Fragen / Entscheidungs-Backlog](#8-offene-fragen--entscheidungs-backlog)
 - [9. Glossar & Vokabular](#9-glossar--vokabular) 🎙️ *Interview S3*
+- [10. Geschäftsmodell](#10-geschäftsmodell)
+- [11. Compliance & Datenschutz](#11-compliance--datenschutz)
+- [12. Architektur-Prinzipien für Erweiterbarkeit](#12-architektur-prinzipien-für-erweiterbarkeit)
 - [Anhang A: Versionshistorie](#anhang-a-versionshistorie)
 
 ---
@@ -2005,6 +2008,181 @@ In Onboarding + bei Plan-Generierung sichtbar:
 
 ---
 
+## 12. Architektur-Prinzipien für Erweiterbarkeit
+
+> Heute haben wir mehrfach pivotiert (Stripe → Apple-only → BYOK → Foundation Models). Diese Optionalität müssen wir **bei jeder Implementierung bewahren** — damit zukünftige Pivots nicht teure Refactorings werden.
+
+### 12.1 KI-Provider-Abstraktion
+
+**Problem:** Heute Foundation Models, morgen vielleicht Claude/Opus/Gemini/lokales LLM. Wenn KI-Calls direkt an Provider-SDKs gebunden sind, blockiert das den Wechsel.
+
+**Prinzip:** **Protocol-orientierte Abstraktion** — alle KI-Calls gehen über ein einheitliches Interface:
+
+```
+Protocol AIProvider {
+    func generateInsight(_ session: Session) async -> Insight
+    func chat(_ message: String, context: Context) -> AsyncStream<String>
+    func generatePlan(_ goal: Goal) async -> Plan
+    func generateWeekReview(_ week: Week) async -> Review
+    func generateAdaptation(_ trigger: Trigger) async -> Adaptation
+}
+```
+
+**Implementations** parallel verfügbar, austauschbar per User-Setting:
+- `FoundationModelsProvider` (on-device, default)
+- `BYOKClaudeProvider` (User-eigener Key, optional)
+- `ServerSideClaudeProvider` (Subscription, Phase 3)
+- `AlgorithmicFallbackProvider` (regel-basiert, immer verfügbar)
+
+→ **Wechsel zwischen Providern = Settings-Toggle, nicht Code-Refactor.**
+
+### 12.2 Repository-Pattern für Daten
+
+**Problem:** Heute Backend (PostgreSQL), morgen SwiftData (on-device), übermorgen Hybrid mit CloudKit-Sync. Daten-Layer muss flexibel bleiben.
+
+**Prinzip:** Repository-Abstraktion zwischen Domain und Speicherung:
+
+```
+Protocol SessionRepository {
+    func save(_ session: Session) async throws
+    func load(id: UUID) async throws -> Session?
+    func query(_ filter: SessionFilter) async throws -> [Session]
+    func delete(id: UUID) async throws
+}
+```
+
+**Implementations** für die jeweilige Phase:
+- Phase 1 Web: `APIRepository` (FastAPI-Backend)
+- Phase 1 iOS: `SwiftDataRepository` (lokal)
+- Phase 2: `HybridRepository` (lokal + optional Backend-Sync)
+- Phase 3: nur `SwiftDataRepository` + CloudKit-Sync
+
+→ **Migration Backend → On-Device** = Repository-Switch, nicht App-Rewrite.
+
+### 12.3 Domain-Layer plattform-agnostisch
+
+**Prinzip:** Business-Logik (Plan-Generator, Pacing, Classifier) als **pure Funktionen ohne UI/Storage-Dependencies**:
+
+- iOS-App: Swift-Funktionen
+- watchOS-App: gleiche Swift-Funktionen
+- macOS-App: gleiche Swift-Funktionen
+- Backend (Übergangs): Python-Implementation mit gleicher Logik
+
+→ Domain-Logik **einmal definiert, überall einsetzbar**. Easy zu portieren, easy zu testen.
+
+### 12.4 Brand & Design-Tokens — Single Source
+
+**Prinzip:** Tokens werden in Figma definiert und in mehreren Formen exportiert:
+
+| Form | Wofür |
+|---|---|
+| Figma Variables | Master-Definition |
+| Swift Package | iOS/watchOS/macOS-App |
+| CSS Variables | Web-App (Übergangs-Tool) |
+| JSON-Tokens | für CI/CD-Auto-Generation |
+
+→ **Tokens ändern = Figma anpassen + Auto-Build.** Kein manuelles Synchronisieren.
+
+### 12.5 Versionierte Daten-Schemata
+
+**Prinzip:** Jede Daten-Struktur (Session, Plan, Goal) hat eine **Schema-Version**.
+
+- Migrations-Pfade vorbereitet (von v1 → v2 → v3)
+- Forward-Compatibility durch optionale Felder
+- Backward-Compatibility durch Default-Werte
+- Export-Format stabil (für DSGVO-Datenexport)
+
+→ **Datenmodell-Erweiterung = neue Felder + Migration, nicht Daten-Verlust.**
+
+### 12.6 Subscription-Hooks vorbereitet aber inaktiv
+
+**Prinzip:** Authorization-Middleware existiert ab Phase 1, **gibt aber immer `true` zurück**:
+
+```
+Middleware checkSubscription:
+    if Phase == 1: return Allow
+    if Phase == 3: return checkStoreKitSubscription()
+```
+
+→ **In Phase 3 wird's einfach aktiviert.** Keine Notwendigkeit für Code-Refactor.
+
+### 12.7 Insight-Prompts versioniert
+
+**Prinzip:** Alle KI-Prompts liegen als **versionsierte Templates** im Code, nicht hardcoded in API-Calls.
+
+```
+PromptLibrary {
+    insightSession_v3: "Du bist Begleiter im minsaga..."
+    chatSystem_v2: "..."
+    planGeneration_v4: "..."
+}
+```
+
+→ **A/B-Testing möglich. Modellwechsel ohne Prompt-Anpassung. Easy zu auditieren.**
+
+### 12.8 i18n-Ready (auch wenn nur Deutsch)
+
+**Prinzip:** Strings in `Localizable.strings`, nicht hardcoded:
+
+- Datums-/Zeit-/Pace-Formatierung mit Locale
+- Pluralisierung-Regeln
+- Vorbereitung für EN/FR/etc. später
+
+→ **Internationalisierung = neue Sprach-Datei, nicht Code-Rewrite.**
+
+### 12.9 Multi-Sport erweiterbar
+
+**Aktueller Fokus:** Lauf (HM Sub-2h Use-Case).
+
+**Aber Datenmodell so designen**, dass diese Disziplinen später hinzukommen können:
+- Fahrrad / Indoor-Cycling
+- Schwimmen
+- Triathlon (Multi-Sport-Sessions)
+- Allg. Krafttraining
+
+`Discipline` als Enum / Variant existiert teilweise schon — bei jedem Feature-Build prüfen, ob es discipline-agnostic gebaut werden kann.
+
+→ **Sport-Erweiterung = neue Discipline + spezifische Logik, nicht Architektur-Umbau.**
+
+### 12.10 Reversibility-Check vor jeder Architektur-Entscheidung
+
+**Prinzip:** Vor jeder Implementations-Entscheidung fragen:
+
+> *„Wenn ich in 6 Monaten umpivoten muss — wie teuer wird das?"*
+
+Bei „teuer": Abstraktion einbauen.
+Bei „cheap": einfach machen, später refactoren.
+
+**Konkret für unsere heutigen Entscheidungen:**
+
+| Entscheidung | Reversibility | Maßnahme |
+|---|---|---|
+| Apple StoreKit only | mittel | StoreKit-Logik isoliert, Stripe könnte später nachgerüstet werden |
+| On-Device + Foundation Models | mittel | KI-Provider-Abstraktion (siehe §12.1) |
+| BYOK in Phase 1 | hoch (leicht entfernbar) | Phase 3 entfernt BYOK über Settings-Flag |
+| SwiftData statt PostgreSQL | mittel | Repository-Pattern (siehe §12.2) |
+| Web-App als Übergang | hoch | Web-App wird einfach abgekündigt, kein Migrations-Aufwand |
+| Subscription-Layer (Phase 3) | hoch | Stub vorbereiten in Phase 1 (siehe §12.6) |
+
+→ Alle aktuellen Entscheidungen sind **reversibel mit moderatem Aufwand**, wenn wir die Abstraktionen einbauen.
+
+### 12.11 Konkrete Best Practices für Stories
+
+Bei jedem Sprint-Planning prüfen:
+
+- [ ] Gibt's eine Provider-Abstraktion für KI-Calls?
+- [ ] Gibt's eine Repository-Abstraktion für Daten-Zugriffe?
+- [ ] Sind Strings i18n-ready?
+- [ ] Ist das Datenmodell Schema-versioniert?
+- [ ] Gibt's einen Discipline-Parameter (für Multi-Sport-Erweiterung)?
+- [ ] Ist Subscription-Hook vorbereitet (auch wenn inaktiv)?
+- [ ] Prompts sind in PromptLibrary, nicht inline?
+- [ ] Reversibility-Check: was kostet ein Pivot in 6 Monaten?
+
+→ Diese Checkliste gehört in jeden Sprint-Plan und Code-Review.
+
+---
+
 ## Anhang A: Versionshistorie
 
 | Datum | Was geändert | Begründung |
@@ -2013,3 +2191,4 @@ In Onboarding + bei Plan-Generierung sichtbar:
 | 2026-04-28 | §6 Code-Audit · §2.5/2.6 8 User-Journeys · §10 Geschäftsmodell | Interview-Sessions S1–S3, Code-Audit, Journey-Vertiefung, Abomodell-Definition |
 | 2026-04-28 | §10.7 MwSt-Korrektur · §10.11 Rechtsform · §11 Compliance | Cost-Realismus-Check + Compliance-Block (DSGVO, EU AI Act, Apple App Store, Haftung) |
 | 2026-04-28 | §6.8 Strategie-Pivot zu Epic #551 (On-Device-Apple-App) · §10.0 + §11.0 3-Phasen-Modell | Native iOS-App ohne Backend-Server. Foundation Models + BYOK in Phase 1. Subscription erst Phase 3. Massive Cost-Reduktion durch On-Device-LLM. |
+| 2026-04-28 | §12 Architektur-Prinzipien für Erweiterbarkeit | Konsequenz aus mehrfachen Pivots heute: Optionalität bewahren. Provider-Abstraktion · Repository-Pattern · Schema-Versionierung · Reversibility-Check. |
