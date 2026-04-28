@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     # Security / JWT
     secret_key: str = "dev-secret-key-change-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    # 60 min: balance zwischen Sicherheit und UX (Mobile Streaming, lange Sessions);
+    # bei 401 wird ohnehin transparent ueber den Refresh-Token erneuert (#765).
+    access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 
     # OAuth
