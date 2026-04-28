@@ -319,7 +319,18 @@ export function SessionDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <div
+          className="space-y-4 overflow-y-auto"
+          style={{
+            // Viewport minus Dialog-Padding + Header + Footer (geschaetzt 180px)
+            // dvh statt vh fuer iOS Safari (beruecksichtigt Adressleisten-Animation).
+            maxHeight: 'calc(100dvh - 180px)',
+            // Touch-Scroll innerhalb des Dialogs nicht an den Body weiterreichen (#776).
+            overscrollBehavior: 'contain',
+            touchAction: 'pan-y',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           {/* --- READ-ONLY --- */}
           {!isEditing && (
             <SessionReadOnlyView
