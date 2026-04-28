@@ -2,6 +2,8 @@ import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const ACCESS_TOKEN_KEY = 'ta_access_token';
+const REFRESH_TOKEN_KEY = 'ta_refresh_token';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,9 +12,52 @@ export const apiClient = axios.create({
   },
 });
 
+/** Aktuelles Access-Token aus localStorage, oder null. */
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+/** Tokens loeschen und zum Login navigieren — bei abgelaufenem Refresh-Token. */
+export function clearTokensAndRedirectToLogin(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
+/**
+ * Erzwingt einen Token-Refresh und gibt das neue Access-Token zurueck.
+ * Wird sowohl vom Response-Interceptor (Axios-Calls) als auch von
+ * streamChatMessage (nativer fetch-Call) genutzt.
+ *
+ * Wirft, wenn kein Refresh-Token da ist oder der Refresh fehlschlaegt.
+ * Beide Faelle loesen den Login-Redirect aus.
+ */
+export async function refreshAccessTokenOrRedirect(): Promise<string> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    clearTokensAndRedirectToLogin();
+    throw new Error('No refresh token');
+  }
+  try {
+    const resp = await apiClient.post('/api/v1/auth/refresh', { refresh_token: refreshToken });
+    const { access_token, refresh_token } = resp.data as {
+      access_token: string;
+      refresh_token: string;
+    };
+    localStorage.setItem(ACCESS_TOKEN_KEY, access_token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refresh_token);
+    return access_token;
+  } catch (err) {
+    clearTokensAndRedirectToLogin();
+    throw err;
+  }
+}
+
 // Request interceptor: Authorization Header
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ta_access_token');
+  const token = getAccessToken();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -67,25 +112,13 @@ async function attemptTokenRefresh(
   originalRequest._retry = true;
   isRefreshing = true;
 
-  const refreshToken = localStorage.getItem('ta_refresh_token');
-  if (!refreshToken) {
-    isRefreshing = false;
-    processQueue(new Error('No refresh token'), null);
-    return Promise.reject(new Error('No refresh token'));
-  }
-
   try {
-    const resp = await apiClient.post('/api/v1/auth/refresh', { refresh_token: refreshToken });
-    const { access_token, refresh_token } = resp.data;
-    localStorage.setItem('ta_access_token', access_token);
-    localStorage.setItem('ta_refresh_token', refresh_token);
-    originalRequest.headers.Authorization = `Bearer ${access_token}`;
-    processQueue(null, access_token);
+    const accessToken = await refreshAccessTokenOrRedirect();
+    originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+    processQueue(null, accessToken);
     return apiClient(originalRequest);
   } catch (refreshError) {
     processQueue(refreshError, null);
-    localStorage.removeItem('ta_access_token');
-    localStorage.removeItem('ta_refresh_token');
     return Promise.reject(refreshError);
   } finally {
     isRefreshing = false;

@@ -1,4 +1,9 @@
-import { apiClient } from './client';
+import {
+  apiClient,
+  clearTokensAndRedirectToLogin,
+  getAccessToken,
+  refreshAccessTokenOrRedirect,
+} from './client';
 
 // --- Types ---
 
@@ -65,23 +70,72 @@ export async function streamChatMessage(
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  const response = await sendStreamRequest(params, signal);
+  await consumeEventStream(response, onEvent);
+}
+
+/**
+ * POSTet den Stream-Request mit aktuellem Access-Token.
+ * Bei 401 wird einmal automatisch refresht und retried — analog zum
+ * Axios-Response-Interceptor in client.ts. Bei Refresh-Fehler greift
+ * clearTokensAndRedirectToLogin und navigiert zu /login.
+ */
+async function sendStreamRequest(
+  params: ChatMessageRequest,
+  signal?: AbortSignal,
+): Promise<Response> {
   const baseUrl = apiClient.defaults.baseURL ?? '';
-  const authHeader = apiClient.defaults.headers.common['Authorization'];
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (typeof authHeader === 'string') {
-    headers['Authorization'] = authHeader;
-  }
-  const response = await fetch(`${baseUrl}/api/v1/ai/conversations/messages/stream`, {
+  const url = `${baseUrl}/api/v1/ai/conversations/messages/stream`;
+  const body = JSON.stringify(params);
+
+  const firstResponse = await fetch(url, {
     method: 'POST',
-    headers,
-    body: JSON.stringify(params),
+    headers: buildStreamHeaders(getAccessToken()),
+    body,
     signal,
   });
 
-  if (!response.ok || !response.body) {
-    throw new Error(`Stream-Fehler: ${response.status}`);
+  if (firstResponse.status !== 401) {
+    if (!firstResponse.ok || !firstResponse.body) {
+      throw new Error(`Stream-Fehler: ${firstResponse.status}`);
+    }
+    return firstResponse;
   }
 
+  // 401 → einmal refresh + retry
+  const newToken = await refreshAccessTokenOrRedirect();
+  const retryResponse = await fetch(url, {
+    method: 'POST',
+    headers: buildStreamHeaders(newToken),
+    body,
+    signal,
+  });
+
+  if (retryResponse.status === 401) {
+    clearTokensAndRedirectToLogin();
+    throw new Error('Stream-Fehler: 401 nach Token-Refresh');
+  }
+  if (!retryResponse.ok || !retryResponse.body) {
+    throw new Error(`Stream-Fehler: ${retryResponse.status}`);
+  }
+  return retryResponse;
+}
+
+function buildStreamHeaders(token: string | null): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function consumeEventStream(
+  response: Response,
+  onEvent: (event: StreamEvent) => void,
+): Promise<void> {
+  if (!response.body) {
+    throw new Error('Stream-Fehler: kein Response-Body');
+  }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
