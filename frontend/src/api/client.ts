@@ -4,6 +4,10 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const ACCESS_TOKEN_KEY = 'ta_access_token';
 const REFRESH_TOKEN_KEY = 'ta_refresh_token';
+// Zustand persist-Storage-Key fuer den Auth-Store (siehe useAuth.ts:persist.name).
+// Wird beim Token-Cleanup mit-geloescht, damit Browser-Reload nicht stillschweigend
+// einen abgelaufenen/invaliden Token rehydratet (#769).
+const ZUSTAND_AUTH_KEY = 'training-analyzer-auth';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -17,10 +21,20 @@ export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-/** Tokens loeschen und zum Login navigieren — bei abgelaufenem Refresh-Token. */
+/** Tokens loeschen und zum Login navigieren — bei abgelaufenem Refresh-Token.
+ *
+ * Loescht ALLE Auth-Storages: flache Keys (ta_access_token/ta_refresh_token)
+ * UND den zustand-persist-Store (training-analyzer-auth). Sonst wuerde der
+ * persist-Store beim naechsten Reload den Token rehydrieren und den
+ * onRehydrateStorage-Sync (#767) wuerde die geloeschten flachen Keys gleich
+ * wieder befuellen — der User waere stillschweigend "wieder eingeloggt"
+ * mit einem invaliden Token, und /login wuerde NotFound zeigen, weil
+ * AuthGuard isAuthenticated=true sieht (#769).
+ */
 export function clearTokensAndRedirectToLogin(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(ZUSTAND_AUTH_KEY);
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
