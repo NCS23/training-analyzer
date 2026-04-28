@@ -8,6 +8,7 @@ import { lapTypeLabels } from '@/constants/training';
 import { SEGMENT_TYPES } from '@/constants/taxonomy';
 import { listExercises } from '@/api/exercises';
 import type { Exercise } from '@/api/exercises';
+import { NativeSelect } from './NativeSelect';
 
 // --- Constants ---
 
@@ -87,7 +88,7 @@ function SegmentEditorRow({
       <div className="flex items-end gap-1.5">
         <div className="flex-1 min-w-0">
           <Label className="text-[10px] mb-0.5">Typ</Label>
-          <Select
+          <NativeSelect
             options={SEGMENT_OPTIONS}
             value={segment.segment_type}
             onChange={(val) => {
@@ -236,7 +237,7 @@ function SegmentEditorRow({
       {showExercisePicker && (
         <div>
           <Label className="text-[10px] mb-0.5">Übung</Label>
-          <Select
+          <NativeSelect
             options={exerciseOptions}
             value={segment.exercise_name ?? ''}
             onChange={(val) => update({ exercise_name: val || null })}

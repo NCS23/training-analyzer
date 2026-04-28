@@ -11,7 +11,6 @@ import {
   Button,
   Input,
   Label,
-  Select,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -42,6 +41,7 @@ import { getPresetSegments, hasSegmentData } from '@/config/segmentPresets';
 import { RUN_TYPE_LABELS, RUN_TYPE_OPTIONS, SESSION_TYPE_OPTIONS } from '@/constants/plan';
 import { getSessionTemplate, type TemplateExercise } from '@/api/session-templates';
 import { MoveSessionDialog } from '../MoveSessionDialog';
+import { NativeSelect } from '../NativeSelect';
 import { RunDetailsEditor } from '../RunDetailsEditor';
 import { SaveAsTemplateDialog } from '../SaveAsTemplateDialog';
 import { StrengthExerciseEditor } from '../StrengthExerciseEditor';
@@ -355,7 +355,7 @@ export function SessionDetailDialog({
             <div className="space-y-3">
               <div>
                 <Label className="text-xs mb-1">Trainingstyp</Label>
-                <Select
+                <NativeSelect
                   options={SESSION_TYPE_OPTIONS}
                   value={local.training_type}
                   onChange={(val) => {
@@ -370,7 +370,7 @@ export function SessionDetailDialog({
                 <div className="space-y-2">
                   <div>
                     <Label className="text-xs mb-1">Lauftyp</Label>
-                    <Select
+                    <NativeSelect
                       options={RUN_TYPE_OPTIONS}
                       value={local.run_details?.run_type ?? 'easy'}
                       onChange={(val) => {
