@@ -1553,12 +1553,70 @@ Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-
 
 → Diese Anforderungen sind Basis für Sprint-Planung; vor Marktstart Pflicht.
 
-### 10.9 Anti-Abuse-Maßnahmen
+### 10.9 Cost-Schutz für Chat (Power-User-Risiko)
+
+**Problem:** Chat ist mit Abstand das teuerste Feature ($0.28 pro 10-Message-Konversation, längere Konversationen $1–3+ wegen Token-Wachstum). Heavy-User (5 Chats/Tag) verursachen $42/Monat KI-Cost — das wäre struktureller Verlust.
+
+**Vier Maßnahmen, kombiniert wirksam:**
+
+#### Maßnahme 1 — Konversations-Hard-Cap
+
+Pro Konversation: max **30 Messages** ODER max **10.000 Tokens Input**. Bei Erreichen: User-freundliches Framing *„Neue Konversation für mehr Klarheit starten?"*.
+
+→ Verhindert Token-Explosion in extrem langen Konversationen. Pro-Konversation-Cost capped bei ~$0.50.
+
+#### Maßnahme 2 — Daily- und Monthly-Limits (Soft-Caps)
+
+Pro Tier:
+
+| Tier | Konversationen/Tag | Konversationen/Monat | Beim Erreichen |
+|---|---|---|---|
+| Wochenabo (3,99 €) | max 5 | 25 | *„Heute genug Coach-Gespräche. Weiter morgen."* |
+| Monatsabo (12,99 €) | max 10 | 100 | analog |
+| Jahresabo (99 €) | max 10 | 100 | analog |
+
+→ Soft-Caps mit menschlicher Sprache. 99% der User merken nichts. 1–5% Heavy-User werden sanft gebremst.
+
+#### Maßnahme 3 — Context-Compression
+
+Bei Konversationen mit >10 Messages: ältere Messages werden automatisch durch eine Zusammenfassung ersetzt, statt komplett mitgeschickt.
+
+- Vorher: 30 Messages × 200 Tokens = 6.000 input pro neuer Message
+- Nachher: Zusammenfassung 500 + letzte 5 Messages × 200 = 1.500 input
+
+→ **75% Token-Reduktion** in langen Konversationen, ohne dass User es bemerkt.
+
+#### Maßnahme 4 — Hard-Cap als Notausgang
+
+Bei Überschreiten des Soft-Limits (z.B. via Bot/Script):
+
+- 24h Hard-Stop
+- Email-Notification *„Außergewöhnliche Nutzung erkannt"*
+- Bei wiederholtem Auftreten: Account-Review
+
+→ Schutz vor Bot-Attacken.
+
+#### Cost-Modell mit Limits (100 Paid-User, Pareto 70/25/5)
+
+| Profil | Anzahl | Cost/Person | Gesamt |
+|---|---|---|---|
+| Light (5 Chats/Mo) | 70 | $1.40 | $98 |
+| Medium (30 Chats/Mo) | 25 | $5.50 | $138 |
+| Heavy (Limit erreicht) | 5 | $18 | $90 |
+| **Total Cost** | 100 | — | **$326** |
+| Revenue (100 × $13.40 net) | | | $1.340 |
+| Stripe-Fees | | | $80 |
+| **Net** | | | **+$934/Monat (~75% Marge)** |
+
+→ Modell trägt **auch mit Heavy-User-Anteil**, weil Limits Verluste begrenzen.
+
+### 10.10 Anti-Abuse-Maßnahmen
 
 - **E-Mail-Verifikation** Pflicht bei Account-Erstellung (gegen Multi-Account-Onboarding-Sample-Reset)
 - **Ein Account pro User** (über Email + Apple-ID + Google-ID Tracking)
-- **Rate-Limit** auf API-Ebene zusätzlich zur Subscription-Limit-Logik (gegen Bot/Script-Abuse)
-- **KI-Prompt-Hardening** gegen Token-Burning-Attacks (User der versucht via Chat das System zu fluten)
+- **Rate-Limit** auf API-Ebene (gegen Bot/Script-Abuse)
+- **KI-Prompt-Hardening** gegen Token-Burning-Attacks (z.B. „Erzähl mir Geschichte mit 100k Wörtern")
+- **Conversation-Limits** siehe §10.9
 
 ---
 
