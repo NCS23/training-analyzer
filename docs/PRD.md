@@ -1377,7 +1377,14 @@ Web-App + Backend bleiben **Übergangs-Tool**:
 |---|---|---|
 | **`training-analyzer`** *(dieses Repo)* | Konzept-Master · PRD · Backend (Übergang) · Web (Dogfooding) | bis Phase 3, dann archivieren |
 | **`minsaga`** *(neu)* | iOS / iPadOS / macOS / watchOS App — **Hauptprodukt** | aktiv ab Phase 1 |
-| **`nordlig-design-system`** | Design-System (existiert) | aktiv |
+| **`nordlig-design-system`** | Design-System (Repo bleibt namentlich, Inhalt wird zu **minsaga-eigenem DS** umgewidmet — siehe §12.4 + Issue #788) | aktiv |
+
+**DS-Strategie-Klarstellung (2026-04-28, Issue #788):**
+- Kein Multi-Produkt-DS mehr — minsaga ist langfristig einziges Produkt
+- Figma-Datei bereits zu `MinsagaDesignSystem` umbenannt
+- Web-/React-Komponenten im DS-Repo werden **eingefroren** (Maintenance-only bis Web stirbt)
+- SwiftUI-Komponenten leben in `minsaga`-Repo, nicht im DS-Repo
+- Tokens werden aus Figma als Swift Package + CSS Vars exportiert (siehe §12.4)
 
 **Begründung:**
 - Apple-Tooling (Xcode · Provisioning · Fastlane · App Store Connect) ist sehr Apple-spezifisch — Mixed-Repo erzeugt Reibung
@@ -1389,7 +1396,7 @@ Web-App + Backend bleiben **Übergangs-Tool**:
 
 In `minsaga/README.md`:
 - Konzept & Vision → PRD im `training-analyzer`
-- Design System → `nordlig-design-system`
+- Design System → `nordlig-design-system` (Repo-Name; Inhalt = minsaga-eigenes DS)
 - Stories → Epic #551 im `training-analyzer`
 
 In `training-analyzer/docs/PRD.md` (Anfang):
@@ -2110,14 +2117,31 @@ Protocol SessionRepository {
 
 ### 12.4 Brand & Design-Tokens — Single Source
 
+**Klarstellung (2026-04-28):** Das Design System wird **nicht mehr als Multi-Produkt-System** geführt. Da minsaga langfristig das einzige Produkt ist (Web-App stirbt in Phase 3), entfällt der Multi-Produkt-Anspruch. Das **Nordlig DS wird zu minsaga-eigenem DS umgewidmet** (siehe Issue #788).
+
+**Stand der Tokens (Bestandsaufnahme aus Figma `MinsagaDesignSystem`):**
+
+- 3344 Variables in 5 Collections: **Color** (light + dark Mode), **Spacing**, **Typography**, **Sizing**, **Radius**
+- Token-Architektur durchgesetzt: **L1 Base / L2 Global / L3 Semantic / L4 Components** (100 % Level-Coverage, 0 Variables ohne Level)
+- Variables sind brand-agnostisch (kein „Nordlig"-Naming in Tokens)
+- Shadows zerlegt-aber-konsistent: pro Schatten-Set 5 Atomic-Tokens (color, blur, spread, x, y) — Composer-Logik beim Export nötig
+- Typografie ausschließlich über Variables (keine Figma-Text-Styles mehr in Anwendung; Legacy-Text-Styles werden gelöscht)
+
 **Prinzip:** Tokens werden in Figma definiert und in mehreren Formen exportiert:
 
 | Form | Wofür |
 |---|---|
 | Figma Variables | Master-Definition |
-| Swift Package | iOS/watchOS/macOS-App |
-| CSS Variables | Web-App (Übergangs-Tool) |
+| Swift Package | iOS/watchOS/macOS-App (`minsaga`-Repo) |
+| CSS Variables | Web-App (Übergangs-Tool, friert ein in Phase 2/3) |
 | JSON-Tokens | für CI/CD-Auto-Generation |
+
+**Repo-Strategie für DS (Option A, siehe §6.8):**
+- Repo `nordlig-design-system` bleibt namentlich (vorerst), Inhalt wird auf minsaga ausgerichtet
+- Storybook-Coolify-Setup bleibt
+- Web-/React-Komponenten **eingefroren** (kein Feature-Drive, nur Maintenance bis Web stirbt)
+- SwiftUI-Komponenten leben **nicht** im DS-Repo, sondern direkt in `minsaga`-Repo (kein Storybook für SwiftUI)
+- Spätere Repo-Umbenennung möglich, aber nicht jetzt nötig
 
 → **Tokens ändern = Figma anpassen + Auto-Build.** Kein manuelles Synchronisieren.
 
