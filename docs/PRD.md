@@ -692,7 +692,8 @@ GoalCard wechselt in `state=raceday`:
 4. **Plan-Generierung** (wenn Ziel gesetzt) — siehe Journey 2.5.4 Step 2–5
 5. **Bewusst NICHT im Onboarding:**
    - **HF-Werte (Athleten-Profil)** → werden durch Nutzung erstellt, primär durch **Schwellentest** der nach 1–2 Wochen aktiv angeboten wird. Ruhe-HF kann via Apple Health gelesen werden (wenn HealthKit verbunden).
-   - **AI-Provider-Key** → User gibt KEINEN Key ein. Lauf über **Entwickler-Key** + Abomodell-Schicht (siehe §6.7).
+   - **AI-Provider-Key** → User gibt KEINEN Key ein. Lauf über **Entwickler-Key** + Abomodell-Schicht (siehe §10).
+   - **Pricing/Abo-Auswahl** → Onboarding macht keinen Druck. Free-User bekommt 1×-KI-Plan-Sample, Wochenabo wird erst aufploppen wenn er KI-Features aufruft.
 6. **Erster Screen nach Onboarding:**
    - Mit Ziel: Heute mit *„Plan startet am [Datum]"*-Hint (Auto-Aktivierung)
    - Ohne Ziel: Heute · Empty State *„Jede Saga braucht ein Ziel."* + CTA „Ziel festlegen"
@@ -1323,7 +1324,7 @@ Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls lauf
 | 15 | **Wetter-Berücksichtigung in Insights** | erledigt-bestätigt | — | Open-Meteo ist angebunden (siehe §6.4). Korrelations-Insights können auf Wetterdaten zugreifen. |
 | 16 | **Streak-Logik in `_build_motivation`** | **Fix erforderlich** | — | Backend-Endpoint `/api/v1/streak` + Motivation-String widersprechen Anti-Pattern §1.2 #3. Siehe §6.4. Fix als Story Priorität 4. |
 | 17 | **`workouts` vs. „session" Naming** | offen | — | DB-Tabelle heißt `workouts`, API/Frontend sagen „session". Konsistenz herstellen oder bewusst tolerieren? |
-| 18 | **Abomodell — Free vs. Paid Tier** | erledigt-2026-04-28 | Nils | Spezifiziert in §10 (Pricing 10€/79€, kein Trial, Per-Feature-Limits, StoreKit + Stripe) |
+| 18 | **Abomodell — Free vs. Paid Tier** | erledigt-2026-04-28 (rev2) | Nils | Spezifiziert in §10 (Free + Wochenabo 3,99 / Monatsabo 12,99 / Jahresabo 99 — kein Trial, Wochenabo statt Trial, Free hat 0 KI außer Onboarding-Sample) |
 | 19 | **Companion-Mode Apple Watch** | Vision (Roadmap) | — | Aktive Begleitung während Race + ggf. Training. Erfordert native Watch-App. Siehe §2.5.6. |
 | 20 | **HealthKit-Integration** | offen | — | Auto-FIT-Erkennung + Schlaf + Ruhe-HF aus Apple Health. Siehe §2.5.2 + §2.5.7. |
 
@@ -1403,60 +1404,71 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ## 10. Geschäftsmodell
 
-> Erfasst in Abomodell-Session (2026-04-28).
+> Erfasst in Abomodell-Session (2026-04-28). Mehrfach iteriert nach Cost-Realismus-Check.
 
 ### 10.1 Grundprinzipien
 
 - **Der Endnutzer gibt KEINEN AI-Provider-Key ein** — alle KI-Calls laufen über Entwickler-Key
-- **Free-Tier ist echt nutzbar, nicht zeitlimitiert** (kein Trial-Tease)
-- **Klare Trennlinie:** algorithmische Funktionen Free, KI-Funktionen mit Free-Limit, Paid unbegrenzt
+- **Free-Tier ist echt nutzbar** im Sinne eines voll-funktionalen **Werkzeugs**, aber **ohne KI-Coach**
+- **Klare Trennlinie:** Werkzeug (algorithmische Funktionen) Free · Coach (KI-Funktionen) Paid
+- **Wochenabo statt Trial** — selbst-finanzierender Einstieg statt Subvention
 - **Transparente, einfach kündbare Bezahlung**
 - **Keine Dark Patterns** — kein Streak-Lock, keine Daten-Geisel, keine Manipulation
 
 ### 10.2 Tier-Architektur
 
-**Eine Tier:** Free + Paid. Keine Pro-Verwirrung.
+**Vier Tiers:** Free + drei Paid-Optionen mit unterschiedlicher Commitment-Tiefe.
 
-| Bereich | Free | Paid |
-|---|---|---|
-| Sessions hochladen, verwalten | ✅ unbegrenzt | ✅ unbegrenzt |
-| **Algorithmischer Plan-Generator** (Templates) | ✅ unbegrenzt | ✅ unbegrenzt |
-| Wettkampfziel, Pacing | ✅ unbegrenzt | ✅ unbegrenzt |
-| Trends, Stats, CTL/ATL/TSB als Zahlen | ✅ unbegrenzt | ✅ unbegrenzt |
-| Goal Readiness als Score | ✅ unbegrenzt | ✅ unbegrenzt |
-| Routen, Übungs-Bibliothek | ✅ unbegrenzt | ✅ unbegrenzt |
-| Algo-Wochen-Review (regel-basiert) | ✅ unbegrenzt | ✅ unbegrenzt |
-| KI-Insights nach Sessions | 🔒 **5/Monat** | ♾ |
-| AI Coach Chat (Konversationen) | 🔒 **3/Monat** | ♾ |
-| KI-Wochen-Review | 🔒 **2/Monat** | ♾ |
-| KI-Plan-Generierung | 🔒 **1 Lifetime** | ♾ |
-| Plan-Anpassungs-Vorschläge | 🔒 **2/Monat** | ♾ |
-| Coach-Sprache auf Goal Readiness | 🔒 (in Limit) | ♾ |
+| Bereich | Free | Wochenabo | Monatsabo | Jahresabo |
+|---|---|---|---|---|
+| Sessions hochladen, verwalten | ✅ | ✅ | ✅ | ✅ |
+| **Algorithmischer Plan-Generator** (Templates) | ✅ | ✅ | ✅ | ✅ |
+| Wettkampfziel, Pacing | ✅ | ✅ | ✅ | ✅ |
+| Trends, Stats, CTL/ATL/TSB als Zahlen | ✅ | ✅ | ✅ | ✅ |
+| Goal Readiness als Score (numerisch) | ✅ | ✅ | ✅ | ✅ |
+| Routen, Übungs-Bibliothek | ✅ | ✅ | ✅ | ✅ |
+| Algo-Wochen-Review (regel-basiert) | ✅ | ✅ | ✅ | ✅ |
+| **KI-Insights nach Sessions** | ❌ | ✅ | ✅ | ✅ |
+| **AI Coach Chat** | ❌ | ✅ | ✅ | ✅ |
+| **KI-Wochen-Review** | ❌ | ✅ | ✅ | ✅ |
+| **KI-Plan-Generierung** | **1× Lifetime beim Onboarding** | ✅ unbegrenzt | ✅ | ✅ |
+| **Plan-Anpassungs-Vorschläge** | ❌ | ✅ | ✅ | ✅ |
+| Coach-Sprache (Begleiter / Coach / Zeuge) | ❌ | ✅ | ✅ | ✅ |
 
-### 10.3 Limit-Verhalten pro Feature
+### 10.3 Onboarding-KI-Sample (Free-User)
 
-| Feature | Beim Limit |
-|---|---|
-| **Insights** | **Hybrid** — Algo-Fallback (regel-basierter Insight: Soll/Ist + Kadenz-Check) + Upgrade-CTA für Detail-KI-Insight |
-| **Chat** | **Soft-Stop** — FAB sichtbar, Tap zeigt Upgrade-Card statt Chat-Eingabe |
-| **Wochen-Review** | **Hybrid** — Algo-Bericht permanent verfügbar (Plan-Treue, Volumen-Δ, Status), KI-Sample bei Free-Quote |
-| **Plan-Generierung (KI)** | Algo-Plan + Hinweis *„KI-Personalisierung mit Upgrade"* |
-| **Plan-Anpassung** | **Hard-Stop** — keine weiteren Vorschläge bis Monatsanfang |
+**Einmalig beim Onboarding** generiert die KI dem Free-User einen vollständigen Trainings-Plan (Coach-Dialog → KI-Plan).
+
+- Zeigt einmal das Coach-Erlebnis
+- Macht den Free-Plan persönlicher als der algorithmische Default
+- Danach: KI-Plan-Anpassungen + Insights + Chat nur mit Wochenabo+
+
+**Cost pro Free-User**: ~$0.20 einmalig (Plan-Generierung).
 
 ### 10.4 Pricing
 
-| | Preis | Vergleich |
-|---|---|---|
-| **Monatlich** | **10 €** | leicht über Strava Premium (~10€) |
-| **Jährlich** | **79 €** (~34% Rabatt) | knapp unter Runna (~17€/Monat) |
+| Tier | Preis | Pro Tag | Vergleich |
+|---|---|---|---|
+| **Free** | 0 € | — | algorithmische Funktionen + 1× Onboarding-KI-Plan |
+| **Wochenabo** | 3,99 € | 0,57 €/Tag | niedrige Einstiegshürde, selbst-finanzierender Einstieg |
+| **Monatsabo** | 12,99 € | 0,43 €/Tag | knapp unter Runna (~17 €), klar über Strava (~10 €) |
+| **Jahresabo** | 99 € | 0,27 €/Tag | ~36% Rabatt vs. Monatsabo |
 
-→ Aggressive Einstiegspreis. Premium-Position klar zu Strava + Garmin/Apple, klar günstiger als Runna/TrainingPeaks.
+**Pricing-Logik:** Wer länger committed, zahlt weniger pro Tag. Klare Anreize zur längeren Bindung.
 
-### 10.5 Kein Trial
+### 10.5 Wochenabo statt Trial
 
-Free-Tier ist der Default — kein zeitbasiertes Trial. User testet die Free-Limits, upgradet wenn überzeugt.
+Statt klassischem Trial (gratis 14 Tage, dann Subvention-Rückstand) bieten wir **selbst-finanzierende Wochenmitgliedschaft** als Einstieg:
 
-→ Konsequenz: kein „nach 14 Tagen ist Schluss"-Frust, keine Kündigungs-Falle. Marken-konform mit P1.
+| Modell | Cost/User | Revenue | Net |
+|---|---|---|---|
+| Trial 14 Tage | ~$2 | 0 € | **−$2** |
+| Wochenabo 3,99 € | ~$1 | $4 | **+$3** (75% Marge) |
+
+**Bonus-Effekte:**
+- User hat schon Zahlungsdaten in Stripe/Apple → Friction für Upgrade auf Monat/Jahr minimal
+- Echtes Commitment → höhere Conversion-Wahrscheinlichkeit
+- Wochenabo kann auto-renewing sein (default off, opt-in)
 
 ### 10.6 Distribution
 
@@ -1467,33 +1479,86 @@ Free-Tier ist der Default — kein zeitbasiertes Trial. User testet die Free-Lim
 
 → Beides parallel ab MVP-Launch.
 
-### 10.7 Cost-Modell
+### 10.7 Cost-Modell — realistische Zahlen
 
-Mit **Claude 3.5 Sonnet** als Default-Modell (Premium-Qualität, einheitlich):
+Mit **Claude Sonnet 4.5/4.6** ($3 input / $15 output per 1M tokens) — Premium-Qualität.
 
-| User-Typ | KI-Cost/Monat | Pricing | Marge |
+#### Cost pro KI-Call (konservativ realistisch)
+
+| Feature | Token-Mix | Cost/Call |
+|---|---|---|
+| Insight nach Session | 9.500 in / 700 out | **~$0.039** |
+| Chat-Konversation (10 Msg) | 62k in / 6k out | **~$0.28** |
+| Wochen-Review | 15k in / 1.5k out | **~$0.068** |
+| KI-Plan-Generierung (mehrstufig) | 25k in / 8k out | **~$0.20** |
+| Plan-Anpassungs-Vorschlag | 7.5k in / 700 out | **~$0.033** |
+
+#### Cost pro User-Typ pro Monat
+
+| User-Typ | KI-Cost | Revenue (Web) | Marge |
 |---|---|---|---|
-| **Free (im Limit)** | ~$0.40 | 0 € | -$0.40 (Subvention) |
-| **Paid (aktiv)** | ~$1.50 | 10 € | ~85% |
+| **Free** | $0 (außer Onboarding-Sample, $0.20 einmalig) | 0 € | — (kein Verlust) |
+| **Wochenabo** | ~$1 (1 Woche aktive Nutzung) | $4 | **~75%** |
+| **Monatsabo** (aktiv) | ~$4.20 | $13.40 | **~69%** |
+| **Jahresabo** (per-Monat) | ~$4.20 | $8.70 | **~52%** |
 
-Bei stark inaktiven Free-Usern fast kostenfrei. Modell trägt sich.
+**Apple StoreKit (iOS) Margen:** 10–20 Prozentpunkte niedriger durch 30%-Cut Jahr 1 (15% ab Jahr 2). Tragbar.
+
+#### Profitabilitäts-Szenarien (Web, Sonnet)
+
+| Szenario | Free | Paid | Revenue | KI-Cost | **Net/Monat** |
+|---|---|---|---|---|---|
+| Klein, 5% Conv. | 95 | 5 | 50 € | $20 | **+$33** ✅ |
+| Mittel, 10% Conv. | 450 | 50 | 500 € | $210 | **+$320** ✅ |
+| 1k User, 5% Conv. | 950 | 50 | 500 € | $210 | **+$320** ✅ |
+| 5k User, 10% Conv. | 4.500 | 500 | 5.000 € | $2.100 | **+$3.350** ✅ |
+
+→ Modell trägt schon bei niedrigen Conversion-Rates und kleinen User-Bases.
+
+#### Modell-Wahl
+
+**Default Sonnet überall** — wird mit Real-Daten optimiert. Mögliche spätere Optimierung:
+- Haiku für Insights/Wochen-Review (5× günstiger)
+- Sonnet bleibt für Chat (Begleiter-Stimme nicht kompromittierbar) und Plan-Generierung
+- Opus für Premium-Tier (falls je eingeführt — aktuell nicht geplant)
 
 ### 10.8 Technische Anforderungen (🔵 NEW, alle nicht implementiert)
 
-Was muss gebaut werden:
+#### Subscription-Layer
 
 - **Subscription-Status** in `users` oder eigener `subscriptions`-Tabelle
-- **Per-Feature-Counter** mit Reset-Logik (KI-Insights/Monat, Chat-Konversationen/Monat, Wochen-Review/Monat, Plan-Anpassung/Monat, KI-Plan-Lifetime)
-- **Authorization-Schicht** vor jedem KI-Endpoint (Limit-Check + Subscription-Check)
-- **Stripe-Integration** (Webhooks, Customer-Portal, Subscription-Lifecycle)
-- **Apple StoreKit-Integration** (Receipt-Validation, Subscription-Lifecycle)
-- **Algorithmischer Plan-Generator** als separater Service (kein LLM)
-- **Algorithmischer Wochen-Review-Generator** als Fallback (regel-basiert)
-- **Algorithmischer Insight-Generator** als Fallback (Soll/Ist, Kadenz-Δ, HR-Drift-Hinweis ohne KI-Sprache)
-- **Upgrade-CTA-Komponenten** (Card + Sheet, kontextabhängig)
-- **Free-Tier-Status-Anzeige** im Profil/Settings (Verbrauch, Limits, Reset-Datum)
+- **Subscription-Tier-Tracking** (none / weekly / monthly / yearly)
+- **Subscription-Lifecycle-Events** (created, renewed, cancelled, expired, refunded)
+- **Authorization-Middleware** vor jedem KI-Endpoint (Subscription-Check)
+- **Onboarding-Sample-Counter** pro User (1× KI-Plan Lifetime)
+
+#### Payment-Integration
+
+- **Stripe-Integration** (Webhooks, Customer-Portal, Subscription-Lifecycle, drei Pricing-Stufen)
+- **Apple StoreKit-Integration** (Receipt-Validation, Subscription-Lifecycle, drei Subscription-Group-Produkte)
+- **Idempotenz + Reconciliation** zwischen StoreKit und eigenem Backend
+
+#### Algorithmische Fallbacks (Free-Tier-Säule)
+
+- **Algorithmischer Plan-Generator** als separater Service (kein LLM) — Templates × Phasen × Wochen
+- **Algorithmischer Wochen-Review-Generator** (regel-basiert) — Plan-Treue · Volumen-Δ · Highlights aus Daten
+- *Hinweis:* algorithmischer Insight-Generator entfällt (Free hat keine Insights mehr — durch Wochenabo abgedeckt)
+
+#### UI-Komponenten
+
+- **Tier-Picker** (Wochenabo / Monatsabo / Jahresabo) als Komponente, kontextabhängig
+- **Upgrade-CTA-Card** (in Heute, Session-Detail, Chat — wenn Free-User KI-Feature aufruft)
+- **Subscription-Status-Anzeige** im Profil/Settings (aktuelles Tier, Renewal-Datum, Cancel-Link)
+- **Onboarding-Sample-Banner** im Heute, der den 1×-KI-Plan kommuniziert
 
 → Diese Anforderungen sind Basis für Sprint-Planung; vor Marktstart Pflicht.
+
+### 10.9 Anti-Abuse-Maßnahmen
+
+- **E-Mail-Verifikation** Pflicht bei Account-Erstellung (gegen Multi-Account-Onboarding-Sample-Reset)
+- **Ein Account pro User** (über Email + Apple-ID + Google-ID Tracking)
+- **Rate-Limit** auf API-Ebene zusätzlich zur Subscription-Limit-Logik (gegen Bot/Script-Abuse)
+- **KI-Prompt-Hardening** gegen Token-Burning-Attacks (User der versucht via Chat das System zu fluten)
 
 ---
 
