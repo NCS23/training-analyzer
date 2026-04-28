@@ -145,6 +145,17 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  /* Smooth-Scroll abschalten — vermeidet Konflikt mit cmdk's scrollIntoView (#784) */
+  scroll-behavior: auto !important;
+}
+
+/* cmdk-Scroll-Fix (#784): Während Wheel-Scroll setzt utils/cmdkScrollFix.ts
+ * die `cmdk-scrolling` Class auf [cmdk-list]. CSS deaktiviert dann
+ * pointer-events auf den Items, damit cmdk's onPointerMove die Selektion
+ * NICHT bei jedem Maus-Move aendert (sonst springt der Scroll). Klick und
+ * Tastatur-Navigation bleiben unbeeinflusst (passieren ohne Pointer-Move). */
+[cmdk-list].cmdk-scrolling [cmdk-item] {
+  pointer-events: none;
 }
 
 @keyframes typing-dot {
