@@ -230,6 +230,7 @@ async def stream_sse_events(
     yield f"data: {json.dumps({'type': 'start', 'conversation_id': ctx.conversation_id})}\n\n"
 
     full_response = ""
+    aborted_with_error = False
     try:
         async for event in stream:
             if event["type"] == "token":
@@ -239,9 +240,20 @@ async def stream_sse_events(
                 yield f"data: {json.dumps({'type': 'tool_call', 'name': event['name']})}\n\n"
             elif event["type"] == "thinking":
                 yield f"data: {json.dumps({'type': 'thinking'})}\n\n"
+            elif event["type"] == "error":
+                # Provider hat einen kontrollierten Fehler signalisiert
+                # (z.B. Tool-Round-Limit erreicht — siehe #770).
+                aborted_with_error = True
+                msg = event.get("message", "Stream abgebrochen")
+                yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
     except Exception as e:
         logger.error("Streaming-Fehler: %s", e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        return
+
+    if aborted_with_error:
+        # Bei kontrolliertem Abbruch keine done-Event und keine Persistierung —
+        # die Konversation wurde nicht erfolgreich beendet.
         return
 
     # Antwort persistieren
