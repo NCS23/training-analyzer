@@ -54,13 +54,21 @@ interface AuthState {
   isAdmin: boolean;
 }
 
-/** Setzt Tokens im Store und im API-Client. */
+/** Setzt Tokens im Store, im API-Client UND im flachen localStorage-Key.
+ *
+ * Der flache `ta_access_token`-Key wird vom Request-Interceptor
+ * (`apiClient.interceptors.request.use`) UND vom Stream-Auth-Pfad
+ * (`streamChatMessage`) gelesen. Ohne diesen Key sendet der Stream
+ * keinen Authorization-Header und es gibt 401 (#765 Folge-Fix).
+ */
 function applyTokens(
   set: (state: Partial<AuthState>) => void,
   tokens: { access_token: string; refresh_token: string },
 ) {
   set({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
   apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokens.access_token}`;
+  localStorage.setItem('ta_access_token', tokens.access_token);
+  localStorage.setItem('ta_refresh_token', tokens.refresh_token);
 }
 
 /** Laedt den User und setzt den authentifizierten Zustand. */
@@ -82,6 +90,7 @@ async function tryAccessToken(
 ): Promise<boolean> {
   if (!accessToken) return false;
   apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+  localStorage.setItem('ta_access_token', accessToken);
   try {
     await loadUserAndSetState(set);
     return true;
@@ -102,6 +111,8 @@ function clearAuthState(set: (state: Partial<AuthState>) => void) {
     isAdmin: false,
   });
   delete apiClient.defaults.headers.common['Authorization'];
+  localStorage.removeItem('ta_access_token');
+  localStorage.removeItem('ta_refresh_token');
 }
 
 export const useAuth = create<AuthState>()(
@@ -222,7 +233,15 @@ export const useAuth = create<AuthState>()(
         refreshToken: state.refreshToken,
       }),
       onRehydrateStorage: () => {
-        return () => {
+        return (state) => {
+          // Tokens nach Rehydrierung auch in flachen localStorage-Key syncen,
+          // damit Request-Interceptor und Stream-Auth-Pfad sie finden.
+          if (state?.accessToken) {
+            localStorage.setItem('ta_access_token', state.accessToken);
+          }
+          if (state?.refreshToken) {
+            localStorage.setItem('ta_refresh_token', state.refreshToken);
+          }
           // Nach Rehydrierung: checkStatus automatisch auslösen
           void useAuth.getState().checkStatus();
         };
