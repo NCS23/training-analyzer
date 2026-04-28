@@ -234,13 +234,17 @@ export function SessionDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[calc(100dvh-32px)] overflow-y-auto"
-        style={{
-          // Touch-Scroll innerhalb des Dialogs nicht an den Body weiterreichen (#780).
-          overscrollBehavior: 'contain',
-          touchAction: 'pan-y',
-          WebkitOverflowScrolling: 'touch',
-        }}
+        className={
+          // Mobile (< lg): Vollbild-Sheet — DialogContent fuellt Viewport.
+          'max-lg:!fixed max-lg:!inset-0 max-lg:!max-w-none max-lg:!w-full ' +
+          'max-lg:!h-[100dvh] max-lg:!max-h-none max-lg:!rounded-none ' +
+          // Desktop (>= lg): Zentriert mit max-Hoehe.
+          'lg:max-h-[calc(100dvh-32px)] ' +
+          // Wichtig (#782): DialogContent NIE scrollen, sonst stoeren sticky/Combobox.
+          // Der innere Body-div ist der einzige Scroll-Container, Header+Footer
+          // sind nicht-schrumpfende Flex-Geschwister und damit immer sichtbar.
+          'overflow-hidden'
+        }
       >
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -327,7 +331,16 @@ export function SessionDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div
+          className="space-y-4 flex-1 min-h-0 overflow-y-auto"
+          style={{
+            // Native, fluessige Scroll-UX (#782): kein overscroll-contain,
+            // kein touch-action-Override — wir lassen den Browser machen.
+            // Das einzige overflow-y-auto im Dialog (DialogContent ist
+            // overflow-hidden), Header+Footer sind Flex-Geschwister.
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           {/* --- READ-ONLY --- */}
           {!isEditing && (
             <SessionReadOnlyView
