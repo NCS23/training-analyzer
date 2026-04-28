@@ -1685,6 +1685,29 @@ Bei Überschreiten des Soft-Limits (z.B. via Bot/Script):
 
 **Kleinunternehmerregelung** (bis 22k €/Jahr Umsatz keine MwSt-Pflicht): bei Apple-Sales nicht anwendbar (EU-grenzüberschreitend), praktisch wenig Vorteil im SaaS-Modell.
 
+#### Apple Developer Account-Typ
+
+Apple unterscheidet zwei Konto-Typen:
+
+| Account-Typ | Verfügbar | Voraussetzung | Marken-Sichtbarkeit |
+|---|---|---|---|
+| **Individual** | ✅ als Einzelunternehmer | Gewerbeanmeldung + Bankkonto + Apple ID | Persönlicher Name im App Store |
+| **Organization** | ❌ Einzelunternehmer | UG/GmbH/AG + D-U-N-S Number | Firmenname im App Store |
+
+→ **Als Einzelunternehmer KEIN Problem für App-Veröffentlichung**, aber:
+- Im App Store erscheint dein **persönlicher Name** als Entwickler (nicht „minsaga")
+- Migration von Individual → Organization ist später möglich (bei Umfirmierung auf UG)
+
+#### Hauptrisiko: persönliche Haftung
+
+Der eigentliche Grund für UG/GmbH ist **nicht** Apple oder Stripe, sondern Haftung:
+
+- Einzelunternehmer haftet mit **Privatvermögen** (z.B. bei Klagen wegen KI-Plan-bedingten Verletzungen)
+- UG/GmbH beschränkt Haftung auf Stammkapital + Rücklagen
+- Berufshaftpflicht mildert ab, aber nicht 100%
+
+→ **Strategie:** Start als Einzelunternehmer (niedrige Hürde, Markt-Test). Umfirmieren auf UG bei >500 Paid-Usern oder erstem Haftungs-Vorfall.
+
 ---
 
 ## 11. Compliance & Datenschutz
