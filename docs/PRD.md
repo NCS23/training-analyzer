@@ -1283,43 +1283,82 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Schlüsselerkenntnis:** Backend ist sehr weit. Kern-Endpoints, Domain-Modell, KI-Integrationen sind alle vorhanden und produktionsreif. Der Lift zur PRD-Vision ist **mehr UI-Routing + Komposition als Backend-Arbeit**.
 
-### 6.8 Strategie-Pivot: Native iOS-App-Only (2026-04-28)
+### 6.8 Strategie-Pivot: Native On-Device-Apple-App (Epic #551)
 
-**Ursprünglicher Plan:** Web-App als primärer Channel, Quick Wins waren Web-Refactor (Routing, GoalCard-Hero, etc.).
+**Ursprünglicher Plan:** Web-App + FastAPI-Backend als Produkt, Subscription-Layer mit StoreKit.
 
-**Neuer Plan:** Native iOS-App ist das Produkt. Web-App bleibt internes Dev-Tool / Dogfooding-Plattform.
+**Neuer Plan (aus [Epic #551](https://github.com/NCS23/training-analyzer/issues/551)):** Komplett **on-device Apple-App** (SwiftUI · iPhone/iPad/Mac/Watch) **ohne eigenen Backend-Server**. Daten in SwiftData, Sync über CloudKit. KI primär on-device via **Apple Foundation Models**, Claude API optional via BYOK.
 
-#### Konsequenzen für die Bestand-Bewertung
+#### Bestand-Neubewertung
 
-| Asset | Vorher (Web-Strategie) | Jetzt (iOS-Strategie) |
+| Asset | Vorher | Jetzt (Epic #551) |
 |---|---|---|
-| Web-App (React/TS) | 🟡 ADAPT (Hauptprodukt umbauen) | 🟡 ADAPT als internes Tool / Dogfooding |
-| Backend (FastAPI + DB) | 🟢 KEEP, Hauptproduktion | 🟢 KEEP, Hauptproduktion (auch für iOS-App) |
-| Native iOS-App | ⊘ existiert nicht | 🔵 NEW — komplett zu bauen (3–6 Monate SwiftUI) |
-| Apple Watch Companion | Vision (Roadmap) | 🔵 NEW — wird MVP-Feature für Race-Day |
+| Web-App (React/TS) | 🟡 Hauptprodukt | 🟡 **Übergangs-/Dogfooding-Tool**, langfristig obsolet |
+| Backend (FastAPI + PostgreSQL) | 🟢 KEEP, Hauptproduktion | 🟡 **Übergangs-Tool**, langfristig obsolet (alles on-device) |
+| Hosting (Hetzner/Coolify) | KEEP | 🔴 langfristig **wegfallen** (keine Server-Costs) |
+| Native iOS/iPadOS/macOS-App | ⊘ existiert nicht | 🔵 **NEW** — komplett zu bauen in SwiftUI |
+| Native watchOS-Companion | Vision | 🔵 **NEW** — Phase 4 |
+| SwiftData + CloudKit | nicht relevant | 🔵 **NEW** — ersetzt PostgreSQL |
+| Apple Foundation Models | nicht angedacht | 🔵 **NEW** — ersetzt ~80% der Claude-Calls |
+| HealthKit-Integration | nicht angedacht | 🔵 **NEW** — ersetzt CSV/FIT-Upload |
 
-#### Was im Backend angepasst werden muss
+#### Kern-Vorteile der On-Device-Architektur
 
-- **HealthKit-Integration** (Endpoint zum Empfangen von Apple-Watch-/iPhone-Health-Daten)
-- **StoreKit-Receipt-Validation** (eigene API zur Apple-Subscription-Validierung)
-- **Subscription-Authorization-Schicht** (vor jedem KI-Call, hängt an StoreKit-Status)
-- Keine Stripe-Integration (nicht nötig)
-
-#### Realistischer Zeithorizont
-
-Native iOS-Entwicklung Solo-Solo: **4–6 Monate** bis App Store Launch.
-
-#### Web-App-Status (entscheiden)
-
-Drei Optionen für die existierende Web-App:
-
-| Option | Was |
+| Punkt | Wert |
 |---|---|
-| **A — Dogfooding-Tool** *(Empfehlung)* | Personal-Dev-Plattform, nicht öffentlich verkauft. Quick Wins (Routing-Umbau etc.) als Konzept-Schärfung machen. |
-| **B — Marketing-Site** | Landing-Page mit Pricing + Beta-Sign-Up. Keine App-Funktion auf Web. |
-| **C — Stilllegen** | Web-App komplett aufgeben. Alles auf iOS. |
+| **Keine Server-Costs** | Hetzner/PostgreSQL/Coolify entfallen langfristig |
+| **Keine Server-Wartung** | kein Monitoring, kein Backup, keine Updates |
+| **Offline-fähig** | App funktioniert komplett ohne Internet |
+| **Schneller** | alles lokal, keine Network-Roundtrips |
+| **Privater** | Trainings-Daten verlassen Gerät nur via E2E-encryptetem CloudKit |
+| **Ein Codebase** | nur Swift, kein Python+TypeScript-Mix |
+| **Kostenlos skalierbar** | keine Server-Last bei mehr Nutzung |
 
-→ **Aktuelle Entscheidung: A** — Web-App weiterentwickeln als Dogfooding-Plattform. Quick Wins schärfen Konzepte vor SwiftUI-Investment.
+#### Drei-Phasen-Plan (verfeinert)
+
+**Phase 1: Personal Use + frühe Beta** (TestFlight, 4–6 Monate)
+- Native iOS/Watch-App in Apple TestFlight
+- KI: **Apple Foundation Models (gratis, on-device)** + **Claude BYOK** (optional, User-eigener Key)
+- App ist kostenlos
+- Compliance: minimal (TestFlight-spezifisch)
+- Backend bleibt parallel als Übergangs-Tool für Web-Dogfooding
+
+**Phase 2: Erweiterte Beta** (TestFlight External, ~10k Tester)
+- Foundation Models + BYOK weiter verfügbar
+- **Optional Server-Side-Claude (SSC)** als bequeme Alternative für Nicht-Tech-User
+- Erste Feedback-Loops aus echtem User-Verhalten
+- Subscription-Layer optional vorbereitet
+
+**Phase 3: Markt-Launch** (App Store, wenn Phase 2 erfolgreich)
+- Foundation Models (gratis) + Server-Side-Claude (Subscription)
+- BYOK fällt weg (Komplexität reduzieren für Mainstream-User)
+- Subscription via StoreKit aktiv
+- Volle Compliance (DSGVO, AGB, Versicherung, ggf. UG-Umfirmierung)
+
+#### Sprint-Roadmap (verlinkt mit Epic #551)
+
+Stories aus Epic #551 sind Master-Plan:
+
+| Phase | Stories aus Epic #551 | Aufwand |
+|---|---|---|
+| **Foundation** | S01–S10 (Xcode-Setup · SwiftData · CloudKit · Privacy Policy · Design-Tokens · HealthKit-Import · Session-Classifier · FIT/GPX-Parser · Dashboard · Session-Detail) | 5–7 Wochen |
+| **Karten + Pläne** | S11–S18 (MapKit · Trainingsplan-Editor · Plan-Generator · Pacing · Ziele · Krafttraining · WeatherKit · TipKit-Onboarding) | 4–6 Wochen |
+| **iPad + Mac** | S19–S21 (NavigationSplitView · Adaptive Layouts · Keyboard-Shortcuts) | 2–3 Wochen |
+| **watchOS** | S22–S28 (Watch-App · Live-Recording · Echtzeit-HR · Segment-Marker · CoreHaptics · WatchConnectivity · Complications) | 3–4 Wochen |
+| **Apple-Ökosystem** | S29+ (Siri · Widgets · Live Activities · Shortcuts · Focus-Modes) | 3–4 Wochen |
+| **Personal-Use-Phase** | 3–6 Monate eigene Nutzung, Konzept feinjustieren | — |
+
+→ Detaillierte Stories siehe [Epic #551](https://github.com/NCS23/training-analyzer/issues/551).
+
+#### Web-App-Status
+
+Web-App + Backend bleiben **Übergangs-Tool**:
+
+- **Phase 1**: Web bleibt für Dogfooding nutzbar, Konzept-Schärfung (Quick Wins: Routing-Umbau, GoalCard-Hero etc.)
+- **Phase 2**: Web läuft parallel, eventuell als kostenloser „Light"-Zugang für Web-User
+- **Phase 3**: Web wird stillgelegt oder bleibt als Marketing-Site
+
+→ Backend wird bei Phase 3 **nicht mehr benötigt** (alles in SwiftData + CloudKit + Foundation Models + optional Claude API direkt vom Device).
 
 #### Personal-Use-First-Phase (2026-04-28)
 
@@ -1502,9 +1541,23 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ## 10. Geschäftsmodell
 
-> Erfasst in Abomodell-Session (2026-04-28). Mehrfach iteriert nach Cost-Realismus-Check.
->
-> ⏰ **Phasen-Status:** Diese Sektion beschreibt das Modell für **Phase 3 (Markt-Launch)**. In Phase 1 (Personal Use, TestFlight) und Phase 2 (Beta) ist Subscription-Layer **nicht aktiv**. Siehe §6.8 Sprint-Roadmap.
+> Erfasst in Abomodell-Session (2026-04-28). Drei-Phasen-Modell mit Epic-#551-Architektur.
+
+### 10.0 Drei-Phasen-Modell (KI-Backend)
+
+| Phase | KI-Backend | App-Preis | Compliance |
+|---|---|---|---|
+| **Phase 1 — Personal Use + Frühe Beta** (TestFlight) | Apple Foundation Models (on-device) + Claude BYOK (optional) | kostenlos | minimal |
+| **Phase 2 — Erweiterte Beta** (TestFlight External) | + Server-Side-Claude (SSC) als Subscription-Option | kostenlos / Sub vorbereitet | mittel |
+| **Phase 3 — Markt-Launch** (App Store) | Foundation Models + Server-Side-Claude (Subscription) | Sub-Modell aktiv | voll |
+
+**Konsequenzen:**
+
+- **In Phase 1**: keine Subscription, keine Cost-Sorgen, keine Haftung für KI-Calls (User initiiert via BYOK)
+- **In Phase 2**: SSC wird verfügbar — User kann zwischen FM (gratis) / BYOK (eigener Key) / SSC (Subscription) wählen
+- **In Phase 3**: BYOK fällt weg → nur FM + SSC. Subscription wird Default für Premium-KI
+
+→ **Phase 1 = sofort umsetzbar.** Subscription-Layer + StoreKit-Integration sind Phase-3-Items. Siehe §6.8 Sprint-Roadmap.
 
 ### 10.1 Grundprinzipien
 
@@ -1817,9 +1870,23 @@ Der eigentliche Grund für UG/GmbH ist **nicht** Apple oder Stripe, sondern Haft
 
 ## 11. Compliance & Datenschutz
 
-> Pflicht-Spezifikation für **Phase 3 (Markt-Launch)**. DSGVO + EU AI Act + Apple App Store.
->
-> ⏰ **Phasen-Status:** In Phase 1 (Personal Use) reduzierte Anforderungen. Voller Compliance-Stack wird vor App Store Submission aktiviert. Siehe §6.8 Sprint-Roadmap, Phase 3.
+> Phasen-spezifisch. Voller Stack erst für Phase 3 (Markt-Launch). Phase 1 + 2 sind reduziert.
+
+### 11.0 Phasen-Differenzierung
+
+| Compliance-Item | Phase 1 (TestFlight intern) | Phase 2 (TestFlight extern) | Phase 3 (App Store) |
+|---|---|---|---|
+| Privacy Policy | Light (für TestFlight) | Voll | Voll |
+| HealthKit Usage Descriptions | ✅ Pflicht (Apple) | ✅ Pflicht | ✅ Pflicht |
+| AVV mit Anthropic | bei BYOK: User-Verantwortung | nötig wenn SSC aktiv | nötig |
+| User-Einwilligung für KI | bei BYOK: implizit | explizit | explizit |
+| Datenexport-Funktion | nicht zwingend | nicht zwingend | ✅ Pflicht (DSGVO) |
+| Account-Löschung | nicht zwingend | nicht zwingend | ✅ Pflicht (DSGVO) |
+| AGB | nicht zwingend | empfehlenswert | ✅ Pflicht |
+| Berufshaftpflicht | optional | empfehlenswert | empfehlenswert |
+| UG/GmbH | nicht nötig | nicht nötig | je nach Skalierung |
+
+→ Voller Compliance-Stack wird ab Phase 3 aktiviert. **Phase 1 + 2 sind hauptsächlich Apple-HealthKit-Compliance** (von Apple ohnehin verlangt).
 
 ### 11.1 DSGVO-Pflichten
 
@@ -1945,3 +2012,4 @@ In Onboarding + bei Plan-Generierung sichtbar:
 | 2026-04-27 | PRD-Skelett angelegt, alte Konzept-Docs nach `archive/` verschoben | Konsolidierung Single Source of Truth |
 | 2026-04-28 | §6 Code-Audit · §2.5/2.6 8 User-Journeys · §10 Geschäftsmodell | Interview-Sessions S1–S3, Code-Audit, Journey-Vertiefung, Abomodell-Definition |
 | 2026-04-28 | §10.7 MwSt-Korrektur · §10.11 Rechtsform · §11 Compliance | Cost-Realismus-Check + Compliance-Block (DSGVO, EU AI Act, Apple App Store, Haftung) |
+| 2026-04-28 | §6.8 Strategie-Pivot zu Epic #551 (On-Device-Apple-App) · §10.0 + §11.0 3-Phasen-Modell | Native iOS-App ohne Backend-Server. Foundation Models + BYOK in Phase 1. Subscription erst Phase 3. Massive Cost-Reduktion durch On-Device-LLM. |
