@@ -42,6 +42,15 @@ fi
 
 VIOLATIONS=()
 
+# File-level Bypass: wenn die ersten ~10 Zeilen einen `// ds-ok-file:` Kommentar
+# enthalten, werden die Native-HTML-Element-Checks (Section 5) uebersprungen.
+# Andere Checks (Tokens, Farben) bleiben aktiv. Begruendung MUSS hinter dem
+# Doppelpunkt stehen (z.B. `// ds-ok-file: native fuer scroll-UX (#786)`).
+DS_OK_FILE=0
+if echo "$CONTENT" | head -10 | grep -qE '//\s*ds-ok-file:'; then
+  DS_OK_FILE=1
+fi
+
 # 1. Hardcoded Tailwind colors (bg-gray-100, text-red-500, etc.)
 #    Allow: bg-white (alone, no number suffix) is caught separately
 if echo "$CONTENT" | grep -qE '(bg|text|border|ring)-(gray|slate|red|blue|green|yellow|orange|purple|pink|zinc|neutral|stone|amber|lime|emerald|teal|cyan|sky|indigo|violet|fuchsia|rose)-[0-9]'; then
@@ -71,18 +80,22 @@ if echo "$STRIPPED_SHADOW" | grep -qE 'shadow-(sm|md|lg|xl|2xl)\b'; then
   VIOLATIONS+=("Hardcodierte Shadows! Nutze shadow-[var(--shadow-*)] statt shadow-sm/md/lg.")
 fi
 
-# 5. Native HTML elements instead of Nordlig DS components
-if echo "$CONTENT" | grep -qE '<button[\s>]'; then
-  VIOLATIONS+=("Native <button>! Nutze <Button> aus Nordlig DS.")
-fi
-if echo "$CONTENT" | grep -qE '<input[\s>]'; then
-  VIOLATIONS+=("Native <input>! Nutze <Input>, <DatePicker>, <Checkbox> aus Nordlig DS.")
-fi
-if echo "$CONTENT" | grep -qE '<select[\s>]'; then
-  VIOLATIONS+=("Native <select>! Nutze <Select> aus Nordlig DS.")
-fi
-if echo "$CONTENT" | grep -qE '<textarea[\s>]'; then
-  VIOLATIONS+=("Native <textarea>! Nutze <Textarea> aus Nordlig DS.")
+# 5. Native HTML elements instead of Nordlig DS components.
+#    Skipped wenn die Datei einen `// ds-ok-file: <Begruendung>` Header hat —
+#    fuer dokumentierte Ausnahmen wie NativeSelect (#786).
+if [ "$DS_OK_FILE" -eq 0 ]; then
+  if echo "$CONTENT" | grep -qE '<button[\s>]'; then
+    VIOLATIONS+=("Native <button>! Nutze <Button> aus Nordlig DS.")
+  fi
+  if echo "$CONTENT" | grep -qE '<input[\s>]'; then
+    VIOLATIONS+=("Native <input>! Nutze <Input>, <DatePicker>, <Checkbox> aus Nordlig DS.")
+  fi
+  if echo "$CONTENT" | grep -qE '<select[\s>]'; then
+    VIOLATIONS+=("Native <select>! Nutze <Select> aus Nordlig DS.")
+  fi
+  if echo "$CONTENT" | grep -qE '<textarea[\s>]'; then
+    VIOLATIONS+=("Native <textarea>! Nutze <Textarea> aus Nordlig DS.")
+  fi
 fi
 
 # 6. Level-1/Level-2 tokens (--color-primary-1-*, --color-accent-1-*, etc.)
