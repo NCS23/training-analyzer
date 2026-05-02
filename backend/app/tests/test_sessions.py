@@ -98,6 +98,36 @@ async def test_upload_strength_csv(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
+async def test_upload_workout_plan_fit_rejected(client: AsyncClient) -> None:
+    """Eine FIT-Workout-Plan-Datei (Export der App) wird beim Upload abgelehnt (#801)."""
+    from app.models.segment import Segment
+    from app.services.fit_export import export_template_to_fit
+
+    # FIT-Workout-Plan generieren — keine Records, nur Steps
+    segments = [
+        Segment(position=0, segment_type="warmup", target_duration_minutes=10),
+        Segment(position=1, segment_type="steady", target_duration_minutes=30),
+        Segment(position=2, segment_type="cooldown", target_duration_minutes=10),
+    ]
+    fit_bytes = export_template_to_fit(template_name="Lockerer Lauf", segments=segments)
+
+    response = await client.post(
+        "/api/v1/sessions/upload/fit",
+        files={"fit_file": ("workout-plan.fit", io.BytesIO(fit_bytes), "application/octet-stream")},
+        data={
+            "training_date": "2024-03-15",
+            "training_type": "running",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["success"] is False
+    assert body["errors"]
+    assert any("Workout-Plan" in err for err in body["errors"])
+    assert body.get("session_id") is None
+
+
+@pytest.mark.anyio
 async def test_upload_invalid_csv_format(client: AsyncClient) -> None:
     """CSV mit falschen Spalten gibt Fehler zurueck."""
     response = await client.post(

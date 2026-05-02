@@ -360,6 +360,21 @@ async def _save_and_respond(
     )
 
 
+def _has_session_data(parsed: dict) -> bool:
+    """True, wenn die geparste Datei mindestens eine echte Trainingsmetrik enthaelt.
+
+    Ein FIT-Workout-Plan-Export aus dieser App parst zwar erfolgreich, enthaelt
+    aber weder Records noch Laps noch Dauer/Distanz — daraus wuerde sonst eine
+    leere Session entstehen (#801).
+    """
+    summary = parsed.get("summary") or {}
+    has_duration = bool(summary.get("total_duration_seconds"))
+    has_distance = bool(summary.get("total_distance_km"))
+    has_laps = bool(parsed.get("laps"))
+    has_hr_timeseries = bool(parsed.get("hr_timeseries"))
+    return has_duration or has_distance or has_laps or has_hr_timeseries
+
+
 async def _upload_session(  # noqa: PLR0913
     content: bytes,
     parser: TrainingCSVParser | TrainingFITParser,
@@ -377,6 +392,16 @@ async def _upload_session(  # noqa: PLR0913
     )
     if not parsed["success"]:
         return SessionUploadResponse(success=False, errors=parsed["errors"])
+
+    if not _has_session_data(parsed):
+        return SessionUploadResponse(
+            success=False,
+            errors=[
+                "Datei enthaelt keine aufgezeichneten Trainingsdaten. "
+                "Vermutlich hast du eine FIT-Workout-Plan-Datei (Export) "
+                "statt einer aufgezeichneten Session hochgeladen."
+            ],
+        )
 
     _apply_lap_overrides(parsed["laps"], form.lap_overrides_json)
     workout = _build_workout_model(form, parsed, csv_data, user_id=user_id)
