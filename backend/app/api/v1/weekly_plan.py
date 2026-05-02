@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1447,7 +1447,6 @@ class PlannedSessionFitExportRequest(BaseModel):
     """
 
     run_details: RunDetails
-    notes: Optional[str] = Field(default=None, max_length=500)
 
 
 @router.post("/export/fit")
@@ -1463,6 +1462,7 @@ async def export_planned_session_fit(
     """
     import re
 
+    from app.models.taxonomy import SESSION_TYPE_LABELS
     from app.services.fit_export import export_template_to_fit
 
     run_details = payload.run_details
@@ -1473,10 +1473,10 @@ async def export_planned_session_fit(
             detail="Session hat keine Segmente fuer den Export.",
         )
 
-    # Workout-Name: Notizen-Erstzeile oder Run-Type
-    workout_name = str(payload.notes or "").split("\n")[0][:50] if payload.notes else None
-    if not workout_name:
-        workout_name = run_details.run_type or "Lauftraining"
+    # Workout-Name: Deutsche Run-Type-Bezeichnung — sprechend auf der Uhr.
+    # Notizen werden bewusst NICHT verwendet, da sie oft KI-generierte
+    # Freitexte enthalten ("Long Run 63 min - Lauf-ABC mit ...").
+    workout_name = SESSION_TYPE_LABELS.get(run_details.run_type or "", "") or "Lauftraining"
 
     fit_bytes = export_template_to_fit(
         template_name=workout_name,

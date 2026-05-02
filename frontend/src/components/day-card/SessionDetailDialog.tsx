@@ -296,7 +296,7 @@ export function SessionDetailDialog({
                         onSelect={async () => {
                           if (!session.run_details) return;
                           try {
-                            await exportPlannedSessionFit(session.run_details, session.notes);
+                            await exportPlannedSessionFit(session.run_details);
                           } catch (err) {
                             console.error('FIT-Export fehlgeschlagen:', err);
                             const detail =

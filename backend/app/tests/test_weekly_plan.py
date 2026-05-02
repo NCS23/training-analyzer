@@ -1176,14 +1176,31 @@ async def test_export_fit_returns_workout_file(client: AsyncClient) -> None:
                 {"position": 2, "segment_type": "cooldown", "target_duration_minutes": 10},
             ],
         },
-        "notes": "5x1000m Schwellentempo",
     }
     response = await client.post("/api/v1/weekly-plan/export/fit", json=payload)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/octet-stream"
-    assert "filename=" in response.headers["content-disposition"]
+    # Workout-Name = deutsche Run-Type-Bezeichnung → Dateiname enthaelt "intervalle"
+    assert "intervalle" in response.headers["content-disposition"].lower()
     assert response.headers["content-disposition"].endswith('.fit"')
     assert len(response.content) > 0
+
+
+@pytest.mark.anyio
+async def test_export_fit_uses_run_type_label_not_notes(client: AsyncClient) -> None:
+    """Workout-Name kommt aus dem Run-Type-Label, NICHT aus der Notiz (#799)."""
+    payload = {
+        "run_details": {
+            "run_type": "long_run",
+            "segments": [
+                {"position": 0, "segment_type": "steady", "target_duration_minutes": 60},
+            ],
+        },
+    }
+    response = await client.post("/api/v1/weekly-plan/export/fit", json=payload)
+    assert response.status_code == 200
+    # "Langer Lauf" → safe_name "langer-lauf"
+    assert "langer-lauf" in response.headers["content-disposition"].lower()
 
 
 @pytest.mark.anyio
@@ -1191,7 +1208,6 @@ async def test_export_fit_rejects_empty_segments(client: AsyncClient) -> None:
     """Ohne Segmente liefert der Export 422."""
     payload = {
         "run_details": {"run_type": "easy", "target_duration_minutes": 30},
-        "notes": None,
     }
     response = await client.post("/api/v1/weekly-plan/export/fit", json=payload)
     # _ensure_segments-Validator legt automatisch ein 'steady'-Segment an,
