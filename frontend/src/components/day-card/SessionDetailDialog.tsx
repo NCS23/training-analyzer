@@ -289,14 +289,14 @@ export function SessionDetailDialog({
                     </DropdownMenuItem>
                   )}
                   {session.training_type === 'running' &&
-                    session.id != null &&
                     session.run_details?.segments &&
                     session.run_details.segments.length > 0 && (
                       <DropdownMenuItem
                         icon={<Download />}
                         onSelect={async () => {
+                          if (!session.run_details) return;
                           try {
-                            await exportPlannedSessionFit(session.id!);
+                            await exportPlannedSessionFit(session.run_details, session.notes);
                           } catch (err) {
                             console.error('FIT-Export fehlgeschlagen:', err);
                             const detail =

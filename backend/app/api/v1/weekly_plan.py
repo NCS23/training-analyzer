@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1434,52 +1435,46 @@ async def apply_recommendations(
     return ApplyRecommendationsResponse(**result)
 
 
-# --- FIT Export (#352) ---
+# --- FIT Export (#352, #796) ---
 
 
-@router.get("/entry/{entry_id}/export/fit")
+class PlannedSessionFitExportRequest(BaseModel):
+    """Payload fuer FIT-Export einer geplanten Session.
+
+    Wir akzeptieren run_details direkt im Body statt per ID-Lookup, weil
+    PlannedSession-IDs beim Save geloescht und neu erzeugt werden — d. h.
+    der Frontend-State haelt schnell stale IDs (#796).
+    """
+
+    run_details: RunDetails
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+
+@router.post("/export/fit")
 async def export_planned_session_fit(
-    entry_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user),
+    payload: PlannedSessionFitExportRequest,
+    _current_user: UserModel = Depends(get_current_active_user),
 ) -> Response:
-    """Export eines geplanten Lauftrainings als FIT-Workout-Datei.
+    """Export einer geplanten Lauf-Session als FIT-Workout-Datei.
 
-    Konvertiert die Segmente eines Wochenplan-Eintrags direkt in eine
-    FIT-Datei fuer HealthFit / Apple Watch / Garmin.
+    Erwartet die Session-Daten direkt im Body (kein DB-Lookup), damit der
+    Export auch fuer ungespeicherte oder gerade re-allozierte Eintraege
+    funktioniert.
     """
     import re
 
     from app.services.fit_export import export_template_to_fit
 
-    result = await db.execute(
-        select(PlannedSessionModel).where(
-            PlannedSessionModel.id == entry_id,
-            PlannedSessionModel.user_id == current_user.id,
-        )
-    )
-    entry = result.scalar_one_or_none()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Geplanter Eintrag nicht gefunden.")
+    run_details = payload.run_details
 
-    if str(entry.training_type) != "running":
+    if not run_details.segments:
         raise HTTPException(
             status_code=422,
-            detail="FIT-Export ist nur fuer Lauftrainings verfuegbar.",
+            detail="Session hat keine Segmente fuer den Export.",
         )
 
-    run_details = None
-    if entry.run_details_json:
-        run_details = RunDetails.model_validate_json(str(entry.run_details_json))
-
-    if not run_details or not run_details.segments:
-        raise HTTPException(
-            status_code=422,
-            detail="Geplanter Eintrag hat keine Segmente fuer den Export.",
-        )
-
-    # Workout-Name: Notizen oder Run-Type
-    workout_name = str(entry.notes or "").split("\n")[0][:50] if entry.notes else None
+    # Workout-Name: Notizen-Erstzeile oder Run-Type
+    workout_name = str(payload.notes or "").split("\n")[0][:50] if payload.notes else None
     if not workout_name:
         workout_name = run_details.run_type or "Lauftraining"
 
