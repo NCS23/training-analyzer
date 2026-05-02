@@ -1152,3 +1152,48 @@ async def test_save_auto_syncs_resets_edited_flag(
     # Auto-sync should have already reset edited flag
     get_resp = await client.get("/api/v1/weekly-plan", params={"week_start": "2026-11-16"})
     assert get_resp.json()["entries"][0]["edited"] is False
+
+
+# --- FIT Export (#796) ---
+
+
+@pytest.mark.anyio
+async def test_export_fit_returns_workout_file(client: AsyncClient) -> None:
+    """POST /weekly-plan/export/fit erzeugt eine FIT-Datei aus run_details."""
+    payload = {
+        "run_details": {
+            "run_type": "intervals",
+            "segments": [
+                {"position": 0, "segment_type": "warmup", "target_duration_minutes": 10},
+                {
+                    "position": 1,
+                    "segment_type": "work",
+                    "target_distance_km": 1.0,
+                    "target_pace_min": "4:30",
+                    "target_pace_max": "5:00",
+                    "repeats": 3,
+                },
+                {"position": 2, "segment_type": "cooldown", "target_duration_minutes": 10},
+            ],
+        },
+        "notes": "5x1000m Schwellentempo",
+    }
+    response = await client.post("/api/v1/weekly-plan/export/fit", json=payload)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert "filename=" in response.headers["content-disposition"]
+    assert response.headers["content-disposition"].endswith('.fit"')
+    assert len(response.content) > 0
+
+
+@pytest.mark.anyio
+async def test_export_fit_rejects_empty_segments(client: AsyncClient) -> None:
+    """Ohne Segmente liefert der Export 422."""
+    payload = {
+        "run_details": {"run_type": "easy", "target_duration_minutes": 30},
+        "notes": None,
+    }
+    response = await client.post("/api/v1/weekly-plan/export/fit", json=payload)
+    # _ensure_segments-Validator legt automatisch ein 'steady'-Segment an,
+    # daher muss der Export hier sogar erfolgreich sein.
+    assert response.status_code == 200

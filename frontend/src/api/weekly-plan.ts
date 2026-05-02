@@ -307,12 +307,17 @@ async function _extractBlobError(err: unknown): Promise<string> {
   return err instanceof Error ? err.message : 'Unbekannter Fehler';
 }
 
-export async function exportPlannedSessionFit(entryId: number): Promise<void> {
+export async function exportPlannedSessionFit(
+  runDetails: RunDetails,
+  notes?: string | null,
+): Promise<void> {
   let response;
   try {
-    response = await apiClient.get(`/api/v1/weekly-plan/entry/${entryId}/export/fit`, {
-      responseType: 'blob',
-    });
+    response = await apiClient.post(
+      `/api/v1/weekly-plan/export/fit`,
+      { run_details: runDetails, notes: notes ?? null },
+      { responseType: 'blob' },
+    );
   } catch (err) {
     const detail = await _extractBlobError(err);
     const wrapped = new Error(detail);
