@@ -37,6 +37,20 @@ SEGMENT_TYPES = frozenset(
 
 SEGMENT_TYPE_REGEX = "^(" + "|".join(sorted(SEGMENT_TYPES)) + ")$"
 
+# Deutsche Anzeigenamen fuer Session-Types — Single Source of Truth
+# (gespiegelt im Frontend in `frontend/src/constants/plan.ts:RUN_TYPE_LABELS`).
+SESSION_TYPE_LABELS: dict[str, str] = {
+    "recovery": "Regeneration",
+    "easy": "Lockerer Lauf",
+    "long_run": "Langer Lauf",
+    "progression": "Steigerungslauf",
+    "tempo": "Tempolauf",
+    "intervals": "Intervalle",
+    "repetitions": "Repetitions",
+    "fartlek": "Fahrtspiel",
+    "race": "Wettkampf",
+}
+
 # Intensity classification for training balance
 EASY_SESSION_TYPES = frozenset({"recovery", "easy", "long_run"})
 MODERATE_SESSION_TYPES = frozenset({"tempo", "progression", "fartlek"})
