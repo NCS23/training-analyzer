@@ -58,9 +58,24 @@ class TestPaceToSpeedMps:
 
 
 class TestGenerateStepName:
-    def test_notes_take_priority(self) -> None:
+    def test_notes_are_ignored(self) -> None:
+        """Notizen flieSsen NICHT in den Step-Namen ein (Issue #794)."""
         seg = Segment(position=0, segment_type="work", notes="Schnelle 1km")
-        assert _generate_step_name(seg) == "Schnelle 1km"
+        assert _generate_step_name(seg) == "Intervall"
+
+    def test_drills_with_exercise_name(self) -> None:
+        """Lauf-ABC haengt exercise_name an (Issue #794)."""
+        seg = Segment(position=0, segment_type="drills", exercise_name="Skipping")
+        assert _generate_step_name(seg) == "Lauf-ABC: Skipping"
+
+    def test_drills_without_exercise_name(self) -> None:
+        """Lauf-ABC ohne exercise_name bleibt beim Typ-Namen."""
+        seg = Segment(position=0, segment_type="drills")
+        assert _generate_step_name(seg) == "Lauf-ABC"
+
+    def test_drills_long_exercise_name_truncated(self) -> None:
+        seg = Segment(position=0, segment_type="drills", exercise_name="A" * 100)
+        assert len(_generate_step_name(seg)) == 50
 
     def test_warmup_name(self) -> None:
         seg = Segment(position=0, segment_type="warmup", target_duration_minutes=10)
@@ -115,9 +130,10 @@ class TestGenerateStepName:
         seg = Segment(position=0, segment_type="work", target_distance_km=0.4)
         assert _generate_step_name(seg) == "Intervall 0.4km"
 
-    def test_long_notes_truncated(self) -> None:
+    def test_long_notes_are_ignored(self) -> None:
+        """Lange Notizen werden ignoriert, nicht gekuerzt (Issue #794)."""
         seg = Segment(position=0, segment_type="work", notes="A" * 100)
-        assert len(_generate_step_name(seg)) == 50
+        assert _generate_step_name(seg) == "Intervall"
 
 
 # --- _build_workout_step ---
@@ -253,10 +269,17 @@ class TestBuildWorkoutStep:
         step = _build_workout_step(seg, message_index=0)
         assert step.workout_step_name == "Einlaufen"
 
-    def test_step_name_from_notes(self) -> None:
+    def test_step_name_ignores_notes(self) -> None:
+        """Notizen werden im Step-Namen ignoriert (Issue #794)."""
         seg = Segment(position=0, segment_type="work", target_distance_km=1.0, notes="Schnelle 1km")
         step = _build_workout_step(seg, message_index=0)
-        assert step.workout_step_name == "Schnelle 1km"
+        assert step.workout_step_name == "Intervall 1km"
+
+    def test_step_name_drills_with_exercise(self) -> None:
+        """Lauf-ABC haengt exercise_name im Step-Namen an (Issue #794)."""
+        seg = Segment(position=0, segment_type="drills", exercise_name="Skipping")
+        step = _build_workout_step(seg, message_index=0)
+        assert step.workout_step_name == "Lauf-ABC: Skipping"
 
 
 # --- _build_recovery_step ---

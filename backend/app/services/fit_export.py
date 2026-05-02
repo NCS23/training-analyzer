@@ -89,12 +89,19 @@ def pace_to_speed_mps(pace_str: str) -> float:
 def _generate_step_name(segment: Segment) -> str:
     """Generiert einen lesbaren deutschen Step-Namen fuer HealthFit-Anzeige.
 
-    Priorisiert notes > generierter Name mit Ziel-Info > Segment-Type.
-    """
-    if segment.notes:
-        return segment.notes[:50]
+    Basis ist immer der Segment-Typ (Anzeigename). Notizen fliessen NICHT ein,
+    damit Uhren-Anzeige und HealthFit konsistent bleiben.
 
+    Sonderfaelle:
+    - drills (Lauf-ABC) mit exercise_name → "Lauf-ABC: <Uebung>"
+    - work/steady/strides/tempo_block/pace_building bekommen Ziel-Info-Suffix
+    """
     base = _SEGMENT_DISPLAY_NAMES.get(segment.segment_type, segment.segment_type)
+
+    # Lauf-ABC: konkrete Uebung anhaengen, falls gepflegt
+    if segment.segment_type == "drills" and segment.exercise_name:
+        base = f"{base}: {segment.exercise_name}"
+        return base[:50]
 
     # Ziel-Info fuer Work/Steady/Strides anhaengen
     if segment.segment_type in ("work", "steady", "strides", "tempo_block", "pace_building"):
