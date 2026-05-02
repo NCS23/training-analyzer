@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  useToast,
 } from '@nordlig/components';
 import {
   ArrowRightLeft,
@@ -87,6 +88,7 @@ export function SessionDetailDialog({
   onMoveSession,
 }: SessionDetailDialogProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [local, setLocal] = useState<PlannedSession>(session);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
@@ -295,8 +297,15 @@ export function SessionDetailDialog({
                         onSelect={async () => {
                           try {
                             await exportPlannedSessionFit(session.id!);
-                          } catch {
-                            // Fehler still ignorieren — kein Toast verfuegbar
+                          } catch (err) {
+                            console.error('FIT-Export fehlgeschlagen:', err);
+                            const detail =
+                              err instanceof Error ? err.message : 'Unbekannter Fehler';
+                            toast({
+                              title: 'FIT-Export fehlgeschlagen',
+                              description: detail,
+                              variant: 'error',
+                            });
                           }
                         }}
                       >

@@ -284,10 +284,42 @@ export async function getPlannedSessionsForDate(date: string): Promise<PlannedSe
 
 // --- FIT Export (#352) ---
 
+async function _extractBlobError(err: unknown): Promise<string> {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'response' in err &&
+    typeof (err as { response?: unknown }).response === 'object'
+  ) {
+    const response = (err as { response: { data?: unknown; status?: number } }).response;
+    const status = response.status ?? 0;
+    if (response.data instanceof Blob) {
+      try {
+        const text = await response.data.text();
+        const json = JSON.parse(text) as { detail?: string };
+        if (json.detail) return json.detail;
+      } catch {
+        // Blob war kein JSON — Status-Code als Fallback
+      }
+    }
+    return `HTTP ${status}`;
+  }
+  return err instanceof Error ? err.message : 'Unbekannter Fehler';
+}
+
 export async function exportPlannedSessionFit(entryId: number): Promise<void> {
-  const response = await apiClient.get(`/api/v1/weekly-plan/entry/${entryId}/export/fit`, {
-    responseType: 'blob',
-  });
+  let response;
+  try {
+    response = await apiClient.get(`/api/v1/weekly-plan/entry/${entryId}/export/fit`, {
+      responseType: 'blob',
+    });
+  } catch (err) {
+    const detail = await _extractBlobError(err);
+    const wrapped = new Error(detail);
+    (wrapped as Error & { cause?: unknown }).cause = err;
+    throw wrapped;
+  }
+
   const contentDisposition = String(response.headers['content-disposition'] || '');
   const match = contentDisposition.match(/filename="?([^"]+)"?/);
   const filename = match?.[1] || 'workout.fit';
