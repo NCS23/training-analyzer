@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Präsenz — Organische Formen v2</title>
+  <style>
+    /* Reine Design-Skizze. Hardcodierte Werte sind bewusst —
+       der Mockup ist standalone und nicht Teil des App-Builds. */
+    :root {
+      --fuchsia-300: #f0abfc;
+      --fuchsia-400: #e879f9;
+      --fuchsia-500: #d946ef;
+      --fuchsia-600: #c026d3;
+      --stone-50: #fafaf9;
+      --stone-100: #f5f5f4;
+      --stone-200: #e7e5e4;
+      --slate-900: #0f172a;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, system-ui, sans-serif;
+      background: var(--stone-50);
+      color: var(--slate-900);
+      padding: 48px 24px 96px;
+      max-width: 1080px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 24px;
+      margin: 64px 0 4px;
+      letter-spacing: -0.01em;
+    }
+
+    p.lede {
+      color: var(--slate-700);
+      margin-bottom: 16px;
+      max-width: 64ch;
+    }
+
+    .principles {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--slate-700);
+      box-shadow: 0 10px 40px -4px rgba(15, 23, 42, 0.04);
+    }
+    .principles ul { padding-left: 20px; }
+    .principles li { margin-bottom: 4px; }
+
+    .variant {
+      background: white;
+      border-radius: 32px;
+      padding: 32px;
+      margin-top: 24px;
+      box-shadow: 0 10px 40px -4px rgba(15, 23, 42, 0.04);
+    }
+
+    .variant-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+    .variant-name {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .variant-tag {
+      font-size: 12px;
+      color: var(--fuchsia-600);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .variant-desc {
+      color: var(--slate-700);
+      font-size: 14px;
+      margin-bottom: 24px;
+      max-width: 64ch;
+    }
+
+    .sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      padding: 24px 0;
+      border-top: 1px solid var(--stone-100);
+      border-bottom: 1px solid var(--stone-100);
+    }
+
+    .size {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .size-label {
+      font-size: 11px;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Context: Chat Bubble */
+    .context-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .chat-stack {
+      flex: 1;
+      min-width: 280px;
+      background: var(--stone-50);
+      border-radius: 24px;
+      padding: 20px;
+    }
+    .chat-stack-label {
+      font-size: 11px;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .chat-msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .chat-bubble {
+      background: white;
+      padding: 10px 14px;
+      border-radius: 16px 16px 16px 4px;
+      font-size: 13px;
+      color: var(--slate-700);
+      max-width: 220px;
+      line-height: 1.5;
+    }
+
+    .fab-demo {
+      width: 220px;
+      background: var(--stone-50);
+      border-radius: 24px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .fab-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px -4px rgba(217, 70, 239, 0.2), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    }
+    .fab-label {
+      font-size: 11px;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Animation: subtle breathing for all forms */
+    .breathing { animation: breathe 4s ease-in-out infinite; transform-origin: 50% 50%; }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.025); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .breathing { animation: none !important; }
+    }
+
+    .meta {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--stone-100);
+      font-size: 12px;
+      color: var(--slate-400);
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    @media (min-width: 720px) {
+      .compare { grid-template-columns: repeat(4, 1fr); }
+    }
+    .compare-item {
+      background: var(--stone-50);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .compare-name {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AI-Präsenz — Organische Formen</h1>
+  <p class="lede">
+    Vier Vorschläge aus Richtung B (geschlossene organische Form). Ein einziges Farbsystem (Fuchsia),
+    Glow aus der Form selbst, weiche Konturen — keine Spitzen, keine Multi-Color-Verläufe.
+  </p>
+
+  <div class="principles">
+    <strong>Was sich gegenüber v1 geändert hat:</strong>
+    <ul>
+      <li>Eine Farbe statt vier — nur Fuchsia (AI-Kennfarbe laut Style Guide)</li>
+      <li>Glow folgt der Form (SVG-Filter), nicht ein generischer Halo-Kreis</li>
+      <li>Solide Füllung, kein Multi-Color-Gradient im Inneren</li>
+      <li>Geschlossene Form — keine harten Spitzen, kein „AI-Sparkle"-Klischee</li>
+      <li>Vom Logo unterscheidbar (kein Stern, kein Berg, kein Trail)</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SVG Defs: Filter & Form Definitionen                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- Glow Filter, klein/mittel/groß -->
+      <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+      <filter id="glow-md" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+      <filter id="glow-lg" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+
+      <!-- Form 1: Vertikale Linse -->
+      <symbol id="form-lens" viewBox="0 0 100 100">
+        <path d="M 50 8
+                 C 72 26, 74 52, 50 92
+                 C 28 70, 26 44, 50 8 Z"
+              fill="#d946ef"/>
+      </symbol>
+
+      <!-- Form 2: Asymmetrischer Kiesel -->
+      <symbol id="form-pebble" viewBox="0 0 100 100">
+        <path d="M 32 18
+                 C 58 12, 82 28, 84 52
+                 C 86 76, 64 88, 42 84
+                 C 18 78, 14 52, 20 34
+                 C 22 26, 26 20, 32 18 Z"
+              fill="#d946ef"/>
+      </symbol>
+
+      <!-- Form 3: Saga-Knoten (vertikale Acht) -->
+      <symbol id="form-knot" viewBox="0 0 100 100">
+        <path d="M 50 50
+                 C 28 50, 22 22, 50 14
+                 C 78 22, 72 50, 50 50
+                 C 28 50, 22 78, 50 86
+                 C 78 78, 72 50, 50 50 Z"
+              fill="#d946ef"/>
+      </symbol>
+
+      <!-- Form 4: Komma / Bewegung -->
+      <symbol id="form-comma" viewBox="0 0 100 100">
+        <path d="M 70 18
+                 C 88 32, 88 62, 68 80
+                 C 50 92, 28 88, 22 72
+                 C 18 60, 26 52, 38 56
+                 C 48 60, 56 54, 56 44
+                 C 56 32, 60 22, 70 18 Z"
+              fill="#d946ef"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Variant 1: Linse                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">1. Linse</div>
+      <div class="variant-tag">vesica · sehen · präsent</div>
+    </div>
+    <p class="variant-desc">
+      Vertikale Vesica-Form — wie ein Auge oder ein Saatkorn. Konnotation: Wahrnehmung, Aufmerksamkeit,
+      „die Präsenz sieht dich". Vertikalität verbindet schwach mit dem Hochformat des Logos,
+      ohne es zu kopieren.
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-lens" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-lens" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-md)" class="breathing"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Variant 2: Kiesel                                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">2. Kiesel</div>
+      <div class="variant-tag">organisch · still · ruhig</div>
+    </div>
+    <p class="variant-desc">
+      Asymmetrische Blob-Form — wie ein vom Wasser geschliffener Stein. Keine Symmetrie, kein „Design".
+      Konnotation: natürlich, gewachsen, unprätentiös. Maximale Reduktion: die Präsenz ist „etwas, das da ist",
+      nicht „etwas mit Bedeutung".
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-pebble" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-pebble" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-md)" class="breathing"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Variant 3: Knoten                                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">3. Knoten</div>
+      <div class="variant-tag">saga · kontinuität · geschichte</div>
+    </div>
+    <p class="variant-desc">
+      Vertikale Doppel-Schlaufe — eine geschlossene Form aus zwei verschlungenen Bögen.
+      Konnotation: Geschichte, Verbindung, Saga. Nordische Knotenmuster ohne Folklore zu zitieren.
+      Trägt narrative Bedeutung — passt zur Marken-DNA.
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-knot" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-knot" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-md)" class="breathing"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Variant 4: Komma                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="variant">
+    <div class="variant-header">
+      <div class="variant-name">4. Komma</div>
+      <div class="variant-tag">bewegung · richtung · vorwärts</div>
+    </div>
+    <p class="variant-desc">
+      Asymmetrische Komma-/Welle-Form — eingefangene Bewegung. Konnotation: Vorwärtsdrang, Lauf,
+      „die Präsenz ist in Bewegung mit dir". Passt zur Sport-App, ohne plump „Lauf-Icon" zu sein.
+      Riskanter als die anderen drei — auffälliger, charakterstärker.
+    </p>
+
+    <div class="sizes">
+      <div class="size">
+        <svg width="24" height="24" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">24 px</div>
+      </div>
+      <div class="size">
+        <svg width="40" height="40" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-sm)" class="breathing"/></svg>
+        <div class="size-label">40 px</div>
+      </div>
+      <div class="size">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="size-label">56 px · FAB</div>
+      </div>
+      <div class="size">
+        <svg width="120" height="120" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">120 px</div>
+      </div>
+      <div class="size">
+        <svg width="200" height="200" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-lg)" class="breathing"/></svg>
+        <div class="size-label">200 px · Hero</div>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <div class="chat-stack">
+        <div class="chat-stack-label">Im Chat</div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-comma" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Dein Tempolauf war 6 s/km schneller als geplant. Morgen locker.</div>
+        </div>
+        <div class="chat-msg">
+          <svg width="24" height="24" viewBox="0 0 100 100" style="flex-shrink:0; margin-top:2px;"><use href="#form-comma" filter="url(#glow-sm)"/></svg>
+          <div class="chat-bubble">Soll ich dir einen Vorschlag für morgen machen?</div>
+        </div>
+      </div>
+      <div class="fab-demo">
+        <div class="fab-label">Als FAB</div>
+        <div class="fab-circle">
+          <svg width="32" height="32" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-md)" class="breathing"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Direkter Vergleich                                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>Direkter Vergleich (56 px nebeneinander)</h2>
+  <p class="lede">Welche Form fühlt sich auf den ersten Blick am stimmigsten an?</p>
+
+  <div class="variant">
+    <div class="compare">
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-lens" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="compare-name">Linse</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-pebble" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="compare-name">Kiesel</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-knot" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="compare-name">Knoten</div>
+      </div>
+      <div class="compare-item">
+        <svg width="56" height="56" viewBox="0 0 100 100"><use href="#form-comma" filter="url(#glow-md)" class="breathing"/></svg>
+        <div class="compare-name">Komma</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta">
+    Standalone Design-Skizze · keine Produktivkomponente · respektiert <code>prefers-reduced-motion</code> ·
+    Glow per <code>feGaussianBlur</code>-Filter aus der Form, einheitlich Fuchsia (#d946ef).
+  </div>
+
+</body>
+</html>
