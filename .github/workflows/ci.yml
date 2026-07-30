@@ -467,7 +467,7 @@ jobs:
           ### Nächste Schritte
           1. CI Run Log prüfen
           2. Produktion manuell testen: https://training.nordliggrad.com
-          3. Bei Bedarf: Coolify Dashboard prüfen (Port 8000)"
+          3. Bei Bedarf: Coolify Dashboard prüfen: https://coolify.nordliggrad.com"
 
           if [ -n "$EXISTING_ISSUE" ]; then
             gh issue comment "$EXISTING_ISSUE" -R "$REPO" \

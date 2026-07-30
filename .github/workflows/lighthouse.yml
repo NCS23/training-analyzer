@@ -17,7 +17,7 @@ jobs:
         id: lighthouse
         with:
           urls: |
-            http://training.89.167.78.223.sslip.io
+            https://training.nordliggrad.com
           runs: 3
           configPath: .github/.lighthouserc.json
           budgetPath: .github/lighthouse-budget.json
