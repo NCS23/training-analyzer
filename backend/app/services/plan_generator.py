@@ -1048,7 +1048,7 @@ def _insert_race_day(
 # --- Main Generator ---
 
 
-def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915  # TODO: E16 Refactoring
+def generate_weekly_plans(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917  # TODO: E16 Refactoring
     plan: TrainingPlanModel,
     phases: list[TrainingPhaseModel],
     rest_days: list[int],

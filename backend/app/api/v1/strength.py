@@ -92,7 +92,7 @@ def _parse_training_file(content: bytes, filename: str) -> Optional[dict]:
 
 
 @router.post("", status_code=201)
-async def create_strength_session(  # noqa: PLR0913
+async def create_strength_session(  # noqa: PLR0913, PLR0917
     exercises_json: str = Form(..., description="JSON-Array der Übungen"),
     training_date: date = Form(..., description="Datum (YYYY-MM-DD)"),
     duration_minutes: int = Form(..., ge=1, le=600, description="Dauer in Minuten"),

@@ -478,7 +478,7 @@ def _check_run_details(
                     )
 
 
-def _check_type_value(  # noqa: PLR0913  # TODO: E16 Refactoring
+def _check_type_value(  # noqa: PLR0913, PLR0917  # TODO: E16 Refactoring
     value: str,
     valid_set: frozenset[str],
     migration_map: dict[str, str],
