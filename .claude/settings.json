@@ -13,6 +13,15 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "mcp__figma-remote__use_figma",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/figma-rules-reminder.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write",
         "hooks": [
           {
