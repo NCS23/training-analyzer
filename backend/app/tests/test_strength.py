@@ -1,6 +1,7 @@
 """Tests fuer Krafttraining (Issue #15, #151, #285)."""
 
 import json
+from datetime import date, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -843,7 +844,10 @@ async def test_create_validation_no_sets(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_category_tonnage_trend_endpoint(client: AsyncClient) -> None:
     """Neuer Endpoint liefert Kategorie-Tonnage nach Wochen."""
-    await client.post("/api/v1/sessions/strength", data=VALID_FORM_DATA)
+    # Datum relativ zu heute, damit die Session im "days"-Fenster des Endpoints liegt
+    recent = date.today() - timedelta(days=7)
+    form_data = {**VALID_FORM_DATA, "training_date": recent.isoformat()}
+    await client.post("/api/v1/sessions/strength", data=form_data)
 
     response = await client.get(
         "/api/v1/sessions/strength/category-tonnage-trend",

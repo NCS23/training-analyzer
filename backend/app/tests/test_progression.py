@@ -1,6 +1,7 @@
 """Tests fuer Krafttraining Progression-Tracking (Issue #17)."""
 
 import json
+from datetime import date, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -553,7 +554,9 @@ async def test_personal_records_for_session(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_tonnage_trend(client: AsyncClient) -> None:
-    await _create_strength_session(client)
+    # Datum relativ zu heute, damit die Session im "days"-Fenster des Endpoints liegt
+    recent = date.today() - timedelta(days=7)
+    await _create_strength_session(client, date_str=recent.isoformat())
 
     response = await client.get(
         "/api/v1/sessions/strength/tonnage-trend",

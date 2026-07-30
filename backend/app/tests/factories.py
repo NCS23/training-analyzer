@@ -6,7 +6,7 @@ from typing import Any, Optional
 from app.domain.entities.workout import Workout
 
 
-def make_workout(  # noqa: PLR0913  # TODO: E16 Refactoring
+def make_workout(  # noqa: PLR0913, PLR0917  # TODO: E16 Refactoring
     id: Optional[int] = 1,
     date: Optional[datetime] = None,
     workout_type: str = "running",
