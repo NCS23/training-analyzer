@@ -70,9 +70,10 @@ dev = [
     "aiosqlite>=0.20.0",  # Async SQLite for test DB
     "greenlet>=3.0.0",  # Required by async SQLAlchemy
 
-    # Code Quality
-    "ruff>=0.1.14",
-    "mypy>=1.8.0",
+    # Code Quality — exakt gepinnt, damit CI und lokal identisch linten (#810).
+    # Versionshebungen bewusst durchführen: Pin erhöhen + `ruff check app/` / `mypy app/` lokal prüfen.
+    "ruff==0.16.0",
+    "mypy==2.3.0",
     "black>=24.1.1",
     "isort>=5.13.2",
     

@@ -187,7 +187,7 @@ def _calc_corrected_pace(
     return corrected
 
 
-def _build_split(  # noqa: PLR0913  # TODO: E16 Refactoring
+def _build_split(  # noqa: PLR0913, PLR0917  # TODO: E16 Refactoring
     km_number: int,
     distance_km: float,
     duration_sec: int,

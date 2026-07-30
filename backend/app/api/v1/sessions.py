@@ -375,7 +375,7 @@ def _has_session_data(parsed: dict) -> bool:
     return has_duration or has_distance or has_laps or has_hr_timeseries
 
 
-async def _upload_session(  # noqa: PLR0913
+async def _upload_session(  # noqa: PLR0913, PLR0917
     content: bytes,
     parser: TrainingCSVParser | TrainingFITParser,
     form: SessionUploadForm,
@@ -514,7 +514,7 @@ async def upload_fit(
 
 
 @router.get("", response_model=SessionListResponse)
-async def list_sessions(  # noqa: PLR0913
+async def list_sessions(  # noqa: PLR0913, PLR0917
     page: int = Query(1, ge=1, description="Seitennummer"),
     page_size: int = Query(20, ge=1, le=100, description="Eintraege pro Seite"),
     workout_type: Optional[TrainingType] = Query(None, description="Filter nach Workout-Typ"),
