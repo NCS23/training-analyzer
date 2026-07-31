@@ -1,13 +1,17 @@
-"""Vollstaendiger Export fuer die minsaga-Migration (#823, Format-Version 2).
+"""Vollstaendiger Export fuer die minsaga-Migration (#823/#825, Format-Version 3).
 
 Sammelt serverseitig ALLES, was fuer nahtloses Weitertrainieren in der
 minsaga-iOS-App noetig ist: Profilwerte + Schwellentests, Ziele, Plaene
 mit Phasen-Templates UND Changelog (Entscheidungen samt Begruendung),
-sowie saemtliche gespeicherten Wochenplan-Wochen inklusive aller
-Anpassungen (run_details, Status, edited-Flag).
+saemtliche gespeicherten Wochenplan-Wochen inklusive aller Anpassungen
+(run_details, Status, edited-Flag) — und seit v3 die Trainings-Historie.
 
-Historische Workouts sind bewusst NICHT enthalten — die kommen in
-minsaga aus Apple Health (Import-Master).
+Zur Historie (#825): v2 schloss Workouts bewusst aus, weil Apple Health
+als Import-Master galt. Das war ein Irrtum — Apple Health enthaelt nur
+die junge Apple-Watch-Aera, die Garmin-Jahre liegen ausschliesslich hier.
+Ohne sie rechnet minsaga Trainingslast, Langlauf-Basis und Pace-Spezifitaet
+systematisch falsch. Der `sessions`-Block liefert deshalb Kerndaten plus
+Laps je Workout; GPS-Tracks und Zeitreihen bleiben aussen vor.
 """
 
 import json
@@ -28,6 +32,7 @@ from app.infrastructure.database.models import (
     TrainingPlanModel,
     UserModel,
     WeeklyPlanDayModel,
+    WorkoutModel,
 )
 from app.infrastructure.database.session import get_db
 
@@ -225,12 +230,58 @@ async def _weekly_plans_block(
     return list(weeks.values())
 
 
+def _lap_eintrag(lap: object) -> dict[str, object] | None:
+    if not isinstance(lap, dict):
+        return None
+    return {
+        "lap_number": lap.get("lap_number"),
+        "duration_seconds": lap.get("duration_seconds"),
+        "distance_km": lap.get("distance_km"),
+        "avg_pace_min_per_km": lap.get("avg_pace_min_per_km"),
+        "avg_hr_bpm": lap.get("avg_hr_bpm"),
+        # Nutzer-Korrektur schlaegt die Klassifikation.
+        "type": lap.get("user_override") or lap.get("suggested_type"),
+    }
+
+
+async def _sessions_block(db: AsyncSession, user_id: int) -> list[dict[str, object]]:
+    """Trainings-Historie (#825): Kerndaten + Laps, keine Zeitreihen."""
+    result = await db.execute(
+        select(WorkoutModel).where(WorkoutModel.user_id == user_id).order_by(WorkoutModel.date)
+    )
+    sessions: list[dict[str, object]] = []
+    for workout in result.scalars().all():
+        laps_raw = _parse_json(workout.laps_json)
+        laps = (
+            [eintrag for lap in laps_raw if (eintrag := _lap_eintrag(lap)) is not None]
+            if isinstance(laps_raw, list)
+            else []
+        )
+        sessions.append(
+            {
+                "id": workout.id,
+                "date": _iso(workout.date),
+                "workout_type": workout.workout_type,
+                "subtype": workout.subtype,
+                "duration_sec": workout.duration_sec,
+                "distance_km": workout.distance_km,
+                "hr_avg": workout.hr_avg,
+                "hr_max": workout.hr_max,
+                "cadence_avg": workout.cadence_avg,
+                "rpe": workout.rpe,
+                "notes": workout.notes,
+                "laps": laps,
+            }
+        )
+    return sessions
+
+
 @router.get("/minsaga")
 async def export_minsaga(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user),
 ) -> dict[str, object]:
-    """Kompletter minsaga-Export (Format-Version 2)."""
+    """Kompletter minsaga-Export (Format-Version 3)."""
     user_id = int(current_user.id)
 
     plans = await _plans_block(db, user_id)
@@ -242,11 +293,12 @@ async def export_minsaga(
         plan.pop("id", None)
 
     return {
-        "version": 2,
+        "version": 3,
         "exported_at": datetime.utcnow().isoformat(),
         "athlete": await _athlete_block(db, user_id),
         "threshold_tests": await _threshold_tests_block(db, user_id),
         "goals": await _goals_block(db, user_id),
         "plans": plans,
         "weekly_plans": await _weekly_plans_block(db, user_id, plan_names),
+        "sessions": await _sessions_block(db, user_id),
     }
