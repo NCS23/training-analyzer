@@ -16,6 +16,7 @@ import {
 import { getAthleteSettings, updateAthleteSettings } from '@/api/athlete';
 import { useApiKeySettings } from '@/hooks/useApiKeySettings';
 import { ApiKeyCard } from '@/components/settings/ApiKeyCard';
+import { MinsagaExportCard } from '@/components/settings/MinsagaExportCard';
 import { ThresholdTestCard } from '@/components/threshold-test/ThresholdTestCard';
 
 // Karvonen zone definitions — mirrors backend/app/services/hr_zone_calculator.py
@@ -324,6 +325,9 @@ export function AthleteProfilePage() {
 
       {/* API Keys */}
       <ApiKeyCard keys={apiKeys} />
+
+      {/* minsaga-Migration (#821) */}
+      <MinsagaExportCard />
 
       {/* KI Debug Log Link */}
       <Link
