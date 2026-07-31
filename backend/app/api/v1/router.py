@@ -7,6 +7,7 @@ from app.api.v1 import (
     athlete,
     auth,
     exercise_library,
+    export_minsaga,
     fitness,
     goals,
     health,
@@ -36,6 +37,7 @@ api_router.include_router(strength.router, tags=["strength"])
 api_router.include_router(sessions.router, tags=["sessions"])
 api_router.include_router(athlete.router, tags=["athlete"])
 api_router.include_router(threshold_tests.router, tags=["threshold-tests"])
+api_router.include_router(export_minsaga.router, tags=["export"])
 api_router.include_router(goals.router, tags=["goals"])
 api_router.include_router(pacing.router, tags=["pacing"])
 api_router.include_router(ai.router, tags=["ai"])

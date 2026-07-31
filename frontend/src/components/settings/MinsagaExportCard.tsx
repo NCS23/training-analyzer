@@ -1,8 +1,9 @@
-// MinsagaExportCard — Export für die minsaga-App-Migration (#821).
+// MinsagaExportCard — Export für die minsaga-App-Migration (#821, #823).
 //
-// Sammelt Profilwerte, Ziele und Trainingspläne (inkl. Phasen-Details)
-// über die bestehenden APIs und lädt ein minsaga-export.json herunter,
-// das die iOS-App im Profil einliest. Workouts sind bewusst nicht dabei.
+// Der Export kommt komplett vom Backend (Format-Version 2): Profil +
+// Schwellentests, Ziele, Pläne mit Changelog (Entscheidungen samt
+// Begründung) und alle Wochenplan-Wochen mit ihren Anpassungen.
+// Workouts sind bewusst nicht dabei — die kommen aus Apple Health.
 
 import { useState } from 'react';
 import {
@@ -14,10 +15,7 @@ import {
   Spinner,
   useToast,
 } from '@nordlig/components';
-import { getAthleteSettings } from '@/api/athlete';
-import { listGoals } from '@/api/goals';
-import { getTrainingPlan, listTrainingPlans } from '@/api/training-plans';
-import { buildMinsagaExport, downloadMinsagaExportFile } from '@/utils/minsagaExport';
+import { downloadMinsagaExport } from '@/utils/minsagaExport';
 
 export function MinsagaExportCard() {
   const { toast } = useToast();
@@ -28,19 +26,9 @@ export function MinsagaExportCard() {
     setExporting(true);
     setError(null);
     try {
-      const [athlete, goalsResponse, plansResponse] = await Promise.all([
-        getAthleteSettings(),
-        listGoals(),
-        listTrainingPlans(),
-      ]);
-      // Die Liste liefert nur Summaries — Phasen kommen aus dem Detail.
-      const plans = await Promise.all(
-        plansResponse.plans.map((summary) => getTrainingPlan(summary.id)),
-      );
-      const exportData = buildMinsagaExport(athlete, goalsResponse.goals, plans);
-      downloadMinsagaExportFile(exportData);
+      const summary = await downloadMinsagaExport();
       toast({
-        title: `Export erstellt: ${exportData.goals.length} Ziele, ${exportData.plans.length} Pläne`,
+        title: `Export erstellt: ${summary.goals} Ziele, ${summary.plans} Pläne, ${summary.weeks} Wochen`,
         variant: 'success',
       });
     } catch {
@@ -56,9 +44,10 @@ export function MinsagaExportCard() {
         <div>
           <h3 className="text-sm font-semibold">Export für minsaga</h3>
           <p className="text-xs text-[var(--color-text-muted)]">
-            Ziele, Trainingspläne und Profilwerte als minsaga-export.json — in der minsaga-App unter
-            Profil → „Aus Training Analyzer importieren" einlesen. Deine Workouts kommen dort aus
-            Apple Health.
+            Kompletter Stand als minsaga-export.json: Ziele, Pläne samt Änderungshistorie, alle
+            Wochenplan-Anpassungen, Schwellentests und Profilwerte — in der minsaga-App unter Profil
+            → „Aus Training Analyzer importieren" einlesen. Deine Workouts kommen dort aus Apple
+            Health.
           </p>
           {error && (
             <Alert variant="error" closeable onClose={() => setError(null)} className="mt-3">
