@@ -241,7 +241,7 @@ Im Logo sichtbar als Nordlicht-Gradient (sky → cyan → indigo):
 | accent-4 | fuchsia | `#d946ef` | AI / Coach |
 | accent-5 | slate | `#64748b` | Info |
 
-**Fuchsia für den AI Coach:** Klar getrennt von allen anderen Systemfarben.
+**Fuchsia für den Coach:** Klar getrennt von allen anderen Systemfarben.
 Signalisiert sofort: das ist KI-generierter Inhalt.
 
 ### Neutral Colors
@@ -515,7 +515,7 @@ Wenn mehrere Cards gleichzeitig sichtbar sind und Dichte wichtiger ist als Lufti
 Default-Wahl. Wenn du dich fragst „welches Padding?" — nimm `normal`.
 
 - Single primary content cards — die „Als Nächstes"-Card auf dem Heute-Dashboard
-- AI Coach Messages
+- Coach-Nachrichten
 - Form-Cards (Einstellungen, Eingabefelder gruppiert)
 - Die meisten Main-Content-Situationen
 
@@ -551,7 +551,7 @@ Wenn die Card der **Fokus** eines Screens oder Moments ist. Luft als Aussage.
 
 Default für jede Card, die **selbst** auf der Page oder in einem Container steht. Wenn du dich fragst „welche Elevation?" — nimm `raised`.
 
-- Dashboard-Cards auf der Page — Goal-Card, Stat-Cards, AI-Coach-Messages
+- Dashboard-Cards auf der Page — Goal-Card, Stat-Cards, Coach-Messages
 - Listen-Items die eigenständig wirken sollen — z.B. SessionCard in der Trainingshistorie
 - Alle Top-Level-Cards auf einem Screen
 
@@ -612,16 +612,16 @@ Default für jede Card, die **selbst** auf der Page oder in einem Container steh
 - Klar und direkt — keine Füllwörter, keine Marketing-Floskeln
 - Nüchtern bei Daten, warm bei Kontext
 
-### Der AI Coach
+### Der Coach
 
 > Vollständiges Konzept (drei Stimmen, Symbol, FAB-Verankerung, Form): [AI_PRESENCE_CONCEPT.md](AI_PRESENCE_CONCEPT.md) · Issue [#751](https://github.com/NCS23/training-analyzer/issues/751)
 
-Der AI Coach ist kein Chatbot — er ist ein persönlicher Trainingsbegleiter.
+Der Coach ist kein Chatbot — er ist ein persönlicher Trainingsbegleiter.
 Er analysiert abgeschlossene Trainings, gibt konkretes Feedback, schlägt Pläne vor
 und passt diese kontinuierlich an. Er kennt die Ziele des Läufers und erinnert
 ihn daran wenn es darauf ankommt.
 
-**Ton des AI Coach:** Klar, direkt, motivierend — nie bevormundend.
+**Ton des Coaches:** Klar, direkt, motivierend — nie bevormundend.
 
 **Drei Stimmen, eine Präsenz:**
 
@@ -726,7 +726,7 @@ CTL allein reicht nicht — es misst Volumen, nicht Rennvorbereitung. Deshalb 4 
 | Tempoläufe | Pace-spezifische Vorbereitung |
 | Konsistenz | Trainingstage / 30 in letzten 42 Tagen |
 
-Schwacher Wert (<70 %) wird orange hervorgehoben. AI Coach greift den schwächsten
+Schwacher Wert (<70 %) wird orange hervorgehoben. Coach greift den schwächsten
 Wert direkt auf und macht daraus eine Empfehlung.
 
 ### Krafttraining
@@ -764,7 +764,7 @@ Beispiele:
 > *Setz den Horizont — wir zeigen dir den Weg dorthin."*
 
 Wenn kein Ziel gesetzt ist, fällt die Goal-Card weg. Die WeekOverviewCard kann
-trotzdem angezeigt werden — mit allgemeinen Empfehlungen des AI Coach in den
+trotzdem angezeigt werden — mit allgemeinen Empfehlungen des Coaches in den
 Tages-Details.
 
 ### Goal-Achievement-Feier
