@@ -77,7 +77,10 @@ Diese Dimensionen sind in der Trainingsliteratur etabliert (Daniels, Pfitzinger,
 ### 3.2 Langlauf (bzw. Aerobic Base für 5K/10K)
 
 **Für Halbmarathon und Marathon:**
-- **Schwellwert:** ≥ 18 km (HM) bzw. ≥ 28 km (M)
+- **Schwellwert:** ≥ 18 km (HM) bzw. ≥ 28 km (M) — **oder** ≥ 105 min (HM) bzw. ≥ 150 min (M)
+  Dauer-Regel (Ergänzung Aug 2026): Die reine km-Schwelle bestraft langsamere
+  Läufer — ein 16-km-Lauf über 1:45 h ist ein voller Long Run (Pfitzinger
+  definiert Long Runs über die Dauer).
 - **Metriken:** Anzahl Long Runs in letzten 12 Wochen + längste Distanz
 - **Targets:**
   - HM: 6–10 Long Runs; längster ≥ 22 km
