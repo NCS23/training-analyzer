@@ -203,6 +203,9 @@ Wochenstruktur: **4 Läufe + 2 Krafttrainings + 1 Ruhetag**
 
 → Mit nativer iOS-App + Apple-Watch-Companion realisierbar (siehe §6.8 Strategie-Pivot).
 
+> „Companion" heißt hier **nicht** „auf das iPhone angewiesen". Was die Uhr
+> ohne Handy in Reichweite können muss, steht in §5.9 Watch-Standalone.
+
 #### Wochen-Review (Pflicht, automatisch)
 
 Am Ende jeder Woche:
@@ -1158,7 +1161,53 @@ Nutzer kann:
 - **Akzeptieren** → neues Ziel + neuer Plan
 - **Ablehnen** → ursprüngliches Ziel bleibt, App akzeptiert die Entscheidung
 
+### 5.9 Watch-Standalone
 
+> Ergänzt 2026-08-03 (#828). Vorher beschrieb dieses Dokument die Uhr
+> durchgehend als „Companion" — ohne Aussage, was sie **ohne iPhone**
+> können muss. Die Lücke hat dazu geführt, dass die Watch-App gegen den
+> Companion-Gedanken gebaut wurde und ein dort aufgezeichneter Lauf auf
+> der Uhr selbst erst auftauchte, nachdem das iPhone ihn importiert und
+> zurückgespiegelt hatte.
+
+**Grundsatz:** Das Handy liegt zu Hause, und das ist ein normaler Fall —
+kein Ausnahmezustand. Ein Athlet muss sein Training auf der Uhr starten,
+durchführen, beenden und einordnen können, ohne dass ein iPhone in
+Reichweite ist.
+
+#### Muss ohne iPhone funktionieren
+
+| Fähigkeit | Warum |
+|---|---|
+| Training aufzeichnen — **vollständig**, inklusive Strecke, Kadenz und allen Metriken, die das Gerät liefert | Was unterwegs nicht geschrieben wird, ist für jede spätere Auswertung dauerhaft verloren |
+| Den Trainingsplan der Woche sehen und eine Einheit daraus starten | Sonst ist der Plan genau dann unsichtbar, wenn er gebraucht wird |
+| Einer geplanten Strecke folgen — Karte, Abbiegehinweise, Haptik | Navigation mit dem Handy in der Tasche ist kein Ersatz |
+| Das beendete Training **sofort** sehen und die Belastung angeben | Direkt nach dem Lauf ist der einzige Moment, in dem die Antwort ehrlich ist |
+| Die eigenen letzten Einheiten einsehen | Ohne Gedächtnis ist die Uhr ein Schreibgerät, kein Begleiter |
+
+#### Auswertung auf der Uhr — bewusst ausgewählt
+
+Nicht alles, was das iPhone rechnet, gehört auf ein 1,9-Zoll-Display mit
+kleinerem Energie-Budget. Die Leitfrage ist nicht „geht das technisch?",
+sondern „hilft das **hier**, in diesem Moment?".
+
+**Auf die Uhr gehört,** was unmittelbar nach dem Lauf oder währenddessen
+zählt: Eckdaten der Einheit, Soll-Ist-Vergleich zur geplanten Vorgabe,
+Kilometer-Splits, Herzfrequenz-Zonen der Einheit, Wochenbilanz gegen das
+Wochen-Soll.
+
+**Auf der Uhr hat nichts verloren:** Langzeit-Trends über Monate,
+Form-Verlauf (CTL/ATL/TSB), Goal-Readiness mit ihren vier Säulen,
+Wettkampf-Analysen, alles Chat-basierte. Diese Dinge brauchen Überblick,
+Vergleich und Ruhe — sie gehören auf ein großes Display.
+
+#### Architektur-Konsequenz
+
+Die Uhr darf für ihre eigenen Aufzeichnungen **nicht** auf den
+iPhone-Import warten. Der Import-Master bleibt das iPhone (er löst das
+Dubletten-Problem gerätespezifischer HealthKit-UUIDs), aber die Uhr muss
+ihre eigene Einheit sofort lokal führen und der Abgleich muss sie später
+zusammenführen statt doppelt anzulegen.
 
 ---
 
