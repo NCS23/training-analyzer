@@ -10,7 +10,7 @@
 
 ## Kontext
 
-Der AI Coach in minsaga war ursprünglich auf Alerts mit Robo-Icon beschränkt. Das Konzept
+Der Coach in minsaga war ursprünglich auf Alerts mit Robo-Icon beschränkt. Das Konzept
 beschreibt die emotionale Erweiterung zu einer **durchgehenden KI-Präsenz**, die
 den Nutzer onboarded und durch die App begleitet — unter Einhaltung der Marken-DNA
 (*„Coach, nicht Werkzeug"*, *„nüchtern bei Daten, warm bei Kontext"*, Tidlöshet,
@@ -120,7 +120,7 @@ Die KI-Präsenz hat einen **festen Wohnsitz in der App** (den FAB), aber sie spr
 
 | Ort | Sichtbarkeit | Dominante Stimme |
 |---|---|---|
-| **Heute-Dashboard** | AI-Coach-Insight (erstes Element, Fuchsia-Akzent) | Begleiter, Coach bei Warnung |
+| **Heute-Dashboard** | Coach-Insight (erstes Element, Fuchsia-Akzent) | Begleiter, Coach bei Warnung |
 | **FAB** | permanent als Symbol | — *(wartet)* |
 | **Chat (FAB geöffnet)** | Avatar neben jeder Antwort | Coach-dominant |
 | **Analyse / Insights** | Insight-Cards (1–2 sichtbar, rotierend) | Coach |
@@ -137,7 +137,7 @@ Kontinuitätsschichten:
 kein Schein). Wenn etwas Neues wartet (Insight, Warnung, Coach-Subline), wird der
 Schein wacher. Wenn der Nutzer es liest, kehrt Ruhe ein.
 
-**Sprachlich — Erinnerungs-Schicht:** Die AI-Coach-Subline ist nicht stateless —
+**Sprachlich — Erinnerungs-Schicht:** Die Coach-Subline ist nicht stateless —
 sie referenziert die letzten 1–3 Tage explizit, wo es Sinn macht.
 
 > „Gestern hast du geliefert. Heute schaust du, wo du stehst."
@@ -258,8 +258,8 @@ Erledigt seit v1: Form final (v4) · Stimmen-Varianten visualisiert (`comp-ai-pr
 
 ## Referenzen
 
-- [BRAND_STYLE_GUIDE.md](design/BRAND_STYLE_GUIDE.md) §3 (Designprinzipien), §5 (Farbsystem, Fuchsia für AI), §10 (Tonalität & AI Coach), §12 (Animationen)
-- [PRD](PRD.md) §1.3 (Leitprinzipien) · §5.3 (AI Coach) · §5.6 (Voice & Copy) · §9.5 (Marken-Wortmaterial) · §11.4 (EU AI Act)
+- [BRAND_STYLE_GUIDE.md](design/BRAND_STYLE_GUIDE.md) §3 (Designprinzipien), §5 (Farbsystem, Fuchsia für AI), §10 (Tonalität & Coach), §12 (Animationen)
+- [PRD](PRD.md) §1.3 (Leitprinzipien) · §5.3 (Coach) · §5.6 (Voice & Copy) · §9.5 (Marken-Wortmaterial) · §11.4 (EU AI Act)
 - Claude-Design-Projekt „Minsaga Design System" — `preview/comp-ai-presence*.html`, `preview/comp-feier-moment.html`, `uploads/BRAND_STYLE_GUIDE.md` („Das Präsenz-Zeichen")
 - Handoff-Paket `minsaga/.import/design_handoff_saga_ai_presence/` — verbindliche SVG-Geometrie, Transforms, Animationswerte *(Hinweis: Paket entstand vor der Namens-Entscheidung und nennt den Coach noch „Saga" — §2 gilt)*
 - [PR #749](https://github.com/NCS23/training-analyzer/pull/749) — Symbol-Iteration v1 (Polarstern, verworfen)

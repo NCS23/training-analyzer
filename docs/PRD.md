@@ -181,7 +181,7 @@ Wochenstruktur: **4 Läufe + 2 Krafttrainings + 1 Ruhetag**
 **Zwischendurch (anlassbezogen):**
 - *„Wo stehe ich bezüglich Ziel?"* → Goal Readiness (Heute oder Analyse)
 - *„Wie habe ich mich entwickelt?"* → Analyse-Tab
-- *„Ich habe ein Trainings-Problem (Technik, Pace, Verletzung)"* → AI Coach Chat (FAB)
+- *„Ich habe ein Trainings-Problem (Technik, Pace, Verletzung)"* → Coach-Chat (FAB)
 
 #### 2.2.2 Makro: Wettkampf-Vorbereitung (HM Sub-2h, ~16 Wochen)
 
@@ -261,7 +261,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 
 7. **Trainings-Problem lösen**
    *„Wenn ich ein konkretes Trainings-Problem habe (z.B. Technik-Element ergänzen, Verletzungsverdacht), möchte ich die KI fragen können und kontextualisierte Antworten erhalten."*
-   → **AI Coach Chat (FAB)** — auf jeder Seite verfügbar
+   → **Coach-Chat (FAB)** — auf jeder Seite verfügbar
 
 #### Race-bezogene Jobs
 
@@ -285,7 +285,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 
 12. **Insight-getriebene Plan-Anpassung**
     *„Wenn nach einem einzelnen Training ein wichtiger Insight rauskommt (Form kippt, Verletzungssignal, Pace-Sprung), möchte ich darauf hingewiesen werden und einen Anpassungs-Vorschlag bekommen."*
-    → **AI Coach Insight** (Heute) → **Plan-Anpassung-Vorschlag** (siehe §5.7)
+    → **Coach-Insight** (Heute) → **Plan-Anpassung-Vorschlag** (siehe §5.7)
 
 #### Equipment-Jobs (Vision)
 
@@ -311,7 +311,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 **Hauptpfad:**
 1. App öffnen → Heute-Tab
 2. **Erste Sicht (Top → Bottom):**
-   - **AI Coach Insight** (Alert variant=ai)
+   - **Coach-Insight** (Alert variant=ai)
      — *bei Form-Issue oder Anpassungs-Empfehlung: hier sofort*
    - **GoalCard (Hero)** — Race + Tage-Countdown + ReadinessRing + 4 Faktoren
    - **WeekOverviewCard mit heutiger Session-Detail** — Trainings-Typ, Pace, Distanz, CTA
@@ -332,7 +332,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 **Edge Cases:**
 - Heute kein Training → *„Heute kein Training."* (Copy §5.6)
 - Kein Ziel gesetzt → Empty State *„Jede Saga braucht ein Ziel."* (§5.4)
-- Form schlecht → AI Coach Insight schlägt Anpassung vor (§5.8 Goal-Realism-Check)
+- Form schlecht → Coach-Insight schlägt Anpassung vor (§5.8 Goal-Realism-Check)
 
 **Screen-Anforderungen (für Figma):**
 - Heute · Default
@@ -364,7 +364,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 2. **Ein-Tap-Upload** mit auto-ausgefülltem Datum + erkanntem Typ
 3. Direkt nach Upload: Session-Detail-Page mit **automatisch generierter KI-Analyse** (Pre-fetch)
 4. **Erste Sicht (Top → Bottom):**
-   - **AI Coach Insight (Hero)** — Kurz-Quittung in Begleiter-/Zeugen-Stimme, z.B. *„Solide Einheit. Pace 6s/km schneller als Schnitt für Tempoläufe. HR-Drift im normalen Bereich."*
+   - **Coach-Insight (Hero)** — Kurz-Quittung in Begleiter-/Zeugen-Stimme, z.B. *„Solide Einheit. Pace 6s/km schneller als Schnitt für Tempoläufe. HR-Drift im normalen Bereich."*
    - **Eckdaten-Stat-Reihe** kompakt: Pace · HR · Distanz · Dauer
    - **Soll/Ist-Vergleich-Card** (nur wenn Plan-Verknüpfung)
    - **Sub-Sektionen** (HR-Zonen · Laps · GPS-Karte · RPE/Notizen) **collapsed by default**, Tap zum Aufklappen
@@ -859,7 +859,7 @@ Was die App **nicht** für mich tun soll:
 ### 3.2 Sondernavigation (nicht in Bottom Nav)
 
 - **Profil & Einstellungen:** Avatar oben rechts im Header. Keine eigene Tab-Position.
-- **AI Coach Chat:** Floating Action Button (FAB) rechts unten. Auf allen Seiten verfügbar, kontextbezogen.
+- **Coach-Chat:** Floating Action Button (FAB) rechts unten. Auf allen Seiten verfügbar, kontextbezogen.
 
 ### 3.3 URL-Struktur
 
@@ -907,7 +907,7 @@ Was die App **nicht** für mich tun soll:
 
 **Komposition (von oben nach unten):**
 
-1. **AI Coach Insight** (Alert variant=ai oder eigenständige Card) — eine Zeile, kontextbezogen
+1. **Coach-Insight** (Alert variant=ai oder eigenständige Card) — eine Zeile, kontextbezogen
 2. **Goal Readiness Card** (Hero) — Race + Zielzeit + Tage-Countdown + ReadinessRing + Faktoren-Aufschlüsselung
 3. **WeekOverviewCard** — Wochenstruktur mit 7-Tage-Statusleiste; Detail-Sektion zeigt heutige Session + ist Sprungpunkt zu anderen Tagen der Woche
 
@@ -929,7 +929,7 @@ Was die App **nicht** für mich tun soll:
 **Verwandte Jobs:** §2.3 #2, #5, #11, #12, #13
 
 **Phasen-Spezifisches:**
-- Tapering: GoalCard zeigt Tapering-State; AI Coach Insight ist Tapering-fokussiert
+- Tapering: GoalCard zeigt Tapering-State; Coach-Insight ist Tapering-fokussiert
 - Race-Tag: GoalCard wechselt in `state=raceday` (Caption: *„Du hast alles getan. Jetzt lauf deine Saga."*)
 - Post-Race: GoalCard wechselt in `state=postrace` (Caption: *„Dein Kapitel ist geschrieben."*)
 
@@ -1017,13 +1017,20 @@ Was die App **nicht** für mich tun soll:
 
 *[tbd — Definition + Ableitung + Verweis auf reference/DOMAIN_MODEL.md]*
 
-### 5.3 AI Coach (Insights + Chat)
+### 5.3 Coach (Insights + Chat)
 
 *[Migration aus `archive/AI_ANALYSIS_INTEGRATION.md`]*
 
+> **Verbindliches Wording (Entscheid Juli 2026, minsaga-Umsetzung):** Der Coach ist
+> **namenlos** — „Saga" bezeichnet ausschließlich die Bildmarke/das Zeichen, nie den
+> Coach. Die frühere Bezeichnung „AI Coach" ist verworfen. Das UI-Label der
+> Insight-Card lautet **„Insight · KI-GENERIERT"**, der Chat heißt schlicht
+> **Coach-Chat**. Visuelle Präsenz: Saga-Zeichen nach `AI_PRESENCE_CONCEPT.md`
+> (kein Bot-/Robo-Icon).
+
 **Komponenten:**
-- **AICoachInsight Card** auf Dashboard — Bot-Icon + Header „Insight · KI-GENERIERT" + Body-Text
-- **Chat-FAB** rechts unten auf allen Seiten — kontextbezogen
+- **Insight-Card** auf Dashboard/Heute — Saga-Zeichen + Header „Insight · KI-GENERIERT" + Body-Text
+- **Chat-FAB** rechts unten — öffnet den Coach-Chat, kontextbezogen
 
 *[Detailspezifikation TBD]*
 
@@ -1218,7 +1225,7 @@ Pro Feature/Bereich eines von vier Labels:
 |---|---|---|
 | 🟢 **KEEP** | Existiert, wird übernommen, keine Änderung | CSV-Parser für Apple Watch Format |
 | 🟡 **ADAPT** | Existiert, muss angepasst werden (UI, API, Naming) | Sessions-Liste → unter Tab „Training" einordnen |
-| 🔵 **NEW** | Existiert nicht, wird neu gebaut | Goal Readiness, AI Coach Chat-FAB |
+| 🔵 **NEW** | Existiert nicht, wird neu gebaut | Goal Readiness, Coach-Chat-FAB |
 | 🔴 **REMOVE** | Existiert, wird ersatzlos entfernt | Level-System (FITNESS_LEVEL_SYSTEM_V2 → siehe Archiv) |
 
 ### 6.2 Routen-Map (Frontend) — Ist-Zustand
@@ -1242,7 +1249,7 @@ Pro Feature/Bereich eines von vier Labels:
 | `/plan/exercises` (+ `/:id`) | `ExerciseLibrary*` | Übungsbibliothek | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/uebungen` |
 | `/plan/routes` (+ `/new`, `/:id`) | `Routes*` / `RouteEditorPage` | Routen zeichnen, OSRM-Snap, Segmente, Pacing, GPX/FIT-Export | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/routen` |
 | `/profile` | `AthleteProfilePage` | Profil, HF, KI-Keys, Provider | Header-Avatar | 🟢 KEEP |
-| `/chat` | `ChatPage` | KI-Chat (Konversationen, Streaming, Plan-Anwendung) | AI Coach FAB | 🟡 ADAPT — Chat als FAB überall, nicht eigene Seite |
+| `/chat` | `ChatPage` | KI-Chat (Konversationen, Streaming, Plan-Anwendung) | Coach FAB | 🟡 ADAPT — Chat als FAB überall, nicht eigene Seite |
 | `/ki-log` | `KiLogPage` | Alle KI-Calls (Debug) | (intern) | 🔴 REMOVE oder → `/admin` |
 | `/admin/users` | `AdminUsersPage` | User-Verwaltung | (Admin) | 🟢 KEEP |
 
@@ -1307,7 +1314,7 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Heute-Tab (§4.1):**
 - GoalCard als Hero (mit ReadinessRing + Faktoren) — nicht implementiert
-- AI Coach Insight als erstes Element — falsche Reihenfolge
+- Coach-Insight als erstes Element — falsche Reihenfolge
 - WeekOverviewCard mit eingebetteter PlannedSessionCard-Detail — `WeekProgress` existiert, aber ohne Detail-Section
 - GoalCard Tapering-/Race-Day-/Post-Race-State — alle nicht implementiert
 
@@ -1486,7 +1493,7 @@ In `training-analyzer/docs/PRD.md` (Anfang):
 | **1.0** | Apple Developer Account + TestFlight-Setup | klein |
 | **1.1** | Native iOS-App-Setup (SwiftUI, Architektur, AppShell, Navigation) | groß |
 | **1.2** | HealthKit-Integration + Auto-FIT-Import + Auto-Workout-Erkennung | mittel |
-| **1.3** | Heute-Tab nativ (GoalCard-Hero, WeekOverview, AI Coach Insight) | groß |
+| **1.3** | Heute-Tab nativ (GoalCard-Hero, WeekOverview, Coach-Insight) | groß |
 | **1.4** | Training-Tab nativ (Sessions, Detail, Soll/Ist-Compare, Collapse-Sektionen) | mittel |
 | **1.5** | Plan-Tab nativ + Pacing-Rechner | mittel |
 | **1.6** | Analyse-Tab nativ + Insights-Engine | mittel |
@@ -1679,7 +1686,7 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 | Routen, Übungs-Bibliothek | ✅ | ✅ | ✅ | ✅ |
 | Algo-Wochen-Review (regel-basiert) | ✅ | ✅ | ✅ | ✅ |
 | **KI-Insights nach Sessions** | ❌ | ✅ | ✅ | ✅ |
-| **AI Coach Chat** | ❌ | ✅ | ✅ | ✅ |
+| **Coach-Chat** | ❌ | ✅ | ✅ | ✅ |
 | **KI-Wochen-Review** | ❌ | ✅ | ✅ | ✅ |
 | **KI-Plan-Generierung** | **1× Lifetime beim Onboarding** | ✅ unbegrenzt | ✅ | ✅ |
 | **Plan-Anpassungs-Vorschläge** | ❌ | ✅ | ✅ | ✅ |
@@ -1988,6 +1995,12 @@ Der eigentliche Grund für UG/GmbH ist **nicht** Apple oder Stripe, sondern Haft
 ### 11.1 DSGVO-Pflichten
 
 #### Datenschutzerklärung (Privacy Policy)
+
+> **Phase 1 (umgesetzt):** Die reduzierte Datenschutzerklärung der iOS-App liegt in
+> [`NCS23/minsaga` → `docs/PRIVACY.md`](https://github.com/NCS23/minsaga/blob/main/docs/PRIVACY.md)
+> und ist in der App als Screen (Profil + Onboarding-Link) verfügbar. Sie deckt den
+> On-Device-Zuschnitt ab: keine Konten, private CloudKit-DB, KI on-device. Der
+> folgende volle Umfang gilt für Phase 3 (Markt-Launch).
 
 Pflicht auf Website + in der App (Settings + Onboarding-Link). Inhalt:
 
