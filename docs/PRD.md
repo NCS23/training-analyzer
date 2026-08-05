@@ -179,8 +179,8 @@ Typografisch: Lange Gedankenstriche (—) vermeiden. Stattdessen Punkt oder kurz
 Wochenstruktur: **4 Läufe + 2 Krafttrainings + 1 Ruhetag**
 
 **Zwischendurch (anlassbezogen):**
-- *„Wo stehe ich bezüglich Ziel?"* → Goal Readiness (Heute oder Analyse)
-- *„Wie habe ich mich entwickelt?"* → Analyse-Tab
+- *„Wo stehe ich bezüglich Ziel?"* → Goal Readiness (Heute oder Fortschritt)
+- *„Wie habe ich mich entwickelt?"* → Fortschritt-Tab
 - *„Ich habe ein Trainings-Problem (Technik, Pace, Verletzung)"* → Coach-Chat (FAB)
 
 #### 2.2.2 Makro: Wettkampf-Vorbereitung (HM Sub-2h, ~16 Wochen)
@@ -189,10 +189,10 @@ Wochenstruktur: **4 Läufe + 2 Krafttrainings + 1 Ruhetag**
 |---|---|---|---|
 | Ziel-Setting | 16 | Plan erstellen, Zielzeit definieren | Plan |
 | Aufbau | 12–14 | Wochenstruktur, Konsistenz prüfen | Heute, Training |
-| Belastung | 6–10 | Form überwachen, Überlastung erkennen | Analyse |
-| Tapering | 1–2 | Form maximieren — Wochenstruktur bleibt ähnlich, aber Goal-Readiness-Card und KI-Insight zeigen Tapering-spezifische Inhalte | Analyse, Heute |
+| Belastung | 6–10 | Form überwachen, Überlastung erkennen | Fortschritt |
+| Tapering | 1–2 | Form maximieren — Wochenstruktur bleibt ähnlich, aber Goal-Readiness-Card und KI-Insight zeigen Tapering-spezifische Inhalte | Fortschritt, Heute |
 | Race-Tag | 0 | **Vor Race:** Pacing-Strategie geklärt + verfügbar zum Nachschlagen · **Während Race:** Pacing-Strategie auf Mobile/Watch, „Worauf achten"-Hinweise · **Companion (MVP-Feature):** Watch-App begleitet aktiv während des Laufs | Plan (Pacing) + Companion-Watch-App |
-| Reflexion | +1 | Auswertung „Wie war es?" + Erkenntnisse fließen in neuen Trainingsplan ein | Analyse + Plan |
+| Reflexion | +1 | Auswertung „Wie war es?" + Erkenntnisse fließen in neuen Trainingsplan ein | Fortschritt + Plan |
 
 #### Race-Day-spezifische Bedürfnisse (jetzt MVP-Features)
 
@@ -253,11 +253,11 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 
 5. **Status-Check zwischendurch**
    *„Wenn ich kurz nachsehen will wie ich auf Kurs bin, möchte ich Goal Readiness + Trend in einem Blick haben."*
-   → **Heute** (Goal Card) oder **Analyse** (Trend)
+   → **Heute** (Goal Card) oder **Fortschritt** (Trend)
 
 6. **Entwicklungs-Check**
    *„Wenn ich wissen will wie ich mich entwickelt habe, möchte ich Trends sehen — Pace, HR-Effizienz, Volumen, Plan-Treue."*
-   → **Analyse-Tab** (Trends Deep Dive)
+   → **Fortschritt-Tab** (Trends Deep Dive)
 
 7. **Trainings-Problem lösen**
    *„Wenn ich ein konkretes Trainings-Problem habe (z.B. Technik-Element ergänzen, Verletzungsverdacht), möchte ich die KI fragen können und kontextualisierte Antworten erhalten."*
@@ -275,13 +275,13 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 
 10. **Post-Race-Reflexion**
     *„Nach dem Wettkampf möchte ich eine Auswertung sehen ('Wie war es?') und die Erkenntnisse sollen in den nächsten Plan einfließen können."*
-    → **Analyse-Tab** (Race-Auswertung) + **Plan-Tab** (Plan-Update)
+    → **Fortschritt-Tab** (Race-Auswertung) + **Plan-Tab** (Plan-Update)
 
 #### Wochenrhythmus-Jobs
 
 11. **Sonntag-abend Wochen-Review**
     *„Wenn ich Sonntag abend die Woche abschließe, möchte ich eine Auswertung der vergangenen Woche sehen und einen konkreten Anpassungs-Vorschlag für die kommende Woche bekommen."*
-    → **Heute / Analyse** (automatisches Wochen-Review)
+    → **Heute / Fortschritt** (automatisches Wochen-Review)
 
 12. **Insight-getriebene Plan-Anpassung**
     *„Wenn nach einem einzelnen Training ein wichtiger Insight rauskommt (Form kippt, Verletzungssignal, Pace-Sprung), möchte ich darauf hingewiesen werden und einen Anpassungs-Vorschlag bekommen."*
@@ -439,7 +439,7 @@ Format: *„Wenn [Situation], möchte ich [Job], damit [Outcome]."*
 - **Watch-Export** ist der größte Schmerz (3-Schritt-Prozess pro Session)
 - Wochen-Review existiert (`POST /api/v1/weekly-review/generate`), aber UI wenig prominent
 - Anpassungs-Vorschlag fehlt heute komplett
-- Rückblick + Vorblick sind getrennt (Plan-Tab vs. Analyse-Tab)
+- Rückblick + Vorblick sind getrennt (Plan-Tab vs. Fortschritt-Tab)
 
 **Soll-Erlebnis:**
 - **Ein zusammenhängender Sonntag-Abend-Flow:** Rückblick → Vorschlag → Vorblick → Export
@@ -840,19 +840,25 @@ Was die App **nicht** für mich tun soll:
 
 ### 3.1 Navigation: 5 Haupt-Tabs
 
-> ⚠️ **Tab-Labels final festzulegen.** Aktueller Diskussionsstand:
+> **Entschieden am 2026-08-04 (Nils).** Die Labels stehen; die vorher hier
+> vorgeschlagenen Umbenennungen „Analyse" und „Sammlung" sind verworfen.
 
-| # | Arbeitsname | Vorschlag final | Zweck (kurz) | Frequenz |
-|---|---|---|---|---|
-| 1 | Heute | **Heute** | Tagesblick, was steht an, wie geht's mir | täglich |
-| 2 | Training | **Training** | Alle Sessions (Wochenansicht default + History) | täglich |
-| 3 | Fortschritt | **Analyse** | Auswertung, Trends, Insights, Form/Score | wöchentlich |
-| 4 | Plan | **Plan** | Strategische Saison-Planung mit Ziel + Phasen + Pacing | gelegentlich |
-| 5 | Bibliothek | **Sammlung** | Wiederverwendbare Bausteine: Routen, Vorlagen, Übungen | gelegentlich |
+| # | Tab | Zweck (kurz) | Frequenz |
+|---|---|---|---|
+| 1 | **Heute** | Tagesblick, was steht an, wie geht's mir | täglich |
+| 2 | **Training** | Alle Sessions (Wochenansicht default + History) | täglich |
+| 3 | **Fortschritt** | Auswertung, Trends, Insights, Form/Score | wöchentlich |
+| 4 | **Plan** | Strategische Saison-Planung mit Ziel + Phasen + Pacing | gelegentlich |
+| 5 | **Bibliothek** | Wiederverwendbare Bausteine: Routen, Vorlagen, Übungen | gelegentlich |
 
-**Begründungen für Umbenennungen** *(zu finalisieren mit Nils)*:
-- „Fortschritt" → „Analyse": Tab ist primär Auswertung, nicht nur Score-Verlauf
-- „Bibliothek" → „Sammlung": Truncation-sicher (≤ 8 Zeichen) und treffender für „wiederverwendbare Bausteine"
+Die Argumente für „Analyse" und „Sammlung" waren die Nüchternheit des
+Begriffs und die Zeichenlänge. Dagegen stand, was der Athlet sucht:
+„Fortschritt" ist das Wort für die Frage *„komme ich voran?"* —
+„Analyse" beschreibt die Tätigkeit der App, nicht das Anliegen des
+Nutzers. „Bibliothek" trägt dasselbe Bild wie der Inhalt: etwas, das man
+anlegt und wieder hervorholt.
+
+Die iOS-App folgt diesen Labels seit #326.
 
 **Konvention für Tab-Labels:** 1 Wort, ≤ 8 Zeichen, deutsch, kein Wortspiel. Truncation in der UI ist als Sicherheitsleine implementiert (`textTruncation: ENDING`), nicht als Designziel.
 
@@ -876,10 +882,10 @@ Was die App **nicht** für mich tun soll:
 /plan                          → Aktiver Plan
 /plan/:planId                  → Plan-Detail
 /plan/:planId/pacing           → Pacing-Rechner
-/sammlung                      → Sammlung-Übersicht
-/sammlung/routen               → Routen-Liste
-/sammlung/vorlagen             → Vorlagen-Liste
-/sammlung/uebungen             → Übungen-Liste
+/bibliothek                    → Bibliothek-Übersicht
+/bibliothek/routen             → Routen-Liste
+/bibliothek/vorlagen           → Vorlagen-Liste
+/bibliothek/uebungen           → Übungen-Liste
 /profil                        → Profil & Einstellungen
 ```
 
@@ -916,7 +922,7 @@ Was die App **nicht** für mich tun soll:
 **Absprungpunkte:**
 - Aus WeekOverviewCard → Session-Detail (heutige + andere Tage der Woche)
 - Über Tab **Training** → komplette Sessions-History
-- Über Tab **Analyse** → Insights + Trends
+- Über Tab **Fortschritt** → Insights + Trends
 
 **Komponenten verwendet:**
 - `Alert` (variant=ai) — Figma `3804:260`
@@ -983,7 +989,7 @@ Was die App **nicht** für mich tun soll:
 
 ---
 
-### 4.5 Sammlung
+### 4.5 Bibliothek
 
 **Zweck:** Wiederverwendbare Trainingsbausteine — Routen, Vorlagen, Übungen.
 
@@ -1209,6 +1215,39 @@ Dubletten-Problem gerätespezifischer HealthKit-UUIDs), aber die Uhr muss
 ihre eigene Einheit sofort lokal führen und der Abgleich muss sie später
 zusammenführen statt doppelt anzulegen.
 
+**Umgesetzt (minsaga #328).** Die Uhr legt die Einheit beim Beenden
+selbst ab — mit der HealthKit-UUID des Workouts, damit der bestehende
+Fingerprint-Abgleich greift, und idempotent.
+
+Beim Bauen kam heraus, dass „zusammenführen statt doppelt anlegen" mehr
+verlangt als es klingt: Die Dublettenbereinigung **löschte** bis dahin
+gerätefremde Einträge. Die Einheit der Uhr ist genau die gerätefremde —
+und die einzige, die eine vom Menschen eingegebene Belastungsangabe
+trägt. Ohne Änderung hätte der nächste iPhone-Import sie samt Antwort
+weggeworfen, und niemandem wäre es aufgefallen, weil die Einheit selbst
+ja noch dastand. Beim Entfernen einer Dublette wandern deshalb jetzt
+alle Felder hinüber, die der Behaltene nicht hat.
+
+**Merksatz:** Wo zwei Geräte dieselbe Sache aufzeichnen, ist die Frage
+nie nur „welcher Eintrag bleibt", sondern immer auch „was steht in dem,
+der geht".
+
+#### Umsetzungsstand (2026-08-04)
+
+| Fähigkeit | Stand |
+|---|---|
+| Vollständige Aufzeichnung inkl. Strecke und Kadenz | ✅ minsaga #298 |
+| Wochenplan sehen, Einheit daraus starten | ✅ #267, Neugestaltung #334 |
+| Einer Strecke folgen (Karte, Hinweise, Haptik) | ✅ #262/#298 |
+| Beendetes Training sofort sehen, Belastung angeben | ✅ #328 |
+| Letzte Einheiten einsehen — **mit Detailansicht** | ✅ #336 |
+| Soll-Ist-Vergleich zur Vorgabe **während** des Laufs | ✅ #330 (Segment-Führung) |
+| Soll-Ist-Vergleich **nach** dem Lauf, HF-Zonen der Einheit | ❌ offen |
+
+Die letzte Zeile ist bewusst offen: Der Rückblick auf der Uhr zeigt
+heute Eckdaten und Runden-Splits, rechnet aber nichts. Was oben unter
+„Auf die Uhr gehört" steht, ist damit noch nicht vollständig eingelöst.
+
 ---
 
 ## 6. Bestand & Migration: was existiert, was wird umgebaut
@@ -1245,9 +1284,9 @@ Pro Feature/Bereich eines von vier Labels:
 | `/plan/goals` | `GoalsPage` | Wettkampfziele CRUD | **Plan** | 🟢 KEEP |
 | `/plan/pacing` | `PacingPage` | Pacing-Strategie, Wetter, Höhenprofil, FIT-Export | **Plan** | 🟢 KEEP |
 | `/plan/programs` (+ `/new`, `/:id`) | `TrainingPlansPage` / `TrainingPlanEditorPage` | Saison-Pläne mit Phasen, KI-Generierung, Changelog | **Plan** | 🟡 ADAPT — Naming („Programme" → „Plan") |
-| `/plan/templates` (+ `/new`, `/:id`) | `SessionTemplates*` | Session-Vorlagen CRUD | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/vorlagen` |
-| `/plan/exercises` (+ `/:id`) | `ExerciseLibrary*` | Übungsbibliothek | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/uebungen` |
-| `/plan/routes` (+ `/new`, `/:id`) | `Routes*` / `RouteEditorPage` | Routen zeichnen, OSRM-Snap, Segmente, Pacing, GPX/FIT-Export | **Sammlung** | 🟡 ADAPT — Routing → `/sammlung/routen` |
+| `/plan/templates` (+ `/new`, `/:id`) | `SessionTemplates*` | Session-Vorlagen CRUD | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/vorlagen` |
+| `/plan/exercises` (+ `/:id`) | `ExerciseLibrary*` | Übungsbibliothek | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/uebungen` |
+| `/plan/routes` (+ `/new`, `/:id`) | `Routes*` / `RouteEditorPage` | Routen zeichnen, OSRM-Snap, Segmente, Pacing, GPX/FIT-Export | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/routen` |
 | `/profile` | `AthleteProfilePage` | Profil, HF, KI-Keys, Provider | Header-Avatar | 🟢 KEEP |
 | `/chat` | `ChatPage` | KI-Chat (Konversationen, Streaming, Plan-Anwendung) | Coach FAB | 🟡 ADAPT — Chat als FAB überall, nicht eigene Seite |
 | `/ki-log` | `KiLogPage` | Alle KI-Calls (Debug) | (intern) | 🔴 REMOVE oder → `/admin` |
@@ -1309,8 +1348,8 @@ Pro Feature/Bereich eines von vier Labels:
 ### 6.6 Lücken zur PRD-Vision (🔵 NEW)
 
 **Tab-Ebene:**
-- Bottom Nav: aktuelle 5 Slots ≠ PRD (Sessions/Profil raus, Sammlung/Training rein)
-- Sammlung-Tab existiert nicht — Inhalte (Routen/Vorlagen/Übungen) sind unter `/plan/*` versteckt
+- Bottom Nav: aktuelle 5 Slots ≠ PRD (Sessions/Profil raus, Bibliothek/Training rein)
+- Bibliothek-Tab existiert nicht — Inhalte (Routen/Vorlagen/Übungen) sind unter `/plan/*` versteckt
 
 **Heute-Tab (§4.1):**
 - GoalCard als Hero (mit ReadinessRing + Faktoren) — nicht implementiert
@@ -1337,7 +1376,7 @@ Pro Feature/Bereich eines von vier Labels:
 
 | # | Story | Wert | Komplexität |
 |---|---|---|---|
-| 1 | **Routing-Umbau** (`/sessions` → `/training`, `/plan/templates|exercises|routes` → `/sammlung/*`) + Sammlung-Tab | hoch | niedrig |
+| 1 | **Routing-Umbau** (`/sessions` → `/training`, `/plan/templates|exercises|routes` → `/bibliothek/*`) + Bibliothek-Tab | hoch | niedrig |
 | 2 | **GoalCard als Hero auf Heute** (Race + Tage-Countdown + ReadinessRing) | hoch | mittel |
 | 3 | **AI Insight als erstes Element auf Heute** | hoch | niedrig |
 | 4 | **Streak-Anti-Pattern fixen** (`_build_motivation` in `fitness.py`) | mittel | niedrig |
@@ -1496,8 +1535,8 @@ In `training-analyzer/docs/PRD.md` (Anfang):
 | **1.3** | Heute-Tab nativ (GoalCard-Hero, WeekOverview, Coach-Insight) | groß |
 | **1.4** | Training-Tab nativ (Sessions, Detail, Soll/Ist-Compare, Collapse-Sektionen) | mittel |
 | **1.5** | Plan-Tab nativ + Pacing-Rechner | mittel |
-| **1.6** | Analyse-Tab nativ + Insights-Engine | mittel |
-| **1.7** | Sammlung-Tab nativ (Routen, Vorlagen, Übungen) | mittel |
+| **1.6** | Fortschritt-Tab nativ + Insights-Engine | mittel |
+| **1.7** | Bibliothek-Tab nativ (Routen, Vorlagen, Übungen) | mittel |
 | **1.8** | Apple Watch Companion (Workout-Export, Race-Day-Begleitung) | mittel-groß |
 | **1.9** | Personal-Use-Phase: 3–6 Monate eigene Nutzung, Konzept feinjustieren | — |
 
@@ -1548,8 +1587,8 @@ Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls lauf
 
 | # | Frage | Status | Owner | Notiz |
 |---|---|---|---|---|
-| 1 | Tab-Namen final | offen | Nils | „Analyse" + „Sammlung" sind Vorschläge, müssen im Interview validiert werden |
-| 2 | URL-Migration `/fortschritt` → `/analyse` | offen | Nils | Mit Redirect oder Breaking Change? |
+| 1 | Tab-Namen final | ✅ entschieden 2026-08-04 | Nils | „Fortschritt" und „Bibliothek" bleiben — siehe §3.1 |
+| 2 | URL-Migration `/sammlung` → `/bibliothek` | offen | Nils | Betrifft nur die Web-App; `/fortschritt` bleibt wie es ist |
 | 3 | AICoachInsight ↔ Alert-Komponente | offen | — | Im Figma wurde Alert(variant=ai) erstellt, AICoachInsight noch nicht entfernt |
 | 4 | Goal Readiness — Implementation-Scope | offen | — | Konzept liegt vor, Build-Story fehlt |
 | 5 | Mental Model / Vokabular | offen | Nils | Wird in S3 erfasst |
