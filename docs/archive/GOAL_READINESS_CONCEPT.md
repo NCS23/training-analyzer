@@ -54,7 +54,25 @@ Diese Dimensionen sind in der Trainingsliteratur etabliert (Daniels, Pfitzinger,
 
 **Metrik:** CTL — 42-Tage exponentiell gewichteter Mittelwert der täglichen TSS (Training Stress Score).
 
-- `rTSS = (Dauer_Sekunden × IF²) / 3600` mit `IF = aktueller Pace / Schwellen-Pace`
+- `rTSS = (Dauer_Sekunden × IF²) / 3600 × 100` mit `IF = Schwellen-Pace / aktueller Pace`
+
+> **Korrigiert 2026-08-25 (minsaga #786).** Hier stand
+> `rTSS = (Dauer_Sekunden × IF²) / 3600` mit
+> `IF = aktueller Pace / Schwellen-Pace`. Zwei Fehler:
+>
+> 1. **Der Bruch war invertiert.** Pace steht in Sekunden je
+>    Kilometer — kleiner heisst schneller. Mit der alten Formel
+>    ergäbe ein schnellerer Lauf ein KLEINERES IF und damit weniger
+>    Belastung.
+> 2. **Der Faktor 100 fehlte.** Nach der Konvention ist eine Stunde
+>    an der Schwelle 100 Punkte, nicht 1.
+>
+> Zusammen hätten alle CTL-Werte um 1 gelegen und jede Volumen-Säule
+> bei 0. Der Code rechnet seit jeher richtig
+> (`TrainingLoadAnalyzer.swift`); korrigiert wird das Dokument,
+> bevor jemand die Formel als Referenz nimmt.
+>
+> Der Code kappt zusätzlich auf IF 0,4 bis 1,3 — gegen GPS-Ausreisser.
 - Setzt voraus: Schwellen-Pace bekannt (aus Threshold-Test, siehe §7)
 - Erste ~6 Wochen: CTL noch nicht „eingeschwungen"
 
