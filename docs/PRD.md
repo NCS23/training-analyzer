@@ -840,8 +840,14 @@ Was die App **nicht** für mich tun soll:
 
 ### 3.1 Navigation: 5 Haupt-Tabs
 
-> **Entschieden am 2026-08-04 (Nils).** Die Labels stehen; die vorher hier
-> vorgeschlagenen Umbenennungen „Analyse" und „Sammlung" sind verworfen.
+> **Entschieden am 2026-08-25 (Nils).** Tab 3 heisst „Fortschritt",
+> Tab 5 heisst „Sammlung".
+>
+> Vorgeschichte: Am 2026-08-04 standen hier „Fortschritt" und
+> „Bibliothek", in minsaga hiessen die Tabs am 2026-08-25
+> „Analyse" und „Sammlung" — beides unter Berufung auf
+> dieselbe Person am selben Tag. Aufgefallen ist der Widerspruch beim
+> Abgleich (minsaga #786), aufgelöst wurde er über Kreuz.
 
 | # | Tab | Zweck (kurz) | Frequenz |
 |---|---|---|---|
@@ -849,16 +855,22 @@ Was die App **nicht** für mich tun soll:
 | 2 | **Training** | Alle Sessions (Wochenansicht default + History) | täglich |
 | 3 | **Fortschritt** | Auswertung, Trends, Insights, Form/Score | wöchentlich |
 | 4 | **Plan** | Strategische Saison-Planung mit Ziel + Phasen + Pacing | gelegentlich |
-| 5 | **Bibliothek** | Wiederverwendbare Bausteine: Routen, Vorlagen, Übungen | gelegentlich |
+| 5 | **Sammlung** | Wiederverwendbare Bausteine: Routen, Vorlagen, Übungen | gelegentlich |
 
-Die Argumente für „Analyse" und „Sammlung" waren die Nüchternheit des
-Begriffs und die Zeichenlänge. Dagegen stand, was der Athlet sucht:
-„Fortschritt" ist das Wort für die Frage *„komme ich voran?"* —
-„Analyse" beschreibt die Tätigkeit der App, nicht das Anliegen des
-Nutzers. „Bibliothek" trägt dasselbe Bild wie der Inhalt: etwas, das man
-anlegt und wieder hervorholt.
+**Tab 3 heisst „Fortschritt".** Das ist das Wort für die Frage
+*„komme ich voran?"* — „Analyse" beschreibt die Tätigkeit der App,
+nicht das Anliegen des Nutzers. Der Athlet sucht das eine, nicht das
+andere.
 
-Die iOS-App folgt diesen Labels seit #326.
+**Tab 5 heisst „Sammlung".** Hier stand „Bibliothek", mit dem
+Argument, das Bild passe zum Inhalt: etwas, das man anlegt und wieder
+hervorholt. Das gilt für „Sammlung" genauso, in einem Wort weniger
+Feierlichkeit — und die App sagt es bereits an zwei Stellen im Text
+(„landet in deiner Sammlung").
+
+Die Dateinamen im Code bleiben `AnalyseView` und `SammlungView`. Sie
+beschreiben, was der Code tut; die Beschriftung beschreibt, was der
+Athlet sucht. Das darf auseinandergehen.
 
 **Konvention für Tab-Labels:** 1 Wort, ≤ 8 Zeichen, deutsch, kein Wortspiel. Truncation in der UI ist als Sicherheitsleine implementiert (`textTruncation: ENDING`), nicht als Designziel.
 
@@ -943,17 +955,50 @@ Die iOS-App folgt diesen Labels seit #326.
 
 ### 4.2 Training
 
-**Zweck:** Alle Sessions an einem Ort — Wochenansicht (default) + komplette History + Upload + Detail.
+> **Ausgeschrieben 2026-08-25 (minsaga #786).** Hier stand ein Zwecksatz und
+> fünfmal `[tbd]`. Der Zwecksatz nannte vier Bestandteile — „Wochenansicht
+> (default) + komplette History + Upload + Detail" — und wurde seither wie
+> eine Spezifikation zitiert, obwohl er keine war. Einer der vier widerspricht
+> sogar §2.5.2.
 
-**Figma:** *[Link einfügen]*
+**Zweck:** Jede aufgezeichnete Einheit an einem Ort, mit dem Weg ins Detail.
 
-**Komposition:** *[tbd]*
+#### Was hier NICHT hingehört: ein Upload
 
-**Komponenten verwendet:** *[tbd]*
+§2.5.2 beschreibt den Weg, den eine Einheit nimmt, im Detail — und der kommt
+ohne Upload aus. Als Schmerz im Ist steht dort ausdrücklich „Upload-Flow zu
+komplex (Datei → Typ → Datum → Detail, 3+ Schritte)", als Soll „HealthKit-
+Listener erkennt FIT, ein Tap zum Upload".
 
-**Empty States:** *[tbd]*
+In der nativen App ist auch dieser eine Tap weggefallen: Läufe werden aus
+Apple Health importiert, ohne dass jemand etwas anstösst. Ein Upload-Knopf im
+Training-Tab wäre ein Rückschritt hinter §2.5.2, kein Fortschritt gegenüber
+dem Ist.
 
-**Verwandte Jobs:** *[tbd]*
+**Was bleibt:** Krafttraining von Hand erfassen — das ist kein Upload, sondern
+die einzige Einheit, die ohne Uhr stattfindet und deshalb nirgends herkommt.
+
+#### Komposition
+
+| Block | Bedingung |
+|---|---|
+| Kopfzeile mit Wortmarke, Filter, Krafttraining erfassen, Avatar | immer |
+| Liste der Einheiten, neueste zuerst, mit Disziplin-Symbol, Datum, Distanz und Dauer | Einheiten vorhanden |
+| Coach-Knopf | immer |
+
+**Wochenansicht:** offen. Sie wohnt heute im Plan-Tab und zeigt dort Soll
+gegen Ist. Eine zweite im Training-Tab wären wieder zwei Wege zum selben
+Inhalt — derselbe Fehler, den minsaga #769 auf der Plan-Seite behoben hat.
+Vor dem Bauen gehört entschieden, welche der beiden bleibt.
+
+#### Empty States
+
+| Lage | Text |
+|---|---|
+| Noch keine Einheit | Sagt, dass Läufe **von selbst** aus Apple Health kommen, sobald einer aufgezeichnet wurde. Verweist nicht auf einen anderen Tab — ein Leerzustand, der weiterschickt, ist ein Eingeständnis. |
+| Filter ohne Treffer | Nennt den Filter und den Weg zurück. |
+
+**Verwandte Jobs:** §2.5.2 (Nach dem Lauf), §2.3 Job 3 (Verlauf einsehen).
 
 ---
 
@@ -989,9 +1034,13 @@ Die iOS-App folgt diesen Labels seit #326.
 
 ---
 
-### 4.5 Bibliothek
+### 4.5 Sammlung
 
 **Zweck:** Wiederverwendbare Trainingsbausteine — Routen, Vorlagen, Übungen.
+
+> Umbenannt 2026-08-25 mit §3.1. Die Web-Routen `/bibliothek/...` in §3.2
+> bleiben, wie sie sind — die Web-App ist ein Übergangs-Tool mit eigenen
+> Adressen, und eine Umbenennung dort bricht Lesezeichen ohne Gewinn.
 
 **Figma:** *[Link einfügen]*
 
@@ -1015,9 +1064,15 @@ Die iOS-App folgt diesen Labels seit #326.
 
 **Idee:** Beantwortet die Frage *„Bin ich bereit für dieses Rennen in X Tagen in Zeit Y?"*.
 
-**Status:** Konzept liegt vor (siehe Archiv), Implementation steht aus.
+**Status:** Umgesetzt und in Betrieb (minsaga S16, #149, #200, #662, #697, #774, #795).
 
-*[Detailspezifikation aus archive/GOAL_READINESS_CONCEPT.md hierher migrieren — TBD]*
+> **Ersetzt 2026-08-25 (minsaga #786).** Die ausführliche Quelle ist jetzt
+> `docs/TRAININGSKATALOG.md` Kapitel 12 im minsaga-Repo — mit jeder Zahl,
+> ihrer Beleglage und dem, was sie nicht kann. Das Archiv-Dokument bleibt
+> als Herkunft stehen; es ist nicht mehr die Referenz.
+>
+> Was dort herauskam: Von 37 Zahlen ist genau eine gemessen (der
+> Riegel-Exponent). Der Rest ist Konvention oder Modellierung.
 
 ### 5.2 Fitness-Score & Form (CTL/ATL/TSB)
 
@@ -1393,6 +1448,24 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Neuer Plan (aus [Epic #551](https://github.com/NCS23/training-analyzer/issues/551)):** Komplett **on-device Apple-App** (SwiftUI · iPhone/iPad/Mac/Watch) **ohne eigenen Backend-Server**. Daten in SwiftData, Sync über CloudKit. KI primär on-device via **Apple Foundation Models**, Claude API optional via BYOK.
 
+> **Ergänzt 2026-08-25 (minsaga #786).** „Sync über CloudKit" gilt nicht
+> für alles. Drei Datenbestände liegen bewusst **nur auf dem Gerät**
+> (`cloudKitDatabase: .none`):
+>
+> | Bestand | Warum gerätelokal |
+> |---|---|
+> | **Planhistorie** (`Planbuch`) | Was ein Plan früher war, ist die
+> Vorgeschichte dieses Geräts |
+> | **Chatverlauf** (`Chatbuch`) | Der Coach-Chat wandert **nicht**
+> zwischen den Geräten |
+> | **Abgleich-Protokoll** (`Syncbuch`) | Es beschreibt den Abgleich;
+> es über ihn zu schicken wäre zirkulär |
+>
+> Die mittlere Zeile ist eine Produktentscheidung und keine
+> technische: Wer am iPhone mit dem Coach gesprochen hat, findet das
+> Gespräch am iPad nicht wieder. Das mag richtig sein — es stand nur
+> nirgends, und der Nutzer erfährt es erst, wenn er sucht.
+
 #### Bestand-Neubewertung
 
 | Asset | Vorher | Jetzt (Epic #551) |
@@ -1447,8 +1520,17 @@ Stories aus Epic #551 sind Master-Plan:
 |---|---|---|
 | **Foundation** | S01–S10 (Xcode-Setup · SwiftData · CloudKit · Privacy Policy · Design-Tokens · HealthKit-Import · Session-Classifier · FIT/GPX-Parser · Dashboard · Session-Detail) | 5–7 Wochen |
 | **Karten + Pläne** | S11–S18 (MapKit · Trainingsplan-Editor · Plan-Generator · Pacing · Ziele · Krafttraining · WeatherKit · TipKit-Onboarding) | 4–6 Wochen |
-| **iPad + Mac** | S19–S21 (NavigationSplitView · Adaptive Layouts · Keyboard-Shortcuts) | 2–3 Wochen |
-| **watchOS** | S22–S28 (Watch-App · Live-Recording · Echtzeit-HR · Segment-Marker · CoreHaptics · WatchConnectivity · Complications) | 3–4 Wochen |
+| **watchOS** | S22–S28 (Watch-App · Live-Recording · Echtzeit-HR · Segment-Marker · CoreHaptics · WatchConnectivity · Complications) | ✅ weitgehend gebaut |
+| **iPad + Mac** | S19–S21 (NavigationSplitView · Adaptive Layouts · Keyboard-Shortcuts) | offen |
+
+> **Reihenfolge korrigiert 2026-08-25 (minsaga #786).** Hier standen iPad und Mac
+> vor watchOS. Tatsächlich ist es umgekehrt gekommen: `Apps/watchOS/` hat 53
+> Swift-Dateien mit Live-Aufzeichnung, Karten, Ansagen und Wochenplan, während
+> `NavigationSplitView` und `horizontalSizeClass` im ganzen `Apps/`-Baum nicht
+> vorkommen und `minsagaMacApp.swift` ein Platzhalter von 41 Zeilen ist.
+>
+> Das war die richtige Reihenfolge — §5.9 begründet sie inzwischen: Die Uhr
+> ist das Gerät, mit dem trainiert wird. Ein iPad ist es nicht.
 | **Apple-Ökosystem** | S29+ (Siri · Widgets · Live Activities · Shortcuts · Focus-Modes) | 3–4 Wochen |
 | **Personal-Use-Phase** | 3–6 Monate eigene Nutzung, Konzept feinjustieren | — |
 
@@ -1578,7 +1660,16 @@ Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls lauf
 
 - **Levels / Gamification** → siehe [`archive/FITNESS_LEVEL_SYSTEM_V2.md`](archive/FITNESS_LEVEL_SYSTEM_V2.md) für Begründung
 - **Social Features** (Follower, Kudos, Activity-Feed) — minsaga ist Solo-Coach, kein soziales Netz
-- **Wearable-Integrationen** (Garmin Connect, Apple Health) — vorerst nicht, manueller Upload reicht
+- **Fremd-Plattformen** (Garmin Connect, Strava, Polar Flow) — minsaga
+  liest aus Apple Health, nicht aus proprietären Clouds
+
+> **Korrigiert 2026-08-25 (minsaga #786).** Hier stand „Wearable-Integrationen
+> (Garmin Connect, **Apple Health**) — vorerst nicht, manueller Upload
+> reicht." Das widersprach §6.8, wo die HealthKit-Integration als
+> „ersetzt CSV/FIT-Upload" geführt wird, und dem Code: Einen FIT-
+> oder GPX-Session-Import gibt es gar nicht, Apple Health ist die
+> **einzige** Datenquelle für Läufe. Wer nur §7 las, hielt die
+> zentrale Datenquelle der App für ausgeschlossen.
 - *[weitere Anti-Features im Interview ergänzen]*
 
 ---
@@ -1587,7 +1678,7 @@ Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls lauf
 
 | # | Frage | Status | Owner | Notiz |
 |---|---|---|---|---|
-| 1 | Tab-Namen final | ✅ entschieden 2026-08-04 | Nils | „Fortschritt" und „Bibliothek" bleiben — siehe §3.1 |
+| 1 | Tab-Namen final | ✅ entschieden 2026-08-25 | Nils | **„Fortschritt" und „Sammlung"** — siehe §3.1 |
 | 2 | URL-Migration `/sammlung` → `/bibliothek` | offen | Nils | Betrifft nur die Web-App; `/fortschritt` bleibt wie es ist |
 | 3 | AICoachInsight ↔ Alert-Komponente | offen | — | Im Figma wurde Alert(variant=ai) erstellt, AICoachInsight noch nicht entfernt |
 | 4 | Goal Readiness — Implementation-Scope | offen | — | Konzept liegt vor, Build-Story fehlt |
@@ -1606,7 +1697,7 @@ Der Endnutzer gibt **keinen eigenen AI-Provider-Key** ein — alle KI-Calls lauf
 | 17 | **`workouts` vs. „session" Naming** | offen | — | DB-Tabelle heißt `workouts`, API/Frontend sagen „session". Konsistenz herstellen oder bewusst tolerieren? |
 | 18 | **Abomodell — Free vs. Paid Tier** | erledigt-2026-04-28 (rev2) | Nils | Spezifiziert in §10 (Free + Wochenabo 3,99 / Monatsabo 12,99 / Jahresabo 99 — kein Trial, Wochenabo statt Trial, Free hat 0 KI außer Onboarding-Sample) |
 | 19 | **Companion-Mode Apple Watch** | Vision (Roadmap) | — | Aktive Begleitung während Race + ggf. Training. Erfordert native Watch-App. Siehe §2.5.6. |
-| 20 | **HealthKit-Integration** | offen | — | Auto-FIT-Erkennung + Schlaf + Ruhe-HF aus Apple Health. Siehe §2.5.2 + §2.5.7. |
+| 20 | **HealthKit-Integration** | ✅ umgesetzt 2026 | — | Läufe, Ruhe-HF und Cardiofitness kommen aus Apple Health; einen FIT-Import gibt es nicht. Schlaf bleibt offen. Siehe §2.5.2 + §2.5.7. |
 
 ---
 
@@ -1648,7 +1739,7 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ### 9.4 Technik & Übungen
 
-✅ **Frei**: Kadenz · Lauf-ABC · Skippings · Anfersen · Kniehebellauf · Steigerungslauf · Dehnen · Cool-down · Phase · **Warm-Up**
+✅ **Frei**: Kadenz · Lauf-ABC · Skippings · Anfersen · Kniehebellauf · Steigerungslauf · Dehnen · Phase · **Einlaufen** · **Auslaufen**
 
 🔁 **Mit Erklärung**: Schrittlänge · Bodenkontaktzeit
 
@@ -1656,7 +1747,15 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ❌ **Nicht in UI**:
 - ~~GCT-Balance~~ → Apple Watch kann diese Daten nicht sammeln. Garmin-spezifisch (HRM-Pro/Running Dynamics Pod). Komplett raus.
-- ~~Aktivierung~~ → durch **„Warm-Up"** ersetzt
+- ~~Aktivierung~~, ~~Warm-Up~~, ~~Cool-down~~ → durch **„Einlaufen"** und **„Auslaufen"** ersetzt
+
+> **Korrigiert 2026-08-25 (minsaga #786).** Hier stand „Warm-Up" und
+> „Cool-down". Der Code sagt seit minsaga #548 „Einlaufen" und
+> „Auslaufen", nach einer Anweisung von Nils selbst: „Da sollten wir
+> recherchieren, was in der Praxis und Trainingswissenschaft genannt
+> wird." Die Recherche steht in `PlanSegmentArt.swift`. Deutsch
+> schlägt hier Englisch — §9.2 verlangt ohnehin „Deutsch, wo es ein
+> deutsches Wort gibt". Das Dokument zieht nach.
 
 ### 9.5 minsaga-spezifisch (Marken-Wortmaterial)
 
@@ -1678,7 +1777,7 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 | 6 | „Marathonpace" → komplett raus | für HM-Athlet nicht relevant |
 | 7 | „GCT-Balance" → komplett raus | Apple Watch sammelt nicht (Garmin-only) |
 | 8 | „Vertikale Oszillation" → nur Erweiterte Analyse-Sektion | Apple Watch sammelt ab WatchOS 9, optional sichtbar |
-| 9 | „Aktivierung" vs. „Warm-Up" → **„Warm-Up"** | fitness-typisch, kürzer |
+| 9 | „Aktivierung" vs. „Einlaufen" → **„Einlaufen"** | deutsch, und in der Trainingslehre gebräuchlich (korrigiert 2026-08-25, minsaga #786) |
 
 ---
 
@@ -1690,13 +1789,37 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 | Phase | KI-Backend | App-Preis | Compliance |
 |---|---|---|---|
-| **Phase 1 — Personal Use + Frühe Beta** (TestFlight) | Apple Foundation Models (on-device) + Claude BYOK (optional) | kostenlos | minimal |
+| **Phase 1 — Personal Use + Frühe Beta** (TestFlight) | Claude BYOK für alles Sprachliche; Foundation Models nur im Coach-Chat; ohne Schlüssel Regeltexte | kostenlos | minimal |
 | **Phase 2 — Erweiterte Beta** (TestFlight External) | + Server-Side-Claude (SSC) als Subscription-Option | kostenlos / Sub vorbereitet | mittel |
 | **Phase 3 — Markt-Launch** (App Store) | Foundation Models + Server-Side-Claude (Subscription) | Sub-Modell aktiv | voll |
 
 **Konsequenzen:**
 
 - **In Phase 1**: keine Subscription, keine Cost-Sorgen, keine Haftung für KI-Calls (User initiiert via BYOK)
+
+> **Korrigiert 2026-08-25 (minsaga #786).** Hier stand für Phase 1
+> „Apple Foundation Models (on-device) + Claude BYOK (optional)". Der
+> Code sagt an fünf Stellen das Gegenteil: „Das Apple-on-device-Modell ist
+> für Analysen zu schwach und fliegt aus allen Analyse-Pfaden" (minsaga
+> `ClaudeVeredelung.swift`, `HeuteView.swift`, `SessionEinordnungSection.swift`,
+> `RaceAnalyseView.swift`, `RaceAnalyse.swift`).
+>
+> **Der Code hat recht** (Entscheidung Nils, 2026-08-25). Das ist
+> gemessen und nicht gemeint. Was daraus folgt und offen bleibt:
+>
+> - **Wo Foundation Models bleiben:** im Coach-Chat. Dort ist ein
+>   Gespräch gefragt, keine Auswertung — und seit minsaga #779 liest
+>   das Modell dieselbe Trainingslehre wie Claude, nur im knappen
+>   Zuschnitt für sein 4096-Token-Fenster.
+> - **Ohne Schlüssel gibt es keine KI-Sprache**, sondern die
+>   regelbasierten Texte. Die sind vollständig und korrekt; was
+>   fehlt, ist der Ton. Phase 1 ist ohne Schlüssel karg — das ist
+>   der Preis dieser Ehrlichkeit und steht hier, damit es niemanden
+>   überrascht.
+> - **Nicht geprüft:** ob der knappe Prompt aus #779 die Lage
+>   ändert. Als das Modell aus den Analysen flog, kannte sein Prompt
+>   weder Trainingskonzepte noch Katalogzahlen. Vielleicht war nicht
+>   das Modell zu schwach, sondern der Prompt zu dünn.
 - **In Phase 2**: SSC wird verfügbar — User kann zwischen FM (gratis) / BYOK (eigener Key) / SSC (Subscription) wählen
 - **In Phase 3**: BYOK fällt weg → nur FM + SSC. Subscription wird Default für Premium-KI
 
@@ -1704,7 +1827,15 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 ### 10.1 Grundprinzipien
 
-- **Der Endnutzer gibt KEINEN AI-Provider-Key ein** — alle KI-Calls laufen über Entwickler-Key
+- **Ab Phase 2: Der Endnutzer gibt KEINEN AI-Provider-Key ein** — alle KI-Calls laufen über Entwickler-Key
+
+> **Eingegrenzt 2026-08-25 (minsaga #786).** Der Satz stand ohne
+> Phasenbezug und widersprach damit §10.0, wo Phase 1 ausdrücklich
+> BYOK vorsieht. Er beschreibt das Markt-Produkt, nicht die
+> persönliche Nutzung: In Phase 1 sind Entwickler und Nutzer
+> dieselbe Person, und es ist derselbe Schlüssel. Ein
+> Entwickler-Schlüssel für alle setzt einen Server voraus, den es
+> in der On-Device-Architektur aus §12 nicht gibt.
 - **Free-Tier ist echt nutzbar** im Sinne eines voll-funktionalen **Werkzeugs**, aber **ohne KI-Coach**
 - **Klare Trennlinie:** Werkzeug (algorithmische Funktionen) Free · Coach (KI-Funktionen) Paid
 - **Wochenabo statt Trial** — selbst-finanzierender Einstieg statt Subvention
