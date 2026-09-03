@@ -1287,7 +1287,7 @@ Pro Feature/Bereich eines von vier Labels:
 | `/plan/templates` (+ `/new`, `/:id`) | `SessionTemplates*` | Session-Vorlagen CRUD | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/vorlagen` |
 | `/plan/exercises` (+ `/:id`) | `ExerciseLibrary*` | Übungsbibliothek | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/uebungen` |
 | `/plan/routes` (+ `/new`, `/:id`) | `Routes*` / `RouteEditorPage` | Routen zeichnen, OSRM-Snap, Segmente, Pacing, GPX/FIT-Export | **Bibliothek** | 🟡 ADAPT — Routing → `/bibliothek/routen` |
-| `/profile` | `AthleteProfilePage` | Profil, HF, KI-Keys, Provider | Header-Avatar | 🟢 KEEP |
+| `/profile` | `AthleteProfilePage` | Profil, HF — KI-Keys und Provider entfallen: ein Schlüssel, ein Modell, kein Nutzer-Setting (minsaga `docs/FESTLEGUNGEN.md`) | Header-Avatar | 🟡 ADAPT |
 | `/chat` | `ChatPage` | KI-Chat (Konversationen, Streaming, Plan-Anwendung) | Coach FAB | 🟡 ADAPT — Chat als FAB überall, nicht eigene Seite |
 | `/ki-log` | `KiLogPage` | Alle KI-Calls (Debug) | (intern) | 🔴 REMOVE oder → `/admin` |
 | `/admin/users` | `AdminUsersPage` | User-Verwaltung | (Admin) | 🟢 KEEP |
@@ -1336,7 +1336,7 @@ Pro Feature/Bereich eines von vier Labels:
 |---|---|
 | `users`, `refresh_tokens` (Auth) | 🟢 KEEP |
 | `workouts` (alle Sessions, GPS, HR, Laps, TRIMP, Wetter-Enrichment) | 🟢 KEEP — Naming-Inkonsistenz: API/Frontend sagen „session", DB sagt „workout" |
-| `athletes` (HF, KI-Keys, Provider, max CTL) | 🟢 KEEP |
+| `athletes` (HF, max CTL — KI-Keys und Provider entfallen, siehe minsaga `docs/FESTLEGUNGEN.md`) | 🟡 ADAPT |
 | `threshold_tests`, `exercises`, `session_templates` | 🟢 KEEP |
 | `race_goals`, `pacing_strategies`, `training_routes` | 🟢 KEEP |
 | `training_plans`, `training_phases`, `weekly_plan_days`, `planned_sessions` | 🟢 KEEP |
@@ -1391,7 +1391,7 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Ursprünglicher Plan:** Web-App + FastAPI-Backend als Produkt, Subscription-Layer mit StoreKit.
 
-**Neuer Plan (aus [Epic #551](https://github.com/NCS23/training-analyzer/issues/551)):** Komplett **on-device Apple-App** (SwiftUI · iPhone/iPad/Mac/Watch) **ohne eigenen Backend-Server**. Daten in SwiftData, Sync über CloudKit. KI primär on-device via **Apple Foundation Models**, Claude API optional via BYOK.
+**Neuer Plan (aus [Epic #551](https://github.com/NCS23/training-analyzer/issues/551)):** Komplett **on-device Apple-App** (SwiftUI · iPhone/iPad/Mac/Watch) **ohne eigenen Backend-Server**. Daten in SwiftData, Sync über CloudKit. KI: **Claude, und sonst nichts** — ein Entwicklerschlüssel hinter einem eigenen Vermittlungsdienst, kein Nutzer-Setting (minsaga `docs/FESTLEGUNGEN.md`: ki-anbieter, ki-schluessel; #686). Apple Foundation Models sind ausprobiert und verworfen.
 
 #### Bestand-Neubewertung
 
@@ -1403,7 +1403,7 @@ Pro Feature/Bereich eines von vier Labels:
 | Native iOS/iPadOS/macOS-App | ⊘ existiert nicht | 🔵 **NEW** — komplett zu bauen in SwiftUI |
 | Native watchOS-Companion | Vision | 🔵 **NEW** — Phase 4 |
 | SwiftData + CloudKit | nicht relevant | 🔵 **NEW** — ersetzt PostgreSQL |
-| Apple Foundation Models | nicht angedacht | 🔵 **NEW** — ersetzt ~80% der Claude-Calls |
+| KI-Anbindung | Claude, BYOK je Nutzer | 🟡 **ADAPT** — Claude über einen Vermittlungsdienst mit Entwicklerschlüssel; Foundation Models ausprobiert und verworfen (#686) |
 | HealthKit-Integration | nicht angedacht | 🔵 **NEW** — ersetzt CSV/FIT-Upload |
 
 #### Kern-Vorteile der On-Device-Architektur
@@ -1422,20 +1422,18 @@ Pro Feature/Bereich eines von vier Labels:
 
 **Phase 1: Personal Use + frühe Beta** (TestFlight, 4–6 Monate)
 - Native iOS/Watch-App in Apple TestFlight
-- KI: **Apple Foundation Models (gratis, on-device)** + **Claude BYOK** (optional, User-eigener Key)
+- KI: **Claude** über den eigenen Schlüssel im Schlüsselbund — der Übergang, bis der Vermittlungsdienst steht (FESTLEGUNGEN: ki-heute)
 - App ist kostenlos
 - Compliance: minimal (TestFlight-spezifisch)
 - Backend bleibt parallel als Übergangs-Tool für Web-Dogfooding
 
 **Phase 2: Erweiterte Beta** (TestFlight External, ~10k Tester)
-- Foundation Models + BYOK weiter verfügbar
-- **Optional Server-Side-Claude (SSC)** als bequeme Alternative für Nicht-Tech-User
+- **Claude über den Vermittlungsdienst** mit Entwicklerschlüssel — kein Nutzer-Setting, kein eigener Key (FESTLEGUNGEN: ki-schluessel)
 - Erste Feedback-Loops aus echtem User-Verhalten
 - Subscription-Layer optional vorbereitet
 
 **Phase 3: Markt-Launch** (App Store, wenn Phase 2 erfolgreich)
-- Foundation Models (gratis) + Server-Side-Claude (Subscription)
-- BYOK fällt weg (Komplexität reduzieren für Mainstream-User)
+- Claude über den Vermittlungsdienst, bezahlt über die Subscription
 - Subscription via StoreKit aktiv
 - Volle Compliance (DSGVO, AGB, Versicherung, ggf. UG-Umfirmierung)
 
@@ -1462,7 +1460,7 @@ Web-App + Backend bleiben **Übergangs-Tool**:
 - **Phase 2**: Web läuft parallel, eventuell als kostenloser „Light"-Zugang für Web-User
 - **Phase 3**: Web wird stillgelegt oder bleibt als Marketing-Site
 
-→ Backend wird bei Phase 3 **nicht mehr benötigt** (alles in SwiftData + CloudKit + Foundation Models + optional Claude API direkt vom Device).
+→ Backend wird bei Phase 3 **nicht mehr benötigt** (alles in SwiftData + CloudKit; die KI über den Vermittlungsdienst).
 
 #### Repo-Strategie
 
@@ -1690,15 +1688,15 @@ Jeder Trainings-Begriff fällt in eine von vier Klassen:
 
 | Phase | KI-Backend | App-Preis | Compliance |
 |---|---|---|---|
-| **Phase 1 — Personal Use + Frühe Beta** (TestFlight) | Apple Foundation Models (on-device) + Claude BYOK (optional) | kostenlos | minimal |
-| **Phase 2 — Erweiterte Beta** (TestFlight External) | + Server-Side-Claude (SSC) als Subscription-Option | kostenlos / Sub vorbereitet | mittel |
-| **Phase 3 — Markt-Launch** (App Store) | Foundation Models + Server-Side-Claude (Subscription) | Sub-Modell aktiv | voll |
+| **Phase 1 — Personal Use + Frühe Beta** (TestFlight) | Claude über den eigenen Schlüssel im Schlüsselbund (Übergang, FESTLEGUNGEN: ki-heute) | kostenlos | minimal |
+| **Phase 2 — Erweiterte Beta** (TestFlight External) | Claude über den Vermittlungsdienst mit Entwicklerschlüssel | kostenlos / Sub vorbereitet | mittel |
+| **Phase 3 — Markt-Launch** (App Store) | Claude über den Vermittlungsdienst (Subscription) | Sub-Modell aktiv | voll |
 
 **Konsequenzen:**
 
-- **In Phase 1**: keine Subscription, keine Cost-Sorgen, keine Haftung für KI-Calls (User initiiert via BYOK)
-- **In Phase 2**: SSC wird verfügbar — User kann zwischen FM (gratis) / BYOK (eigener Key) / SSC (Subscription) wählen
-- **In Phase 3**: BYOK fällt weg → nur FM + SSC. Subscription wird Default für Premium-KI
+- **In Phase 1**: keine Subscription; der Entwickler nutzt seinen eigenen Schlüssel (Personal Use)
+- **In Phase 2**: der Vermittlungsdienst steht — ein Schlüssel, ein Modell, kein Nutzer-Setting
+- **In Phase 3**: die Subscription bezahlt die KI-Aufrufe; der Nutzer sieht keinen Provider und keinen Key
 
 → **Phase 1 = sofort umsetzbar.** Subscription-Layer + StoreKit-Integration sind Phase-3-Items. Siehe §6.8 Sprint-Roadmap.
 
@@ -2021,8 +2019,8 @@ Der eigentliche Grund für UG/GmbH ist **nicht** Apple oder Stripe, sondern Haft
 |---|---|---|---|
 | Privacy Policy | Light (für TestFlight) | Voll | Voll |
 | HealthKit Usage Descriptions | ✅ Pflicht (Apple) | ✅ Pflicht | ✅ Pflicht |
-| AVV mit Anthropic | bei BYOK: User-Verantwortung | nötig wenn SSC aktiv | nötig |
-| User-Einwilligung für KI | bei BYOK: implizit | explizit | explizit |
+| AVV mit Anthropic | Personal Use, eigener Schlüssel des Entwicklers | nötig (Vermittlungsdienst) | nötig |
+| User-Einwilligung für KI | explizit | explizit | explizit |
 | Datenexport-Funktion | nicht zwingend | nicht zwingend | ✅ Pflicht (DSGVO) |
 | Account-Löschung | nicht zwingend | nicht zwingend | ✅ Pflicht (DSGVO) |
 | AGB | nicht zwingend | empfehlenswert | ✅ Pflicht |
@@ -2156,31 +2154,30 @@ In Onboarding + bei Plan-Generierung sichtbar:
 
 ## 12. Architektur-Prinzipien für Erweiterbarkeit
 
-> Heute haben wir mehrfach pivotiert (Stripe → Apple-only → BYOK → Foundation Models). Diese Optionalität müssen wir **bei jeder Implementierung bewahren** — damit zukünftige Pivots nicht teure Refactorings werden.
+> Heute haben wir mehrfach pivotiert (Stripe → Apple-only → BYOK → Foundation Models → Claude allein, #686). Diese Optionalität müssen wir **bei jeder Implementierung bewahren** — damit zukünftige Pivots nicht teure Refactorings werden.
 
-### 12.1 KI-Provider-Abstraktion
+### 12.1 KI-Anbindung
 
-**Problem:** Heute Foundation Models, morgen vielleicht Claude/Opus/Gemini/lokales LLM. Wenn KI-Calls direkt an Provider-SDKs gebunden sind, blockiert das den Wechsel.
+**Gestrichen am 2026-09-02** (minsaga #994). Was hier stand — vier
+austauschbare Provider „per User-Setting", darunter Foundation Models
+als Default und ein regelbasierter Rückfall „immer verfügbar" —
+beschrieb nicht einen alten Stand, sondern das Gegenteil dessen, was
+gilt:
 
-**Prinzip:** **Protocol-orientierte Abstraktion** — alle KI-Calls gehen über ein einheitliches Interface:
+- Die KI ist Claude, und sonst nichts (#686).
+- Ein einziger Entwicklerschlüssel hinter einem eigenen
+  Vermittlungsdienst; in der App liegt er nie. Kein Nutzer-Setting.
+- Fällt das Modell aus, wird der Ausfall gekennzeichnet. Kein aus
+  Regeln zusammengesetzter Text tritt an seine Stelle (#984).
 
-```
-Protocol AIProvider {
-    func generateInsight(_ session: Session) async -> Insight
-    func chat(_ message: String, context: Context) -> AsyncStream<String>
-    func generatePlan(_ goal: Goal) async -> Plan
-    func generateWeekReview(_ week: Week) async -> Review
-    func generateAdaptation(_ trigger: Trigger) async -> Adaptation
-}
-```
+Die Quelle dafür ist **minsaga `docs/FESTLEGUNGEN.md`** — dort wird sie
+maschinell gegen Hooks, CLAUDE.md und README geprüft. Hier wird nichts
+geprüft, und genau deshalb steht die Festlegung hier nicht mehr: Ein
+korrigiertes §12.1 kann in vier Monaten wieder falsch sein, eine
+gestrichene Stelle nicht.
 
-**Implementations** parallel verfügbar, austauschbar per User-Setting:
-- `FoundationModelsProvider` (on-device, default)
-- `BYOKClaudeProvider` (User-eigener Key, optional)
-- `ServerSideClaudeProvider` (Subscription, Phase 3)
-- `AlgorithmicFallbackProvider` (regel-basiert, immer verfügbar)
-
-→ **Wechsel zwischen Providern = Settings-Toggle, nicht Code-Refactor.**
+Das `AIProvider`-Protokoll bleibt im Code — mit genau einer
+Implementierung. Es ist eine Naht, kein Wahlschalter.
 
 ### 12.2 Repository-Pattern für Daten
 
@@ -2321,8 +2318,8 @@ Bei „cheap": einfach machen, später refactoren.
 | Entscheidung | Reversibility | Maßnahme |
 |---|---|---|
 | Apple StoreKit only | mittel | StoreKit-Logik isoliert, Stripe könnte später nachgerüstet werden |
-| On-Device + Foundation Models | mittel | KI-Provider-Abstraktion (siehe §12.1) |
-| BYOK in Phase 1 | hoch (leicht entfernbar) | Phase 3 entfernt BYOK über Settings-Flag |
+| Claude allein, ein Entwicklerschlüssel | mittel | `AIProvider`-Protokoll als Naht (siehe §12.1) — eine Implementierung, kein Wahlschalter |
+| Eigener Schlüssel im Schlüsselbund bis der Dienst steht | hoch (leicht entfernbar) | wird durch den Vermittlungsdienst abgelöst (FESTLEGUNGEN: ki-heute) |
 | SwiftData statt PostgreSQL | mittel | Repository-Pattern (siehe §12.2) |
 | Web-App als Übergang | hoch | Web-App wird einfach abgekündigt, kein Migrations-Aufwand |
 | Subscription-Layer (Phase 3) | hoch | Stub vorbereiten in Phase 1 (siehe §12.6) |
@@ -2355,3 +2352,4 @@ Bei jedem Sprint-Planning prüfen:
 | 2026-04-28 | §10.7 MwSt-Korrektur · §10.11 Rechtsform · §11 Compliance | Cost-Realismus-Check + Compliance-Block (DSGVO, EU AI Act, Apple App Store, Haftung) |
 | 2026-04-28 | §6.8 Strategie-Pivot zu Epic #551 (On-Device-Apple-App) · §10.0 + §11.0 3-Phasen-Modell | Native iOS-App ohne Backend-Server. Foundation Models + BYOK in Phase 1. Subscription erst Phase 3. Massive Cost-Reduktion durch On-Device-LLM. |
 | 2026-04-28 | §12 Architektur-Prinzipien für Erweiterbarkeit | Konsequenz aus mehrfachen Pivots heute: Optionalität bewahren. Provider-Abstraktion · Repository-Pattern · Schema-Versionierung · Reversibility-Check. |
+| 2026-09-02 | §12.1 gestrichen · §6.8, §7, §10.0, §11.0, §12.10 auf „ein Schlüssel, ein Modell, kein Nutzer-Setting" gezogen | Sechs Stellen behaupteten eine KI-Provider-Wahl, die es nicht gibt (minsaga #994). Quelle ist minsaga docs/FESTLEGUNGEN.md (#686, #811); §12.1 wird nicht korrigiert, sondern gestrichen, weil hier nichts maschinell geprüft wird. |
