@@ -158,7 +158,6 @@ async def generate_exercise_enrichment(
         response = client.messages.create(
             model=settings.claude_model,
             max_tokens=1000,
-            temperature=0.2,
             messages=[{"role": "user", "content": prompt}],
         )
         duration_ms = int((time.monotonic() - t0) * 1000)
