@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="/Users/Nils/Projects/training-analyzer"
+# Wurzel des Repos aus dem Ort dieser Datei (.claude/hooks/lib/) — nicht fest eingetragen: seit dem Umzug auf den
+# Mac Studio (29.09.2026) heißt der Home-Ordner anders, und die Hooks liefen mit dem festen Pfad still ins Leere.
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 STATE_DIR="/tmp/claude-hooks"
 
 ensure_state_dir() {
