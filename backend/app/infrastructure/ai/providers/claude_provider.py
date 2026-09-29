@@ -48,7 +48,6 @@ class ClaudeProvider(AIProvider):
             response = client.messages.create(
                 model=self.model,
                 max_tokens=1000,
-                temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
             )
 
@@ -65,7 +64,6 @@ class ClaudeProvider(AIProvider):
             response = client.messages.create(
                 model=self.model,
                 max_tokens=2000,
-                temperature=0.3,
                 system=system_prompt,
                 messages=[{"role": "user", "content": message}],
             )
@@ -92,7 +90,6 @@ class ClaudeProvider(AIProvider):
             response = client.messages.create(
                 model=self.model,
                 max_tokens=2000,
-                temperature=0.3,
                 system=system_prompt,
                 messages=api_messages,
             )
@@ -116,7 +113,6 @@ class ClaudeProvider(AIProvider):
         async with client.messages.stream(
             model=self.model,
             max_tokens=2000,
-            temperature=0.3,
             system=system_prompt,
             messages=api_messages,
         ) as stream:
@@ -154,7 +150,6 @@ class ClaudeProvider(AIProvider):
             async with client.messages.stream(
                 model=self.model,
                 max_tokens=8000,
-                temperature=0.3,
                 system=system_prompt,
                 messages=api_messages,
                 tools=tools,  # type: ignore[arg-type]
